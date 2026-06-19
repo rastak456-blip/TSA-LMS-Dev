@@ -4121,15 +4121,15 @@ function renderStudentList(list) {
       <td>
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
         <div style="font-size:11px;color:#6B7280"><span style="color:#5E5CE6;font-weight:600">${s.level || '-'}</span></div>
-        <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${s.startDate ? s.startDate.replace('2026-','') : '-'} ~ ${s.departureDate ? s.departureDate.replace('2026-','') : '-'}</div>
+        <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.departureDate ? s.departureDate.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>
       </td>
       <td style="font-size:12px;font-weight:500">${s.dorm}</td>
       <td>
         <span class="tsa-badge tsa-badge-info" style="font-size:10.5px">${s.passportStatus}</span>
       </td>
-      <td style="font-size:11px;color:#374151;font-weight:600">
-        ${fmtFlightStr(s.flightInfo)}
-        <div style="font-size:10.5px;color:#6B7280;margin-top:2px">${s.arrivalDate ? '입국 ' + s.arrivalDate.replace('2026-','') : ''}</div>
+      <td style="font-size:11.5px;color:#374151;line-height:1.8">
+        <div><span style="font-size:10px;color:#6B7280;font-weight:600;margin-right:4px">입국</span>${fmtFlightStr(s.flightInfo) || '-'}</div>
+        <div><span style="font-size:10px;color:#D97706;font-weight:600;margin-right:4px">출국</span>${fmtFlightStr(s.flightOutInfo) || '-'}</div>
       </td>
       <td>
         <div style="font-size:12px;font-weight:600;color:#374151">${fmtDate(s.departureDate) || '미설정'}</div>
