@@ -1,0 +1,11 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+/* Apply Pretendard to all text-rendering elements */
+body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, div, a, li, td, th {
+    font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif !important;
+}
+
+/* Ensure icons retain their font family */
+[class^="ki-"], [class*=" ki-"], .ki-filled, .ki-outline, .ki-duotone, i {
+    font-family: 'KeenIcons' !important;
+}
