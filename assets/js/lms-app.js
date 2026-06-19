@@ -1126,8 +1126,7 @@ function navigate(view) {
   } else if (view === 'agency-invoice') {
     renderMonthlyInvoiceStats();
   } else if (view === 'dorm-erp') {
-    switchAdminDormTab('assign');
-    updateDormKPIs();
+    renderDormErpGrid();
   } else if (view === 'classroom-status') {
     renderClassroomStatus();
   }
@@ -1356,6 +1355,380 @@ function deleteClassroom(id) {
   showToast(`${c.room} 강의실이 삭제되었습니다.`, 'success');
   renderClassroomManage();
 }
+
+// ── 기숙사 ERP (신규) ─────────────────────────────────
+function openDormTemplateModal() {}
+function openDormRoomModal() {}
+
+function saveDormTemplate() {
+  const accom     = document.getElementById('tpl-accom')?.value;
+  const capacity  = parseInt(document.getElementById('tpl-capacity')?.value);
+  const condition = document.getElementById('tpl-condition')?.value;
+  const count     = parseInt(document.getElementById('tpl-count')?.value);
+  const costDay   = parseInt(document.getElementById('tpl-cost-day')?.value) || 0;
+  const costWeek  = parseInt(document.getElementById('tpl-cost-week')?.value) || 0;
+  const cost      = parseInt(document.getElementById('tpl-cost-4week')?.value) || 0;
+
+  if (!count || count < 1) { showToast('방 개수를 입력하세요.', 'danger'); return; }
+
+  // 중복 체크
+  const dup = MOCK_DORM_TEMPLATES.find(t => t.accomType === accom && t.capacity === capacity && t.condition === condition);
+  if (dup) { showToast('동일한 유형의 템플릿이 이미 존재합니다.', 'warning'); return; }
+
+  const newId = Math.max(...MOCK_DORM_TEMPLATES.map(t => t.id), 0) + 1;
+  MOCK_DORM_TEMPLATES.push({ id: newId, accomType: accom, capacity, condition, count, costDay, costWeek, cost });
+
+  // 폼 초기화
+  document.getElementById('tpl-count').value = '';
+  document.getElementById('tpl-cost-day').value = '';
+  document.getElementById('tpl-cost-week').value = '';
+  document.getElementById('tpl-cost-4week').value = '';
+
+  showToast(`✓ ${accom} ${capacity}인실 (${condition}) 템플릿이 등록되었습니다.`, 'success');
+  renderAdminDormTemplates();
+}
+
+function switchDormErpTab(tab) {
+  document.getElementById('dorm-erp-panel-assign').style.display   = tab === 'assign'   ? '' : 'none';
+  document.getElementById('dorm-erp-panel-settings').style.display = tab === 'settings' ? '' : 'none';
+  ['assign','settings'].forEach(t => {
+    const btn = document.getElementById(`dorm-erp-tab-${t}`);
+    if (!btn) return;
+    btn.style.color = t === tab ? '#5E5CE6' : '#6B7280';
+    btn.style.borderBottomColor = t === tab ? '#5E5CE6' : 'transparent';
+  });
+  if (tab === 'settings') {
+    renderAdminDormTemplates();
+    renderAdminDormRoomsTable();
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+  }
+}
+let _erpGenderFilter = '전체';
+let _erpAccomFilter  = '전체';
+let _erpCapFilter    = '전체';
+let _erpGradeFilter  = '전체';
+let _erpAssignTarget = null; // { roomNo, bedId }
+
+function setErpGenderFilter(btn, val) {
+  _erpGenderFilter = val;
+  document.querySelectorAll('[id^="erp-gf-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDormErpGrid();
+}
+function setErpAccomFilter(btn, val) {
+  _erpAccomFilter = val;
+  document.querySelectorAll('[id^="erp-accom-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDormErpGrid();
+}
+function setErpCapFilter(btn, val) {
+  _erpCapFilter = val;
+  document.querySelectorAll('[id^="erp-cap-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDormErpGrid();
+}
+function setErpGradeFilter(btn, val) {
+  _erpGradeFilter = val;
+  document.querySelectorAll('[id^="erp-grade-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDormErpGrid();
+}
+
+function renderDormErpGrid() {
+  const grid = document.getElementById('erp-dorm-room-grid');
+  if (!grid) return;
+
+  const startVal = document.getElementById('erp-dorm-start')?.value;
+  const endVal   = document.getElementById('erp-dorm-end')?.value;
+  const searchStart = startVal ? new Date(startVal) : null;
+  const searchEnd   = endVal   ? new Date(endVal)   : null;
+
+  function isOverlap(bedStart, bedEnd) {
+    if (!searchStart || !searchEnd) return !!bedStart;
+    if (!bedStart) return false;
+    const bs = new Date(`2026-${bedStart}`);
+    const be = bedEnd ? new Date(`2026-${bedEnd}`) : new Date('2026-12-31');
+    return bs <= searchEnd && be >= searchStart;
+  }
+
+  let rooms = [...MOCK_DORM_ROOMS];
+  if (_erpAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _erpAccomFilter);
+  if (_erpCapFilter   !== '전체') rooms = rooms.filter(r => r.capacity === parseInt(_erpCapFilter));
+  if (_erpGradeFilter !== '전체') rooms = rooms.filter(r => r.type && r.type.includes(_erpGradeFilter));
+  if (_erpGenderFilter !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _erpGenderFilter);
+
+  // KPI 계산
+  let kpiTotal = 0, kpiOccupied = 0, kpiVacant = 0;
+  rooms.forEach(r => (r.beds||[]).forEach(b => {
+    kpiTotal++;
+    if (isOverlap(b.start, b.end)) kpiOccupied++; else kpiVacant++;
+  }));
+  const kpiWaiting = MOCK_STUDENTS.filter(s => s.dorm === '미배정' && s.remittanceStatus === 'paid' && s.dormAccomType).length;
+  document.getElementById('erp-kpi-total')    && (document.getElementById('erp-kpi-total').textContent    = kpiTotal);
+  document.getElementById('erp-kpi-occupied') && (document.getElementById('erp-kpi-occupied').textContent = kpiOccupied);
+  document.getElementById('erp-kpi-vacant')   && (document.getElementById('erp-kpi-vacant').textContent   = kpiVacant);
+  document.getElementById('erp-kpi-waiting')  && (document.getElementById('erp-kpi-waiting').textContent  = kpiWaiting + '명');
+
+  const summaryEl = document.getElementById('erp-dorm-summary');
+  if (summaryEl) summaryEl.textContent = `총 ${rooms.length}개 호실 · 공실 ${kpiVacant}침대`;
+
+  // 유형별 그룹
+  const groups = {};
+  rooms.forEach(r => {
+    const key = `${r.accomType}__${r.type}`;
+    if (!groups[key]) groups[key] = { accomType: r.accomType, type: r.type, capacity: r.capacity, rooms: [] };
+    groups[key].rooms.push(r);
+  });
+
+  const accomColor = { '기숙사': '#5E5CE6', '콘도': '#8B5CF6' };
+  const genderIcon  = { '남성': '♂', '여성': '♀', '무관': '⚥' };
+  const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#6B7280' };
+
+  if (Object.keys(groups).length === 0) {
+    grid.innerHTML = `<div style="text-align:center;padding:60px;color:#9CA3AF;font-size:13px">조건에 맞는 호실이 없습니다.</div>`;
+    renderErpWaitingList();
+    return;
+  }
+
+  grid.innerHTML = Object.values(groups).map(g => {
+    const color = accomColor[g.accomType] || '#5E5CE6';
+    let gTotal = 0, gVacant = 0, gOccupied = 0, gIncoming = 0;
+    g.rooms.forEach(r => (r.beds||[]).forEach(b => {
+      gTotal++;
+      if (isOverlap(b.start, b.end)) gOccupied++;
+      else if (b.incoming) gIncoming++;
+      else gVacant++;
+    }));
+
+    const roomCards = g.rooms.map(r => {
+      const gr = r.genderRestriction || '무관';
+      const beds = (r.beds||[]).map(b => {
+        const occupied = isOverlap(b.start, b.end);
+        const hasIncoming = !occupied && b.incoming;
+        let bedBg, bedBorder, bedContent, clickHandler;
+
+        if (occupied) {
+          bedBg = '#F3F4F6'; bedBorder = '#D1D5DB';
+          const studentName = b.student ? b.student.split(' ')[0] : '사용 중';
+          bedContent = `
+            <div style="font-size:11px;font-weight:600;color:#374151">${studentName}</div>
+            <div style="font-size:10px;color:#9CA3AF">~ ${b.end || '-'}</div>
+            <button onclick="openErpReleaseModal('${r.roomNo}','${b.id}')" style="margin-top:4px;font-size:10px;padding:2px 6px;border:1px solid #EF4444;border-radius:4px;background:#FEF2F2;color:#EF4444;cursor:pointer;width:100%">해제</button>`;
+          clickHandler = '';
+        } else if (hasIncoming) {
+          bedBg = '#FEF3C7'; bedBorder = '#FCD34D';
+          bedContent = `
+            <div style="font-size:11px;font-weight:600;color:#D97706">입실 예정</div>
+            <div style="font-size:10px;color:#D97706">${b.incoming.date}</div>
+            <div style="font-size:10px;color:#9CA3AF">${b.incoming.student ? b.incoming.student.split(' ')[0] : ''}</div>`;
+          clickHandler = '';
+        } else {
+          bedBg = '#F0FDF4'; bedBorder = '#6EE7B7';
+          bedContent = `
+            <div style="font-size:11px;font-weight:700;color:#10B981">공 실</div>
+            <button onclick="openErpAssignModal('${r.roomNo}','${b.id}','${r.accomType}','${r.type}','${gr}')" style="margin-top:4px;font-size:10px;padding:2px 6px;border:1px solid #10B981;border-radius:4px;background:#D1FAE5;color:#059669;cursor:pointer;width:100%">배정하기</button>`;
+          clickHandler = '';
+        }
+
+        return `<div style="border:1.5px solid ${bedBorder};border-radius:8px;background:${bedBg};padding:8px 10px;min-width:85px;flex:1;text-align:center">
+          <div style="font-size:10px;color:#6B7280;margin-bottom:4px">침대 ${b.id}</div>
+          ${bedContent}
+        </div>`;
+      }).join('');
+
+      const roomIdx = MOCK_DORM_ROOMS.indexOf(r);
+      if (!r.roomNo) {
+        return `<div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:100px">
+          <div style="font-size:12px;color:#9CA3AF">${g.type} · 미배정 호실</div>
+          <button onclick="openAssignRoomNumber(${roomIdx})" style="font-size:12px;font-weight:600;padding:6px 16px;border:1.5px solid #5E5CE6;border-radius:8px;background:#EEF2FF;color:#5E5CE6;cursor:pointer">🏠 호실 번호 배정</button>
+        </div>`;
+      }
+      return `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;font-weight:800;color:#111827">${r.roomNo}호</span>
+            <span style="font-size:11px;color:${genderColor[gr]};font-weight:600">${genderIcon[gr]} ${gr}</span>
+          </div>
+          <button onclick="openRoomDetailModal(${roomIdx})" style="font-size:11px;padding:3px 10px;border:1px solid #D1D5DB;border-radius:6px;background:#F9FAFB;color:#374151;cursor:pointer;white-space:nowrap">상세보기</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${beds}</div>
+      </div>`;
+    }).join('');
+
+    const statusColor = gVacant > 0 ? '#10B981' : '#EF4444';
+    const statusLabel = gVacant > 0 ? `공실 ${gVacant}` : '만실';
+
+    return `<div style="border-radius:12px;border:1px solid #E5E7EB;overflow:hidden">
+      <div style="background:#F8F9FF;border-bottom:1px solid #E5E7EB;padding:12px 18px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:${color};background:${color}15;padding:2px 10px;border-radius:10px">${g.accomType}</span>
+        <span style="font-size:13px;font-weight:700;color:#111827">${g.type}</span>
+        <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
+          <span style="font-size:11.5px;color:#6B7280">총 ${gTotal}침대</span>
+          <span style="font-size:11.5px;color:#374151">사용 중 <b>${gOccupied}</b></span>
+          ${gIncoming > 0 ? `<span style="font-size:11.5px;color:#D97706">입실예정 <b>${gIncoming}</b></span>` : ''}
+          <span style="font-size:12px;font-weight:700;color:${statusColor};background:${statusColor}15;padding:3px 12px;border-radius:10px">${statusLabel}</span>
+        </div>
+      </div>
+      <div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+        ${roomCards}
+      </div>
+    </div>`;
+  }).join('');
+
+  renderErpWaitingList();
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function renderErpWaitingList() {
+  const tbody = document.getElementById('erp-waiting-tbody');
+  const countEl = document.getElementById('erp-waiting-count');
+  if (!tbody) return;
+  const waiting = MOCK_STUDENTS.filter(s => s.dorm === '미배정' && s.remittanceStatus === 'paid' && s.dormAccomType);
+  if (countEl) countEl.textContent = `전체 ${waiting.length}명`;
+  if (waiting.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#9CA3AF">배정 대기 학생이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = waiting.map(s => `<tr>
+    <td><strong>${s.nick}</strong> <span style="font-size:11px;color:#6B7280">${s.name}</span></td>
+    <td>${s.flag || ''} ${s.nationality}</td>
+    <td style="color:${s.gender==='남'?'#0EA5E9':'#EC4899'}">${s.gender === '남' ? '♂ 남성' : '♀ 여성'}</td>
+    <td style="font-size:11.5px">${[s.dormAccomType, s.dormType, s.dormGrade].filter(Boolean).join(' · ')}</td>
+    <td style="font-size:11.5px;color:#6B7280">${s.dormIn || '-'}</td>
+    <td style="font-size:11.5px;color:#6B7280">${s.agency || '-'}</td>
+    <td><button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openErpAssignModalForStudent(${s.id})">배정</button></td>
+  </tr>`).join('');
+}
+
+function openErpAssignModal(roomNo, bedId, accomType, roomType, gender) {
+  _erpAssignTarget = { roomNo, bedId };
+  const infoEl = document.getElementById('erp-assign-bed-info');
+  if (infoEl) infoEl.innerHTML = `<b>${roomNo}호</b> · 침대 ${bedId} &nbsp;|&nbsp; ${accomType} ${roomType} &nbsp;|&nbsp; ${gender}`;
+  document.getElementById('erp-assign-modal-title').textContent = `${roomNo}호 침대 ${bedId} 배정`;
+  // 조건 맞는 대기 학생 필터
+  const waiting = MOCK_STUDENTS.filter(s => s.dorm === '미배정' && s.remittanceStatus === 'paid' && s.dormAccomType === accomType);
+  const listEl = document.getElementById('erp-assign-student-list');
+  if (listEl) {
+    if (waiting.length === 0) {
+      listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px">배정 가능한 대기 학생이 없습니다.</div>`;
+    } else {
+      listEl.innerHTML = waiting.map(s => `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#5E5CE6'" onmouseout="this.style.borderColor='#E5E7EB'">
+          <input type="radio" name="erp-assign-student" value="${s.id}" style="accent-color:#5E5CE6"/>
+          <div style="flex:1">
+            <div style="font-size:12.5px;font-weight:600;color:#111827">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
+            <div style="font-size:11px;color:#6B7280">${s.flag||''} ${s.nationality} · ${s.gender==='남'?'남성':'여성'} · ${[s.dormType, s.dormGrade].filter(Boolean).join(' ')}</div>
+          </div>
+          <span style="font-size:11px;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:8px">대기</span>
+        </label>`).join('');
+    }
+  }
+  // 날짜 기본값: 필터 날짜
+  const dateIn  = document.getElementById('erp-assign-date-in');
+  const dateOut = document.getElementById('erp-assign-date-out');
+  if (dateIn)  dateIn.value  = document.getElementById('erp-dorm-start')?.value || '';
+  if (dateOut) dateOut.value = document.getElementById('erp-dorm-end')?.value   || '';
+  document.getElementById('erp-assign-modal').style.display = 'block';
+  document.getElementById('erp-assign-backdrop').style.display = 'block';
+}
+
+function openErpAssignModalForStudent(studentId) {
+  const s = MOCK_STUDENTS.find(x => x.id === studentId);
+  if (!s || !s.dormAccomType) return;
+  // 조건 맞는 공실 침대 찾기
+  const startVal = document.getElementById('erp-dorm-start')?.value;
+  const endVal   = document.getElementById('erp-dorm-end')?.value;
+  const ss = startVal ? new Date(startVal) : null;
+  const se = endVal   ? new Date(endVal)   : null;
+  function isOverlap(bs, be) {
+    if (!ss || !se || !bs) return !!bs;
+    const bss = new Date(`2026-${bs}`);
+    const bee = be ? new Date(`2026-${be}`) : new Date('2026-12-31');
+    return bss <= se && bee >= ss;
+  }
+  let found = null;
+  for (const r of MOCK_DORM_ROOMS) {
+    if (!r.roomNo || r.accomType !== s.dormAccomType) continue;
+    for (const b of (r.beds||[])) {
+      if (!isOverlap(b.start, b.end) && !b.incoming) { found = { r, b }; break; }
+    }
+    if (found) break;
+  }
+  if (!found) { showToast('조건에 맞는 공실이 없습니다.', 'warning'); return; }
+  openErpAssignModal(found.r.roomNo, found.b.id, found.r.accomType, found.r.type, found.r.genderRestriction);
+  // 해당 학생 자동 선택
+  setTimeout(() => {
+    const radio = document.querySelector(`input[name="erp-assign-student"][value="${studentId}"]`);
+    if (radio) radio.checked = true;
+  }, 50);
+}
+
+function closeErpAssignModal() {
+  document.getElementById('erp-assign-modal').style.display = 'none';
+  document.getElementById('erp-assign-backdrop').style.display = 'none';
+  _erpAssignTarget = null;
+}
+
+function confirmErpAssign() {
+  const radio = document.querySelector('input[name="erp-assign-student"]:checked');
+  if (!radio) { showToast('학생을 선택하세요.', 'warning'); return; }
+  if (!_erpAssignTarget) return;
+  const startFull = document.getElementById('erp-assign-date-in')?.value || '';
+  const endFull   = document.getElementById('erp-assign-date-out')?.value || '';
+  if (!startFull || !endFull) { showToast('입실일과 퇴실일을 입력하세요.', 'danger'); return; }
+  const studentId = parseInt(radio.value);
+  const s = MOCK_STUDENTS.find(x => x.id === studentId);
+  const room = MOCK_DORM_ROOMS.find(r => r.roomNo === _erpAssignTarget.roomNo);
+  const bed  = room?.beds?.find(b => b.id === _erpAssignTarget.bedId);
+  if (!s || !room || !bed) return;
+  const startVal = startFull.replace('2026-','');
+  const endVal   = endFull.replace('2026-','');
+  // 기존 배정 이력 추가 후 배정
+  if (!bed.history) bed.history = [];
+  bed.student   = `${s.nick} (${s.name})`;
+  bed.studentId = s.id;
+  bed.start     = startVal;
+  bed.end       = endVal;
+  bed.color     = '#5E5CE6';
+  s.dorm = `${room.roomNo}호 침대${bed.id}`;
+  showToast(`✓ ${s.nick} → ${room.roomNo}호 침대${bed.id} 배정 완료`, 'success');
+  closeErpAssignModal();
+  renderDormErpGrid();
+}
+
+function openErpReleaseModal(roomNo, bedId) {
+  const room = MOCK_DORM_ROOMS.find(r => r.roomNo === roomNo);
+  const bed  = room?.beds?.find(b => b.id === bedId);
+  if (!bed) return;
+  _erpAssignTarget = { roomNo, bedId };
+  const infoEl = document.getElementById('erp-release-info');
+  if (infoEl) infoEl.innerHTML = `<b>${bed.student || '학생'}</b>의 <b>${roomNo}호 침대 ${bedId}</b> 배정을 해제하시겠습니까?`;
+  document.getElementById('erp-release-modal').style.display = 'block';
+  document.getElementById('erp-release-backdrop').style.display = 'block';
+}
+
+function closeErpReleaseModal() {
+  document.getElementById('erp-release-modal').style.display = 'none';
+  document.getElementById('erp-release-backdrop').style.display = 'none';
+  _erpAssignTarget = null;
+}
+
+function confirmErpRelease() {
+  if (!_erpAssignTarget) return;
+  const room = MOCK_DORM_ROOMS.find(r => r.roomNo === _erpAssignTarget.roomNo);
+  const bed  = room?.beds?.find(b => b.id === _erpAssignTarget.bedId);
+  if (!bed) return;
+  const s = MOCK_STUDENTS.find(x => x.id === bed.studentId);
+  if (s) s.dorm = '미배정';
+  if (bed.history && bed.student) {
+    bed.history.push({ student: bed.student, start: bed.start, end: bed.end, reason: '배정 해제' });
+  }
+  bed.student = null; bed.studentId = null; bed.start = null; bed.end = null; bed.color = null;
+  showToast('배정이 해제되었습니다.', 'success');
+  closeErpReleaseModal();
+  renderDormErpGrid();
+}
+// ── 기숙사 ERP 끝 ──────────────────────────────────────
 
 function renderClassroomStatus() {
   const grid = document.getElementById('classroom-status-grid');
@@ -3747,7 +4120,8 @@ function renderStudentList(list) {
       </td>
       <td>
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
-        <div style="font-size:11px;color:#6B7280">${s.duration}주 · <span style="color:#5E5CE6;font-weight:600">${s.level || '-'}</span></div>
+        <div style="font-size:11px;color:#6B7280"><span style="color:#5E5CE6;font-weight:600">${s.level || '-'}</span></div>
+        <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${s.startDate ? s.startDate.replace('2026-','') : '-'} ~ ${s.departureDate ? s.departureDate.replace('2026-','') : '-'}</div>
       </td>
       <td style="font-size:12px;font-weight:500">${s.dorm}</td>
       <td>
@@ -3755,6 +4129,7 @@ function renderStudentList(list) {
       </td>
       <td style="font-size:11px;color:#374151;font-weight:600">
         ${fmtFlightStr(s.flightInfo)}
+        <div style="font-size:10.5px;color:#6B7280;margin-top:2px">${s.arrivalDate ? '입국 ' + s.arrivalDate.replace('2026-','') : ''}</div>
       </td>
       <td>
         <div style="font-size:12px;font-weight:600;color:#374151">${fmtDate(s.departureDate) || '미설정'}</div>
@@ -3775,7 +4150,6 @@ function renderStudentList(list) {
       </td>
       <td style="text-align:center">
         <div style="display:flex;gap:6px;justify-content:center;align-items:center">
-          ${statusDropdown}
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentDetail(${s.id})">
             <i data-lucide="eye" style="font-size:11px"></i> 상세
           </button>
@@ -8478,7 +8852,6 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <span style="font-size:11.5px;color:#9CA3AF;margin-left:8px">총 ${logs.length}건</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${canEdit ? `<button onclick="addChangelogEntry(${sid})" style="font-size:12px;font-weight:600;color:#5E5CE6;background:#EEF2FF;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px"><i data-lucide="plus" style="width:13px;height:13px"></i> 항목 추가</button>` : ''}
             <div style="font-size:11px;color:#6B7280;background:#F3F4F6;padding:4px 10px;border-radius:6px">에이전시 · 어드민 직접 수정 포함</div>
           </div>
         </div>
@@ -12504,8 +12877,11 @@ function openAssignRoomNumber(idx) {
   input.value = room.roomNo || '';
   if (genderSel) genderSel.value = room.genderRestriction || '무관';
   if (label) label.textContent = `[${room.accomType}] ${room.type} — 호실 번호 ${room.roomNo ? '수정' : '배정'}`;
-  document.getElementById('room-assign-form-wrap').style.display = 'flex';
+  document.getElementById('room-assign-form-wrap').style.display = 'block';
+  const bd = document.getElementById('room-assign-backdrop');
+  if (bd) bd.style.display = 'block';
   input.focus();
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
 function saveRoomNumber() {
@@ -12523,13 +12899,18 @@ function saveRoomNumber() {
   showToast(`✓ ${oldNo ? `Room ${oldNo} → ` : ''}Room ${newNo} 번호가 ${oldNo ? '수정' : '배정'}되었습니다.`, 'success');
   _editingRoomIdx = null;
   document.getElementById('room-assign-form-wrap').style.display = 'none';
+  const bd = document.getElementById('room-assign-backdrop');
+  if (bd) bd.style.display = 'none';
   renderAdminDormRoomsTable();
-  initDormGantt();
+  if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
+  if (typeof initDormGantt === 'function') initDormGantt();
 }
 
 function cancelAssignRoomNumber() {
   _editingRoomIdx = null;
   document.getElementById('room-assign-form-wrap').style.display = 'none';
+  const bd = document.getElementById('room-assign-backdrop');
+  if (bd) bd.style.display = 'none';
 }
 
 function clearRoomReservations(roomNo) {
