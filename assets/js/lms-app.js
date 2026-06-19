@@ -1039,6 +1039,7 @@ const VIEW_MAP = {
   'weekly-timetable': { el: 'view-weekly-timetable', menu: 'menu-weekly-timetable', label: '주간 시간표', sec: '학사 관리' },
   students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
+  'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 현황', sec: '학사 관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
   'agency-students': { el: 'view-agency-students', menu: 'menu-agency-students', label: '학생 관리', sec: '에이전시' },
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
@@ -1127,6 +1128,8 @@ function navigate(view) {
   } else if (view === 'dorm-erp') {
     switchAdminDormTab('assign');
     updateDormKPIs();
+  } else if (view === 'classroom-status') {
+    renderClassroomStatus();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 300);
@@ -1207,6 +1210,246 @@ function isGroupTeacher(teacher) {
   if (teacher.type.includes('그룹')) return true;
   const entry = MOCK_TIMETABLE.find(t => t.teacher === teacher.nick);
   return !!(entry && entry.slots.some(s => isGroupSlot(s)));
+}
+
+let MOCK_CLASSROOMS = [
+  { id: 1, room: 'A-101', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 2, room: 'A-102', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 3, room: 'A-103', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 4, room: 'A-104', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '파트타임 전용' },
+  { id: 5, room: 'B-201', building: 'B동', floor: '2층', capacity: 8, type: '그룹', status: 'active', memo: '' },
+  { id: 6, room: 'B-202', building: 'B동', floor: '2층', capacity: 8, type: '그룹', status: 'maintenance', memo: '에어컨 점검 중' },
+  { id: 7, room: 'C-301', building: 'C동', floor: '3층', capacity: 6, type: '멀티', status: 'active', memo: '주니어 전용' },
+];
+let _crNextId = 8;
+
+function switchClassroomTab(tab) {
+  document.getElementById('cr-panel-board').style.display   = tab === 'board'  ? '' : 'none';
+  document.getElementById('cr-panel-manage').style.display  = tab === 'manage' ? '' : 'none';
+  ['board','manage'].forEach(t => {
+    const btn = document.getElementById(`cr-tab-${t}`);
+    if (btn) {
+      btn.style.color = t === tab ? '#5E5CE6' : '#6B7280';
+      btn.style.borderBottomColor = t === tab ? '#5E5CE6' : 'transparent';
+    }
+  });
+  if (tab === 'board') renderClassroomStatus();
+  if (tab === 'manage') renderClassroomManage();
+}
+
+function renderClassroomManage() {
+  const tbody = document.getElementById('classroom-manage-tbody');
+  if (!tbody) return;
+  const statusLabel = { active: '운영 중', maintenance: '점검 중', closed: '사용 불가' };
+  const statusColor = { active: '#16A34A', maintenance: '#D97706', closed: '#EF4444' };
+  tbody.innerHTML = MOCK_CLASSROOMS.map(c => {
+    const teacher = MOCK_TEACHERS.find(t => t.room === c.room && t.status !== 'resigned');
+    return `<tr>
+      <td style="font-weight:700">${c.room}</td>
+      <td style="color:#6B7280">${c.building} ${c.floor}</td>
+      <td style="text-align:center">${c.capacity}명</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#5E5CE6;font-weight:600">${c.type}</span></td>
+      <td>${teacher ? `<span style="font-weight:600">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span>` : '<span style="color:#D1D5DB;font-size:12px">미배정</span>'}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${statusColor[c.status]}18;color:${statusColor[c.status]}">${statusLabel[c.status]}</span></td>
+      <td style="font-size:12px;color:#6B7280">${c.memo || '-'}</td>
+      <td>
+        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openEditClassroomModal(${c.id})">수정</button>
+        <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none;margin-left:4px" onclick="deleteClassroom(${c.id})">삭제</button>
+      </td>
+    </tr>`;
+  }).join('');
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function _fillClassroomTeacherSelect(selectedNick) {
+  const sel = document.getElementById('cr-modal-teacher');
+  if (!sel) return;
+  const active = MOCK_TEACHERS.filter(t => t.status !== 'resigned');
+  sel.innerHTML = '<option value="">— 미배정 —</option>' +
+    active.map(t => `<option value="${t.nick}" ${t.nick === selectedNick ? 'selected' : ''}>${t.nick} (${t.name}) · ${t.type}</option>`).join('');
+}
+
+function openAddClassroomModal() {
+  document.getElementById('classroom-modal-title').textContent = '강의실 추가';
+  document.getElementById('cr-modal-id').value = '';
+  document.getElementById('cr-modal-room').value = '';
+  document.getElementById('cr-modal-building').value = '';
+  document.getElementById('cr-modal-floor').value = '';
+  document.getElementById('cr-modal-capacity').value = '';
+  document.getElementById('cr-modal-type').value = '1:1';
+  document.getElementById('cr-modal-status').value = 'active';
+  document.getElementById('cr-modal-memo').value = '';
+  _fillClassroomTeacherSelect('');
+  document.getElementById('classroom-modal').style.display = 'block';
+  document.getElementById('classroom-modal-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function openEditClassroomModal(id) {
+  const c = MOCK_CLASSROOMS.find(x => x.id === id);
+  if (!c) return;
+  // 현재 이 강의실에 배정된 강사 찾기
+  const assignedTeacher = MOCK_TEACHERS.find(t => t.room === c.room && t.status !== 'resigned');
+  document.getElementById('classroom-modal-title').textContent = '강의실 수정';
+  document.getElementById('cr-modal-id').value = id;
+  document.getElementById('cr-modal-room').value = c.room;
+  document.getElementById('cr-modal-building').value = c.building;
+  document.getElementById('cr-modal-floor').value = c.floor;
+  document.getElementById('cr-modal-capacity').value = c.capacity;
+  document.getElementById('cr-modal-type').value = c.type;
+  document.getElementById('cr-modal-status').value = c.status;
+  document.getElementById('cr-modal-memo').value = c.memo || '';
+  _fillClassroomTeacherSelect(assignedTeacher ? assignedTeacher.nick : '');
+  document.getElementById('classroom-modal').style.display = 'block';
+  document.getElementById('classroom-modal-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function closeClassroomModal() {
+  document.getElementById('classroom-modal').style.display = 'none';
+  document.getElementById('classroom-modal-backdrop').style.display = 'none';
+}
+
+function saveClassroom() {
+  const room = document.getElementById('cr-modal-room').value.trim();
+  if (!room) { showToast('강의실 호실을 입력하세요.', 'danger'); return; }
+  const id = document.getElementById('cr-modal-id').value;
+  const data = {
+    room,
+    building: document.getElementById('cr-modal-building').value.trim(),
+    floor: document.getElementById('cr-modal-floor').value.trim(),
+    capacity: parseInt(document.getElementById('cr-modal-capacity').value) || 0,
+    type: document.getElementById('cr-modal-type').value,
+    status: document.getElementById('cr-modal-status').value,
+    memo: document.getElementById('cr-modal-memo').value.trim(),
+  };
+  const selectedTeacherNick = document.getElementById('cr-modal-teacher')?.value || '';
+  // 기존 강사 room 초기화 후 새 강사에 배정
+  if (id) {
+    const existing = MOCK_CLASSROOMS.find(c => c.id === parseInt(id));
+    if (existing) {
+      const oldTeacher = MOCK_TEACHERS.find(t => t.room === existing.room);
+      if (oldTeacher) oldTeacher.room = '';
+    }
+  }
+  if (selectedTeacherNick) {
+    // 이미 다른 강의실에 배정된 강사면 해제 후 재배정
+    MOCK_TEACHERS.forEach(t => { if (t.nick === selectedTeacherNick) t.room = room; });
+  }
+  if (id) {
+    const idx = MOCK_CLASSROOMS.findIndex(c => c.id === parseInt(id));
+    if (idx >= 0) MOCK_CLASSROOMS[idx] = { ...MOCK_CLASSROOMS[idx], ...data };
+    showToast(`✓ ${room} 강의실이 수정되었습니다.`, 'success');
+  } else {
+    MOCK_CLASSROOMS.push({ id: _crNextId++, ...data });
+    showToast(`✓ ${room} 강의실이 추가되었습니다.`, 'success');
+  }
+  closeClassroomModal();
+  renderClassroomManage();
+}
+
+function deleteClassroom(id) {
+  const c = MOCK_CLASSROOMS.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`'${c.room}' 강의실을 삭제하시겠습니까?`)) return;
+  MOCK_CLASSROOMS = MOCK_CLASSROOMS.filter(x => x.id !== id);
+  showToast(`${c.room} 강의실이 삭제되었습니다.`, 'success');
+  renderClassroomManage();
+}
+
+function renderClassroomStatus() {
+  const grid = document.getElementById('classroom-status-grid');
+  if (!grid) return;
+
+  const timeEl = document.getElementById('classroom-status-time');
+  if (timeEl) timeEl.textContent = `마지막 업데이트: ${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})}`;
+
+  const PERIOD_TIMES = ['','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00'];
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentPeriod = PERIOD_TIMES.findIndex((t, i) => {
+    if (i === 0) return false;
+    const h = parseInt(t.split(':')[0]);
+    return currentHour >= h && currentHour < h + 1;
+  });
+
+  const activeTeachers = MOCK_TEACHERS.filter(t => t.status !== 'resigned');
+
+  grid.innerHTML = activeTeachers.map(teacher => {
+    const tData = MOCK_TIMETABLE.find(m => m.teacher === teacher.nick);
+    const isOnLeave = teacher.status === 'leave';
+    const color = tData?.color || '#6B7280';
+    const bg = tData?.bg || '#F3F4F6';
+
+    // 현재 교시 수업
+    const currentSlot = (tData && currentPeriod > 0) ? tData.slots.find(s => s.p === currentPeriod) : null;
+    const isInClass = !isOnLeave && currentSlot?.student;
+
+    // 오늘 전체 슬롯
+    const totalSlots = tData ? tData.slots.length : 0;
+    const filledSlots = tData ? tData.slots.filter(s => s.student).length : 0;
+
+    // 상태 배지
+    let statusBadge, statusColor;
+    if (isOnLeave) {
+      statusBadge = '휴가 중'; statusColor = '#6B7280';
+    } else if (isInClass) {
+      statusBadge = '수업 중'; statusColor = '#16A34A';
+    } else {
+      statusBadge = '대기 중'; statusColor = '#D97706';
+    }
+
+    // 슬롯 바
+    const slotBars = tData ? tData.slots.map(s => {
+      const isCurrent = s.p === currentPeriod;
+      const hasClass = !!s.student;
+      const barColor = isCurrent && hasClass ? color : hasClass ? color + '99' : '#E5E7EB';
+      return `<div title="${PERIOD_TIMES[s.p] || ''} ${s.student || '공강'}" style="flex:1;height:8px;border-radius:2px;background:${barColor};${isCurrent ? 'outline:2px solid ' + color + ';outline-offset:1px' : ''}"></div>`;
+    }).join('') : '';
+
+    return `
+    <div class="tsa-card" style="border-top:3px solid ${color};position:relative">
+      <div class="tsa-card-body" style="padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#111827">${teacher.room}</div>
+            <div style="font-size:12px;color:#6B7280;margin-top:2px">${teacher.type}</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${statusColor}18;color:${statusColor}">${statusBadge}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:${color}">
+            ${teacher.nick.charAt(0)}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#111827">${teacher.nick}</div>
+            <div style="font-size:11px;color:#6B7280">${teacher.name}</div>
+          </div>
+        </div>
+        ${isInClass ? `
+        <div style="background:${bg};border-radius:8px;padding:8px 12px;margin-bottom:12px">
+          <div style="font-size:11px;color:#6B7280;margin-bottom:2px">${PERIOD_TIMES[currentPeriod]} 현재 수업</div>
+          <div style="font-size:12px;font-weight:700;color:${color}">${currentSlot.student}</div>
+          ${currentSlot.type ? `<div style="font-size:11px;color:#6B7280">${currentSlot.type}${currentSlot.subject ? ' · ' + currentSlot.subject : ''}</div>` : ''}
+        </div>` : isOnLeave ? `
+        <div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;margin-bottom:12px;text-align:center">
+          <div style="font-size:12px;color:#6B7280">오늘 휴가</div>
+        </div>` : `
+        <div style="background:#F9FAFB;border-radius:8px;padding:8px 12px;margin-bottom:12px;text-align:center">
+          <div style="font-size:12px;color:#9CA3AF">현재 공강</div>
+        </div>`}
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:11px;color:#6B7280">오늘 수업</span>
+            <span style="font-size:11px;font-weight:700;color:#374151">${filledSlots} / ${totalSlots} 교시</span>
+          </div>
+          <div style="display:flex;gap:2px">${slotBars}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
 function renderTimetable(conflictMode) {
@@ -6902,6 +7145,129 @@ function renderAgencyDormList() {
 
   // 하단 배정 대기 리스트 전체 표시
   renderDormWaitingList(null);
+
+  // 호실 카드 뷰 렌더
+  renderAgencyDormRoomGrid();
+}
+
+function renderAgencyDormRoomGrid() {
+  const grid = document.getElementById('agency-dorm-room-grid');
+  if (!grid) return;
+
+  const startVal = document.getElementById('agency-dorm-start-date')?.value;
+  const endVal   = document.getElementById('agency-dorm-end-date')?.value;
+  const searchStart = startVal ? new Date(startVal) : null;
+  const searchEnd   = endVal   ? new Date(endVal)   : null;
+
+  // 날짜 겹침 판단: 기존 입실~퇴실과 검색 기간이 하나라도 겹치면 사용 중
+  function isOverlap(bedStart, bedEnd) {
+    if (!searchStart || !searchEnd) return !!bedStart; // 날짜 미입력 시 현재 점유 여부만
+    if (!bedStart) return false;
+    const bs = new Date(`2026-${bedStart}`);
+    const be = bedEnd ? new Date(`2026-${bedEnd}`) : new Date('2026-12-31');
+    return bs <= searchEnd && be >= searchStart;
+  }
+
+  let rooms = [...MOCK_DORM_ROOMS].filter(r => r.roomNo);
+
+  // 필터 적용
+  if (_agencyDormAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _agencyDormAccomFilter);
+  if (_agencyDormCapFilter   !== '전체') rooms = rooms.filter(r => r.capacity === parseInt(_agencyDormCapFilter));
+  if (_dormFilterGender      !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _dormFilterGender);
+
+  // 등급 필터
+  if (_agencyDormGradeFilter !== '전체') {
+    rooms = rooms.filter(r => r.type && r.type.includes(_agencyDormGradeFilter));
+  }
+
+  if (rooms.length === 0) {
+    grid.innerHTML = `<div style="text-align:center;padding:60px;color:#9CA3AF;font-size:13px">조건에 맞는 호실이 없습니다.</div>`;
+    return;
+  }
+
+  // 유형별 그룹
+  const groups = {};
+  rooms.forEach(r => {
+    const key = `${r.accomType} · ${r.type}`;
+    if (!groups[key]) groups[key] = { accomType: r.accomType, type: r.type, capacity: r.capacity, rooms: [] };
+    groups[key].rooms.push(r);
+  });
+
+  const accomColor = { '기숙사': '#5E5CE6', '콘도': '#8B5CF6' };
+  const genderIcon = { '남성': '♂', '여성': '♀', '무관': '⚥' };
+  const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#6B7280' };
+
+  grid.innerHTML = Object.values(groups).map(g => {
+    const color = accomColor[g.accomType] || '#5E5CE6';
+
+    // 그룹 집계
+    let totalBeds = 0, vacantBeds = 0, occupiedBeds = 0, incomingBeds = 0;
+    g.rooms.forEach(r => {
+      (r.beds || []).forEach(b => {
+        totalBeds++;
+        if (isOverlap(b.start, b.end)) occupiedBeds++;
+        else if (b.incoming) incomingBeds++;
+        else vacantBeds++;
+      });
+    });
+
+    const roomCards = g.rooms.map(r => {
+      const gr = r.genderRestriction || '무관';
+      const beds = (r.beds || []).map(b => {
+        const occupied = isOverlap(b.start, b.end);
+        const hasIncoming = !occupied && b.incoming;
+
+        let bedBg, bedBorder, bedLabel, bedSub;
+        if (occupied) {
+          bedBg = '#F3F4F6'; bedBorder = '#D1D5DB';
+          bedLabel = `<span style="font-size:11px;font-weight:600;color:#374151">${b.student ? b.student.split(' ')[0] : '사용 중'}</span>`;
+          bedSub = b.end ? `<div style="font-size:10px;color:#9CA3AF">~ ${b.end}</div>` : '';
+        } else if (hasIncoming) {
+          bedBg = '#FEF3C7'; bedBorder = '#FCD34D';
+          bedLabel = `<span style="font-size:11px;font-weight:600;color:#D97706">입실 예정</span>`;
+          bedSub = `<div style="font-size:10px;color:#D97706">${b.incoming.date}</div>`;
+        } else {
+          bedBg = '#F0FDF4'; bedBorder = '#6EE7B7';
+          bedLabel = `<span style="font-size:11px;font-weight:700;color:#10B981">공실</span>`;
+          bedSub = '';
+        }
+
+        return `<div style="border:1.5px solid ${bedBorder};border-radius:8px;background:${bedBg};padding:8px 10px;min-width:80px;flex:1">
+          <div style="font-size:10px;color:#6B7280;margin-bottom:3px">침대 ${b.id}</div>
+          ${bedLabel}${bedSub}
+        </div>`;
+      }).join('');
+
+      return `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:800;color:#111827">${r.roomNo}호</span>
+          <span style="font-size:11px;color:${genderColor[gr]};font-weight:600">${genderIcon[gr]} ${gr}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${beds}</div>
+      </div>`;
+    }).join('');
+
+    const statusColor = vacantBeds > 0 ? '#10B981' : '#EF4444';
+    const statusLabel = vacantBeds > 0 ? `공실 ${vacantBeds}개` : '만실';
+
+    return `<div style="border-radius:12px;border:1px solid #E5E7EB;overflow:hidden">
+      <!-- 그룹 헤더 -->
+      <div style="background:#F8F9FF;border-bottom:1px solid #E5E7EB;padding:12px 18px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;font-weight:700;color:${color};background:${color}15;padding:2px 10px;border-radius:10px">${g.accomType}</span>
+        <span style="font-size:13px;font-weight:700;color:#111827">${g.type}</span>
+        <div style="margin-left:auto;display:flex;gap:16px;align-items:center">
+          <span style="font-size:11.5px;color:#6B7280">총 ${totalBeds}침대</span>
+          <span style="font-size:11.5px;color:#374151">사용 중 <b>${occupiedBeds}</b></span>
+          ${incomingBeds > 0 ? `<span style="font-size:11.5px;color:#D97706">입실예정 <b>${incomingBeds}</b></span>` : ''}
+          <span style="font-size:12px;font-weight:700;color:${statusColor};background:${statusColor}15;padding:3px 12px;border-radius:10px">${statusLabel}</span>
+        </div>
+      </div>
+      <!-- 호실 카드 그리드 -->
+      <div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+        ${roomCards}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 let _dormWaitingActiveIdx = null;

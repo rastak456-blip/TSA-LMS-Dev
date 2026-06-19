@@ -1482,6 +1482,10 @@
         <i data-lucide="graduation-cap"></i>
         강사 정보 관리
       </a>
+      <a class="tsa-nav-item admin-only" id="menu-classroom-status" onclick="navigate('classroom-status')">
+        <i data-lucide="layout-dashboard"></i>
+        강의실 현황
+      </a>
       <a class="tsa-nav-item admin-only" id="menu-course-pricing" onclick="navigate('course-pricing')">
         <i data-lucide="settings-2"></i>
         교육과정 · 요율 설정
@@ -2505,7 +2509,7 @@
           <div class="tsa-section-header" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
             <div>
               <h2 class="tsa-page-title">🏢 기숙사 공실 조회</h2>
-              <p class="tsa-page-subtitle">수강 기간을 입력하면 룸 타입별 잔여 공실 수를 확인할 수 있습니다. 배정 확정은 어드민이 처리합니다.</p>
+              <p class="tsa-page-subtitle">입실 희망일을 입력하면 룸 타입별 잔여 공실 수를 확인할 수 있습니다. 배정 확정은 어드민이 처리합니다.</p>
             </div>
           </div>
 
@@ -2514,13 +2518,13 @@
             <div class="tsa-card-body" style="padding:16px 20px">
               <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:12px;font-weight:700;color:#374151;white-space:nowrap">📅 수강 시작일</span>
+                  <span style="font-size:12px;font-weight:700;color:#374151;white-space:nowrap">📅 기숙사 입실일</span>
                   <input id="agency-dorm-start-date" type="date" class="tsa-input" value="2026-06-15"
                     style="width:148px;font-size:12.5px" onchange="searchAgencyDormVacancy()"/>
                 </div>
                 <span style="color:#CBD5E1;font-size:20px;font-weight:300">→</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:12px;font-weight:700;color:#374151;white-space:nowrap">수강 종료일</span>
+                  <span style="font-size:12px;font-weight:700;color:#374151;white-space:nowrap">기숙사 퇴실일</span>
                   <input id="agency-dorm-end-date" type="date" class="tsa-input" value="2026-07-13"
                     style="width:148px;font-size:12.5px" onchange="searchAgencyDormVacancy()"/>
                 </div>
@@ -2554,30 +2558,11 @@
             <div style="margin-left:auto;font-size:11.5px;color:#6B7280" id="agency-dorm-result-summary"></div>
           </div>
 
-          <!-- 룸 타입별 리스트 (카드형 → 리스트형) -->
-          <div class="tsa-card">
-            <div class="tsa-card-body" style="padding:0">
-              <table class="tsa-table" style="font-size:12px">
-                <thead>
-                  <tr>
-                    <th>유형</th>
-                    <th>룸 타입</th>
-                    <th>등급</th>
-                    <th>인실</th>
-                    <th style="text-align:center">총 침대 수</th>
-                    <th style="text-align:center">사용 중</th>
-                    <th style="text-align:center">배정 대기</th>
-                    <th style="text-align:center">공실</th>
-                    <th style="text-align:center">상태</th>
-                  </tr>
-                </thead>
-                <tbody id="agency-dorm-type-list">
-                  <tr><td colspan="9" style="text-align:center;padding:40px;color:#9CA3AF">수강 기간을 선택하면 룸 타입별 공실이 표시됩니다.</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <!-- 기존 카드형 컨테이너 (JS 호환용으로 숨김 유지) -->
+          <!-- 호실 카드 뷰 -->
+          <div id="agency-dorm-room-grid" style="display:flex;flex-direction:column;gap:12px"></div>
+
+          <!-- JS 호환용 숨김 요소 -->
+          <table style="display:none"><tbody id="agency-dorm-type-list"></tbody></table>
           <div id="agency-dorm-type-grid" style="display:none"></div>
           <span id="agency-dorm-book-count" style="display:none"></span>
           <tbody id="agency-dorm-book-history" style="display:none"></tbody>
@@ -2945,6 +2930,129 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: CLASSROOM STATUS                          -->
+        <!-- ================================================ -->
+        <div id="view-classroom-status" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">🏫 강의실 현황</h2>
+              <p class="tsa-page-subtitle">강의실별 배정 강사 및 수업 운영 현황 관리</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="classroom-status-time" style="font-size:12px;color:#6B7280"></span>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="renderClassroomStatus()"><i data-lucide="refresh-cw"></i> 새로고침</button>
+            </div>
+          </div>
+
+          <!-- 탭 -->
+          <div style="display:flex;gap:0;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
+            <button id="cr-tab-board" onclick="switchClassroomTab('board')"
+              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">
+              📊 현황판
+            </button>
+            <button id="cr-tab-manage" onclick="switchClassroomTab('manage')"
+              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">
+              🏫 강의실 관리
+            </button>
+          </div>
+
+          <!-- 현황판 탭 -->
+          <div id="cr-panel-board">
+            <div id="classroom-status-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+          </div>
+
+          <!-- 강의실 관리 탭 -->
+          <div id="cr-panel-manage" style="display:none">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal()"><i data-lucide="plus"></i> 강의실 추가</button>
+            </div>
+            <div class="tsa-card">
+              <table class="tsa-table" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>강의실</th>
+                    <th>동/층</th>
+                    <th>수용 인원</th>
+                    <th>유형</th>
+                    <th>배정 강사</th>
+                    <th>상태</th>
+                    <th>비고</th>
+                    <th>동작</th>
+                  </tr>
+                </thead>
+                <tbody id="classroom-manage-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 강의실 추가/수정 모달 -->
+        <div id="classroom-modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeClassroomModal()"></div>
+        <div id="classroom-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:460px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden;flex-direction:column">
+          <input type="hidden" id="cr-modal-id"/>
+          <!-- 헤더 -->
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid #E5E7EB">
+            <h3 id="classroom-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">강의실 추가</h3>
+            <button onclick="closeClassroomModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px;line-height:1;padding:2px">✕</button>
+          </div>
+          <!-- 바디 -->
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">강의실 호실 <span style="color:#EF4444">*</span></label>
+              <input id="cr-modal-room" class="tsa-input" placeholder="예: A-101" style="width:100%"/>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">동</label>
+                <input id="cr-modal-building" class="tsa-input" placeholder="예: A동"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">층</label>
+                <input id="cr-modal-floor" class="tsa-input" placeholder="예: 1층"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label>
+                <input id="cr-modal-capacity" class="tsa-input" type="number" min="1" placeholder="명"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">유형</label>
+                <select id="cr-modal-type" class="tsa-input">
+                  <option value="1:1">1:1 강의실</option>
+                  <option value="그룹">그룹 강의실</option>
+                  <option value="멀티">멀티 강의실</option>
+                  <option value="세미나">세미나실</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">상태</label>
+                <select id="cr-modal-status" class="tsa-input">
+                  <option value="active">운영 중</option>
+                  <option value="maintenance">점검 중</option>
+                  <option value="closed">사용 불가</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">배정 강사</label>
+              <select id="cr-modal-teacher" class="tsa-input" style="width:100%">
+                <option value="">— 미배정 —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">비고</label>
+              <input id="cr-modal-memo" class="tsa-input" placeholder="특이사항 입력" style="width:100%"/>
+            </div>
+          </div>
+          <!-- 푸터 -->
+          <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeClassroomModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveClassroom()"><i data-lucide="check"></i> 저장</button>
           </div>
         </div>
 
