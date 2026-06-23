@@ -1876,6 +1876,7 @@ function renderCsAssignGrid() {
           <span style="font-size:13px;font-weight:700;color:#111827">${room.roomNo}</span>
           <span style="font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px;${typeStyle(room.type)}">${room.type}</span>
         </div>
+        <button onclick="openCsBulkAssignModal(${room.id})" style="font-size:11px;padding:4px 10px;border:0.5px solid #5E5CE6;border-radius:6px;background:#EEF2FF;color:#5E5CE6;cursor:pointer;white-space:nowrap">일괄 배정</button>
       </div>
       <div style="padding:8px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="width:22px;height:22px;border-radius:50%;background:${avatarBg};color:${avatarColor};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -1890,6 +1891,42 @@ function renderCsAssignGrid() {
     </div>`;
   }).join('');
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function openCsBulkAssignModal(roomId) {
+  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
+  if (!room) return;
+  _csAssignTarget = { roomId, period: null };
+  document.getElementById('cs-assign-modal-title').textContent = `${room.roomNo} · 일괄 배정`;
+  document.getElementById('cs-assign-info').innerHTML = `<b>${room.roomNo}</b> &nbsp;|&nbsp; ${room.type} · 최대 ${room.capacity}명 &nbsp;<span style="color:#6B7280;font-size:12px">교시를 복수 선택해 한 번에 배정합니다</span>`;
+
+  // 모든 교시 체크박스 (미배정 교시만 체크 활성화)
+  const sessions = MOCK_CLASS_SESSIONS.filter(s => s.roomId === roomId && s.day === _csCurrentDay && s.weekOf === _csCurrentWeek);
+  const occupiedPeriods = new Set(sessions.flatMap(s => s.periods));
+  const pWrap = document.getElementById('cs-period-checkboxes');
+  pWrap.innerHTML = Object.keys(CS_PERIODS).map(p => {
+    const isOccupied = occupiedPeriods.has(parseInt(p));
+    return `<label style="display:flex;align-items:center;gap:4px;cursor:${isOccupied?'not-allowed':'pointer'};padding:4px 10px;border-radius:6px;border:0.5px solid ${isOccupied?'#E5E7EB':'#C7D2FE'};font-size:12px;background:${isOccupied?'#F3F4F6':'#fff'};opacity:${isOccupied?'0.5':'1'}">
+      <input type="checkbox" name="cs-period" value="${p}" ${isOccupied?'disabled':''} style="accent-color:#5E5CE6"/> ${p}교시
+      ${isOccupied ? '<span style="font-size:10px;color:#9CA3AF">배정됨</span>' : ''}
+    </label>`;
+  }).join('');
+
+  // 학생 목록
+  const listEl = document.getElementById('cs-student-list');
+  const eligible = MOCK_STUDENTS.filter(s => s.remittanceStatus === 'paid' && (s.status === 'current' || s.status === 'waiting'));
+  listEl.innerHTML = eligible.length === 0
+    ? '<div style="color:#9CA3AF;font-size:12px">배정 가능한 학생이 없습니다.</div>'
+    : eligible.map(s => `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:0.5px solid #E5E7EB;border-radius:8px;cursor:pointer">
+        <input type="${room.capacity === 1 ? 'radio' : 'checkbox'}" name="cs-student" value="${s.id}" style="accent-color:#5E5CE6"/>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
+          <div style="font-size:11px;color:#9CA3AF">${s.flag||''} ${s.nationality} · ${s.course}</div>
+        </div>
+      </label>`).join('');
+
+  document.getElementById('cs-assign-modal').style.display = 'block';
+  document.getElementById('cs-assign-backdrop').style.display = 'block';
 }
 
 function openCsAssignModal(roomId, period) {
