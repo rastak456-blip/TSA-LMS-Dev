@@ -4628,15 +4628,74 @@ function switchStudentTab(tab, el) {
             </div>
           </div>
         </div>
+
+        <!-- ── 항공 & 입출국 ── -->
+        <div style="margin-top:16px">
+          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;gap:6px">✈️ 항공 & 입출국 일정</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px">
+              <div style="font-size:11px;font-weight:700;color:#15803D;margin-bottom:8px">입국 항공편</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="ad-flight-num" type="text" class="tsa-input" value="${s.flightNum || ''}" placeholder="KE631"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">입국일</label><input id="ad-arrival-date" type="date" class="tsa-input" value="${s.arrivalDate || ''}"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">도착 시간</label><input id="ad-flight-time" type="time" class="tsa-input" value="${s.flightTime || ''}"/></div>
+              </div>
+            </div>
+            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px">
+              <div style="font-size:11px;font-weight:700;color:#1D4ED8;margin-bottom:8px">출국 항공편</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="ad-flight-out-num" type="text" class="tsa-input" value="${s.flightOutNum || ''}" placeholder="KE632"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출국일</label><input id="ad-departure-date" type="date" class="tsa-input" value="${s.departureDate || ''}"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출발 시간</label><input id="ad-flight-out-time" type="time" class="tsa-input" value="${s.flightOutTime || ''}"/></div>
+              </div>
+            </div>
+            <div style="background:#F8F9FC;border:1px solid #E9EDF4;border-radius:10px;padding:12px">
+              <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">🛂 여권 정보</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">여권 번호</label><input id="ad-passport-num" type="text" class="tsa-input" value="${s.passportNum || ''}" placeholder="M12345678"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">여권 만료일</label><input id="ad-passport-expiry" type="date" class="tsa-input" value="${s.passportExpiry || ''}"/></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 서류 관리 ── -->
+        <div style="margin-top:16px">
+          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">📄 서류 관리</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            ${['passport','ticket','photo','insurance'].map(k => {
+              const labels = { passport:'여권 사본', ticket:'E-티켓 사본', photo:'증명사진', insurance:'여행자 보험증서' };
+              const has = s.requiredFiles && s.requiredFiles[k];
+              return `<div style="border:1px solid #E9EDF4;border-radius:10px;padding:12px;background:#F8F9FC;text-align:center">
+                <div style="font-size:11px;font-weight:600;margin-bottom:6px">${labels[k]}</div>
+                <span class="tsa-badge ${has?'tsa-badge-success':'tsa-badge-gray'}" style="font-size:10px">${has?'제출완료':'누락'}</span>
+                <div style="margin-top:8px"><button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('ad-file-${k}').click()">파일선택</button></div>
+                <input id="ad-file-${k}" type="file" style="display:none" onchange="handleAdetailFileSelected('${k}')"/>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- ── 비자 & SSP ── -->
+        <div style="margin-top:16px">
+          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">🪪 비자 & SSP</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="tsa-form-group"><label class="tsa-label">비자 만료 예정일</label><input id="ad-visa-expiry" type="date" class="tsa-input" value="${s.visaExpiry !== '면제' ? s.visaExpiry : ''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">SSP 카드 만료 예정일 (또는 면제)</label><input id="ad-ssp-expiry" type="text" class="tsa-input" value="${s.sspExpiry || '면제'}"/></div>
+          </div>
+        </div>
       `;
       break;
     }
 
     case 'flight':
     case 'docs':
+    case 'visa':
+      switchStudentTab('basic', null);
+      break;
+
     case 'class':
     case 'settle':
-    case 'visa':
       switchAdetailTab(tab, 'student-modal-tab-content', s.id);
       break;
 
