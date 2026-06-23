@@ -2071,58 +2071,130 @@
             </button>
           </div>
 
-          <!-- Teacher Stats Row -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
-            <div class="tsa-stat-card" style="padding:16px">
-              <div><div class="tsa-stat-label">전체 강사</div><div class="tsa-stat-value" style="font-size:22px">22명</div></div>
-              <div class="tsa-stat-icon" style="background:#EEF2FF;color:#5E5CE6;width:36px;height:36px;font-size:16px"><i data-lucide="graduation-cap"></i></div>
-            </div>
-            <div class="tsa-stat-card" style="padding:16px">
-              <div><div class="tsa-stat-label">1:1 전담</div><div class="tsa-stat-value" style="font-size:22px">14명</div></div>
-              <div class="tsa-stat-icon" style="background:#F0FDF4;color:#16A34A;width:36px;height:36px;font-size:16px"><i data-lucide="users"></i></div>
-            </div>
-            <div class="tsa-stat-card" style="padding:16px">
-              <div><div class="tsa-stat-label">그룹 전담</div><div class="tsa-stat-value" style="font-size:22px">5명</div></div>
-              <div class="tsa-stat-icon" style="background:#E0F2FE;color:#0369A1;width:36px;height:36px;font-size:16px"><i data-lucide="users"></i></div>
-            </div>
-            <div class="tsa-stat-card" style="padding:16px">
-              <div><div class="tsa-stat-label">휴가 중</div><div class="tsa-stat-value" style="font-size:22px;color:#F59E0B">3명</div></div>
-              <div class="tsa-stat-icon" style="background:#FEF3C7;color:#D97706;width:36px;height:36px;font-size:16px"><i data-lucide="moon"></i></div>
-            </div>
+          <!-- 서브 탭 네비게이션 -->
+          <div class="tsa-tabs" style="margin-bottom:16px">
+            <div class="tsa-tab active" onclick="switchTeacherManageTab('list', this)">강사 목록</div>
+            <div class="tsa-tab" onclick="switchTeacherManageTab('tags', this)">배정 태그 설정 관리</div>
           </div>
 
-          <!-- Filter Row for Teachers -->
-          <div class="tsa-card" style="margin-bottom:16px">
-            <div class="tsa-card-body" style="padding:14px 20px">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <div class="tsa-filter-pills" id="teacher-filter-pills">
-                  <span class="tsa-pill active" onclick="filterTeacherList('all')">전체 (22)</span>
-                  <span class="tsa-pill" onclick="filterTeacherList('active')">재직 중 (18)</span>
-                  <span class="tsa-pill" onclick="filterTeacherList('leave')">휴가 중 (3)</span>
-                  <span class="tsa-pill" onclick="filterTeacherList('resigned')">퇴사 (1)</span>
+          <!-- [탭 A] 강사 목록 -->
+          <div id="teacher-tab-list" class="teacher-manage-tab-content">
+            <!-- Teacher Stats Row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+              <div class="tsa-stat-card" style="padding:16px">
+                <div><div class="tsa-stat-label">전체 강사</div><div class="tsa-stat-value" style="font-size:22px">22명</div></div>
+                <div class="tsa-stat-icon" style="background:#EEF2FF;color:#5E5CE6;width:36px;height:36px;font-size:16px"><i data-lucide="graduation-cap"></i></div>
+              </div>
+              <div class="tsa-stat-card" style="padding:16px">
+                <div><div class="tsa-stat-label">1:1 전담</div><div class="tsa-stat-value" style="font-size:22px">14명</div></div>
+                <div class="tsa-stat-icon" style="background:#F0FDF4;color:#16A34A;width:36px;height:36px;font-size:16px"><i data-lucide="users"></i></div>
+              </div>
+              <div class="tsa-stat-card" style="padding:16px">
+                <div><div class="tsa-stat-label">그룹 전담</div><div class="tsa-stat-value" style="font-size:22px">5명</div></div>
+                <div class="tsa-stat-icon" style="background:#E0F2FE;color:#0369A1;width:36px;height:36px;font-size:16px"><i data-lucide="users"></i></div>
+              </div>
+              <div class="tsa-stat-card" style="padding:16px">
+                <div><div class="tsa-stat-label">휴가 중</div><div class="tsa-stat-value" style="font-size:22px;color:#F59E0B">3명</div></div>
+                <div class="tsa-stat-icon" style="background:#FEF3C7;color:#D97706;width:36px;height:36px;font-size:16px"><i data-lucide="moon"></i></div>
+              </div>
+            </div>
+
+            <!-- Filter Row for Teachers -->
+            <div class="tsa-card" style="margin-bottom:16px">
+              <div class="tsa-card-body" style="padding:14px 20px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div class="tsa-filter-pills" id="teacher-filter-pills">
+                    <span class="tsa-pill active" onclick="filterTeacherList('all')">전체 (22)</span>
+                    <span class="tsa-pill" onclick="filterTeacherList('active')">재직 중 (18)</span>
+                    <span class="tsa-pill" onclick="filterTeacherList('leave')">휴가 중 (3)</span>
+                    <span class="tsa-pill" onclick="filterTeacherList('resigned')">퇴사 (1)</span>
+                  </div>
+                  <input type="text" id="teacher-search" class="tsa-input" placeholder="강사명 / 닉네임 검색..." style="width:200px;font-size:12px;padding:6px 12px" oninput="filterTeacherList()"/>
                 </div>
+                <!-- 태그 필터 -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:11.5px;font-weight:700;color:#374151;white-space:nowrap">장점 태그:</span>
+                  <div id="teacher-tag-filter-wrap" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Teacher Table -->
+            <div class="tsa-card">
+              <div style="overflow:hidden">
+                <table class="tsa-table">
+                  <thead>
+                    <tr>
+                      <th style="width:36px;text-align:center">#</th>
+                      <th>강사명</th>
+                      <th>전문 분야</th>
+                      <th>담당 교실</th>
+                      <th>고용 형태</th>
+                      <th>오늘 배정</th>
+                      <th>가용 상태</th>
+                      <th style="text-align:center">동작</th>
+                    </tr>
+                  </thead>
+                  <tbody id="teacher-list-body"></tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <!-- Teacher Table -->
-          <div class="tsa-card">
-            <div style="overflow:hidden">
-              <table class="tsa-table">
-                <thead>
-                  <tr>
-                    <th style="width:36px;text-align:center">#</th>
-                    <th>강사명</th>
-                    <th>전문 분야</th>
-                    <th>담당 교실</th>
-                    <th>고용 형태</th>
-                    <th>오늘 배정</th>
-                    <th>가용 상태</th>
-                    <th style="text-align:center">동작</th>
-                  </tr>
-                </thead>
-                <tbody id="teacher-list-body"></tbody>
-              </table>
+          <!-- [탭 B] 배정 태그 설정 관리 -->
+          <div id="teacher-tab-tags" class="teacher-manage-tab-content" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:20px">
+              <!-- 좌측: 태그 등록/수정 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header">
+                  <h3 class="tsa-card-title" id="tag-form-title"><i data-lucide="plus-circle" style="color:#5E5CE6"></i> 배정 태그 등록/수정</h3>
+                </div>
+                <div class="tsa-card-body" style="padding:16px">
+                  <form id="tag-manage-form" onsubmit="event.preventDefault(); saveAssignmentTag();">
+                    <input type="hidden" id="tag-manage-id"/>
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">배정 태그명 <span style="color:#EF4444">*</span></label>
+                      <input type="text" id="tag-manage-name" class="tsa-input" placeholder="예: IELTS Speaking" required/>
+                    </div>
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">노출 여부</label>
+                      <select id="tag-manage-visible" class="tsa-input">
+                        <option value="true">노출 (사용)</option>
+                        <option value="false">비노출 (숨김)</option>
+                      </select>
+                    </div>
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">기본 우선순위</label>
+                      <input type="number" id="tag-manage-priority" class="tsa-input" value="1" min="1" required/>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+                      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="resetTagForm()">취소</button>
+                      <button type="submit" class="tsa-btn tsa-btn-primary tsa-btn-sm">저장</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- 우측: 태그 목록 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header">
+                  <h3 class="tsa-card-title"><i data-lucide="list" style="color:#10B981"></i> 배정 태그 풀 (Master Pool)</h3>
+                </div>
+                <div style="overflow:hidden">
+                  <table class="tsa-table">
+                    <thead>
+                      <tr>
+                        <th>태그명</th>
+                        <th style="text-align:center">노출 상태</th>
+                        <th style="text-align:center">우선순위</th>
+                        <th style="text-align:center">순서 정렬</th>
+                        <th style="text-align:center">동작</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tag-master-list-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2784,41 +2856,22 @@
             </div>
           </div>
 
-          <div class="tsa-alert-banner">
-            <i data-lucide="info" style="font-size:18px;color:#D97706"></i>
-            <div>
-              <strong>의사 결정 대기 항목:</strong> 단기 수강 할증 요율(A안/B안)은 대표님과 최종 합의 전까지 수정 가능한 파라미터로 유지됩니다. 변경 시 즉시 견적 시뮬레이터에 반영됩니다.
-            </div>
+          <!-- 서브 탭 네비게이션 -->
+          <div class="tsa-tabs" style="margin-bottom:16px">
+            <div class="tsa-tab active" onclick="switchCoursePricingTab('fees', this)">기본 비용 및 단기 할증 요율</div>
+            <div class="tsa-tab" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 커리큘럼 구성</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
-            <!-- Course List -->
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 목록</h3>
-                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
-                  <i data-lucide="plus-square"></i> 과정 추가
-                </button>
-              </div>
-              <div style="overflow:hidden">
-                <table class="tsa-table">
-                  <thead>
-                    <tr>
-                      <th>과정명</th>
-                      <th>유형</th>
-                      <th>구성 (1:1 + 그룹)</th>
-                      <th>4주 기본학비</th>
-                      <th>상태</th>
-                      <th style="text-align:center">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody id="course-list-body"></tbody>
-                </table>
+          <!-- [탭 A] 기본 비용 및 단기 할증 요율 -->
+          <div id="course-pricing-tab-fees" class="course-pricing-tab-content">
+            <div class="tsa-alert-banner" style="margin-bottom:16px">
+              <i data-lucide="info" style="font-size:18px;color:#D97706"></i>
+              <div>
+                <strong>의사 결정 대기 항목:</strong> 단기 수강 할증 요율(A안/B안)은 대표님과 최종 합의 전까지 수정 가능한 파라미터로 유지됩니다. 변경 시 즉시 견적 시뮬레이터에 반영됩니다.
               </div>
             </div>
 
-            <!-- Pricing Parameters Panel -->
-            <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
               <!-- Surcharge Mode Switcher -->
               <div class="tsa-card">
                 <div class="tsa-card-header">
@@ -2871,7 +2924,7 @@
                 </div>
               </div>
 
-              <!-- Base Fee Settings -->
+              <!-- Base Fee Settings & Estimator -->
               <div class="tsa-card">
                 <div class="tsa-card-header">
                   <h3 class="tsa-card-title"><i data-lucide="dollar-sign" style="color:#16A34A"></i> 기본 비용 설정 ($/4주)</h3>
@@ -2942,6 +2995,34 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- [탭 B] 수강 과정 및 커리큘럼 구성 -->
+          <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content" style="display:none">
+            <div class="tsa-card">
+              <div class="tsa-card-header">
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 및 주간 커리큘럼 목록</h3>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
+                  <i data-lucide="plus-square"></i> 신규 과정 추가
+                </button>
+              </div>
+              <div style="overflow:hidden">
+                <table class="tsa-table">
+                  <thead>
+                    <tr>
+                      <th>과정명</th>
+                      <th>유형</th>
+                      <th>시간 배분 (1:1 + 1:4 + 그룹)</th>
+                      <th>4주 기본학비</th>
+                      <th>매핑 레벨</th>
+                      <th>상태</th>
+                      <th style="text-align:center">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody id="course-list-body"></tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -3084,10 +3165,16 @@
             </div>
           </div>
 
-          <!-- 강의실 관리 -->
-          <div id="cr-panel-manage">
+          <!-- 서브 탭 네비게이션 -->
+          <div class="tsa-tabs" style="margin-bottom:16px">
+            <div class="tsa-tab active" onclick="switchClassroomTab('oneone', this)">1:1 강의실 관리</div>
+            <div class="tsa-tab" onclick="switchClassroomTab('group', this)">그룹 강의실 관리</div>
+          </div>
+
+          <!-- [탭 A] 1:1 강의실 관리 -->
+          <div id="classroom-tab-oneone" class="classroom-tab-content">
             <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal()"><i data-lucide="plus"></i> 강의실 추가</button>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal('1:1 전용')"><i data-lucide="plus"></i> 1:1 강의실 추가</button>
             </div>
             <div class="tsa-card">
               <table class="tsa-table" style="width:100%">
@@ -3099,11 +3186,33 @@
                     <th>유형</th>
                     <th>배정 강사</th>
                     <th>상태</th>
-                    <th>비고</th>
                     <th>동작</th>
                   </tr>
                 </thead>
-                <tbody id="classroom-manage-tbody"></tbody>
+                <tbody id="classroom-oneone-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- [탭 B] 그룹 강의실 관리 -->
+          <div id="classroom-tab-group" class="classroom-tab-content" style="display:none">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal('그룹 강의실')"><i data-lucide="plus"></i> 그룹 강의실 추가</button>
+            </div>
+            <div class="tsa-card">
+              <table class="tsa-table" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>강의실</th>
+                    <th>동/층</th>
+                    <th>수용 인원</th>
+                    <th>유형</th>
+                    <th>배정된 그룹 수업 (반)</th>
+                    <th>상태</th>
+                    <th>동작</th>
+                  </tr>
+                </thead>
+                <tbody id="classroom-group-tbody"></tbody>
               </table>
             </div>
           </div>
@@ -4038,7 +4147,7 @@
           <div class="tsa-tab" onclick="switchTeacherTab('availability', this)">가용성 (Availability)</div>
           <div class="tsa-tab" onclick="switchTeacherTab('schedule', this)">주간 시간표</div>
           <div class="tsa-tab" onclick="switchTeacherTab('eval', this)">근태 · 피드백</div>
-          <div class="tsa-tab" onclick="switchTeacherTab('tags', this)">역량 태그 및 가용성 설정</div>
+          <div class="tsa-tab" onclick="switchTeacherTab('tags', this)">역량 태그 및 배정 제약 설정</div>
         </div>
         <div id="teacher-modal-tab-content"></div>
       </div>
@@ -4208,7 +4317,7 @@
     <div class="tsa-modal tsa-modal-md" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
-          <h3 class="tsa-modal-title">신규 과정 추가</h3>
+          <h3 class="tsa-modal-title" id="course-modal-title">신규 과정 추가</h3>
           <p class="tsa-modal-subtitle">새로운 수강 과정을 등록합니다</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('course-add-modal')"><i data-lucide="x"></i></button>

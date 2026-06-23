@@ -520,14 +520,23 @@ const MOCK_TALK_LMS_TEACHERS = [
   { id: 'talk_t5', name: 'William Wright', nick: 'Will', gender: '남' }
 ];
 
+let MOCK_ASSIGNMENT_TAGS = [
+  { id: "TAG-01", name: "일반 영어 스피킹", visible: true, priority: 1 },
+  { id: "TAG-02", name: "일반 영어 리스닝", visible: true, priority: 2 },
+  { id: "TAG-03", name: "문법", visible: true, priority: 3 },
+  { id: "TAG-04", name: "리딩", visible: true, priority: 4 },
+  { id: "TAG-05", name: "IELTS 전문", visible: true, priority: 5 },
+  { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 6 }
+];
+
 const MOCK_TEACHERS = [
-  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true] },
-  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true, true, false, true, true, true, true, true] },
-  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true, true, true, true, true, true, false, false] },
-  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false, false, false, false, false, false, false, false] },
-  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true, true, true, true, true, true, true, true] },
-  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true, true, true, false, false, true, true, true] },
-  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false, false, false, false, false, false, false, false] },
+  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['IELTS 전문', '리딩'], excludedCourses: ['주니어 ESL'] },
+  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true, true, false, true, true, true, true, true], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [] },
+  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true, true, true, true, true, true, false, false], preferredCourses: ['일반 영어 스피킹', '문법'], excludedCourses: ['IELTS 전문'] },
+  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['문법', '리딩', '일반 영어 리스닝'], excludedCourses: [] },
+  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['주니어 ESL', '일반 영어 스피킹'], excludedCourses: ['IELTS 전문'] },
+  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true, true, true, false, false, true, true, true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [] },
+  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [] },
 ];
 
 const MOCK_TIMETABLE = [
@@ -1400,41 +1409,75 @@ let MOCK_CLASSROOMS = [
 ];
 let _crNextId = 8;
 
-function switchClassroomTab(tab) {
-  document.getElementById('cr-panel-board').style.display   = tab === 'board'  ? '' : 'none';
-  document.getElementById('cr-panel-manage').style.display  = tab === 'manage' ? '' : 'none';
-  ['board','manage'].forEach(t => {
-    const btn = document.getElementById(`cr-tab-${t}`);
-    if (btn) {
-      btn.style.color = t === tab ? '#5E5CE6' : '#6B7280';
-      btn.style.borderBottomColor = t === tab ? '#5E5CE6' : 'transparent';
-    }
-  });
-  if (tab === 'board') renderClassroomStatus();
-  if (tab === 'manage') renderClassroomManage();
+function switchClassroomTab(tab, el) {
+  if (el) {
+    el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.classroom-tab-content').forEach(c => c.style.display = 'none');
+  if (tab === 'oneone') {
+    document.getElementById('classroom-tab-oneone').style.display = 'block';
+  } else if (tab === 'group') {
+    document.getElementById('classroom-tab-group').style.display = 'block';
+  }
+  renderClassroomManage();
 }
 
 function renderClassroomManage() {
-  const tbody = document.getElementById('classroom-manage-tbody');
-  if (!tbody) return;
+  const oneoneTbody = document.getElementById('classroom-oneone-tbody');
+  const groupTbody = document.getElementById('classroom-group-tbody');
+  if (!oneoneTbody || !groupTbody) return;
+
   const statusLabel = { active: '운영 중', maintenance: '점검 중', closed: '사용 불가' };
   const statusColor = { active: '#16A34A', maintenance: '#D97706', closed: '#EF4444' };
-  tbody.innerHTML = MOCK_CLASSROOMS.map(c => {
+
+  // 1:1 강의실 렌더링
+  const oneoneRooms = MOCK_CLASSROOMS.filter(c => c.type === '1:1' || c.type === '1:1 전용');
+  oneoneTbody.innerHTML = oneoneRooms.map(c => {
     const teacher = MOCK_TEACHERS.find(t => t.room === c.room && t.status !== 'resigned');
+    const teacherHtml = teacher 
+      ? `<span style="font-weight:600">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span>` 
+      : '<span style="color:#D1D5DB;font-size:12px">미배정</span>';
     return `<tr>
       <td style="font-weight:700">${c.room}</td>
       <td style="color:#6B7280">${c.building} ${c.floor}</td>
       <td style="text-align:center">${c.capacity}명</td>
       <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#5E5CE6;font-weight:600">${c.type}</span></td>
-      <td>${teacher ? `<span style="font-weight:600">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span>` : '<span style="color:#D1D5DB;font-size:12px">미배정</span>'}</td>
+      <td>${teacherHtml}</td>
       <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${statusColor[c.status]}18;color:${statusColor[c.status]}">${statusLabel[c.status]}</span></td>
-      <td style="font-size:12px;color:#6B7280">${c.memo || '-'}</td>
       <td>
-        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openEditClassroomModal(${c.id})">수정</button>
-        <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none;margin-left:4px" onclick="deleteClassroom(${c.id})">삭제</button>
+        <div style="display:flex;gap:4px">
+          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openEditClassroomModal(${c.id})">수정</button>
+          <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="deleteClassroom(${c.id})">삭제</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
+
+  // 그룹 강의실 렌더링
+  const groupRooms = MOCK_CLASSROOMS.filter(c => c.type === '그룹' || c.type === '그룹 강의실' || c.type === '멀티');
+  groupTbody.innerHTML = groupRooms.map(c => {
+    // 임의의 모의 그룹 수업 배정
+    let assignedClass = '미배정';
+    if (c.room === 'B-201') assignedClass = '<span style="color:#5E5CE6;font-weight:700">IELTS A반 (Sarah)</span>';
+    else if (c.room === 'B-202') assignedClass = '<span style="color:#D97706;font-weight:700">비즈니스 중급반 (David)</span>';
+    
+    return `<tr>
+      <td style="font-weight:700">${c.room}</td>
+      <td style="color:#6B7280">${c.building} ${c.floor}</td>
+      <td style="text-align:center">${c.capacity}명</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#ECFDF5;color:#10B981;font-weight:600">${c.type}</span></td>
+      <td>${assignedClass}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${statusColor[c.status]}18;color:${statusColor[c.status]}">${statusLabel[c.status]}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openEditClassroomModal(${c.id})">수정</button>
+          <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="deleteClassroom(${c.id})">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
@@ -1446,14 +1489,18 @@ function _fillClassroomTeacherSelect(selectedNick) {
     active.map(t => `<option value="${t.nick}" ${t.nick === selectedNick ? 'selected' : ''}>${t.nick} (${t.name}) · ${t.type}</option>`).join('');
 }
 
-function openAddClassroomModal() {
+function openAddClassroomModal(defaultType) {
   document.getElementById('classroom-modal-title').textContent = '강의실 추가';
   document.getElementById('cr-modal-id').value = '';
   document.getElementById('cr-modal-room').value = '';
   document.getElementById('cr-modal-building').value = '';
   document.getElementById('cr-modal-floor').value = '';
-  document.getElementById('cr-modal-capacity').value = '';
-  document.getElementById('cr-modal-type').value = '1:1';
+  
+  const typeVal = (defaultType === '그룹 강의실') ? '그룹' : '1:1';
+  const capVal = (defaultType === '그룹 강의실') ? '8' : '2';
+
+  document.getElementById('cr-modal-capacity').value = capVal;
+  document.getElementById('cr-modal-type').value = typeVal;
   document.getElementById('cr-modal-status').value = 'active';
   document.getElementById('cr-modal-memo').value = '';
   _fillClassroomTeacherSelect('');
@@ -5782,7 +5829,33 @@ function printDiploma() {
 /* =============================================
    TEACHER MANAGEMENT
    ============================================= */
+let _teacherTagFilter = '전체';
+
+function setTeacherTagFilter(tag) {
+  _teacherTagFilter = tag;
+  document.querySelectorAll('.teacher-tag-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tag === tag);
+  });
+  const filtered = MOCK_TEACHERS.filter(t => {
+    if (_teacherTagFilter === '전체') return true;
+    return (t.preferredCourses || []).includes(_teacherTagFilter);
+  });
+  renderTeacherList(filtered);
+}
+
+function renderTeacherTagFilters() {
+  const wrap = document.getElementById('teacher-tag-filter-wrap');
+  if (!wrap) return;
+  const tags = ['전체', ...MOCK_ASSIGNMENT_TAGS.filter(t => t.visible).map(t => t.name)];
+  wrap.innerHTML = tags.map(tag => `
+    <button class="tsa-dorm-filter-chip teacher-tag-filter-btn ${tag === '전체' ? 'active' : ''}"
+      data-tag="${tag}" onclick="setTeacherTagFilter('${tag}')">${tag}</button>
+  `).join('');
+}
+
 function initTeacherList() {
+  _teacherTagFilter = '전체';
+  renderTeacherTagFilters();
   renderTeacherList(MOCK_TEACHERS);
 }
 
@@ -5818,6 +5891,7 @@ function renderTeacherList(list) {
             <div>
               <div style="font-weight:700;font-size:13px;color:#1A1D23">${t.name}</div>
               <div style="font-size:11px;color:#6B7280">경력 ${t.exp}년 · 평점 ⭐ ${t.rating}</div>
+              ${(t.preferredCourses||[]).length > 0 ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${(t.preferredCourses||[]).map(tag => `<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#EEF2FF;color:#5E5CE6;font-weight:600">${tag}</span>`).join('')}</div>` : ''}
             </div>
           </div>
         </td>
@@ -5831,7 +5905,7 @@ function renderTeacherList(list) {
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})">
               <i data-lucide="eye" style="font-size:11px"></i> 상세
             </button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherScheduleModal('${t.nick}')" style="border-color:#0EA5E9;color:#0EA5E9">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id}, 'schedule')" style="border-color:#0EA5E9;color:#0EA5E9">
               <i data-lucide="calendar" style="font-size:11px"></i> 스케줄
             </button>
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherEditModal(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
@@ -6379,20 +6453,66 @@ function saveTeacherForm() {
   renderTimetable(APP.conflictMode);
 }
 
-function openTeacherDetail(id) {
+function openTeacherDetail(id, activeTab = 'profile') {
   APP.currentTeacher = MOCK_TEACHERS.find(t => t.id === id);
   if (!APP.currentTeacher) return;
   const t = APP.currentTeacher;
   document.getElementById('modal-teacher-name').textContent = `${t.name} (${t.nick})`;
   document.getElementById('modal-teacher-meta').textContent = `${t.gender}성 · ${t.type} · ${t.contract}`;
   
+  const tabNames = ['profile', 'availability', 'schedule', 'eval', 'tags'];
+  const activeIndex = tabNames.indexOf(activeTab);
+
   // Activate basic tab
   document.querySelectorAll('#teacher-detail-modal .tsa-tab').forEach((tab, idx) => {
-    tab.classList.toggle('active', idx === 0);
+    tab.classList.toggle('active', idx === activeIndex);
   });
 
-  switchTeacherTab('profile', null);
+  switchTeacherTab(activeTab, null);
   openModal('teacher-detail-modal');
+}
+
+function switchCoursePricingTab(tab, el) {
+  if (el) {
+    el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.course-pricing-tab-content').forEach(c => c.style.display = 'none');
+  if (tab === 'fees') {
+    document.getElementById('course-pricing-tab-fees').style.display = 'block';
+  } else if (tab === 'curriculum') {
+    document.getElementById('course-pricing-tab-curriculum').style.display = 'block';
+    renderCourseList();
+  }
+}
+
+function switchClassroomTab(tab, el) {
+  if (el) {
+    el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.classroom-tab-content').forEach(c => c.style.display = 'none');
+  if (tab === 'oneone') {
+    document.getElementById('classroom-tab-oneone').style.display = 'block';
+  } else if (tab === 'group') {
+    document.getElementById('classroom-tab-group').style.display = 'block';
+  }
+  renderClassroomStatus();
+}
+
+function switchTeacherManageTab(tab, el) {
+  if (el) {
+    el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.teacher-manage-tab-content').forEach(c => c.style.display = 'none');
+  if (tab === 'list') {
+    document.getElementById('teacher-tab-list').style.display = 'block';
+    initTeacherList();
+  } else if (tab === 'tags') {
+    document.getElementById('teacher-tab-tags').style.display = 'block';
+    renderAssignmentTags();
+  }
 }
 
 function switchTeacherTab(tab, el) {
@@ -6432,23 +6552,71 @@ function switchTeacherTab(tab, el) {
       break;
 
     case 'schedule':
+      const ttRow = MOCK_TIMETABLE.find(r => r.teacher === t.nick);
+      const PERIODS = [
+        { p: 1, time: '08:00~09:00' }, { p: 2, time: '09:00~10:00' },
+        { p: 3, time: '10:00~11:00' }, { p: 4, time: '11:00~12:00' },
+        { p: 5, time: '13:00~14:00' }, { p: 6, time: '14:00~15:00' },
+        { p: 7, time: '15:00~16:00' }, { p: 8, time: '16:00~17:00' },
+      ];
+      const DAYS = ['월', '화', '수', '목', '금'];
+      const avail = t.availability || {};
+      const color = ttRow ? ttRow.color : '#5E5CE6';
+      const bg = ttRow ? ttRow.bg : '#EEF2FF';
+      const slots = ttRow ? ttRow.slots : [];
+
+      const slotMap = {};
+      slots.forEach(s => {
+        slotMap[`${s.day}-${s.p}`] = s;
+      });
+
+      let gridRows = '';
+      PERIODS.forEach(({ p, time }) => {
+        let cellHtml = DAYS.map(d => {
+          const slot = slotMap[`${d}-${p}`] || { student: null };
+          if (slot.student) {
+            const names = slot.students ? slot.students.join(', ') : slot.student;
+            const tag = slot.type ? `<span style="font-size:10px;opacity:.75;display:block;margin-top:2px">${slot.type}</span>` : '';
+            const subj = slot.subject ? `<div style="font-size:10px;margin-top:2px;opacity:.8;line-height:1.2">${slot.subject}</div>` : '';
+            return `<td style="background:${bg};border-left:3px solid ${color};padding:6px 8px;text-align:left;vertical-align:top">
+              <div style="font-weight:700;font-size:12px;color:${color}">${names}</div>
+              ${tag}${subj}
+            </td>`;
+          } else {
+            const dayAvail = Array.isArray(avail[d]) ? avail[d][p - 1] : true;
+            if (dayAvail) {
+              return `<td style="text-align:center;color:#10B981;font-size:18px;font-weight:bold;vertical-align:middle">·</td>`;
+            } else {
+              return `<td style="text-align:center;background:#FEF2F2;color:#FCA5A5;font-size:11px;vertical-align:middle">✕</td>`;
+            }
+          }
+        }).join('');
+
+        gridRows += `<tr>
+          <td style="text-align:center;font-size:11px;color:#6B7280;white-space:nowrap;padding:6px 8px;border-right:1px solid #E5E7EB;vertical-align:middle">
+            <strong style="color:#374151">${p}교시</strong><br/><span style="font-size:9.5px">${time}</span>
+          </td>
+          ${cellHtml}
+        </tr>`;
+      });
+
       container.innerHTML = `
-        <div style="padding:12px;background:#EEF2FF;border-radius:8px;margin-bottom:14px;font-size:12px;color:#4F46E5">
-          <strong>조회 전용:</strong> 실제 배정은 "시간표 및 수업 배정" 메뉴에서만 가능합니다.
+        <div style="padding:10px 12px;background:#EEF2FF;border-radius:8px;margin-bottom:12px;font-size:11.5px;color:#4F46E5">
+          <strong>조회 전용:</strong> 실제 배정 및 변경은 "시간표 및 수업 배정" 메뉴에서 진행해 주십시오.
         </div>
-        <table class="tsa-table" style="font-size:12px">
-          <thead><tr><th>요일 / 교시</th><th>학생</th><th>수업 유형</th><th>교실</th></tr></thead>
-          <tbody>
-            ${(MOCK_TIMETABLE.find(m=>m.teacher===t.nick)||{slots:[]}).slots.filter(s=>s.student).map(s=>`
-              <tr>
-                <td style="font-weight:600">${s.day}요일 ${s.p}교시</td>
-                <td style="font-weight:600">${s.student}</td>
-                <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${s.type||'-'}</span></td>
-                <td>Room ${t.room}</td>
+        <div style="overflow-x:auto">
+          <table class="tsa-table" style="font-size:11.5px;width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#F3F4F6">
+                <th style="padding:6px 8px;text-align:center;color:#6B7280;font-weight:600;border-right:1px solid #E5E7EB;width:90px">교시 / 시간</th>
+                ${DAYS.map(d => `<th style="padding:6px 8px;text-align:center;color:#374151;font-weight:700">${d}</th>`).join('')}
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${gridRows}
+            </tbody>
+          </table>
+        </div>
       `;
       break;
 
@@ -6488,21 +6656,50 @@ function switchTeacherTab(tab, el) {
       break;
 
     case 'tags':
+      const masterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
+      
+      const preferredHtml = masterTags.map(tag => {
+        const checked = (t.preferredCourses || []).includes(tag.name) ? 'checked' : '';
+        const disabled = (t.prohibitedCourses || []).includes(tag.name) ? 'disabled' : '';
+        return `
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
+            <input type="checkbox" name="pref-tag" value="${tag.name}" ${checked} ${disabled} onchange="handleTeacherTagCheckChange()"/>
+            <span>${tag.name}</span>
+          </label>
+        `;
+      }).join('');
+
+      const excludedHtml = masterTags.map(tag => {
+        const checked = (t.prohibitedCourses || []).includes(tag.name) ? 'checked' : '';
+        const disabled = (t.preferredCourses || []).includes(tag.name) ? 'disabled' : '';
+        return `
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
+            <input type="checkbox" name="excl-tag" value="${tag.name}" ${checked} ${disabled} onchange="handleTeacherTagCheckChange()"/>
+            <span>${tag.name}</span>
+          </label>
+        `;
+      }).join('');
+
       container.innerHTML = `
-        <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">🏷️ 강사 역량 태그 및 수업 가용성 설정</div>
+        <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">🏷️ 강사 역량 태그 및 배정 제약 설정</div>
+        
+        <div style="margin-bottom:16px">
+          <div style="font-size:11.5px;font-weight:700;color:#1E3A8A;margin-bottom:8px">⭐ 장점 과정 설정 (우선 배정 태그, 다중 선택 가능)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px" id="pref-tag-container">
+            ${preferredHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 노출 배정 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <div style="font-size:11.5px;font-weight:700;color:#DC2626;margin-bottom:8px">❌ 제외 과정 설정 (배정 금지 태그, 다중 선택 가능)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px" id="excl-tag-container">
+            ${excludedHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 노출 배정 태그가 없습니다.</div>'}
+          </div>
+        </div>
+
+        <div class="tsa-divider" style="margin:16px 0"></div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="tsa-form-group" style="grid-column:span 2">
-            <label class="tsa-label">장점 과정 (우선 배정 태그, 쉼표 구분)</label>
-            <input id="tag-pref" type="text" class="tsa-input" value="${(t.preferredCourses || []).join(', ')}" placeholder="IELTS Reading, IELTS Speaking"/>
-          </div>
-          <div class="tsa-form-group" style="grid-column:span 2">
-            <label class="tsa-label">기본 수업 과정 (쉼표 구분)</label>
-            <input id="tag-basic" type="text" class="tsa-input" value="${(t.basicCourses || []).join(', ')}" placeholder="일반 영어 Reading, Grammar"/>
-          </div>
-          <div class="tsa-form-group" style="grid-column:span 2">
-            <label class="tsa-label">제외 과정 (배정 금지 태그, 쉼표 구분)</label>
-            <input id="tag-excl" type="text" class="tsa-input" value="${(t.prohibitedCourses || []).join(', ')}" placeholder="Junior English"/>
-          </div>
           <div class="tsa-form-group">
             <label class="tsa-label">수업 가용 타입</label>
             <select id="tag-class-type" class="tsa-input">
@@ -6526,7 +6723,7 @@ function switchTeacherTab(tab, el) {
         </div>
         <div style="margin-top:16px;display:flex;justify-content:flex-end">
           <button class="tsa-btn tsa-btn-primary" onclick="saveTeacherTags(${t.id})">
-            <i data-lucide="check"></i> 역량 태그 및 가용성 저장
+            <i data-lucide="check"></i> 역량 태그 및 배정 제약 저장
           </button>
         </div>
       `;
@@ -10834,31 +11031,108 @@ function renderCourseList() {
   const tbody = document.getElementById('course-list-body');
   if (!tbody) return;
 
-  tbody.innerHTML = MOCK_COURSES.map(c => `
-    <tr>
-      <td>
-        <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
-      </td>
-      <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
-      <td style="font-size:12px">1:1 ${c.oneone}h + 그룹 ${c.group}h</td>
-      <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee}</td>
-      <td><span class="tsa-badge ${c.active?'tsa-badge-success':'tsa-badge-gray'}">${c.active?'활성':'비활성'}</span></td>
-      <td style="text-align:center">
-        <div style="display:flex;gap:5px;justify-content:center">
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="showToast('과정 수정 모달 (개발 대기)','info')">수정</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
+    const subjectsBadge = (c.subjects || []).map(s => `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin-right:2px">${s}</span>`).join('');
+    const levelsBadge = (c.levels || []).map(l => `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin-right:2px">${l}</span>`).join('');
+    
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:2px">과목: ${subjectsBadge || '-'}</div>
+        </td>
+        <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
+        <td style="font-size:12px">
+          <div>1:1 ${c.oneone}h / 그룹 ${c.group}h</div>
+          <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">레벨: ${levelsBadge || '-'}</div>
+        </td>
+        <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
+        <td><span class="tsa-badge ${c.active?'tsa-badge-success':'tsa-badge-gray'}">${c.active?'활성':'비활성'}</span></td>
+        <td style="text-align:center">
+          <div style="display:flex;gap:5px;justify-content:center">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditCourseModal(${idx})">수정</button>
+            <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="deleteCourse(${idx})">삭제</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
+let _editingCourseIdx = null;
+
 function openCourseModal() {
+  _editingCourseIdx = null;
+  document.getElementById('course-modal-title').textContent = '신규 과정 및 커리큘럼 추가';
+  document.getElementById('add-course-name').value = '';
+  document.getElementById('add-course-type').value = '1:1 전담';
+  document.getElementById('add-course-fee').value = '';
+  document.getElementById('add-course-oneone').value = '15';
+  document.getElementById('add-course-group1on4').value = '0';
+  document.getElementById('add-course-group').value = '5';
+  document.getElementById('add-course-subjects').value = 'Speaking, Reading, Grammar';
+  document.getElementById('add-course-levels').value = 'Level 1, Level 2, Level 3';
+  openModal('course-add-modal');
+}
+
+function openEditCourseModal(idx) {
+  _editingCourseIdx = idx;
+  const c = MOCK_COURSES[idx];
+  if (!c) return;
+
+  document.getElementById('course-modal-title').textContent = '과정 및 커리큘럼 정보 수정';
+  document.getElementById('add-course-name').value = c.name;
+  document.getElementById('add-course-type').value = c.type;
+  document.getElementById('add-course-fee').value = c.fee;
+  document.getElementById('add-course-oneone').value = c.oneone || '0';
+  document.getElementById('add-course-group1on4').value = c.group1on4 || '0';
+  document.getElementById('add-course-group').value = c.group || '0';
+  document.getElementById('add-course-subjects').value = (c.subjects || []).join(', ');
+  document.getElementById('add-course-levels').value = (c.levels || []).join(', ');
+
   openModal('course-add-modal');
 }
 
 function saveCourse() {
-  showToast('신규 과정이 추가되었습니다 (목록 반영)', 'success');
+  const name = document.getElementById('add-course-name').value.trim();
+  const type = document.getElementById('add-course-type').value;
+  const fee = parseInt(document.getElementById('add-course-fee').value, 10) || 0;
+  const oneone = parseInt(document.getElementById('add-course-oneone').value, 10) || 0;
+  const group1on4 = parseInt(document.getElementById('add-course-group1on4').value, 10) || 0;
+  const group = parseInt(document.getElementById('add-course-group').value, 10) || 0;
+  const subjectsStr = document.getElementById('add-course-subjects').value.trim();
+  const levelsStr = document.getElementById('add-course-levels').value.trim();
+
+  if (!name) {
+    showToast('과정명을 입력해주세요.', 'warning');
+    return;
+  }
+
+  const subjects = subjectsStr ? subjectsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const levels = levelsStr ? levelsStr.split(',').map(l => l.trim()).filter(Boolean) : [];
+
+  const courseData = {
+    name, type, oneone, group1on4, group, fee,
+    active: true, subjects, levels
+  };
+
+  if (_editingCourseIdx !== null) {
+    MOCK_COURSES[_editingCourseIdx] = { ...MOCK_COURSES[_editingCourseIdx], ...courseData };
+    showToast('과정 및 커리큘럼 정보가 수정되었습니다.', 'success');
+  } else {
+    MOCK_COURSES.push(courseData);
+    showToast('신규 과정 및 커리큘럼이 추가되었습니다.', 'success');
+  }
+
   closeModal('course-add-modal');
+  renderCourseList();
+}
+
+function deleteCourse(idx) {
+  if (!confirm('정말 이 과정을 삭제하시겠습니까?')) return;
+  MOCK_COURSES.splice(idx, 1);
+  showToast('과정이 삭제되었습니다.', 'success');
+  renderCourseList();
 }
 
 function setPricingMode(mode) {
@@ -14587,9 +14861,8 @@ function renderMonthlyInvoiceStats() {
 
 // Tag Settings Saving
 function saveTeacherTags(id) {
-  const pref = document.getElementById('tag-pref').value.split(',').map(s => s.trim()).filter(Boolean);
-  const basic = document.getElementById('tag-basic').value.split(',').map(s => s.trim()).filter(Boolean);
-  const excl = document.getElementById('tag-excl').value.split(',').map(s => s.trim()).filter(Boolean);
+  const prefChecked = Array.from(document.querySelectorAll('input[name="pref-tag"]:checked')).map(el => el.value);
+  const exclChecked = Array.from(document.querySelectorAll('input[name="excl-tag"]:checked')).map(el => el.value);
   const classType = document.getElementById('tag-class-type').value;
   const room = document.getElementById('tag-room').value.trim();
   const workStart = document.getElementById('tag-work-start').value;
@@ -14597,55 +14870,170 @@ function saveTeacherTags(id) {
 
   const t = MOCK_TEACHERS.find(teacher => teacher.id === id);
   if (t) {
-    t.preferredCourses = pref;
-    t.basicCourses = basic;
-    t.prohibitedCourses = excl;
+    t.preferredCourses = prefChecked;
+    t.prohibitedCourses = exclChecked;
+    const allTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.map(tag => tag.name) : [];
+    t.basicCourses = allTags.filter(name => !prefChecked.includes(name) && !exclChecked.includes(name));
+
     t.classType = classType;
     t.assignedRoom = room;
     t.room = room;
     t.workHours = { start: workStart, end: workEnd };
 
-    showToast(`✓ ${t.nick} 강사의 역량 태그 및 가용성 설정이 저장되었습니다.`, 'success');
+    showToast(`✓ ${t.nick} 강사의 역량 태그 및 배정 제약 설정이 저장되었습니다.`, 'success');
     switchTeacherTab('profile', null);
     initTeacherList();
   }
 }
 
-// Course Saving
-function saveCourse() {
-  const name = document.getElementById('add-course-name').value.trim();
-  const type = document.getElementById('add-course-type').value;
-  const fee = parseInt(document.getElementById('add-course-fee').value) || 0;
-  const oneone = parseInt(document.getElementById('add-course-oneone').value) || 0;
-  const group1on4 = parseInt(document.getElementById('add-course-group1on4').value) || 0;
-  const group = parseInt(document.getElementById('add-course-group').value) || 0;
-  const subjectsStr = document.getElementById('add-course-subjects').value.trim();
-  const levelsStr = document.getElementById('add-course-levels').value.trim();
+// Assignment Tag Master Pool Mock Data defined at top
 
-  if (!name) {
-    showToast('과정명을 입력해주세요.', 'warning');
-    return;
+function handleTeacherTagCheckChange() {
+  const prefChecked = Array.from(document.querySelectorAll('input[name="pref-tag"]:checked')).map(el => el.value);
+  const exclChecked = Array.from(document.querySelectorAll('input[name="excl-tag"]:checked')).map(el => el.value);
+
+  document.querySelectorAll('input[name="pref-tag"]').forEach(el => {
+    el.disabled = exclChecked.includes(el.value);
+    if (el.disabled) {
+      el.parentNode.style.opacity = '0.5';
+    } else {
+      el.parentNode.style.opacity = '1';
+    }
+  });
+  document.querySelectorAll('input[name="excl-tag"]').forEach(el => {
+    el.disabled = prefChecked.includes(el.value);
+    if (el.disabled) {
+      el.parentNode.style.opacity = '0.5';
+    } else {
+      el.parentNode.style.opacity = '1';
+    }
+  });
+}
+
+function renderAssignmentTags() {
+  const tbody = document.getElementById('tag-master-list-tbody');
+  if (!tbody) return;
+
+  MOCK_ASSIGNMENT_TAGS.sort((a, b) => a.priority - b.priority);
+
+  tbody.innerHTML = MOCK_ASSIGNMENT_TAGS.map((tag, idx) => {
+    const visibleBadge = tag.visible 
+      ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleTagVisibility('${tag.id}')">노출</span>`
+      : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleTagVisibility('${tag.id}')">비노출</span>`;
+    
+    return `
+      <tr>
+        <td style="font-weight:700">${tag.name}</td>
+        <td style="text-align:center">${visibleBadge}</td>
+        <td style="text-align:center;font-weight:600">${tag.priority}순위</td>
+        <td style="text-align:center">
+          <div style="display:flex;justify-content:center;gap:4px">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'up')" ${idx === 0 ? 'disabled' : ''}>▲</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'down')" ${idx === MOCK_ASSIGNMENT_TAGS.length - 1 ? 'disabled' : ''}>▼</button>
+          </div>
+        </td>
+        <td style="text-align:center">
+          <div style="display:flex;justify-content:center;gap:6px">
+            <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="editAssignmentTag('${tag.id}')">수정</button>
+            <button class="tsa-btn tsa-btn-xs tsa-btn-outline-danger" onclick="deleteAssignmentTag('${tag.id}')">삭제</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function saveAssignmentTag() {
+  const idEl = document.getElementById('tag-manage-id');
+  const nameEl = document.getElementById('tag-manage-name');
+  const visibleEl = document.getElementById('tag-manage-visible');
+  const priorityEl = document.getElementById('tag-manage-priority');
+
+  const id = idEl.value;
+  const name = nameEl.value.trim();
+  const visible = visibleEl.value === 'true';
+  const priority = parseInt(priorityEl.value, 10);
+
+  if (!name) return;
+
+  if (id) {
+    const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
+    if (tag) {
+      tag.name = name;
+      tag.visible = visible;
+      tag.priority = priority;
+      showToast('배정 태그가 수정되었습니다.', 'success');
+    }
+  } else {
+    const newId = 'TAG-' + String(MOCK_ASSIGNMENT_TAGS.length + 1).padStart(2, '0');
+    MOCK_ASSIGNMENT_TAGS.push({
+      id: newId,
+      name: name,
+      visible: visible,
+      priority: priority
+    });
+    showToast('신규 배정 태그가 추가되었습니다.', 'success');
   }
 
-  const subjects = subjectsStr ? subjectsStr.split(',').map(s => s.trim()) : [];
-  const levels = levelsStr ? levelsStr.split(',').map(l => l.trim()) : [];
-
-  MOCK_COURSES.push({
-    name,
-    type,
-    oneone,
-    group1on4,
-    group,
-    fee,
-    active: true,
-    subjects,
-    levels
-  });
-
-  showToast('신규 과정 및 커리큘럼이 추가되었습니다.', 'success');
-  closeModal('course-add-modal');
-  renderCourseList();
+  resetTagForm();
+  renderAssignmentTags();
 }
+
+function editAssignmentTag(id) {
+  const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
+  if (!tag) return;
+
+  document.getElementById('tag-manage-id').value = tag.id;
+  document.getElementById('tag-manage-name').value = tag.name;
+  document.getElementById('tag-manage-visible').value = String(tag.visible);
+  document.getElementById('tag-manage-priority').value = tag.priority;
+  document.getElementById('tag-form-title').innerHTML = `<i data-lucide="edit-3" style="color:#F59E0B"></i> 배정 태그 수정`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function deleteAssignmentTag(id) {
+  if (!confirm('정말 이 배정 태그를 삭제하시겠습니까?')) return;
+  MOCK_ASSIGNMENT_TAGS = MOCK_ASSIGNMENT_TAGS.filter(t => t.id !== id);
+  showToast('배정 태그가 삭제되었습니다.', 'success');
+  renderAssignmentTags();
+}
+
+function toggleTagVisibility(id) {
+  const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
+  if (tag) {
+    tag.visible = !tag.visible;
+    renderAssignmentTags();
+  }
+}
+
+function changeTagPriority(id, direction) {
+  const idx = MOCK_ASSIGNMENT_TAGS.findIndex(t => t.id === id);
+  if (idx === -1) return;
+
+  if (direction === 'up' && idx > 0) {
+    const temp = MOCK_ASSIGNMENT_TAGS[idx].priority;
+    MOCK_ASSIGNMENT_TAGS[idx].priority = MOCK_ASSIGNMENT_TAGS[idx - 1].priority;
+    MOCK_ASSIGNMENT_TAGS[idx - 1].priority = temp;
+  } else if (direction === 'down' && idx < MOCK_ASSIGNMENT_TAGS.length - 1) {
+    const temp = MOCK_ASSIGNMENT_TAGS[idx].priority;
+    MOCK_ASSIGNMENT_TAGS[idx].priority = MOCK_ASSIGNMENT_TAGS[idx + 1].priority;
+    MOCK_ASSIGNMENT_TAGS[idx + 1].priority = temp;
+  }
+  renderAssignmentTags();
+}
+
+function resetTagForm() {
+  document.getElementById('tag-manage-id').value = '';
+  document.getElementById('tag-manage-name').value = '';
+  document.getElementById('tag-manage-visible').value = 'true';
+  document.getElementById('tag-manage-priority').value = String(MOCK_ASSIGNMENT_TAGS.length + 1);
+  document.getElementById('tag-form-title').innerHTML = `<i data-lucide="plus-circle" style="color:#5E5CE6"></i> 배정 태그 등록/수정`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// Course Saving defined elsewhere
 
 // B2B Invoice Submissions Inside Student Detail Modal
 function submitInvoiceForApproval(studentId) {
