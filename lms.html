@@ -2967,6 +2967,253 @@
           </div>
         </div>
 
+
+        <!-- ================================================ -->
+        <!--  VIEW: BELL SETTINGS (교시 및 벨 설정)            -->
+        <!-- ================================================ -->
+        <div id="view-bell-settings" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">⏰ 교시 및 벨 설정</h2>
+              <p class="tsa-page-subtitle">지점별 수업 및 휴식 시간 설정 · 일일 교시 수 산출 규칙 설정</p>
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
+            <!-- Left: Settings Card -->
+            <div class="tsa-card">
+              <div class="tsa-card-header" style="background:#F0F1FE">
+                <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 벨 시스템 변수 설정</h3>
+              </div>
+              <div class="tsa-card-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+                <div class="tsa-form-group">
+                  <label class="tsa-label">수업 진행 시간 (수업 Duration)</label>
+                  <select id="bell-settings-duration" class="tsa-input" onchange="previewBellSettings()">
+                    <option value="40">40분 수업</option>
+                    <option value="45">45분 수업</option>
+                    <option value="50" selected>50분 수업</option>
+                    <option value="60">60분 수업</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">쉬는 시간 (Break Time)</label>
+                  <select id="bell-settings-break" class="tsa-input" onchange="previewBellSettings()">
+                    <option value="5">5분 휴식</option>
+                    <option value="10" selected>10분 휴식</option>
+                    <option value="15">15분 휴식</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">시작 시간 (Start Time)</label>
+                  <input type="text" id="bell-settings-start" class="tsa-input" value="08:00" placeholder="HH:MM" oninput="previewBellSettings()"/>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">하루 총 교시 수</label>
+                  <select id="bell-settings-total-periods" class="tsa-input" onchange="previewBellSettings()">
+                    <option value="6">6교시</option>
+                    <option value="7">7교시</option>
+                    <option value="8" selected>8교시</option>
+                    <option value="9">9교시</option>
+                    <option value="10">10교시</option>
+                  </select>
+                </div>
+                <div class="tsa-divider"></div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">점심시간 시작 교시 (이후 점심시간 배치)</label>
+                  <select id="bell-settings-lunch-after" class="tsa-input" onchange="previewBellSettings()">
+                    <option value="3">3교시 후</option>
+                    <option value="4" selected>4교시 후</option>
+                    <option value="5">5교시 후</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">점심시간 시간 (Lunch Break Duration)</label>
+                  <select id="bell-settings-lunch-duration" class="tsa-input" onchange="previewBellSettings()">
+                    <option value="30" selected>30분 점심</option>
+                    <option value="60">60분 점심</option>
+                  </select>
+                </div>
+                <div style="margin-top:10px;">
+                  <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;" onclick="applyBellSettings()">
+                    <i data-lucide="check-circle"></i> 설정 저장 및 시간표 적용
+                  </button>
+                </div>
+
+                <!-- 확정(Published) 상태일 때만 표시되는 인라인 선택 바 -->
+                <div id="bell-apply-confirm-bar" style="display:none;margin-top:12px;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:10px;padding:14px">
+                  <div style="font-size:12px;font-weight:700;color:#B91C1C;margin-bottom:10px">
+                    🚨 시간표가 확정(Published) 상태입니다. 적용 시점을 선택해 주세요.
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <button onclick="window._bellApplyChoice='1'; applyBellSettings();"
+                      style="padding:9px 12px;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:7px;font-size:12px;font-weight:700;color:#B91C1C;cursor:pointer;text-align:left">
+                      ⚡ 즉시 적용 — 현재 시간표에 바로 반영
+                    </button>
+                    <button onclick="window._bellApplyChoice='2'; applyBellSettings();"
+                      style="padding:9px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:7px;font-size:12px;font-weight:700;color:#C2410C;cursor:pointer;text-align:left">
+                      📅 차주 월요일부터 적용 예약
+                    </button>
+                    <button onclick="document.getElementById('bell-apply-confirm-bar').style.display='none'"
+                      style="padding:7px 12px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;font-size:11.5px;color:#6B7280;cursor:pointer">
+                      취소
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Right: Preview Card -->
+            <div class="tsa-card">
+              <div class="tsa-card-header" style="background:#F8F9FC">
+                <h3 class="tsa-card-title"><i data-lucide="eye" style="color:#0ea5e9"></i> 실시간 타임테이블 구성 미리보기</h3>
+              </div>
+              <div class="tsa-card-body" style="padding:20px;">
+                <div style="background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;padding:12px;border-radius:8px;font-size:12px;margin-bottom:16px;">
+                  💡 <strong>실시간 계산기:</strong> 위 파라미터를 변경하시면 아래 시간표의 시작 및 종료 시간이 즉시 계산되어 미리 표시됩니다. 저장 버튼을 누르면 전체 시간표에 최종 반영됩니다.
+                </div>
+                
+                <table class="tsa-table" style="width:100%;font-size:13px;">
+                  <thead>
+                    <tr style="background:#F3F4F6;">
+                      <th style="padding:10px;text-align:center;width:100px;">교시</th>
+                      <th style="padding:10px;text-align:center;">진행 시간대</th>
+                      <th style="padding:10px;text-align:center;width:150px;">구분</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bell-settings-preview-body">
+                    <!-- Rendered dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: CLASSROOM STATUS                          -->
+        <!-- ================================================ -->
+        <div id="view-classroom-status" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">🏫 강의실 현황</h2>
+              <p class="tsa-page-subtitle">강의실별 배정 강사 및 수업 운영 현황 관리</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="classroom-status-time" style="font-size:12px;color:#6B7280"></span>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="renderClassroomStatus()"><i data-lucide="refresh-cw"></i> 새로고침</button>
+            </div>
+          </div>
+
+          <!-- 탭 -->
+          <div style="display:flex;gap:0;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
+            <button id="cr-tab-board" onclick="switchClassroomTab('board')"
+              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">
+              📊 현황판
+            </button>
+            <button id="cr-tab-manage" onclick="switchClassroomTab('manage')"
+              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">
+              🏫 강의실 관리
+            </button>
+          </div>
+
+          <!-- 현황판 탭 -->
+          <div id="cr-panel-board">
+            <div id="classroom-status-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+          </div>
+
+          <!-- 강의실 관리 탭 -->
+          <div id="cr-panel-manage" style="display:none">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal()"><i data-lucide="plus"></i> 강의실 추가</button>
+            </div>
+            <div class="tsa-card">
+              <table class="tsa-table" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>강의실</th>
+                    <th>동/층</th>
+                    <th>수용 인원</th>
+                    <th>유형</th>
+                    <th>배정 강사</th>
+                    <th>상태</th>
+                    <th>비고</th>
+                    <th>동작</th>
+                  </tr>
+                </thead>
+                <tbody id="classroom-manage-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 강의실 추가/수정 모달 -->
+        <div id="classroom-modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeClassroomModal()"></div>
+        <div id="classroom-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:460px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden;flex-direction:column">
+          <input type="hidden" id="cr-modal-id"/>
+          <!-- 헤더 -->
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid #E5E7EB">
+            <h3 id="classroom-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">강의실 추가</h3>
+            <button onclick="closeClassroomModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px;line-height:1;padding:2px">✕</button>
+          </div>
+          <!-- 바디 -->
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">강의실 호실 <span style="color:#EF4444">*</span></label>
+              <input id="cr-modal-room" class="tsa-input" placeholder="예: A-101" style="width:100%"/>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">동</label>
+                <input id="cr-modal-building" class="tsa-input" placeholder="예: A동"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">층</label>
+                <input id="cr-modal-floor" class="tsa-input" placeholder="예: 1층"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label>
+                <input id="cr-modal-capacity" class="tsa-input" type="number" min="1" placeholder="명"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">유형</label>
+                <select id="cr-modal-type" class="tsa-input">
+                  <option value="1:1">1:1 강의실</option>
+                  <option value="그룹">그룹 강의실</option>
+                  <option value="멀티">멀티 강의실</option>
+                  <option value="세미나">세미나실</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">상태</label>
+                <select id="cr-modal-status" class="tsa-input">
+                  <option value="active">운영 중</option>
+                  <option value="maintenance">점검 중</option>
+                  <option value="closed">사용 불가</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">배정 강사</label>
+              <select id="cr-modal-teacher" class="tsa-input" style="width:100%">
+                <option value="">— 미배정 —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">비고</label>
+              <input id="cr-modal-memo" class="tsa-input" placeholder="특이사항 입력" style="width:100%"/>
+            </div>
+          </div>
+          <!-- 푸터 -->
+          <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeClassroomModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveClassroom()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+
         <!-- ================================================ -->
         <!--  VIEW: CLASSROOM STATUS                          -->
         <!-- ================================================ -->
