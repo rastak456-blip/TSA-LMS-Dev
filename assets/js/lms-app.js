@@ -1146,6 +1146,10 @@ function navigate(view) {
     if (typeof renderAgencyDormBookHistory === 'function') renderAgencyDormBookHistory();
   } else if (view === 'agency-invoice') {
     renderMonthlyInvoiceStats();
+  } else if (view === 'students') {
+    applyStudentFilters();
+  } else if (view === 'teachers') {
+    if (typeof initTeacherList === 'function') initTeacherList();
   } else if (view === 'dorm-erp') {
     renderDormErpGrid();
   } else if (view === 'classroom-status') {
