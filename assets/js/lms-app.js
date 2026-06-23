@@ -928,29 +928,8 @@ function handleLogin(type) {
   enhanceMockStudents();
   enhanceMockTeachers();
 
-  // Apply user info
-  const avatarEl = document.getElementById('user-avatar');
-  if (role === 'teacher') {
-    avatarEl.innerHTML = `<img src="assets/images/teacher_female.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt=""/>`;
-    avatarEl.style.background = 'none';
-  } else if (role === 'student') {
-    avatarEl.innerHTML = `<img src="assets/images/student_female.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt=""/>`;
-    avatarEl.style.background = 'none';
-  } else {
-    avatarEl.textContent = cfg.avatar;
-    avatarEl.style.background = cfg.bg;
-  }
-  document.getElementById('user-display-name').textContent = cfg.label;
-  document.getElementById('user-display-role').textContent = cfg.label.toUpperCase();
-  document.getElementById('role-badge').textContent = cfg.label;
-  document.getElementById('breadcrumb-section').textContent = cfg.breadSec;
-
-  // Branch
-  const bCfg = BRANCH_CONFIG[APP.branch] || BRANCH_CONFIG['ph-cebu'];
-  document.getElementById('sidebar-branch-label').textContent = bCfg.country;
-
-  // Show / Hide sidebar menus
-  applyMenuVisibility(cfg.menus);
+  // Apply user info and menu visibility
+  applyRoleUI();
 
   // Agency badge
   if (type === 'agency') {
@@ -989,6 +968,47 @@ function handleLogin(type) {
   initDormGantt();
   initCalculators();
   updateFeeEstimate();
+}
+
+function applyRoleUI() {
+  const role = APP.user;
+  const cfg = ROLE_CONFIG[role];
+  if (!cfg) return;
+
+  // Apply user info
+  const avatarEl = document.getElementById('user-avatar');
+  if (avatarEl) {
+    if (role === 'teacher') {
+      avatarEl.innerHTML = `<img src="assets/images/teacher_female.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt=""/>`;
+      avatarEl.style.background = 'none';
+    } else if (role === 'student') {
+      avatarEl.innerHTML = `<img src="assets/images/student_female.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt=""/>`;
+      avatarEl.style.background = 'none';
+    } else {
+      avatarEl.textContent = cfg.avatar;
+      avatarEl.style.background = cfg.bg;
+    }
+  }
+
+  const nameEl = document.getElementById('user-display-name');
+  if (nameEl) nameEl.textContent = cfg.label;
+
+  const roleEl = document.getElementById('user-display-role');
+  if (roleEl) roleEl.textContent = cfg.label.toUpperCase();
+
+  const badgeEl = document.getElementById('role-badge');
+  if (badgeEl) badgeEl.textContent = cfg.label;
+
+  const breadEl = document.getElementById('breadcrumb-section');
+  if (breadEl) breadEl.textContent = cfg.breadSec;
+
+  // Branch
+  const bCfg = BRANCH_CONFIG[APP.branch] || BRANCH_CONFIG['ph-cebu'];
+  const branchEl = document.getElementById('sidebar-branch-label');
+  if (branchEl) branchEl.textContent = bCfg.country;
+
+  // Show / Hide sidebar menus
+  applyMenuVisibility(cfg.menus);
 }
 
 function applyMenuVisibility(menus) {
@@ -1040,6 +1060,7 @@ const VIEW_MAP = {
   students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 현황', sec: '학사 관리' },
+  'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
   'agency-students': { el: 'view-agency-students', menu: 'menu-agency-students', label: '학생 관리', sec: '에이전시' },
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
@@ -1128,7 +1149,11 @@ function navigate(view) {
   } else if (view === 'dorm-erp') {
     renderDormErpGrid();
   } else if (view === 'classroom-status') {
-    renderClassroomStatus();
+    renderClassroomManage();
+  } else if (view === 'course-pricing') {
+    initCoursePricing();
+  } else if (view === 'agency-manage') {
+    renderAgencyManage();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 300);
@@ -1210,6 +1235,145 @@ function isGroupTeacher(teacher) {
   const entry = MOCK_TIMETABLE.find(t => t.teacher === teacher.nick);
   return !!(entry && entry.slots.some(s => isGroupSlot(s)));
 }
+
+// ── 에이전시 관리 ────────────────────────────────────
+let MOCK_AGENCIES = [
+  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너' },
+  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '' },
+  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '' },
+  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지' },
+];
+let _agencyNextId = 5;
+
+function renderAgencyManage() {
+  const tbody = document.getElementById('agency-manage-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = MOCK_AGENCIES.map(a => {
+    const studentCount = MOCK_STUDENTS.filter(s => s.agency === a.name).length;
+    const activeCount  = MOCK_STUDENTS.filter(s => s.agency === a.name && (s.status === 'current' || s.status === 'extended')).length;
+    const statusBadge = a.status === 'active'
+      ? `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#D1FAE5;color:#065F46">활성</span>`
+      : `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#F3F4F6;color:#6B7280">비활성</span>`;
+
+    return `<tr>
+      <td>
+        <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${a.name}</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country} · 담당: ${a.contact}</div>
+        <div style="font-size:11px;color:#9CA3AF">${a.phone}</div>
+      </td>
+      <td style="font-size:12px;color:#374151">${a.email}</td>
+      <td style="font-size:12px;font-weight:600;color:#374151">${a.accountId}</td>
+      <td style="text-align:center">
+        <div style="font-size:14px;font-weight:800;color:#111827">${studentCount}명</div>
+        <div style="font-size:10.5px;color:#10B981">재학 ${activeCount}명</div>
+      </td>
+      <td style="text-align:center;font-size:13px;font-weight:700;color:#5E5CE6">${a.commissionRate}%</td>
+      <td style="text-align:center">${statusBadge}</td>
+      <td>
+        <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+          <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="viewAsAgency('${a.accountId}')">포털 보기</button>
+          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openAgencyEditModal(${a.id})">수정</button>
+          <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="toggleAgencyStatus(${a.id})">${a.status === 'active' ? '비활성화' : '활성화'}</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // KPI
+  const total    = MOCK_AGENCIES.length;
+  const active   = MOCK_AGENCIES.filter(a => a.status === 'active').length;
+  const students = MOCK_STUDENTS.filter(s => MOCK_AGENCIES.some(a => a.name === s.agency)).length;
+  document.getElementById('agm-kpi-total')    && (document.getElementById('agm-kpi-total').textContent    = total + '개');
+  document.getElementById('agm-kpi-active')   && (document.getElementById('agm-kpi-active').textContent   = active + '개');
+  document.getElementById('agm-kpi-students') && (document.getElementById('agm-kpi-students').textContent = students + '명');
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function viewAsAgency(accountId) {
+  // 어드민이 에이전시 화면으로 전환
+  APP.user = 'agency_head';
+  APP.prevAdminUser = 'super_admin';
+  applyRoleUI();
+  navigate('agency-home');
+  showToast(`에이전시 포털 뷰로 전환됩니다. 돌아오려면 로그아웃 후 재로그인하세요.`, 'info');
+}
+
+function toggleAgencyStatus(id) {
+  const a = MOCK_AGENCIES.find(x => x.id === id);
+  if (!a) return;
+  a.status = a.status === 'active' ? 'inactive' : 'active';
+  showToast(`${a.name} 에이전시가 ${a.status === 'active' ? '활성화' : '비활성화'}되었습니다.`, 'success');
+  renderAgencyManage();
+}
+
+function openAgencyRegisterModal() {
+  document.getElementById('agm-modal-title').textContent = '에이전시 등록';
+  document.getElementById('agm-modal-id').value = '';
+  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-account-id','agm-password','agm-commission','agm-note'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('agm-commission').value = '10';
+  document.getElementById('agency-manage-modal').style.display = 'block';
+  document.getElementById('agency-manage-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function openAgencyEditModal(id) {
+  const a = MOCK_AGENCIES.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('agm-modal-title').textContent = '에이전시 수정';
+  document.getElementById('agm-modal-id').value = id;
+  document.getElementById('agm-name').value       = a.name;
+  document.getElementById('agm-country').value    = a.country;
+  document.getElementById('agm-contact').value    = a.contact;
+  document.getElementById('agm-phone').value      = a.phone;
+  document.getElementById('agm-email').value      = a.email;
+  document.getElementById('agm-account-id').value = a.accountId;
+  document.getElementById('agm-password').value   = '';
+  document.getElementById('agm-commission').value  = a.commissionRate;
+  document.getElementById('agm-note').value        = a.note || '';
+  document.getElementById('agency-manage-modal').style.display = 'block';
+  document.getElementById('agency-manage-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function closeAgencyManageModal() {
+  document.getElementById('agency-manage-modal').style.display = 'none';
+  document.getElementById('agency-manage-backdrop').style.display = 'none';
+}
+
+function saveAgencyManage() {
+  const name    = document.getElementById('agm-name').value.trim();
+  const country = document.getElementById('agm-country').value.trim();
+  const contact = document.getElementById('agm-contact').value.trim();
+  const email   = document.getElementById('agm-email').value.trim();
+  const accountId = document.getElementById('agm-account-id').value.trim();
+  const commission = parseFloat(document.getElementById('agm-commission').value) || 0;
+  if (!name || !accountId) { showToast('에이전시명과 계정 ID는 필수입니다.', 'danger'); return; }
+
+  const id = document.getElementById('agm-modal-id').value;
+  const data = {
+    name, country, contact,
+    phone: document.getElementById('agm-phone').value.trim(),
+    email, accountId, commissionRate: commission,
+    note: document.getElementById('agm-note').value.trim(),
+    flag: '🏢',
+  };
+
+  if (id) {
+    const idx = MOCK_AGENCIES.findIndex(a => a.id === parseInt(id));
+    if (idx >= 0) MOCK_AGENCIES[idx] = { ...MOCK_AGENCIES[idx], ...data };
+    showToast(`✓ ${name} 에이전시 정보가 수정되었습니다.`, 'success');
+  } else {
+    MOCK_AGENCIES.push({ id: _agencyNextId++, ...data, status: 'active', createdAt: '2026-06-23' });
+    showToast(`✓ ${name} 에이전시가 등록되었습니다.`, 'success');
+  }
+  closeAgencyManageModal();
+  renderAgencyManage();
+}
+// ── 에이전시 관리 끝 ──────────────────────────────────
 
 let MOCK_CLASSROOMS = [
   { id: 1, room: 'A-101', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
@@ -6562,11 +6726,11 @@ function renderAgencyNotifications() {
 
 // ── 업무 요청함 목업 데이터 ──────────────────────────────────
 const MOCK_REMIT_REQUESTS = [
-  { id:1, studentId:1,  studentName:'HONG GILDONG (Kevin)',  course:'IELTS 전문 코스', net:2080, remitDate:'2026-05-10', submittedAt:'2026-05-10', receipt:'영수증_Kevin.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.' },
-  { id:2, studentId:2,  studentName:'LEE YOUNGEOH (James)',  course:'일반 코스',        net:1138, remitDate:'2026-06-08', submittedAt:'2026-06-08', receipt:'영수증_James.pdf',  status:'pending',  note:'' },
-  { id:3, studentId:3,  studentName:'KIM MINJUN (Minjun)',   course:'IELTS 전문 코스', net:2240, remitDate:'2026-06-12', submittedAt:'2026-06-12', receipt:'영수증_Minjun.pdf', status:'rejected', note:'영수증 금액 불일치 ($2,240 vs $2,320). 재제출 요망.' },
-  { id:4, studentId:12, studentName:'NGUYEN THI LAN (Lan)',  course:'가디언 코스',      net:1600, remitDate:'2026-05-28', submittedAt:'2026-05-28', receipt:'영수증_Lan.pdf',    status:'approved', note:'에이전시 선납 확인 완료.' },
-  { id:5, studentId:5,  studentName:'PHAM MINH DUC (Duc)',   course:'IELTS 전문 코스', net:3360, remitDate:'2026-06-14', submittedAt:'2026-06-14', receipt:'영수증_Duc.pdf',    status:'pending',  note:'' },
+  { id:1, studentId:1,  studentName:'HONG GILDONG (Kevin)',  course:'IELTS 전문 코스', net:2080, remitDate:'2026-05-10', submittedAt:'2026-05-10', receipt:'영수증_Kevin.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:2, studentId:2,  studentName:'LEE YOUNGEOH (James)',  course:'일반 코스',        net:1138, remitDate:'2026-06-08', submittedAt:'2026-06-08', receipt:'영수증_James.pdf',  status:'pending',  note:'', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'' },
+  { id:3, studentId:3,  studentName:'KIM MINJUN (Minjun)',   course:'IELTS 전문 코스', net:2240, remitDate:'2026-06-12', submittedAt:'2026-06-12', receipt:'영수증_Minjun.pdf', status:'rejected', note:'영수증 금액 불일치 ($2,240 vs $2,320). 재제출 요망.', agency:'VN Academy', submittedBy:'Nguyen Agent', approvedBy:'본사 매니저' },
+  { id:4, studentId:12, studentName:'NGUYEN THI LAN (Lan)',  course:'가디언 코스',      net:1600, remitDate:'2026-05-28', submittedAt:'2026-05-28', receipt:'영수증_Lan.pdf',    status:'approved', note:'에이전시 선납 확인 완료.', agency:'직접 등록', submittedBy:'학생 본인', approvedBy:'본사 슈퍼어드민' },
+  { id:5, studentId:5,  studentName:'PHAM MINH DUC (Duc)',   course:'IELTS 전문 코스', net:3360, remitDate:'2026-06-14', submittedAt:'2026-06-14', receipt:'영수증_Duc.pdf',    status:'pending',  note:'', agency:'VN Academy', submittedBy:'Nguyen Agent', approvedBy:'' },
 ];
 let MOCK_DORM_BOOK_REQUESTS = [];
 
@@ -8572,41 +8736,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   } else if (tab === 'settle') {
     const prices = calculatePrices(s);
 
-    let crHistoryHtml = '';
-    if (s.changeRequests && s.changeRequests.length > 0) {
-      crHistoryHtml = `
-        <div style="border-top:1px solid #E5E7EB;margin-top:16px;padding-top:12px">
-          <div style="font-weight:700;font-size:11.5px;color:#374151;margin-bottom:6px">🔄 변경 요청 처리 이력</div>
-          <table class="tsa-table" style="font-size:11px">
-            <thead>
-              <tr>
-                <th>변경 항목</th>
-                <th>기존 값</th>
-                <th>요청 값</th>
-                <th>처리 상태</th>
-                <th>요청 일자</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${s.changeRequests.map(r => {
-                let badge = `<span class="tsa-badge tsa-badge-warning">대기</span>`;
-                if (r.status === 'accepted') badge = `<span class="tsa-badge tsa-badge-success">승인</span>`;
-                else if (r.status === 'rejected') badge = `<span class="tsa-badge tsa-badge-danger" title="${r.rejectReason || ''}">반려</span>`;
-                return `
-                  <tr>
-                    <td>${r.field}</td>
-                    <td>${r.from}</td>
-                    <td>${r.to}</td>
-                    <td>${badge}</td>
-                    <td>${r.requestDate}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
+    const crHistoryHtml = '';
 
     const localFeesHtml = '';
 
@@ -8645,24 +8775,8 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ${localFeesHtml}
 
-          <!-- 송금 영수증 제출 섹션 -->
-          ${!isAgency ? `
-          <!-- 어드민 전용 정산 승인 및 반려 액션 바 -->
-          <div style="border:1.5px solid #BBF7D0;border-radius:10px;padding:16px;background:#F0FDF4;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#15803D;margin-bottom:12px">🛠️ 본사 어드민 정산 심사 승인 및 반려 처리</div>
-            <div style="font-size:11.5px;color:#6B7280;margin-bottom:12px">
-              에이전시가 제출한 인보이스 영수증 내역과 Net 이체 실적을 대조하십시오. 승인 시 학생의 상태가 완납 처리됩니다.
-            </div>
-            <div style="display:flex;gap:12px;justify-content:flex-end">
-              <button class="tsa-btn tsa-btn-danger" style="background:#EF4444;border:none;color:white" onclick="rejectInvoice(${s.id})">
-                <i data-lucide="x-circle"></i> 정산 반려 (반려 사유 입력)
-              </button>
-              <button class="tsa-btn tsa-btn-success" style="background:#10B981;border:none;color:white;margin-left:8px" onclick="approveInvoice(${s.id})">
-                <i data-lucide="check-circle"></i> 정산 승인 (완납 처리)
-              </button>
-            </div>
-          </div>
-          ` : `
+          <!-- 송금 영수증 제출 섹션 (어드민은 미표시, 에이전시는 영수증 제출창 노출) -->
+          ${isAgency ? `
           <!-- 송금 영수증 제출 섹션 (에이전시용) -->
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
             <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 송금 영수증 제출</div>
@@ -8702,11 +8816,11 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               </button>
             </div>
           </div>
-          `}
+          ` : ''}
 
           <!-- 송금 영수증 제출 내역 -->
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 송금 영수증 제출 내역</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 송금 영수증 제출 이력 (B2B Net 정산)</div>
             ${(() => {
               // MOCK_REMIT_REQUESTS(대시보드)와 s.remittanceHistory(직접 제출) 통합
               const fromDashboard = (typeof MOCK_REMIT_REQUESTS !== 'undefined'
@@ -8718,26 +8832,42 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                   bank: '-',
                   fileName: r.receipt || null,
                   status: r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : 'pending',
-                  note: r.note || ''
+                  note: r.note || '',
+                  agency: r.agency || s.agency || '에이전시',
+                  submittedBy: r.submittedBy || '에이전시 담당자',
+                  approvedBy: r.approvedBy || (r.status === 'approved' ? '본사 슈퍼어드민' : '-')
                 }));
-              const fromLocal = s.remittanceHistory || [];
+              const fromLocal = (s.remittanceHistory || []).map(r => ({
+                submittedAt: r.submittedAt || '-',
+                remitDate: r.remitDate || '-',
+                amount: r.amount || 0,
+                bank: r.bank || '-',
+                fileName: r.fileName || null,
+                status: r.status || 'pending',
+                note: r.memo || '',
+                agency: s.agency || '직접 등록',
+                submittedBy: r.submittedBy || '에이전시 담당자',
+                approvedBy: r.approvedBy || (r.status === 'approved' ? '본사 슈퍼어드민' : '-')
+              }));
               const history = [...fromDashboard, ...fromLocal];
 
               if (history.length === 0) {
-                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 송금 영수증이 없습니다.</div>`;
+                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 B2B 송금 영수증이 없습니다.</div>`;
               }
               return `<table class="tsa-table" style="font-size:11.5px">
                 <thead>
                   <tr>
+                    <th>제출 에이전시</th>
                     <th>제출일</th>
+                    <th>제출 관리자</th>
                     <th>송금 일자</th>
                     <th style="text-align:right">송금 금액</th>
                     <th>송금 은행</th>
                     <th>첨부 파일</th>
                     <th>메모</th>
                     <th style="text-align:center">승인 상태</th>
-                    <th>비고</th>
-                    <th style="text-align:center">편집</th>
+                    <th>승인자</th>
+                    <th style="text-align:center">동작</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -8749,19 +8879,33 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                       : `<span class="tsa-badge tsa-badge-warning">⏳ 검토중</span>`;
                     const isLocal = i >= fromDashboard.length;
                     const localIdx = i - fromDashboard.length;
-                    const editBtn = isLocal
-                      ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="editRemittanceReceipt(${s.id}, ${localIdx})"><i data-lucide="pencil" style="font-size:10px"></i> 편집</button>`
-                      : `<span style="font-size:10px;color:#D1D5DB">-</span>`;
+
+                    // 동작 컬럼 분기 (어드민: 즉시 승인/반려, 에이전시: 대기중일 때만 편집 버튼)
+                    let actionCell = '<span style="font-size:10px;color:#9CA3AF">-</span>';
+                    if (r.status === 'pending') {
+                      if (!isAgency) {
+                        actionCell = `
+                          <div style="display:flex;gap:4px;justify-content:center">
+                            <button class="tsa-btn tsa-btn-success tsa-btn-xs" style="background:#10B981;border:none;padding:2px 6px" onclick="confirmAdminRemittance(${s.id})">승인</button>
+                            <button class="tsa-btn tsa-btn-danger tsa-btn-xs" style="padding:2px 6px" onclick="rejectAdminRemittance(${s.id})">반려</button>
+                          </div>`;
+                      } else if (isLocal) {
+                        actionCell = `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6;padding:2px 6px" onclick="editRemittanceReceipt(${s.id}, ${localIdx})"><i data-lucide="pencil" style="font-size:10px"></i> 편집</button>`;
+                      }
+                    }
+
                     return `<tr>
+                      <td><strong>${r.agency}</strong></td>
                       <td>${r.submittedAt || '-'}</td>
+                      <td>${r.submittedBy || '-'}</td>
                       <td>${r.remitDate || '-'}</td>
                       <td style="text-align:right;font-weight:700;color:#059669">$${(r.amount||0).toLocaleString()}</td>
                       <td>${r.bank || '-'}</td>
                       <td style="color:#5E5CE6;font-size:11px">${r.fileName ? `📎 ${r.fileName}` : '-'}</td>
-                      <td style="font-size:11px;color:#6B7280">${r.memo || '-'}</td>
-                      <td style="text-align:center">${badge}</td>
                       <td style="font-size:11px;color:#6B7280">${r.note || '-'}</td>
-                      <td style="text-align:center">${editBtn}</td>
+                      <td style="text-align:center">${badge}</td>
+                      <td>${r.approvedBy || '-'}</td>
+                      <td style="text-align:center">${actionCell}</td>
                     </tr>`;
                   }).join('')}
                 </tbody>
@@ -9688,6 +9832,22 @@ function confirmAdminRemittance(id) {
   s.passportStatus = '보관 중';
   s.adminApprovedAt = new Date('2026-06-15').toISOString().slice(0, 10);
 
+  // MOCK_REMIT_REQUESTS 내 해당 학생의 대기중인 송금 요청도 승인 처리
+  const req = MOCK_REMIT_REQUESTS.find(r => r.studentId === id && r.status === 'pending');
+  if (req) {
+    req.status = 'approved';
+    req.approvedBy = '본사 슈퍼어드민';
+  }
+
+  // s.remittanceHistory 내 대기중인 로컬 송금 영수증도 승인 처리
+  if (s.remittanceHistory) {
+    const localReq = s.remittanceHistory.find(r => r.status === 'pending');
+    if (localReq) {
+      localReq.status = 'approved';
+      localReq.approvedBy = '본사 슈퍼어드민';
+    }
+  }
+
   // 상태 전환 로직: 수강 등록일(enrollDate) + 어드민 승인 → 재학생
   // enrollDate가 오늘 이전이면 즉시 재학, 미래면 대기 유지
   const today = new Date('2026-06-15');
@@ -9737,7 +9897,14 @@ function confirmAdminRemittance(id) {
   updateAgencyKPIs();
   initAdminInbox();
   initAgencyStudentList();
+  if (typeof initAgencyRequestInbox === 'function') initAgencyRequestInbox();
   if (typeof initStudentList === 'function') initStudentList();
+
+  // 상세 모달이 켜져있다면 정산 탭 즉시 리로드
+  const detailModal = document.getElementById('student-detail-modal');
+  if (detailModal && detailModal.classList.contains('active')) {
+    switchAdetailTab('settle');
+  }
 }
 
 function rejectAdminRemittance(id) {
@@ -9749,6 +9916,22 @@ function rejectAdminRemittance(id) {
 
   s.remittanceStatus = 'unpaid';
   s.remittanceReceipt = null;
+
+  // MOCK_REMIT_REQUESTS 내 해당 학생의 대기중인 송금 요청 반려 처리
+  const req = MOCK_REMIT_REQUESTS.find(r => r.studentId === id && r.status === 'pending');
+  if (req) {
+    req.status = 'rejected';
+    req.note = reason || '송금 미확인';
+  }
+
+  // s.remittanceHistory 내 대기중인 로컬 송금 영수증도 반려 처리
+  if (s.remittanceHistory) {
+    const localReq = s.remittanceHistory.find(r => r.status === 'pending');
+    if (localReq) {
+      localReq.status = 'rejected';
+      localReq.memo = reason || '송금 미확인';
+    }
+  }
 
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
@@ -9764,6 +9947,13 @@ function rejectAdminRemittance(id) {
   updateAgencyKPIs();
   initAdminInbox();
   initAgencyStudentList();
+  if (typeof initAgencyRequestInbox === 'function') initAgencyRequestInbox();
+
+  // 상세 모달이 켜져있다면 정산 탭 즉시 리로드
+  const detailModal = document.getElementById('student-detail-modal');
+  if (detailModal && detailModal.classList.contains('active')) {
+    switchAdetailTab('settle');
+  }
 }
 
 function confirmAdminChangeRequest(studentId, reqId) {
@@ -11512,18 +11702,15 @@ function toggleTimetableSubmenu() {
    BELL & PERIOD SETTINGS PAGE
    ============================================= */
 function initBellSettingsView() {
-  // Set input values to current state
   const settings = APP.bellSystem || { duration: 50, break: 10, start: '08:00', total: 8, lunchAfter: 4, lunchDuration: 30 };
-  
-  document.getElementById('bell-settings-duration').value = settings.duration;
-  document.getElementById('bell-settings-break').value = settings.break;
-  document.getElementById('bell-settings-start').value = settings.start || '08:00';
-  document.getElementById('bell-settings-total-periods').value = settings.total || 8;
-  document.getElementById('bell-settings-lunch-after').value = settings.lunchAfter || 4;
-  document.getElementById('bell-settings-lunch-duration').value = settings.lunchDuration || 30;
-
-  // Draw preview
-  previewBellSettings();
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  setVal('bell-settings-duration', settings.duration);
+  setVal('bell-settings-break', settings.break);
+  setVal('bell-settings-start', settings.start || '08:00');
+  setVal('bell-settings-total-periods', settings.total || 8);
+  setVal('bell-settings-lunch-after', settings.lunchAfter || 4);
+  setVal('bell-settings-lunch-duration', settings.lunchDuration || 30);
+  if (document.getElementById('bell-settings-duration')) previewBellSettings();
 }
 
 function previewBellSettings() {

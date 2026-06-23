@@ -1484,7 +1484,7 @@
       </a>
       <a class="tsa-nav-item admin-only" id="menu-classroom-status" onclick="navigate('classroom-status')">
         <i data-lucide="layout-dashboard"></i>
-        강의실 현황
+        강의실 관리
       </a>
       <a class="tsa-nav-item admin-only" id="menu-course-pricing" onclick="navigate('course-pricing')">
         <i data-lucide="settings-2"></i>
@@ -1552,6 +1552,10 @@
       <a class="tsa-nav-item super-admin-only" id="menu-global-dashboard" onclick="navigate('global-dashboard')" style="display:none">
         <i data-lucide="trending-up"></i>
         글로벌 대시보드
+      </a>
+      <a class="tsa-nav-item admin-only" id="menu-agency-manage" onclick="navigate('agency-manage')">
+        <i data-lucide="building-2"></i>
+        에이전시 관리
       </a>
     </nav>
 
@@ -2785,36 +2789,196 @@
         </div><!-- /view-dorm-erp -->
 
         <!-- ================================================ -->
+        <!--  VIEW: COURSE & PRICING                          -->
+        <!-- ================================================ -->
+        <div id="view-course-pricing" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">📚 교육과정 · 요율 설정</h2>
+              <p class="tsa-page-subtitle">수강 과정 관리 · 단기 할증 파라미터 · 기본 학비 설정 (대표 의사결정 대기 중)</p>
+            </div>
+            <div style="display:flex;gap:10px">
+              <span class="tsa-badge tsa-badge-warning">
+                <i data-lucide="info" style="font-size:10px"></i> A안 / B안 검토 중
+              </span>
+            </div>
+          </div>
+
+          <div class="tsa-alert-banner">
+            <i data-lucide="info" style="font-size:18px;color:#D97706"></i>
+            <div>
+              <strong>의사 결정 대기 항목:</strong> 단기 수강 할증 요율(A안/B안)은 대표님과 최종 합의 전까지 수정 가능한 파라미터로 유지됩니다. 변경 시 즉시 견적 시뮬레이터에 반영됩니다.
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+            <!-- Course List -->
+            <div class="tsa-card">
+              <div class="tsa-card-header">
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 목록</h3>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
+                  <i data-lucide="plus-square"></i> 과정 추가
+                </button>
+              </div>
+              <div style="overflow:hidden">
+                <table class="tsa-table">
+                  <thead>
+                    <tr>
+                      <th>과정명</th>
+                      <th>유형</th>
+                      <th>구성 (1:1 + 그룹)</th>
+                      <th>4주 기본학비</th>
+                      <th>상태</th>
+                      <th style="text-align:center">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody id="course-list-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Pricing Parameters Panel -->
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <!-- Surcharge Mode Switcher -->
+              <div class="tsa-card">
+                <div class="tsa-card-header">
+                  <h3 class="tsa-card-title"><i data-lucide="percent" style="color:#EF4444"></i> 단기 할증 요율 설정</h3>
+                </div>
+                <div class="tsa-card-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+                    <button id="mode-btn-a" class="tsa-btn tsa-btn-primary" onclick="setPricingMode('A')" style="justify-content:center;font-size:12px">A안 활성화</button>
+                    <button id="mode-btn-b" class="tsa-btn tsa-btn-outline" onclick="setPricingMode('B')" style="justify-content:center;font-size:12px">B안 활성화</button>
+                  </div>
+                  <div style="font-size:11px;color:#6B7280;margin-bottom:14px">
+                    현재 활성 모드: <strong id="active-mode-label" style="color:#5E5CE6">A안 (절댓값 할증)</strong>
+                  </div>
+
+                  <div id="surcharge-params" style="display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
+                      <div>
+                        <span style="font-size:12px;font-weight:700;color:#374151">1주 등록 할증</span>
+                        <div style="font-size:10px;color:#6B7280">A안: 200% | B안: 40%</div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <input id="rate-1w" type="number" value="200" class="tsa-input" style="width:64px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                        <span style="font-size:12px;font-weight:700;color:#374151">%</span>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
+                      <div>
+                        <span style="font-size:12px;font-weight:700;color:#374151">2주 등록 할증</span>
+                        <div style="font-size:10px;color:#6B7280">A안: 150% | B안: 60%</div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <input id="rate-2w" type="number" value="150" class="tsa-input" style="width:64px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                        <span style="font-size:12px;font-weight:700;color:#374151">%</span>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
+                      <div>
+                        <span style="font-size:12px;font-weight:700;color:#374151">3주 등록 할증</span>
+                        <div style="font-size:10px;color:#6B7280">A안: 125% | B안: 85%</div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <input id="rate-3w" type="number" value="125" class="tsa-input" style="width:64px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                        <span style="font-size:12px;font-weight:700;color:#374151">%</span>
+                      </div>
+                    </div>
+                    <div style="padding:8px 12px;background:#EEF2FF;border-radius:8px;font-size:11px;color:#4F46E5;font-weight:600">
+                      ✓ 4주 등록 = 기본학비 100% (표준 기준)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Base Fee Settings -->
+              <div class="tsa-card">
+                <div class="tsa-card-header">
+                  <h3 class="tsa-card-title"><i data-lucide="dollar-sign" style="color:#16A34A"></i> 기본 비용 설정 ($/4주)</h3>
+                </div>
+                <div class="tsa-card-body">
+                  <div style="display:flex;flex-direction:column;gap:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">일반 코스 기본학비</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-course-general" type="number" value="800" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">기숙사 2인실 요금</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-dorm-2" type="number" value="600" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">등록금 (비환불)</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-register" type="number" value="100" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">SSP 로컬피</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-ssp" type="number" value="120" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">비자 연장 대행비 (1차)</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-visa-1" type="number" value="80" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">ACR I-Card 발급비</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">$</span>
+                        <input id="fee-icard" type="number" value="60" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">기본 전기료 한도 (페소)</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:12px;font-weight:700;color:#374151">₱</span>
+                        <input id="fee-elec-limit" type="number" value="1000" class="tsa-input" style="width:80px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <label class="tsa-label" style="margin:0">시즌/프로모션 할인율</label>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <input id="fee-promo-rate" type="number" value="10" class="tsa-input" style="width:60px;text-align:right;padding:5px 8px" oninput="updatePricingParams()"/>
+                        <span style="font-size:12px;font-weight:700;color:#374151">%</span>
+                      </div>
+                    </div>
+                    <div class="tsa-divider"></div>
+                    <div style="padding:10px;background:#F0FDF4;border-radius:8px;font-size:12px">
+                      <div style="font-size:11px;color:#6B7280;margin-bottom:4px">4주 정규 코스 견적 (2인실 기준)</div>
+                      <div style="font-size:18px;font-weight:800;color:#15803D" id="fee-estimate-total">$1,620</div>
+                      <div style="font-size:10px;color:#6B7280;margin-top:2px">코스 + 기숙사 + 등록금 (SSP 제외)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
         <!--  VIEW: CLASSROOM STATUS                          -->
         <!-- ================================================ -->
         <div id="view-classroom-status" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">🏫 강의실 현황</h2>
+              <h2 class="tsa-page-title">🏫 강의실 관리</h2>
               <p class="tsa-page-subtitle">강의실별 배정 강사 및 수업 운영 현황 관리</p>
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <span id="classroom-status-time" style="font-size:12px;color:#6B7280"></span>
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="renderClassroomStatus()"><i data-lucide="refresh-cw"></i> 새로고침</button>
-            </div>
+            <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal()"><i data-lucide="plus"></i> 강의실 추가</button>
           </div>
-          <div style="display:flex;gap:0;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
-            <button id="cr-tab-board" onclick="switchClassroomTab('board')"
-              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">
-              📊 현황판
-            </button>
-            <button id="cr-tab-manage" onclick="switchClassroomTab('manage')"
-              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">
-              🏫 강의실 관리
-            </button>
-          </div>
-          <div id="cr-panel-board">
-            <div id="classroom-status-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
-          </div>
-          <div id="cr-panel-manage" style="display:none">
-            <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openAddClassroomModal()"><i data-lucide="plus"></i> 강의실 추가</button>
-            </div>
+          <div id="cr-panel-manage">
             <div class="tsa-card">
               <table class="tsa-table" style="width:100%">
                 <thead>
@@ -3089,6 +3253,120 @@
                 <tfoot id="month-stats-tfoot"></tfoot>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: AGENCY MANAGE                              -->
+        <!-- ================================================ -->
+        <div id="view-agency-manage" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:20px">
+            <div>
+              <h2 class="tsa-page-title">🏢 에이전시 관리</h2>
+              <p class="tsa-page-subtitle">에이전시 등록 · 계정 관리 · 포털 접속</p>
+            </div>
+            <button class="tsa-btn tsa-btn-primary" onclick="openAgencyRegisterModal()">
+              <i data-lucide="plus"></i> 에이전시 등록
+            </button>
+          </div>
+
+          <!-- KPI -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+            <div class="tsa-card" style="padding:16px 20px">
+              <div style="font-size:11px;color:#6B7280;font-weight:600">전체 에이전시</div>
+              <div id="agm-kpi-total" style="font-size:26px;font-weight:800;color:#111827">-</div>
+            </div>
+            <div class="tsa-card" style="padding:16px 20px">
+              <div style="font-size:11px;color:#10B981;font-weight:600">활성 에이전시</div>
+              <div id="agm-kpi-active" style="font-size:26px;font-weight:800;color:#10B981">-</div>
+            </div>
+            <div class="tsa-card" style="padding:16px 20px">
+              <div style="font-size:11px;color:#5E5CE6;font-weight:600">소속 학생 수</div>
+              <div id="agm-kpi-students" style="font-size:26px;font-weight:800;color:#5E5CE6">-</div>
+            </div>
+          </div>
+
+          <!-- 테이블 -->
+          <div class="tsa-card">
+            <div class="tsa-card-body" style="padding:0">
+              <table class="tsa-table" style="font-size:12px">
+                <thead>
+                  <tr>
+                    <th>에이전시 정보</th>
+                    <th>이메일</th>
+                    <th>계정 ID</th>
+                    <th style="text-align:center">소속 학생</th>
+                    <th style="text-align:center">커미션율</th>
+                    <th style="text-align:center">상태</th>
+                    <th style="text-align:center">동작</th>
+                  </tr>
+                </thead>
+                <tbody id="agency-manage-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 에이전시 등록/수정 모달 -->
+        <div id="agency-manage-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeAgencyManageModal()"></div>
+        <div id="agency-manage-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:520px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <input type="hidden" id="agm-modal-id"/>
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="agm-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">에이전시 등록</h3>
+            <button onclick="closeAgencyManageModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;max-height:70vh;overflow-y:auto">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">에이전시명 <span style="color:#EF4444">*</span></label>
+                <input id="agm-name" class="tsa-input" placeholder="예: 한국 영어마을" style="width:100%"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">국가</label>
+                <input id="agm-country" class="tsa-input" placeholder="예: 한국" style="width:100%"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">담당자명</label>
+                <input id="agm-contact" class="tsa-input" placeholder="담당자 이름" style="width:100%"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">연락처</label>
+                <input id="agm-phone" class="tsa-input" placeholder="+82-10-0000-0000" style="width:100%"/>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">이메일</label>
+              <input id="agm-email" class="tsa-input" type="email" placeholder="agency@example.com" style="width:100%"/>
+            </div>
+            <div style="background:#F8F9FF;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+              <div style="font-size:12px;font-weight:700;color:#5E5CE6;margin-bottom:2px">🔐 로그인 계정 설정</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">계정 ID <span style="color:#EF4444">*</span></label>
+                  <input id="agm-account-id" class="tsa-input" placeholder="예: agency_korea" style="width:100%"/>
+                </div>
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">임시 비밀번호</label>
+                  <input id="agm-password" class="tsa-input" type="password" placeholder="비워두면 변경 안 함" style="width:100%"/>
+                </div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">커미션율 (%)</label>
+                <input id="agm-commission" class="tsa-input" type="number" min="0" max="100" value="10" style="width:100%"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">비고</label>
+                <input id="agm-note" class="tsa-input" placeholder="특이사항" style="width:100%"/>
+              </div>
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyManageModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyManage()"><i data-lucide="check"></i> 저장</button>
           </div>
         </div>
 
