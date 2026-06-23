@@ -5567,22 +5567,44 @@ function saveAdminStudentBasic() {
   const nick = getVal('ad-nickname', s.nick);
   if (!name || !nick) { showToast('성명과 닉네임은 필수입니다.', 'danger'); return; }
 
-  s.name   = name;
-  s.nick   = nick;
-  s.gender = getVal('ad-gender', s.gender);
-  s.nationality = getVal('ad-nationality', s.nationality);
+  // 변경 이력 추적
+  if (!s.changeRequests) s.changeRequests = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const fieldLabels = { name:'영문 성명', nick:'닉네임', gender:'성별', nationality:'국적', phone:'연락처', email:'이메일', emergencyContact:'비상 연락처', dietType:'식단 구분', healthNotes:'건강 메모' };
+  const newVals = {
+    name, nick,
+    gender:           getVal('ad-gender', s.gender),
+    nationality:      getVal('ad-nationality', s.nationality),
+    phone:            getVal('ad-phone', s.phone),
+    email:            getVal('ad-email', s.email),
+    emergencyContact: getVal('ad-emergency', s.emergencyContact),
+    dietType:         getVal('ad-diet', s.dietType),
+    healthNotes:      getVal('ad-health-notes', s.healthNotes),
+  };
+  Object.keys(newVals).forEach(key => {
+    const oldVal = String(s[key] || '');
+    const newVal = String(newVals[key] || '');
+    if (oldVal !== newVal && newVal) {
+      s.changeRequests.push({
+        id: Date.now() + Math.random(),
+        field: fieldLabels[key] || key,
+        from: oldVal || '-',
+        to: newVal,
+        reason: '어드민 직접 수정',
+        changedBy: '어드민',
+        requestDate: today,
+        status: 'approved'
+      });
+    }
+  });
 
+  // 값 저장
+  Object.assign(s, newVals);
   const dobEl = document.getElementById('ad-dob');
   if (dobEl && dobEl.value) {
     s.dob = dobEl.value;
     s.age = Math.floor((new Date('2026-06-15') - new Date(dobEl.value)) / (365.25 * 86400000));
   }
-
-  s.phone            = getVal('ad-phone', s.phone);
-  s.email            = getVal('ad-email', s.email);
-  s.emergencyContact = getVal('ad-emergency', s.emergencyContact);
-  s.dietType         = getVal('ad-diet', s.dietType);
-  s.healthNotes      = getVal('ad-health-notes', s.healthNotes);
 
   // 모달 헤더 갱신
   document.getElementById('modal-student-name').textContent = `${s.nick} (${s.name})`;
