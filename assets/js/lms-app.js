@@ -5904,7 +5904,6 @@ function renderTeacherList(list) {
             <div>
               <div style="font-weight:700;font-size:13px;color:#1A1D23">${t.name}</div>
               <div style="font-size:11px;color:#6B7280">경력 ${t.exp}년 · 평점 ⭐ ${t.rating}</div>
-              ${(t.preferredCourses||[]).length > 0 ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${(t.preferredCourses||[]).map(tag => `<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#EEF2FF;color:#5E5CE6;font-weight:600">${tag}</span>`).join('')}</div>` : ''}
             </div>
           </div>
         </td>
