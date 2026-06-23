@@ -1753,7 +1753,7 @@ function renderCsRooms() {
     if (_csRoomTypeFilter !== '전체' && _csRoomTypeFilter !== type) return '';
     const rooms = MOCK_CLASS_ROOMS.filter(r => r.type === type);
     if (rooms.length === 0) return '';
-    return `<tr><td colspan="5" style="padding:10px 14px 6px;background:#F9FAFB;border-top:1.5px solid ${typeAccent[type]}20">
+    return `<tr><td colspan="5" style="padding:8px 14px 4px;background:#F9FAFB;border-top:1.5px solid ${typeAccent[type]}30">
       <span style="font-size:12px;font-weight:700;color:${typeAccent[type]}">${typeLabel[type]}</span>
       <span style="font-size:11px;color:#9CA3AF;margin-left:8px">${rooms.filter(r=>r.roomNo).length}개 운영</span>
     </td></tr>` + rooms.map(renderRow).join('');
