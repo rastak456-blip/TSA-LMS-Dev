@@ -4608,7 +4608,9 @@ function openStudentDetail(id) {
   const s = APP.currentStudent;
   document.getElementById('modal-student-name').textContent = `${s.nick} (${s.name})`;
   document.getElementById('modal-student-meta').textContent = `${s.flag} ${s.nationality} · ${s.gender}성 ${s.age}세 · ${s.course}`;
-  
+  const avatarEl = document.getElementById('modal-student-avatar');
+  if (avatarEl) avatarEl.src = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+
   // Activate basic tab
   document.querySelectorAll('#student-detail-modal .tsa-tab').forEach((t, idx) => {
     t.classList.toggle('active', idx === 0);
@@ -4629,15 +4631,10 @@ function switchStudentTab(tab, el) {
 
   switch (tab) {
     case 'basic': {
-      const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
       const dobVal = s.dob || '';
       const ageDisplay = s.age ? `${s.age}세` : '-';
       container.innerHTML = `
-        <div style="display:flex;gap:20px;align-items:start;margin-bottom:16px">
-          <div style="width:80px;height:80px;border-radius:12px;overflow:hidden;border:1px solid #E9EDF4;flex-shrink:0">
-            <img src="${avatarSrc}" style="width:100%;height:100%;object-fit:cover" alt="Student photo"/>
-          </div>
-          <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
             <div class="tsa-form-group">
               <label class="tsa-label">영문 성명 (여권명)</label>
               <input id="ad-name" type="text" class="tsa-input" value="${s.name}"/>
@@ -4703,7 +4700,6 @@ function switchStudentTab(tab, el) {
               <input id="ad-health-notes" type="text" class="tsa-input" style="border-color:#FDE68A" value="${s.healthNotes || ''}" placeholder="복약 시간대, 알레르기 유무 및 세부 정보를 입력하세요"/>
             </div>
           </div>
-        </div>
 
         <!-- ── 항공 & 입출국 ── -->
         <div style="margin-top:16px">
