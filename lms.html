@@ -3172,9 +3172,14 @@
             <!-- 유형 현황 -->
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="cs-type-kpi"></div>
 
-            <!-- 호실 목록 -->
+            <!-- 유형 필터 탭 + 호실 추가 -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <div style="font-size:12px;font-weight:700;color:#374151">호실 목록</div>
+              <div style="display:flex;gap:8px">
+                <button id="cs-rtype-all" onclick="setCsRoomTypeFilter('전체',this)" class="tsa-pill active">전체</button>
+                <button id="cs-rtype-11"  onclick="setCsRoomTypeFilter('1:1',this)"  class="tsa-pill">1:1 강의실</button>
+                <button id="cs-rtype-14"  onclick="setCsRoomTypeFilter('1:4',this)"  class="tsa-pill">1:4 그룹</button>
+                <button id="cs-rtype-18"  onclick="setCsRoomTypeFilter('1:8',this)"  class="tsa-pill">1:8 그룹</button>
+              </div>
               <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCsAddRoomModal()"><i data-lucide="plus"></i> 호실 추가</button>
             </div>
             <div class="tsa-card">

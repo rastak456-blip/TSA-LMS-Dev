@@ -1667,6 +1667,14 @@ let MOCK_CLASS_ROOMS = [
   { id: 6, roomNo: null,    type: '1:1', capacity: 1, teacherNick: '',      status: 'unassigned' },
 ];
 let _csRoomNextId = 7;
+let _csRoomTypeFilter = '전체';
+
+function setCsRoomTypeFilter(type, btn) {
+  _csRoomTypeFilter = type;
+  document.querySelectorAll('[id^="cs-rtype-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCsRooms();
+}
 
 // 주간 수업 세션: { id, roomId, day, periods:[], studentIds:[], course, level, weekOf }
 let MOCK_CLASS_SESSIONS = [
@@ -1742,6 +1750,7 @@ function renderCsRooms() {
 
   const types = ['1:1','1:4','1:8','기타'];
   tbody.innerHTML = types.map(type => {
+    if (_csRoomTypeFilter !== '전체' && _csRoomTypeFilter !== type) return '';
     const rooms = MOCK_CLASS_ROOMS.filter(r => r.type === type);
     if (rooms.length === 0) return '';
     return `<tr><td colspan="5" style="padding:10px 14px 6px;background:#F9FAFB;border-top:1.5px solid ${typeAccent[type]}20">
