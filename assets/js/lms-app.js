@@ -11213,8 +11213,7 @@ function setupStudentFeedback() {
 
   // Reset stars
   document.querySelectorAll('.star-rating').forEach(container => {
-    container.querySelectorAll('i').forEach(s => {
-      s.className = 'ki-outline ki-star';
+    container.querySelectorAll('span').forEach(s => {
       s.style.color = '#D1D5DB';
     });
     container.dataset.rating = "0";
@@ -11225,15 +11224,9 @@ function setStarRating(element, rating) {
   const container = element.parentElement;
   container.dataset.rating = rating;
 
-  const stars = container.querySelectorAll('i');
+  const stars = container.querySelectorAll('span');
   for (let i = 0; i < stars.length; i++) {
-    if (i < rating) {
-      stars[i].className = 'ki-filled ki-star';
-      stars[i].style.color = '#F59E0B';
-    } else {
-      stars[i].className = 'ki-outline ki-star';
-      stars[i].style.color = '#D1D5DB';
-    }
+    stars[i].style.color = i < rating ? '#F59E0B' : '#D1D5DB';
   }
 }
 
