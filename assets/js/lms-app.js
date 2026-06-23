@@ -1065,6 +1065,7 @@ function handleLogout() {
 const VIEW_MAP = {
   dashboard: { el: 'view-dashboard', menu: 'menu-dashboard', label: '대시보드', sec: '개요' },
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
+  'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '수업 배정 관리', sec: '학사 관리' },
   'weekly-timetable': { el: 'view-weekly-timetable', menu: 'menu-weekly-timetable', label: '주간 시간표', sec: '학사 관리' },
   students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
@@ -1155,6 +1156,8 @@ function navigate(view) {
     if (typeof renderAgencyDormBookHistory === 'function') renderAgencyDormBookHistory();
   } else if (view === 'agency-invoice') {
     renderMonthlyInvoiceStats();
+  } else if (view === 'class-schedule') {
+    initClassSchedule();
   } else if (view === 'students') {
     applyStudentFilters();
   } else if (view === 'teachers') {
@@ -1653,6 +1656,349 @@ function removeStudentFile(studentId, key, idx) {
   }
   showToast('파일이 삭제됐습니다.', 'success');
 }
+
+// ── 수업 배정 관리 ────────────────────────────────────
+let MOCK_CLASS_ROOMS = [
+  { id: 1, roomNo: 'A-101', type: '1:1', capacity: 1, teacherNick: 'Sarah', status: 'active' },
+  { id: 2, roomNo: 'A-102', type: '1:1', capacity: 1, teacherNick: 'Mike',  status: 'active' },
+  { id: 3, roomNo: 'A-103', type: '1:1', capacity: 1, teacherNick: 'David', status: 'active' },
+  { id: 4, roomNo: 'B-201', type: '1:4', capacity: 4, teacherNick: 'Anna',  status: 'active' },
+  { id: 5, roomNo: 'C-301', type: '1:8', capacity: 8, teacherNick: 'Emily', status: 'active' },
+  { id: 6, roomNo: null,    type: '1:1', capacity: 1, teacherNick: '',      status: 'unassigned' },
+];
+let _csRoomNextId = 7;
+
+// 주간 수업 세션: { id, roomId, day, periods:[], studentIds:[], course, level, weekOf }
+let MOCK_CLASS_SESSIONS = [
+  { id: 1, roomId: 1, day: '월', periods: [1, 3], studentIds: [1], course: 'IELTS 전문 코스', level: 'Band 5.5', weekOf: '2026-06-22' },
+  { id: 2, roomId: 4, day: '월', periods: [5, 6], studentIds: [1, 2, 3], course: '일반 코스', level: 'Intermediate', weekOf: '2026-06-22' },
+  { id: 3, roomId: 5, day: '월', periods: [2], studentIds: [14,15,16,17,18,19], course: '주니어 패키지', level: 'Level 2', weekOf: '2026-06-22' },
+];
+let _csSessionNextId = 4;
+let _csCurrentWeek = '2026-06-22';
+let _csCurrentDay  = '월';
+let _csAssignTarget = null; // { roomId }
+let _csViewMode = 'room';
+
+const CS_PERIODS = { 1:'08:00',2:'09:00',3:'10:00',4:'11:00',5:'12:30',6:'13:30',7:'14:30',8:'15:30' };
+const CS_TYPE_COLOR = { '1:1':'#EEF2FF|#3730A3', '1:4':'#FEF3C7|#92400E', '1:8':'#D1FAE5|#065F46' };
+
+function initClassSchedule() {
+  _csCurrentWeek = '2026-06-22';
+  _csCurrentDay  = '월';
+  switchClassScheduleTab('rooms');
+}
+
+function switchClassScheduleTab(tab) {
+  ['rooms','assign','view'].forEach(t => {
+    document.getElementById('cs-panel-' + t).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById('cs-tab-' + t);
+    if (btn) { btn.style.color = t===tab?'#5E5CE6':'#6B7280'; btn.style.borderBottomColor = t===tab?'#5E5CE6':'transparent'; }
+  });
+  if (tab === 'rooms')  renderCsRooms();
+  if (tab === 'assign') renderCsAssignGrid();
+  if (tab === 'view')   renderCsWeekView();
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function renderCsRooms() {
+  // KPI
+  const kpi = document.getElementById('cs-type-kpi');
+  if (kpi) {
+    const types = ['1:1','1:4','1:8'];
+    const colors = {'1:1':'#5E5CE6','1:4':'#B45309','1:8':'#065F46'};
+    kpi.innerHTML = types.map(t => {
+      const cnt = MOCK_CLASS_ROOMS.filter(r => r.type === t && r.roomNo).length;
+      return `<div class="tsa-card" style="padding:16px">
+        <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">${t} 강의실</div>
+        <div style="font-size:28px;font-weight:700;color:${colors[t]}">${cnt}</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:2px">개 호실 운영 중</div>
+      </div>`;
+    }).join('');
+  }
+  // 테이블
+  const tbody = document.getElementById('cs-rooms-tbody');
+  if (!tbody) return;
+  const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
+  tbody.innerHTML = MOCK_CLASS_ROOMS.map(r => {
+    const teacher = MOCK_TEACHERS.find(t => t.nick === r.teacherNick);
+    const statusBg = r.roomNo ? (r.teacherNick ? '#D1FAE5' : '#FEF3C7') : '#F3F4F6';
+    const statusColor = r.roomNo ? (r.teacherNick ? '#065F46' : '#92400E') : '#6B7280';
+    const statusLabel = r.roomNo ? (r.teacherNick ? '운영 중' : '강사 미배정') : '호실 미정';
+    return `<tr>
+      <td style="font-weight:700">${r.roomNo || '<span style="color:#9CA3AF;font-style:italic">미배정</span>'}</td>
+      <td><span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;${typeStyle(r.type)}">${r.type}</span></td>
+      <td style="font-size:12px;color:#6B7280">최대 ${r.capacity}명</td>
+      <td>${teacher ? `<span style="font-size:12px;font-weight:600">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span>` : '<span style="font-size:12px;color:#9CA3AF">미배정</span>'}</td>
+      <td><span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;background:${statusBg};color:${statusColor}">${statusLabel}</span></td>
+      <td>
+        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openCsEditRoomModal(${r.id})">수정</button>
+        ${!r.roomNo ? `<button class="tsa-btn tsa-btn-xs" style="background:#EEF2FF;color:#5E5CE6;border:none;margin-left:4px" onclick="openCsAddRoomModal(${r.id})">호실 배정</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function openCsAddRoomModal(id) {
+  document.getElementById('cs-room-modal-title').textContent = id ? '호실 수정' : '호실 추가';
+  document.getElementById('cs-room-modal-id').value = id || '';
+  const r = id ? MOCK_CLASS_ROOMS.find(x => x.id === id) : null;
+  document.getElementById('cs-room-no').value    = r?.roomNo || '';
+  document.getElementById('cs-room-type').value  = r?.type || '1:1';
+  document.getElementById('cs-room-cap').value   = r?.capacity || '';
+  const sel = document.getElementById('cs-room-teacher');
+  sel.innerHTML = '<option value="">— 미배정 —</option>' +
+    MOCK_TEACHERS.filter(t => t.status !== 'resigned').map(t =>
+      `<option value="${t.nick}" ${r?.teacherNick === t.nick ? 'selected':''}>${t.nick} (${t.name})</option>`).join('');
+  document.getElementById('cs-room-modal').style.display = 'block';
+  document.getElementById('cs-room-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+function openCsEditRoomModal(id) { openCsAddRoomModal(id); }
+
+function closeCsAddRoomModal() {
+  document.getElementById('cs-room-modal').style.display = 'none';
+  document.getElementById('cs-room-backdrop').style.display = 'none';
+}
+
+function saveCsRoom() {
+  const id = document.getElementById('cs-room-modal-id').value;
+  const roomNo = document.getElementById('cs-room-no').value.trim();
+  if (!roomNo) { showToast('호실 번호를 입력하세요.', 'danger'); return; }
+  const data = {
+    roomNo, type: document.getElementById('cs-room-type').value,
+    capacity: parseInt(document.getElementById('cs-room-cap').value) || 1,
+    teacherNick: document.getElementById('cs-room-teacher').value, status: 'active'
+  };
+  if (id) {
+    const idx = MOCK_CLASS_ROOMS.findIndex(r => r.id === parseInt(id));
+    if (idx >= 0) Object.assign(MOCK_CLASS_ROOMS[idx], data);
+    showToast(`✓ ${roomNo} 호실이 수정되었습니다.`, 'success');
+  } else {
+    MOCK_CLASS_ROOMS.push({ id: _csRoomNextId++, ...data });
+    showToast(`✓ ${roomNo} 호실이 추가되었습니다.`, 'success');
+  }
+  closeCsAddRoomModal();
+  renderCsRooms();
+}
+
+function csWeekLabel(w) {
+  const d = new Date(w);
+  const end = new Date(d); end.setDate(d.getDate() + 4);
+  const fmt = x => `${x.getMonth()+1}/${x.getDate()}`;
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 (${fmt(d)} ~ ${fmt(end)})`;
+}
+
+function shiftCsWeek(delta) {
+  const d = new Date(_csCurrentWeek);
+  d.setDate(d.getDate() + delta * 7);
+  _csCurrentWeek = d.toISOString().slice(0,10);
+  ['cs-week-label','cs-week-label-2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=csWeekLabel(_csCurrentWeek); });
+  const active = document.querySelector('.cs-panel-active');
+  if (document.getElementById('cs-panel-assign').style.display !== 'none') renderCsAssignGrid();
+  if (document.getElementById('cs-panel-view').style.display !== 'none') renderCsWeekView();
+}
+
+function selectCsDay(day, btn) {
+  _csCurrentDay = day;
+  document.querySelectorAll('.cs-day-btn').forEach(b => b.classList.remove('cs-day-active'));
+  btn.classList.add('cs-day-active');
+  renderCsAssignGrid();
+}
+
+function renderCsAssignGrid() {
+  const el = document.getElementById('cs-week-label');
+  if (el) el.textContent = csWeekLabel(_csCurrentWeek);
+  const grid = document.getElementById('cs-assign-grid');
+  if (!grid) return;
+  const activeRooms = MOCK_CLASS_ROOMS.filter(r => r.roomNo);
+  if (activeRooms.length === 0) { grid.innerHTML = '<div style="color:#9CA3AF;font-size:13px">호실이 없습니다. 강의실 설정 탭에서 먼저 추가하세요.</div>'; return; }
+  const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
+
+  grid.innerHTML = activeRooms.map(room => {
+    const teacher = MOCK_TEACHERS.find(t => t.nick === room.teacherNick);
+    const avatarBg = teacher ? '#EEF2FF' : '#F3F4F6';
+    const avatarColor = teacher ? '#5E5CE6' : '#9CA3AF';
+    const sessions = MOCK_CLASS_SESSIONS.filter(s => s.roomId === room.id && s.day === _csCurrentDay && s.weekOf === _csCurrentWeek);
+
+    // 교시별 배정 현황
+    const periodMap = {};
+    sessions.forEach(s => s.periods.forEach(p => { periodMap[p] = s; }));
+
+    const slots = Object.keys(CS_PERIODS).map(p => {
+      const period = parseInt(p);
+      const session = periodMap[period];
+      if (session) {
+        const students = session.studentIds.map(sid => {
+          const st = MOCK_STUDENTS.find(x => x.id === sid);
+          return st ? `<span class="cs-chip">${st.nick}</span>` : '';
+        }).join('');
+        const emptySlots = room.capacity - session.studentIds.length;
+        const emptyChips = emptySlots > 0 ? `<span class="cs-chip-empty">+${emptySlots} 자리</span>` : '';
+        return `<div class="cs-slot cs-slot-occ">
+          <div class="cs-slot-p">${period}교시</div>
+          <div style="flex:1;display:flex;flex-wrap:wrap;gap:3px">${students}${emptyChips}</div>
+          <button onclick="openCsAssignModal(${room.id},${period})" style="font-size:10px;padding:2px 6px;border:none;background:#C7D2FE;color:#3730A3;border-radius:4px;cursor:pointer">+추가</button>
+          <button onclick="removeCsSession(${session.id})" style="font-size:10px;padding:2px 6px;border:none;background:#FEE2E2;color:#991B1B;border-radius:4px;cursor:pointer">해제</button>
+        </div>`;
+      }
+      return `<div class="cs-slot">
+        <div class="cs-slot-p">${period}교시</div>
+        <button class="cs-slot-add" onclick="openCsAssignModal(${room.id},${period})">+ 배정하기</button>
+      </div>`;
+    }).join('');
+
+    return `<div class="cs-room-card">
+      <div class="cs-room-card-header">
+        <div>
+          <span style="font-size:13px;font-weight:700;color:#111827">${room.roomNo}</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px;${typeStyle(room.type)}">${room.type}</span>
+        </div>
+      </div>
+      <div style="padding:8px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;align-items:center;gap:8px">
+        <div style="width:22px;height:22px;border-radius:50%;background:${avatarBg};color:${avatarColor};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center">
+          ${teacher ? teacher.nick.charAt(0) : '?'}
+        </div>
+        <div style="font-size:12px;color:#6B7280">${teacher ? `${teacher.nick} · ${teacher.type}` : '강사 미배정'}</div>
+      </div>
+      <div style="padding:10px 14px">${slots}</div>
+    </div>`;
+  }).join('');
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function openCsAssignModal(roomId, period) {
+  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
+  if (!room) return;
+  _csAssignTarget = { roomId, period };
+  document.getElementById('cs-assign-modal-title').textContent = `${room.roomNo} · ${period}교시 배정`;
+  document.getElementById('cs-assign-info').innerHTML = `<b>${room.roomNo}</b> · ${period}교시 (${CS_PERIODS[period]}) &nbsp;|&nbsp; ${room.type} · 최대 ${room.capacity}명`;
+
+  // 교시 체크박스
+  const pWrap = document.getElementById('cs-period-checkboxes');
+  pWrap.innerHTML = Object.keys(CS_PERIODS).map(p => {
+    const checked = parseInt(p) === period ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border-radius:6px;border:0.5px solid #E5E7EB;font-size:12px">
+      <input type="checkbox" name="cs-period" value="${p}" ${checked} style="accent-color:#5E5CE6"/> ${p}교시
+    </label>`;
+  }).join('');
+
+  // 학생 목록 (완납 학생 중 현재 수업 없는 학생)
+  const listEl = document.getElementById('cs-student-list');
+  const eligible = MOCK_STUDENTS.filter(s => s.remittanceStatus === 'paid' && (s.status === 'current' || s.status === 'waiting'));
+  listEl.innerHTML = eligible.length === 0
+    ? '<div style="color:#9CA3AF;font-size:12px">배정 가능한 학생이 없습니다.</div>'
+    : eligible.map(s => `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:0.5px solid #E5E7EB;border-radius:8px;cursor:pointer">
+        <input type="${room.capacity === 1 ? 'radio' : 'checkbox'}" name="cs-student" value="${s.id}" style="accent-color:#5E5CE6"/>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
+          <div style="font-size:11px;color:#9CA3AF">${s.flag||''} ${s.nationality} · ${s.course}</div>
+        </div>
+      </label>`).join('');
+
+  document.getElementById('cs-assign-modal').style.display = 'block';
+  document.getElementById('cs-assign-backdrop').style.display = 'block';
+}
+
+function closeCsAssignModal() {
+  document.getElementById('cs-assign-modal').style.display = 'none';
+  document.getElementById('cs-assign-backdrop').style.display = 'none';
+  _csAssignTarget = null;
+}
+
+function confirmCsAssign() {
+  if (!_csAssignTarget) return;
+  const { roomId } = _csAssignTarget;
+  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
+  const selectedPeriods = [...document.querySelectorAll('input[name="cs-period"]:checked')].map(cb => parseInt(cb.value));
+  const selectedStudents = [...document.querySelectorAll('input[name="cs-student"]:checked')].map(cb => parseInt(cb.value));
+  if (selectedPeriods.length === 0) { showToast('교시를 선택하세요.', 'warning'); return; }
+  if (selectedStudents.length === 0) { showToast('학생을 선택하세요.', 'warning'); return; }
+  if (selectedStudents.length > room.capacity) { showToast(`정원 초과입니다. 최대 ${room.capacity}명.`, 'danger'); return; }
+
+  // 중복 배정 검사
+  for (const sid of selectedStudents) {
+    for (const p of selectedPeriods) {
+      const conflict = MOCK_CLASS_SESSIONS.find(s => s.day === _csCurrentDay && s.weekOf === _csCurrentWeek && s.periods.includes(p) && s.studentIds.includes(sid) && s.roomId !== roomId);
+      if (conflict) {
+        const st = MOCK_STUDENTS.find(x => x.id === sid);
+        showToast(`⚠ ${st?.nick} 학생이 ${p}교시에 이미 다른 수업에 배정되어 있습니다.`, 'danger');
+        return;
+      }
+    }
+  }
+
+  MOCK_CLASS_SESSIONS.push({
+    id: _csSessionNextId++, roomId,
+    day: _csCurrentDay, periods: selectedPeriods,
+    studentIds: selectedStudents,
+    course: document.getElementById('cs-assign-course').value,
+    level: document.getElementById('cs-assign-level').value,
+    weekOf: _csCurrentWeek
+  });
+  showToast('✓ 수업이 배정되었습니다.', 'success');
+  closeCsAssignModal();
+  renderCsAssignGrid();
+}
+
+function removeCsSession(id) {
+  if (!confirm('이 수업 배정을 해제하시겠습니까?')) return;
+  MOCK_CLASS_SESSIONS = MOCK_CLASS_SESSIONS.filter(s => s.id !== id);
+  showToast('배정이 해제되었습니다.', 'success');
+  renderCsAssignGrid();
+}
+
+function setCsViewMode(mode, btn) {
+  _csViewMode = mode;
+  document.querySelectorAll('#cs-panel-view .tsa-btn').forEach(b => { b.className = 'tsa-btn tsa-btn-xs tsa-btn-outline'; });
+  btn.className = 'tsa-btn tsa-btn-xs tsa-btn-primary';
+  renderCsWeekView();
+}
+
+function renderCsWeekView() {
+  const el2 = document.getElementById('cs-week-label-2');
+  if (el2) el2.textContent = csWeekLabel(_csCurrentWeek);
+  const wrap = document.getElementById('cs-view-table-wrap');
+  if (!wrap) return;
+  const days = ['월','화','수','목','금'];
+  const periods = Object.keys(CS_PERIODS);
+
+  const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
+
+  let html = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:#F9FAFB">
+      <th style="padding:8px 12px;text-align:left;border-bottom:0.5px solid #E5E7EB;color:#6B7280;font-weight:600;white-space:nowrap">교시</th>
+      ${days.map(d=>`<th style="padding:8px 12px;text-align:center;border-bottom:0.5px solid #E5E7EB;color:#6B7280;font-weight:600">${d}요일</th>`).join('')}
+    </tr></thead><tbody>`;
+
+  periods.forEach(p => {
+    html += `<tr style="border-bottom:0.5px solid #F3F4F6">
+      <td style="padding:8px 12px;color:#9CA3AF;white-space:nowrap;font-size:11px">${p}교시<br>${CS_PERIODS[p]}</td>`;
+    days.forEach(day => {
+      const sessions = MOCK_CLASS_SESSIONS.filter(s => s.weekOf === _csCurrentWeek && s.day === day && s.periods.includes(parseInt(p)));
+      if (sessions.length === 0) {
+        html += `<td style="padding:8px 12px;text-align:center;color:#D1D5DB;font-size:11px">-</td>`;
+      } else {
+        html += `<td style="padding:6px 8px;vertical-align:top">`;
+        sessions.forEach(s => {
+          const room = MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+          const names = s.studentIds.map(id => MOCK_STUDENTS.find(x=>x.id===id)?.nick||'').filter(Boolean).join(', ');
+          html += `<div style="border-radius:5px;padding:3px 7px;margin-bottom:3px;${typeStyle(room?.type||'1:1')}">
+            <div style="font-weight:600">${room?.roomNo||'-'} (${room?.type||''})</div>
+            <div style="font-size:10px;opacity:.8;margin-top:1px">${names}</div>
+          </div>`;
+        });
+        html += `</td>`;
+      }
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  wrap.innerHTML = html;
+}
+// ── 수업 배정 관리 끝 ──────────────────────────────────
 
 // ── 기숙사 ERP (신규) ─────────────────────────────────
 function openDormTemplateModal() {}

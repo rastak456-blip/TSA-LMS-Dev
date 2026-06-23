@@ -655,6 +655,19 @@
     }
 
     /* ===== DORM VACANCY CARDS ===== */
+    .cs-day-btn { padding:5px 12px;font-size:12px;font-weight:600;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;color:#6B7280; }
+    .cs-day-btn:hover { border-color:#5E5CE6;color:#5E5CE6; }
+    .cs-day-active { background:#5E5CE6!important;color:#fff!important;border-color:#5E5CE6!important; }
+    .cs-room-card { background:#fff;border:0.5px solid #E5E7EB;border-radius:12px;overflow:hidden; }
+    .cs-room-card-header { padding:10px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center; }
+    .cs-slot { display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:#F9FAFB;margin-bottom:5px; }
+    .cs-slot-p { font-size:11px;color:#9CA3AF;width:30px;flex-shrink:0; }
+    .cs-slot-add { font-size:11.5px;color:#5E5CE6;cursor:pointer;padding:3px 8px;border:0.5px dashed #5E5CE6;border-radius:5px;background:none;flex:1;text-align:left; }
+    .cs-slot-add:hover { background:#EEF2FF; }
+    .cs-slot-occ { background:#EEF2FF; }
+    .cs-slot-move { background:#FEF3C7; }
+    .cs-chip { font-size:11px;padding:2px 8px;border-radius:8px;background:#EEF2FF;color:#3730A3; }
+    .cs-chip-empty { font-size:11px;padding:2px 8px;border-radius:8px;border:0.5px dashed #D1D5DB;color:#9CA3AF; }
     .tsa-dorm-filter-chip {
       padding: 5px 13px;
       border: 1.5px solid #E5E7EB;
@@ -1453,9 +1466,13 @@
       <!-- Admin 전용 -->
       <div class="tsa-sidebar-section admin-only" id="section-academic">Academic</div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
+        <a class="tsa-nav-item admin-only" id="menu-class-schedule" onclick="navigate('class-schedule')">
+          <i data-lucide="calendar-check"></i>
+          수업 배정 관리
+        </a>
         <a class="tsa-nav-item" id="menu-timetable-parent" onclick="toggleTimetableSubmenu()">
           <i data-lucide="calendar"></i>
-          시간표 및 수업 배정
+          기존 시간표
           <i data-lucide="arrow-down" id="timetable-submenu-arrow" style="font-size:11px;margin-left:auto;width:auto;transition:transform 0.15s ease;transform:rotate(180deg)"></i>
         </a>
         <div id="timetable-submenu" style="display:flex;flex-direction:column;gap:1px;padding-left:8px;">
@@ -3129,6 +3146,143 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: CLASS SCHEDULE                            -->
+        <!-- ================================================ -->
+        <div id="view-class-schedule" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">📅 수업 배정 관리</h2>
+              <p class="tsa-page-subtitle">강의실 설정 · 주간 수업 편성 · 현황 조회</p>
+            </div>
+          </div>
+
+          <!-- 탭 -->
+          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
+            <button id="cs-tab-rooms" onclick="switchClassScheduleTab('rooms')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">🏫 강의실 설정</button>
+            <button id="cs-tab-assign" onclick="switchClassScheduleTab('assign')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📋 주간 수업 편성</button>
+            <button id="cs-tab-view" onclick="switchClassScheduleTab('view')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📊 주간 현황</button>
+          </div>
+
+          <!-- 탭 1: 강의실 설정 -->
+          <div id="cs-panel-rooms">
+            <!-- 유형 현황 -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="cs-type-kpi"></div>
+
+            <!-- 호실 목록 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-size:12px;font-weight:700;color:#374151">호실 목록</div>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCsAddRoomModal()"><i data-lucide="plus"></i> 호실 추가</button>
+            </div>
+            <div class="tsa-card">
+              <table class="tsa-table" style="font-size:12px">
+                <thead>
+                  <tr><th>호실</th><th>유형</th><th>수용 인원</th><th>배정 강사</th><th>상태</th><th>동작</th></tr>
+                </thead>
+                <tbody id="cs-rooms-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 탭 2: 주간 수업 편성 -->
+          <div id="cs-panel-assign" style="display:none">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+              <button onclick="shiftCsWeek(-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
+              <div id="cs-week-label" style="font-size:13px;font-weight:600;color:#111827"></div>
+              <button onclick="shiftCsWeek(1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
+              <div style="margin-left:auto;display:flex;gap:4px" id="cs-day-btns">
+                <button onclick="selectCsDay('월',this)" class="cs-day-btn cs-day-active">월</button>
+                <button onclick="selectCsDay('화',this)" class="cs-day-btn">화</button>
+                <button onclick="selectCsDay('수',this)" class="cs-day-btn">수</button>
+                <button onclick="selectCsDay('목',this)" class="cs-day-btn">목</button>
+                <button onclick="selectCsDay('금',this)" class="cs-day-btn">금</button>
+              </div>
+            </div>
+            <div id="cs-assign-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+          </div>
+
+          <!-- 탭 3: 주간 현황 -->
+          <div id="cs-panel-view" style="display:none">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+              <button onclick="shiftCsWeek(-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
+              <div id="cs-week-label-2" style="font-size:13px;font-weight:600;color:#111827"></div>
+              <button onclick="shiftCsWeek(1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button onclick="setCsViewMode('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary">강의실 기준</button>
+                <button onclick="setCsViewMode('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사 기준</button>
+                <button onclick="setCsViewMode('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생 기준</button>
+              </div>
+            </div>
+            <div id="cs-view-table-wrap"></div>
+          </div>
+        </div>
+
+        <!-- 호실 추가 모달 -->
+        <div id="cs-room-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCsAddRoomModal()"></div>
+        <div id="cs-room-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:440px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <input type="hidden" id="cs-room-modal-id"/>
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="cs-room-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">호실 추가</h3>
+            <button onclick="closeCsAddRoomModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">호실 번호 <span style="color:#EF4444">*</span></label><input id="cs-room-no" class="tsa-input" placeholder="예: A-101" style="width:100%"/></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수업 유형 <span style="color:#EF4444">*</span></label>
+                <select id="cs-room-type" class="tsa-input" style="width:100%">
+                  <option value="1:1">1:1 강의실</option>
+                  <option value="1:4">1:4 그룹</option>
+                  <option value="1:8">1:8 그룹</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label><input id="cs-room-cap" class="tsa-input" type="number" min="1" placeholder="명" style="width:100%"/></div>
+            </div>
+            <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">기본 배정 강사</label>
+              <select id="cs-room-teacher" class="tsa-input" style="width:100%"><option value="">— 미배정 —</option></select>
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeCsAddRoomModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveCsRoom()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- 수업 배정 모달 -->
+        <div id="cs-assign-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCsAssignModal()"></div>
+        <div id="cs-assign-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:500px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="cs-assign-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">수업 배정</h3>
+            <button onclick="closeCsAssignModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div id="cs-assign-info" style="background:#F8F9FF;border-radius:8px;padding:12px 16px;font-size:13px;color:#374151"></div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">교시 선택 (복수 가능)</label>
+              <div id="cs-period-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">학생 선택</label>
+              <div id="cs-student-list" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">코스</label>
+                <select id="cs-assign-course" class="tsa-input" style="width:100%">
+                  <option value="일반 코스">일반 코스</option>
+                  <option value="IELTS 전문 코스">IELTS 전문 코스</option>
+                  <option value="주니어 패키지">주니어 패키지</option>
+                  <option value="가디언 코스">가디언 코스</option>
+                </select>
+              </div>
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">레벨</label><input id="cs-assign-level" class="tsa-input" placeholder="예: Band 5.0" style="width:100%"/></div>
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeCsAssignModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="confirmCsAssign()"><i data-lucide="check"></i> 배정 확정</button>
           </div>
         </div>
 
