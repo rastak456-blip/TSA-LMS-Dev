@@ -4228,9 +4228,9 @@
         </div>
         <button class="tsa-modal-close" onclick="closeModal('student-detail-modal')"><i data-lucide="x"></i></button>
       </div>
-      <div class="tsa-modal-body">
-        <div class="tsa-tabs">
-          <div class="tsa-tab active" onclick="switchStudentTab('basic', this)">기본 · 특이사항</div>
+      <div class="tsa-modal-body" style="padding-bottom:0">
+        <div class="tsa-tabs" style="margin-bottom:16px">
+          <div class="tsa-tab active" onclick="switchStudentTab('basic', this)">기본 정보</div>
           <div class="tsa-tab" onclick="switchStudentTab('class', this)">수강 현황 · 학습성적</div>
           <div class="tsa-tab" onclick="switchStudentTab('settle', this)">정산 & 인보이스</div>
           <div class="tsa-tab" onclick="switchStudentTab('classlog', this)">📋 수업 현황</div>
@@ -4238,7 +4238,7 @@
           <div class="tsa-tab" onclick="switchStudentTab('fees', this)">로컬피</div>
           <div class="tsa-tab" onclick="switchStudentTab('changelog', this)">🔄 변경 이력</div>
         </div>
-        <div id="student-modal-tab-content"></div>
+        <div id="student-modal-tab-content" style="min-height:380px;max-height:55vh;overflow-y:auto;padding-bottom:16px"></div>
       </div>
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('student-detail-modal')">닫기</button>
