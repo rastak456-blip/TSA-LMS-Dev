@@ -5954,31 +5954,58 @@ function getNationalityFlag(nat) {
   return flags[nat] || '🏳️';
 }
 
+let sfFiles = { passport: null, ticket: null, photo: null, insurance: null };
+
+function handleSfFileSelected(key) {
+  const input = document.getElementById('sf-file-' + key);
+  const badge = document.getElementById('sf-badge-' + key);
+  if (input && input.files[0]) {
+    sfFiles[key] = input.files[0].name;
+    if (badge) { badge.textContent = '제출완료'; badge.className = 'tsa-badge tsa-badge-success'; badge.style.fontSize = '9px'; }
+  }
+}
+
 function openStudentRegisterModal() {
-  document.getElementById('student-form-title').textContent = "👤 신규 학생 등록";
-  document.getElementById('student-form-subtitle').textContent = "신규 입학생의 인적 정보 및 연수 계획을 설정합니다.";
-  
-  // Clear form
-  document.getElementById('sf-id').value = "";
-  document.getElementById('sf-passportNum').value = "";
-  document.getElementById('sf-startDate').value = "";
-  document.getElementById('sf-name').value = "";
-  document.getElementById('sf-nick').value = "";
-  document.getElementById('sf-gender').value = "남";
-  document.getElementById('sf-age').value = "";
-  document.getElementById('sf-nationality').value = "한국";
-  document.getElementById('sf-course').value = "일반 코스";
-  document.getElementById('sf-duration').value = "4";
-  document.getElementById('sf-dorm').value = "";
-  document.getElementById('sf-agency').value = "직접 등록";
-  document.getElementById('sf-visa').value = "";
-  document.getElementById('sf-ssp').value = "면제";
-  document.getElementById('sf-passport').value = "보관 중";
-  document.getElementById('sf-flight').value = "";
-  document.getElementById('sf-departure').value = "";
-  document.getElementById('sf-diet').value = "일반식";
-  document.getElementById('sf-status').value = "waiting";
-  document.getElementById('sf-health').value = "";
+  sfFiles = { passport: null, ticket: null, photo: null, insurance: null };
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  const resetBadge = key => {
+    const b = document.getElementById('sf-badge-' + key);
+    if (b) { b.textContent = '없음'; b.className = 'tsa-badge tsa-badge-gray'; b.style.fontSize = '9px'; }
+    const f = document.getElementById('sf-file-' + key);
+    if (f) f.value = '';
+  };
+
+  setVal('sf-id', '');
+  setVal('sf-name', '');
+  setVal('sf-nick', '');
+  setVal('sf-gender', '남');
+  setVal('sf-dob', '');
+  setVal('sf-age', '');
+  setVal('sf-nationality', '한국');
+  setVal('sf-phone', '');
+  setVal('sf-email', '');
+  setVal('sf-emergency', '');
+  setVal('sf-diet', '일반식');
+  setVal('sf-health', '');
+  setVal('sf-passportNum', '');
+  setVal('sf-passportExpiry', '');
+  setVal('sf-flight-num', '');
+  setVal('sf-flight-date', '');
+  setVal('sf-flight-time', '');
+  setVal('sf-flight-out-num', '');
+  setVal('sf-departure', '');
+  setVal('sf-flight-out-time', '');
+  setVal('sf-visa', '');
+  setVal('sf-ssp', '면제');
+  setVal('sf-course', '일반 코스');
+  setVal('sf-duration', '4');
+  setVal('sf-startDate', '');
+  setVal('sf-agency', '직접 등록');
+  setVal('sf-status', 'waiting');
+  setVal('sf-dormAccomType', '');
+  setVal('sf-dorm-in', '');
+  setVal('sf-dorm-out', '');
+  ['passport','ticket','photo','insurance'].forEach(resetBadge);
 
   openModal('student-form-modal');
 }

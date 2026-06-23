@@ -4929,172 +4929,143 @@
 <!-- Student Registration & Edit Form Modal -->
 <div id="student-form-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('student-form-modal')">
-    <div class="tsa-modal tsa-modal-md" onclick="event.stopPropagation()">
-      <div class="tsa-modal-header" style="background:#F8F9FC">
+    <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
+      <div class="tsa-modal-header" style="background:#EEF2FF">
         <div>
-          <h3 class="tsa-modal-title" id="student-form-title">학생 등록 / 수정</h3>
-          <p class="tsa-modal-subtitle" id="student-form-subtitle">학생의 기본 정보 및 연수 정보를 설정합니다.</p>
+          <h3 class="tsa-modal-title" id="student-form-title">👤 신규 학생 등록</h3>
+          <p class="tsa-modal-subtitle" id="student-form-subtitle">신규 입학생의 인적 정보 및 연수 계획을 설정합니다.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('student-form-modal')"><i data-lucide="x"></i></button>
       </div>
-      <div class="tsa-modal-body">
+      <div class="tsa-modal-body" style="max-height:70vh;overflow-y:auto">
         <form id="student-form" onsubmit="event.preventDefault(); saveStudentForm();">
           <input type="hidden" id="sf-id"/>
-          
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">여권 성명 (영문)</label>
-              <input type="text" id="sf-name" class="tsa-input" placeholder="HONG GILDONG" required/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">호칭 (닉네임)</label>
-              <input type="text" id="sf-nick" class="tsa-input" placeholder="Kevin" required/>
-            </div>
-          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
 
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">성별</label>
-              <select id="sf-gender" class="tsa-input">
-                <option value="남">남성</option>
-                <option value="여">여성</option>
-              </select>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">나이</label>
-              <input type="number" id="sf-age" class="tsa-input" placeholder="20" required/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">국적</label>
-              <select id="sf-nationality" class="tsa-input">
-                <option value="한국">한국 🇰🇷</option>
-                <option value="일본">일본 🇯🇵</option>
-                <option value="중국">중국 🇨🇳</option>
-                <option value="베트남">베트남 🇻🇳</option>
-                <option value="대만">대만 🇹🇼</option>
-                <option value="사우디">사우디 🇸🇦</option>
-              </select>
-            </div>
-          </div>
+            <!-- 좌측: Section A + B -->
+            <div style="display:flex;flex-direction:column;gap:20px">
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">여권번호 <span style="color:#EF4444">*</span></label>
-              <input type="text" id="sf-passportNum" class="tsa-input" placeholder="M12345678" required/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">수강 시작일 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF">(월요일만 가능)</span></label>
-              <input type="date" id="sf-startDate" class="tsa-input" required/>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">수강 과정</label>
-              <select id="sf-course" class="tsa-input">
-                <option value="일반 코스">일반 코스</option>
-                <option value="IELTS 전문 코스">IELTS 전문 코스</option>
-                <option value="주니어 패키지">주니어 패키지</option>
-                <option value="가디언 코스">가디언 코스</option>
-                <option value="비즈니스 영어">비즈니스 영어</option>
-              </select>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">연수 기간 (주)</label>
-              <input type="number" id="sf-duration" class="tsa-input" placeholder="4" required/>
-            </div>
-          </div>
-
-          <!-- 숙소 선택 (템플릿 기준) -->
-          <div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:12px 14px;margin-bottom:4px">
-            <div style="font-size:11.5px;font-weight:700;color:#0369A1;margin-bottom:10px">◑ 숙소 신청 (미선택 시 미배정)</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-              <div class="tsa-form-group" style="margin-bottom:0">
-                <label class="tsa-label" style="font-size:11px">숙소 유형</label>
-                <select id="sf-dormAccomType" class="tsa-input" style="font-size:12px" onchange="updateDormCapacityOptions()">
-                  <option value="">— 미선택 —</option>
-                  <option value="기숙사">기숙사</option>
-                  <option value="콘도">콘도</option>
-                </select>
+              <!-- Section A: 기본 인적 사항 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section A: 기본 인적 사항</h4></div>
+                <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="tsa-form-group"><label class="tsa-label">영문 성명 (여권명) <span style="color:#EF4444">*</span></label><input id="sf-name" type="text" class="tsa-input" placeholder="HONG GILDONG" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">영문 닉네임 (호칭) <span style="color:#EF4444">*</span></label><input id="sf-nick" type="text" class="tsa-input" placeholder="Kevin" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">성별 <span style="color:#EF4444">*</span></label><select id="sf-gender" class="tsa-input"><option value="남">남성</option><option value="여">여성</option></select></div>
+                  <div class="tsa-form-group"><label class="tsa-label">생년월일 <span style="color:#EF4444">*</span></label><input id="sf-dob" type="date" class="tsa-input" required onchange="handleAregDobChange()"/><input id="sf-age" type="hidden"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">국적 <span style="color:#EF4444">*</span></label>
+                    <select id="sf-nationality" class="tsa-input">
+                      <option value="한국">한국 🇰🇷</option><option value="일본">일본 🇯🇵</option><option value="중국">중국 🇨🇳</option><option value="베트남">베트남 🇻🇳</option><option value="몽골">몽골 🇲🇳</option><option value="필리핀">필리핀 🇵🇭</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">연락처 <span style="color:#EF4444">*</span></label><input id="sf-phone" type="text" class="tsa-input" placeholder="010-1234-5678" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">이메일 주소 <span style="color:#EF4444">*</span></label><input id="sf-email" type="email" class="tsa-input" placeholder="student@example.com" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">비상 연락처 <span style="color:#EF4444">*</span></label><input id="sf-emergency" type="text" class="tsa-input" placeholder="010-5678-1234 (부모)" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">식단 구분</label><select id="sf-diet" class="tsa-input"><option value="일반식">🍚 일반식</option><option value="채식">🥗 채식</option><option value="할랄">🌙 할랄</option><option value="글루텐 프리">🌾 글루텐 프리</option></select></div>
+                  <div class="tsa-form-group"><label class="tsa-label">건강 특이사항</label><input id="sf-health" type="text" class="tsa-input" placeholder="알레르기, 복약 정보 등"/></div>
+                </div>
               </div>
-              <div class="tsa-form-group" style="margin-bottom:0">
-                <label class="tsa-label" style="font-size:11px">인실 기준</label>
-                <select id="sf-dormCapacity" class="tsa-input" style="font-size:12px" onchange="updateDormGradeOptions()">
-                  <option value="">— 유형 먼저 —</option>
-                </select>
-              </div>
-              <div class="tsa-form-group" style="margin-bottom:0">
-                <label class="tsa-label" style="font-size:11px">등급</label>
-                <select id="sf-dormGrade" class="tsa-input" style="font-size:12px">
-                  <option value="">— 인실 먼저 —</option>
-                </select>
+
+              <!-- Section B: 여권·항공·비자 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section B: 여권 · 항공 · 비자 정보</h4></div>
+                <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="tsa-form-group"><label class="tsa-label">여권 번호 <span style="color:#EF4444">*</span></label><input id="sf-passportNum" type="text" class="tsa-input" placeholder="M12345678" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">여권 만료일 <span style="color:#EF4444">*</span></label><input id="sf-passportExpiry" type="date" class="tsa-input" required/></div>
+                  <div style="grid-column:span 2;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px">
+                    <div style="font-size:11.5px;font-weight:700;color:#15803D;margin-bottom:10px">✈ 입국 항공편</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="sf-flight-num" type="text" class="tsa-input" placeholder="KE631"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">입국 날짜</label><input id="sf-flight-date" type="date" class="tsa-input"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">도착 시간</label><input id="sf-flight-time" type="time" class="tsa-input"/></div>
+                    </div>
+                  </div>
+                  <div style="grid-column:span 2;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px">
+                    <div style="font-size:11.5px;font-weight:700;color:#1D4ED8;margin-bottom:10px">✈ 출국 항공편</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="sf-flight-out-num" type="text" class="tsa-input" placeholder="KE632"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출국 날짜</label><input id="sf-departure" type="date" class="tsa-input"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출발 시간</label><input id="sf-flight-out-time" type="time" class="tsa-input"/></div>
+                    </div>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">비자 만료일</label><input id="sf-visa" type="date" class="tsa-input"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">SSP 만료일 (또는 면제)</label><input id="sf-ssp" type="text" class="tsa-input" placeholder="면제"/></div>
+                </div>
               </div>
             </div>
+
+            <!-- 우측: Section C + D -->
+            <div style="display:flex;flex-direction:column;gap:20px">
+
+              <!-- Section C: 수강 및 기숙사 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section C: 수강 및 기숙사 정보</h4></div>
+                <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="tsa-form-group"><label class="tsa-label">코스 유형 <span style="color:#EF4444">*</span></label>
+                    <select id="sf-course" class="tsa-input">
+                      <option value="일반 코스">일반 코스</option><option value="IELTS 전문 코스">IELTS 전문 코스</option><option value="주니어 패키지">주니어 패키지</option><option value="가디언 코스">가디언 코스</option><option value="비즈니스 영어">비즈니스 영어</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
+                    <select id="sf-duration" class="tsa-input">
+                      <option value="4" selected>4주 (정규)</option><option value="1">1주</option><option value="2">2주</option><option value="3">3주</option><option value="8">8주</option><option value="12">12주</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label><input id="sf-startDate" type="date" class="tsa-input" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">등록 에이전시</label><input id="sf-agency" type="text" class="tsa-input" placeholder="직접 등록"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">학사 상태</label>
+                    <select id="sf-status" class="tsa-input">
+                      <option value="waiting">입학 대기</option><option value="current">재학</option><option value="completed">졸업</option><option value="resigned">퇴원</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">희망 숙소</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                      <select id="sf-dormAccomType" class="tsa-input" onchange="updateDormCapacityOptions()"><option value="">— 미선택 —</option><option value="기숙사">기숙사</option><option value="콘도">콘도</option></select>
+                      <select id="sf-dormCapacity" class="tsa-input" onchange="updateDormGradeOptions()"><option value="">— 유형 먼저 —</option></select>
+                      <select id="sf-dormGrade" class="tsa-input"><option value="">— 인실 먼저 —</option></select>
+                    </div>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">입실일</label><input id="sf-dorm-in" type="date" class="tsa-input"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">퇴실일</label><input id="sf-dorm-out" type="date" class="tsa-input"/></div>
+                </div>
+              </div>
+
+              <!-- Section D: 서류 업로드 -->
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section D: 필수 서류 업로드</h4></div>
+                <div class="tsa-card-body" style="padding:14px">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div style="border:1.5px dashed #D1D5DB;border-radius:8px;padding:10px;text-align:center;background:#FAFAFA">
+                      <div style="font-size:11px;font-weight:600;margin-bottom:4px">여권 사본</div>
+                      <span class="tsa-badge tsa-badge-gray" id="sf-badge-passport" style="font-size:9px">없음</span>
+                      <div style="margin-top:6px"><button type="button" class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('sf-file-passport').click()">파일선택</button></div>
+                      <input id="sf-file-passport" type="file" style="display:none" onchange="handleSfFileSelected('passport')"/>
+                    </div>
+                    <div style="border:1.5px dashed #D1D5DB;border-radius:8px;padding:10px;text-align:center;background:#FAFAFA">
+                      <div style="font-size:11px;font-weight:600;margin-bottom:4px">E-티켓 사본</div>
+                      <span class="tsa-badge tsa-badge-gray" id="sf-badge-ticket" style="font-size:9px">없음</span>
+                      <div style="margin-top:6px"><button type="button" class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('sf-file-ticket').click()">파일선택</button></div>
+                      <input id="sf-file-ticket" type="file" style="display:none" onchange="handleSfFileSelected('ticket')"/>
+                    </div>
+                    <div style="border:1.5px dashed #D1D5DB;border-radius:8px;padding:10px;text-align:center;background:#FAFAFA">
+                      <div style="font-size:11px;font-weight:600;margin-bottom:4px">증명사진</div>
+                      <span class="tsa-badge tsa-badge-gray" id="sf-badge-photo" style="font-size:9px">없음</span>
+                      <div style="margin-top:6px"><button type="button" class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('sf-file-photo').click()">파일선택</button></div>
+                      <input id="sf-file-photo" type="file" style="display:none" onchange="handleSfFileSelected('photo')"/>
+                    </div>
+                    <div style="border:1.5px dashed #D1D5DB;border-radius:8px;padding:10px;text-align:center;background:#FAFAFA">
+                      <div style="font-size:11px;font-weight:600;margin-bottom:4px">여행자 보험증서</div>
+                      <span class="tsa-badge tsa-badge-gray" id="sf-badge-insurance" style="font-size:9px">없음</span>
+                      <div style="margin-top:6px"><button type="button" class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('sf-file-insurance').click()">파일선택</button></div>
+                      <input id="sf-file-insurance" type="file" style="display:none" onchange="handleSfFileSelected('insurance')"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="tsa-form-group">
-            <label class="tsa-label">등록 에이전시</label>
-            <input type="text" id="sf-agency" class="tsa-input" placeholder="직접 등록"/>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">비자 만료일</label>
-              <input type="date" id="sf-visa" class="tsa-input"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">SSP 만료일 (또는 '면제')</label>
-              <input type="text" id="sf-ssp" class="tsa-input" placeholder="면제"/>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">여권 보관 상태</label>
-              <select id="sf-passport" class="tsa-input">
-                <option value="보관 중">보관 중</option>
-                <option value="미제출">미제출</option>
-                <option value="만료 재발급 중">만료 재발급 중</option>
-              </select>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">항공편 및 입국 정보</label>
-              <input type="text" id="sf-flight" class="tsa-input" placeholder="KE631 | 06-01 입국"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">퇴교 / 출국일자</label>
-              <input type="date" id="sf-departure" class="tsa-input"/>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">식단 구분</label>
-              <select id="sf-diet" class="tsa-input">
-                <option value="일반식">일반식</option>
-                <option value="채식">채식</option>
-                <option value="할랄">할랄</option>
-                <option value="글루텐 프리">글루텐 프리</option>
-              </select>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">학사 관리 상태</label>
-              <select id="sf-status" class="tsa-input">
-                <option value="waiting">입학 대기 (Waiting)</option>
-                <option value="current">재학 (Current)</option>
-                <option value="completed">졸업 (Completed)</option>
-                <option value="resigned">퇴원 (Resigned)</option>
-                <option value="extended">연장 (Extended)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="tsa-form-group">
-            <label class="tsa-label">건강 특이사항 메모</label>
-            <input type="text" id="sf-health" class="tsa-input" placeholder="알레르기, 정기 복약 여부 등..."/>
-          </div>
-
-          <div class="tsa-modal-footer" style="padding:12px 0 0; border-top:none">
+          <div class="tsa-modal-footer" style="padding:16px 0 0;border-top:1px solid #E5E7EB;margin-top:16px">
             <button type="button" class="tsa-btn tsa-btn-outline" onclick="closeModal('student-form-modal')">취소</button>
             <button type="submit" class="tsa-btn tsa-btn-primary"><i data-lucide="check"></i> 저장 완료</button>
           </div>
