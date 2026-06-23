@@ -1154,6 +1154,14 @@ function navigate(view) {
     initCoursePricing();
   } else if (view === 'agency-manage') {
     renderAgencyManage();
+  } else if (view === 'teacher-dashboard') {
+    if (typeof initTeacherPortal === 'function') initTeacherPortal();
+  } else if (view === 'teacher-timetable') {
+    if (typeof setupTeacherTimetable === 'function') setupTeacherTimetable();
+  } else if (view === 'student-dashboard') {
+    if (typeof initStudentPortal === 'function') initStudentPortal();
+  } else if (view === 'student-dorm') {
+    if (typeof renderStudentDormStatus === 'function') renderStudentDormStatus();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 300);
