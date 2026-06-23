@@ -4453,36 +4453,27 @@ function navigateStudentsKpi(type) {
   navigate('students');
   setTimeout(() => {
     resetStudentFilters();
-    const today = new Date('2026-06-17');
     const todayStr = '2026-06-17';
+    const today = new Date(todayStr);
 
     if (type === 'active') {
-      // 재학/연장만
-      document.querySelectorAll('.sf-status-cb').forEach(cb => {
-        cb.checked = cb.value === 'current' || cb.value === 'extended';
-      });
+      setAdminStatusCard(null, 'current');
 
     } else if (type === 'waiting') {
-      // 입학대기만
-      document.querySelectorAll('.sf-status-cb').forEach(cb => {
-        cb.checked = cb.value === 'waiting';
-      });
+      setAdminStatusCard(null, 'waiting');
 
     } else if (type === 'arrivals') {
-      // 오늘 입국 예정 — arrivalDate = today, 모든 상태 표시
-      document.querySelectorAll('.sf-status-cb').forEach(cb => { cb.checked = true; });
+      setAdminStatusCard(null, 'all');
       document.getElementById('sf-arrival-from').value = todayStr;
       document.getElementById('sf-arrival-to').value = todayStr;
 
     } else if (type === 'visa') {
-      // 비자 30일 이내 만료 — sf-visa 드롭다운 "30일이내"
-      document.querySelectorAll('.sf-status-cb').forEach(cb => { cb.checked = true; });
+      setAdminStatusCard(null, 'all');
       const visaSel = document.getElementById('sf-visa');
-      if (visaSel) visaSel.value = '30일이내';
+      if (visaSel) visaSel.value = '30';
 
     } else if (type === 'newweek') {
-      // 금주 신규 등록 — startDate 이번주
-      document.querySelectorAll('.sf-status-cb').forEach(cb => { cb.checked = true; });
+      setAdminStatusCard(null, 'all');
       const monday = new Date(today);
       monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
       const sunday = new Date(monday);
