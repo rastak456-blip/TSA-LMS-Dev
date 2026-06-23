@@ -1759,27 +1759,7 @@
                   <tbody id="admin-remit-inbox-body"><!-- 동적 렌더링 --></tbody>
                 </table>
               </div>
-              <!-- 학생 정보 변경 이력 (승인 불필요 — 입학대기 학생 에이전시 직접 수정 로그) -->
-              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">🔄 학생 정보 변경 이력 <span style="font-size:11px;font-weight:400;color:#9CA3AF">(입학대기 학생 에이전시 직접 수정 · 승인 불필요)</span></div>
-              <div style="font-size:11px;color:#6B7280;background:#F9FAFB;padding:6px 10px;border-radius:6px;margin-bottom:8px">재학 중인 학생 정보는 어드민이 직접 수정합니다. 에이전시 변경 이력은 입학대기 학생에 한합니다.</div>
-              <div style="overflow-x:auto">
-                <table class="tsa-table" style="font-size:11.5px">
-                  <thead>
-                    <tr>
-                      <th>에이전시</th>
-                      <th>학생 성명</th>
-                      <th>학생 상태</th>
-                      <th>변경 항목</th>
-                      <th>변경 전</th>
-                      <th>변경 후</th>
-                      <th>변경 일시</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-change-inbox-body">
-                    <tr><td colspan="7" style="text-align:center;padding:20px;color:#9CA3AF">변경 이력이 없습니다.</td></tr>
-                  </tbody>
-                </table>
-              </div>
+              <tbody id="admin-change-inbox-body" style="display:none"></tbody>
               <!-- 숨겨진 참조용 요소 -->
               <tbody id="admin-dorm-inbox-body" style="display:none"></tbody>
             </div>
