@@ -4700,6 +4700,7 @@ function switchStudentTab(tab, el) {
               <input id="ad-health-notes" type="text" class="tsa-input" style="border-color:#FDE68A" value="${s.healthNotes || ''}" placeholder="복약 시간대, 알레르기 유무 및 세부 정보를 입력하세요"/>
             </div>
           </div>
+        </div>
 
         <!-- ── 항공 & 입출국 ── -->
         <div style="margin-top:16px">
