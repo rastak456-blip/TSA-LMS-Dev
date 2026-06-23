@@ -5856,7 +5856,20 @@ function renderTeacherTagFilters() {
 function initTeacherList() {
   _teacherTagFilter = '전체';
   renderTeacherTagFilters();
+  renderTeacherKPIs();
   renderTeacherList(MOCK_TEACHERS);
+}
+
+function renderTeacherKPIs() {
+  const active = MOCK_TEACHERS.filter(t => t.status !== 'resigned');
+  const withPreferred = active.filter(t => (t.preferredCourses||[]).length > 0);
+  const withExcluded  = active.filter(t => (t.excludedCourses||[]).length > 0);
+  const onLeave       = MOCK_TEACHERS.filter(t => t.status === 'leave');
+  const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setKpi('kpi-teacher-total',     MOCK_TEACHERS.filter(t=>t.status!=='resigned').length + '명');
+  setKpi('kpi-teacher-preferred', withPreferred.length + '명');
+  setKpi('kpi-teacher-excluded',  withExcluded.length + '명');
+  setKpi('kpi-teacher-leave',     onLeave.length + '명');
 }
 
 function renderTeacherList(list) {
@@ -5895,7 +5908,16 @@ function renderTeacherList(list) {
             </div>
           </div>
         </td>
-        <td><span class="tsa-badge" style="background:${typeColors[t.type]||'#E5E7EB'}20;color:${typeColors[t.type]||'#6B7280'}">${t.type}</span></td>
+        <td>
+          ${(t.preferredCourses||[]).length > 0
+            ? (t.preferredCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#D1FAE5;color:#065F46;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
+            : '<span style="font-size:11px;color:#D1D5DB">-</span>'}
+        </td>
+        <td>
+          ${(t.excludedCourses||[]).length > 0
+            ? (t.excludedCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#FEE2E2;color:#991B1B;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
+            : '<span style="font-size:11px;color:#D1D5DB">-</span>'}
+        </td>
         <td style="font-size:12px;font-weight:500">Room ${t.room}</td>
         <td><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
         <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
@@ -6267,27 +6289,58 @@ function saveStudentForm() {
 /* =============================================
    TEACHER REGISTER & EDIT FORM HANDLERS
    ============================================= */
+function renderTeacherTagCheckboxes(preferredList, excludedList) {
+  const tags = MOCK_ASSIGNMENT_TAGS.filter(t => t.visible).map(t => t.name);
+  const prefWrap = document.getElementById('tf-preferred-tags');
+  const exclWrap = document.getElementById('tf-excluded-tags');
+  if (prefWrap) prefWrap.innerHTML = tags.map(tag => {
+    const checked = (preferredList||[]).includes(tag) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:8px;background:${checked?'#D1FAE5':'#F9FAFB'};border:1px solid ${checked?'#6EE7B7':'#E5E7EB'};font-size:12px">
+      <input type="checkbox" name="tf-preferred" value="${tag}" ${checked} style="accent-color:#10B981" onchange="syncTeacherTagCheckbox('preferred','${tag}',this.checked)"/> ${tag}
+    </label>`;
+  }).join('');
+  if (exclWrap) exclWrap.innerHTML = tags.map(tag => {
+    const checked = (excludedList||[]).includes(tag) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:8px;background:${checked?'#FEE2E2':'#F9FAFB'};border:1px solid ${checked?'#FCA5A5':'#E5E7EB'};font-size:12px">
+      <input type="checkbox" name="tf-excluded" value="${tag}" ${checked} style="accent-color:#EF4444" onchange="syncTeacherTagCheckbox('excluded','${tag}',this.checked)"/> ${tag}
+    </label>`;
+  }).join('');
+}
+
+function syncTeacherTagCheckbox(type, tag, checked) {
+  const name = type === 'preferred' ? 'tf-preferred' : 'tf-excluded';
+  const otherName = type === 'preferred' ? 'tf-excluded' : 'tf-preferred';
+  if (checked) {
+    // 반대쪽에서 동일 태그 해제
+    document.querySelectorAll(`input[name="${otherName}"][value="${tag}"]`).forEach(cb => { cb.checked = false; });
+  }
+  // 스타일 갱신
+  document.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
+    const label = cb.parentElement;
+    const isChecked = cb.checked;
+    label.style.background = isChecked ? (type==='preferred'?'#D1FAE5':'#FEE2E2') : '#F9FAFB';
+    label.style.borderColor = isChecked ? (type==='preferred'?'#6EE7B7':'#FCA5A5') : '#E5E7EB';
+  });
+}
+
+function getCheckedTags(name) {
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(cb => cb.value);
+}
+
 function openTeacherRegisterModal() {
   document.getElementById('teacher-form-title').textContent = "🧑‍🏫 신규 강사 등록";
   document.getElementById('teacher-form-subtitle').textContent = "학원 소속 신규 강사의 기본 정보 및 배정 강의실을 설정합니다.";
 
-  // Clear form
-  document.getElementById('tf-id').value = "";
-  document.getElementById('tf-name').value = "";
-  document.getElementById('tf-nick').value = "";
-  document.getElementById('tf-gender').value = "여";
-  document.getElementById('tf-exp').value = "";
-  document.getElementById('tf-room').value = "";
-  document.getElementById('tf-type').value = "일반 영어 (1:1)";
-  document.getElementById('tf-contract').value = "정규직";
-  document.getElementById('tf-status').value = "active";
-  document.getElementById('tf-available').value = "true";
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('tf-id',''); setVal('tf-name',''); setVal('tf-nick','');
+  setVal('tf-gender','여'); setVal('tf-exp',''); setVal('tf-room','');
+  setVal('tf-contract','정규직'); setVal('tf-status','active'); setVal('tf-available','true');
 
-  // 톡스 LMS 강사 매칭 그룹 노출 및 바인딩
+  renderTeacherTagCheckboxes([], []);
+
   const matchingGroup = document.getElementById('tf-talk-matching-group');
   if (matchingGroup) matchingGroup.style.display = 'block';
   initTalkTeacherDropdown();
-
   openModal('teacher-form-modal');
 }
 
@@ -6296,25 +6349,18 @@ function openTeacherEditModal(id) {
   if (!t) return;
 
   document.getElementById('teacher-form-title').textContent = `🧑‍🏫 강사 정보 수정 - ${t.nick}`;
-  document.getElementById('teacher-form-subtitle').textContent = "선택한 강사의 인사 카드 및 담당 계약 조건을 편집합니다.";
+  document.getElementById('teacher-form-subtitle').textContent = "선택한 강사의 인사 카드 및 계약 조건을 편집합니다.";
 
-  // Populate form
-  document.getElementById('tf-id').value = t.id;
-  document.getElementById('tf-name').value = t.name || "";
-  document.getElementById('tf-nick').value = t.nick || "";
-  document.getElementById('tf-gender').value = t.gender || "여";
-  document.getElementById('tf-exp').value = t.exp || "";
-  document.getElementById('tf-room').value = t.room || "";
-  document.getElementById('tf-type').value = t.type || "일반 영어 (1:1)";
-  document.getElementById('tf-contract').value = t.contract || "정규직";
-  document.getElementById('tf-status').value = t.status || "active";
-  document.getElementById('tf-available').value = String(t.available);
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('tf-id', t.id); setVal('tf-name', t.name||''); setVal('tf-nick', t.nick||'');
+  setVal('tf-gender', t.gender||'여'); setVal('tf-exp', t.exp||''); setVal('tf-room', t.room||'');
+  setVal('tf-contract', t.contract||'정규직'); setVal('tf-status', t.status||'active');
+  setVal('tf-available', String(t.available));
 
-  // 톡스 LMS 강사 매칭 그룹 숨김 (기존 수정 시)
+  renderTeacherTagCheckboxes(t.preferredCourses||[], t.excludedCourses||[]);
+
   const matchingGroup = document.getElementById('tf-talk-matching-group');
   if (matchingGroup) matchingGroup.style.display = 'none';
-
-  // Close details modal if open
   closeModal('teacher-detail-modal');
   openModal('teacher-form-modal');
 }
@@ -6356,8 +6402,10 @@ function saveTeacherForm() {
   const gender = document.getElementById('tf-gender').value;
   const exp = parseInt(document.getElementById('tf-exp').value);
   const room = document.getElementById('tf-room').value.trim();
-  const type = document.getElementById('tf-type').value;
+  const type = '일반 영어 (1:1)';
   const contract = document.getElementById('tf-contract').value;
+  const preferredCourses = getCheckedTags('tf-preferred');
+  const excludedCourses  = getCheckedTags('tf-excluded');
   const status = document.getElementById('tf-status').value;
   const available = document.getElementById('tf-available').value === 'true';
 
@@ -6375,6 +6423,8 @@ function saveTeacherForm() {
       t.contract = contract;
       t.status = status;
       t.available = available;
+      t.preferredCourses = preferredCourses;
+      t.excludedCourses  = excludedCourses;
 
       // Update nickname and room in MOCK_TIMETABLE too!
       const ttRow = MOCK_TIMETABLE.find(row => row.teacher === oldNick);
@@ -6401,6 +6451,8 @@ function saveTeacherForm() {
       rating: 4.5,
       exp: exp,
       status: status,
+      preferredCourses: preferredCourses,
+      excludedCourses: excludedCourses,
       availability: {
         '월': [true, true, true, true, true, true, true, true],
         '화': [true, true, true, true, true, true, true, true],
