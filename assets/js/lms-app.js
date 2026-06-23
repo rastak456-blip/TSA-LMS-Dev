@@ -4703,15 +4703,30 @@ function switchStudentTab(tab, el) {
         <!-- ── 서류 관리 ── -->
         <div style="margin-top:16px">
           <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">📄 서류 관리</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
             ${['passport','ticket','photo','insurance'].map(k => {
               const labels = { passport:'여권 사본', ticket:'E-티켓 사본', photo:'증명사진', insurance:'여행자 보험증서' };
-              const has = s.requiredFiles && s.requiredFiles[k];
-              return `<div style="border:1px solid #E9EDF4;border-radius:10px;padding:12px;background:#F8F9FC;text-align:center">
-                <div style="font-size:11px;font-weight:600;margin-bottom:6px">${labels[k]}</div>
-                <span class="tsa-badge ${has?'tsa-badge-success':'tsa-badge-gray'}" style="font-size:10px">${has?'제출완료':'누락'}</span>
-                <div style="margin-top:8px"><button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="document.getElementById('ad-file-${k}').click()">파일선택</button></div>
-                <input id="ad-file-${k}" type="file" style="display:none" onchange="handleAdetailFileSelected('${k}')"/>
+              const icons  = { passport:'🛂', ticket:'✈️', photo:'🖼️', insurance:'🛡️' };
+              const files  = s.requiredFiles
+                ? (Array.isArray(s.requiredFiles[k]) ? s.requiredFiles[k] : (s.requiredFiles[k] ? [s.requiredFiles[k]] : []))
+                : [];
+              const fileListHtml = files.length > 0
+                ? files.map((f, i) => `
+                    <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:#fff;border:1px solid #E5E7EB;border-radius:6px;margin-top:4px">
+                      <span style="font-size:11px;color:#5E5CE6">📎</span>
+                      <span style="font-size:11px;color:#374151;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${typeof f==='string'?f:(f.name||'파일 '+(i+1))}</span>
+                      <button onclick="removeStudentFile(${s.id},'${k}',${i})" style="background:none;border:none;cursor:pointer;color:#EF4444;font-size:12px;padding:0;line-height:1">✕</button>
+                    </div>`).join('')
+                : `<div style="font-size:11px;color:#9CA3AF;padding:6px 0">파일 없음</div>`;
+              return `
+              <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#F8F9FC">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <div style="font-size:12px;font-weight:700;color:#374151">${icons[k]} ${labels[k]}</div>
+                  <span class="tsa-badge ${files.length>0?'tsa-badge-success':'tsa-badge-gray'}" style="font-size:10px">${files.length>0?`${files.length}개 제출`:'누락'}</span>
+                </div>
+                <div id="file-list-${k}-${s.id}">${fileListHtml}</div>
+                <button onclick="document.getElementById('admin-file-${k}').click()" style="margin-top:8px;width:100%;padding:5px;border:1.5px dashed #D1D5DB;border-radius:6px;background:#fff;font-size:11.5px;color:#6B7280;cursor:pointer">＋ 파일 추가</button>
+                <input id="admin-file-${k}" type="file" style="display:none" multiple onchange="addStudentFiles(${s.id},'${k}',this)"/>
               </div>`;
             }).join('')}
           </div>
