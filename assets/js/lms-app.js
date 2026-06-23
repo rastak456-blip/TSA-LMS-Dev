@@ -1158,6 +1158,8 @@ function navigate(view) {
     initCoursePricing();
   } else if (view === 'agency-manage') {
     renderAgencyManage();
+  } else if (view === 'global-dashboard') {
+    if (typeof initGlobalDashboard === 'function') initGlobalDashboard();
   } else if (view === 'teacher-dashboard') {
     if (typeof initTeacherPortal === 'function') initTeacherPortal();
   } else if (view === 'teacher-timetable') {
