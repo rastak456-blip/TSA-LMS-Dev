@@ -1716,18 +1716,20 @@ function renderCsRooms() {
       </div>`;
     }).join('');
   }
-  // 테이블
+  // 유형별 섹션 테이블
   const tbody = document.getElementById('cs-rooms-tbody');
   if (!tbody) return;
   const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
-  tbody.innerHTML = MOCK_CLASS_ROOMS.map(r => {
+  const typeLabel = { '1:1':'1:1 강의실', '1:4':'1:4 그룹 강의실', '1:8':'1:8 그룹 강의실', '기타':'기타' };
+  const typeAccent = { '1:1':'#5E5CE6', '1:4':'#B45309', '1:8':'#065F46', '기타':'#6B7280' };
+
+  const renderRow = r => {
     const teacher = MOCK_TEACHERS.find(t => t.nick === r.teacherNick);
     const statusBg = r.roomNo ? (r.teacherNick ? '#D1FAE5' : '#FEF3C7') : '#F3F4F6';
     const statusColor = r.roomNo ? (r.teacherNick ? '#065F46' : '#92400E') : '#6B7280';
     const statusLabel = r.roomNo ? (r.teacherNick ? '운영 중' : '강사 미배정') : '호실 미정';
     return `<tr>
       <td style="font-weight:700">${r.roomNo || '<span style="color:#9CA3AF;font-style:italic">미배정</span>'}</td>
-      <td><span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;${typeStyle(r.type)}">${r.type}</span></td>
       <td style="font-size:12px;color:#6B7280">최대 ${r.capacity}명</td>
       <td>${teacher ? `<span style="font-size:12px;font-weight:600">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span>` : '<span style="font-size:12px;color:#9CA3AF">미배정</span>'}</td>
       <td><span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;background:${statusBg};color:${statusColor}">${statusLabel}</span></td>
@@ -1736,6 +1738,16 @@ function renderCsRooms() {
         ${!r.roomNo ? `<button class="tsa-btn tsa-btn-xs" style="background:#EEF2FF;color:#5E5CE6;border:none;margin-left:4px" onclick="openCsAddRoomModal(${r.id})">호실 배정</button>` : ''}
       </td>
     </tr>`;
+  };
+
+  const types = ['1:1','1:4','1:8','기타'];
+  tbody.innerHTML = types.map(type => {
+    const rooms = MOCK_CLASS_ROOMS.filter(r => r.type === type);
+    if (rooms.length === 0) return '';
+    return `<tr><td colspan="5" style="padding:10px 14px 6px;background:#F9FAFB;border-top:1.5px solid ${typeAccent[type]}20">
+      <span style="font-size:12px;font-weight:700;color:${typeAccent[type]}">${typeLabel[type]}</span>
+      <span style="font-size:11px;color:#9CA3AF;margin-left:8px">${rooms.filter(r=>r.roomNo).length}개 운영</span>
+    </td></tr>` + rooms.map(renderRow).join('');
   }).join('');
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
