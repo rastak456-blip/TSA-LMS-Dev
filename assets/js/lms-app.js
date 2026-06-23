@@ -1877,11 +1877,14 @@ function renderCsAssignGrid() {
           <span style="font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px;${typeStyle(room.type)}">${room.type}</span>
         </div>
       </div>
-      <div style="padding:8px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;align-items:center;gap:8px">
-        <div style="width:22px;height:22px;border-radius:50%;background:${avatarBg};color:${avatarColor};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center">
+      <div style="padding:8px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="width:22px;height:22px;border-radius:50%;background:${avatarBg};color:${avatarColor};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           ${teacher ? teacher.nick.charAt(0) : '?'}
         </div>
-        <div style="font-size:12px;color:#6B7280">${teacher ? `${teacher.nick} · ${teacher.type}` : '강사 미배정'}</div>
+        <div style="font-size:12px;color:#374151;font-weight:600">${teacher ? teacher.nick : '강사 미배정'}</div>
+        ${teacher && (teacher.preferredCourses||[]).length > 0
+          ? (teacher.preferredCourses||[]).map(tag => `<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#D1FAE5;color:#065F46;font-weight:600">${tag}</span>`).join('')
+          : ''}
       </div>
       <div style="padding:10px 14px">${slots}</div>
     </div>`;
