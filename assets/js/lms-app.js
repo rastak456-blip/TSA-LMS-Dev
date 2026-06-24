@@ -7072,20 +7072,38 @@ function switchTeacherTab(tab, el) {
   switch (tab) {
     case 'profile': {
       const tAvatarSrc = t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png';
+      const roStyle = 'background:#F9FAFB;color:#6B7280;cursor:not-allowed;border-color:#E5E7EB';
+      const roLabel = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">톡스</span>`;
       container.innerHTML = `
-        <div style="display:flex;gap:20px;align-items:start;margin-bottom:16px">
+        <!-- 톡스스테이션 출처 안내 -->
+        <div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#3730A3;display:flex;align-items:center;gap:8px">
+          <span style="font-size:14px">🔗</span>
+          <span><b>톡스</b> 표시 항목은 토크스테이션 LMS에서 관리됩니다. 수정이 필요하면 토크스테이션에서 변경 후 다시 불러오세요.</span>
+        </div>
+
+        <div style="display:flex;gap:20px;align-items:start;margin-bottom:20px">
           <div style="width:72px;height:72px;border-radius:12px;overflow:hidden;border:1px solid #E9EDF4;flex-shrink:0">
             <img src="${tAvatarSrc}" style="width:100%;height:100%;object-fit:cover" alt="Teacher photo"/>
           </div>
           <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">강사 영문 성명</label><input id="td-name" class="tsa-input" value="${t.name||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">닉네임 (호칭)</label><input id="td-nick" class="tsa-input" value="${t.nick||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">성별</label>
-              <select id="td-gender" class="tsa-input">
-                <option value="여" ${t.gender==='여'?'selected':''}>여성</option>
-                <option value="남" ${t.gender==='남'?'selected':''}>남성</option>
-              </select>
+            <div class="tsa-form-group">
+              <label class="tsa-label">강사 영문 성명 ${roLabel}</label>
+              <input class="tsa-input" value="${t.name||''}" style="${roStyle}" readonly/>
             </div>
+            <div class="tsa-form-group">
+              <label class="tsa-label">닉네임 (호칭) ${roLabel}</label>
+              <input class="tsa-input" value="${t.nick||''}" style="${roStyle}" readonly/>
+            </div>
+            <div class="tsa-form-group">
+              <label class="tsa-label">성별 ${roLabel}</label>
+              <input class="tsa-input" value="${t.gender==='여'?'여성':'남성'}" style="${roStyle}" readonly/>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #E5E7EB;padding-top:16px;margin-bottom:4px">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px">⚙️ 어학원 운영 정보 <span style="font-size:11px;font-weight:400;color:#6B7280">(어학원 사이트에서 직접 관리)</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div class="tsa-form-group"><label class="tsa-label">담당 교실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
             <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
               <select id="td-contract" class="tsa-input">
