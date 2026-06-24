@@ -8164,7 +8164,7 @@ function initAgencyInvoice() {
 
 function initAgencyStudentList() {
   initAgencyStudentDB();
-  APP._agencyStatusFilter = 'all';
+  if (!APP._agencyStatusFilter) APP._agencyStatusFilter = 'all';
   renderAgencyStatusCards();
 
   const tbody = document.getElementById('agency-student-history-body');
