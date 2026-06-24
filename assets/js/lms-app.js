@@ -9581,6 +9581,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           <input id="ad-enroll-date" type="date" class="tsa-input" value="${s.enrollDate || ''}" ${lockAttr}/>
           <div style="font-size:10.5px;color:#6B7280;margin-top:3px">등록일 + 어학원 어드민 승인 시 → <strong style="color:#059669">재학생</strong> 전환</div>
         </div>
+        ${!isAgency ? `
         <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
           <div>담당 메인 강사: <strong>${teacherName} 강사</strong></div>
           <div>누적 출석률: <strong style="color:#5E5CE6">${s.attendance || 100}%</strong> ${s.attendance && s.attendance < 80 ? '<span class="tsa-badge tsa-badge-danger" style="margin-left:8px">⚠️ 차주 1:1 수업 1교시 강제 감축 대상</span>' : ''}</div>
@@ -9610,7 +9611,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             </div>
           </div>
           <small style="color:#6B7280;font-size:10.5px">※ 성적 입력은 어드민 권한에서 저장 시 성적 히스토리와 꺾은선 차트에 연동 반영됩니다.</small>
-        </div>
+        </div>` : ''}
       </div>
     `;
   } else if (tab === 'settle') {
