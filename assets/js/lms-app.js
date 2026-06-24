@@ -4873,11 +4873,8 @@ function renderStudentList(list) {
       </td>
       <td style="text-align:center">
         <div style="display:flex;gap:6px;justify-content:center;align-items:center">
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentDetail(${s.id})">
-            <i data-lucide="eye" style="font-size:11px"></i> 상세
-          </button>
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentEditModal(${s.id})" style="border-color:#5E5CE6;color:#5E5CE6">
-            <i data-lucide="pencil" style="font-size:11px"></i> 수정
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentDetail(${s.id})" style="border-color:#5E5CE6;color:#5E5CE6">
+            <i data-lucide="pencil" style="font-size:11px"></i> 상세/수정
           </button>
         </div>
       </td>
