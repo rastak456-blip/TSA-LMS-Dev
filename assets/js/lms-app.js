@@ -6399,7 +6399,7 @@ function renderTeacherList(list) {
             <img class="tsa-avatar" src="${avatarSrc}" style="width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #E5E7EB;" alt="${t.nick}"/>
             <div>
               <div style="font-weight:700;font-size:13px;color:#1A1D23">${t.name}</div>
-              <div style="font-size:11px;color:#6B7280">경력 ${t.exp}년 · 평점 ⭐ ${t.rating}</div>
+              <div style="font-size:11px;color:#6B7280">${t.joinDate ? '입사 ' + t.joinDate : '입사일 미등록'} · 평점 ⭐ ${t.rating}</div>
             </div>
           </div>
         </td>
