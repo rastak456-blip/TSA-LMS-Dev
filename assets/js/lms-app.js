@@ -1123,7 +1123,7 @@ const VIEW_MAP = {
   'agency-students': { el: 'view-agency-students', menu: 'menu-agency-students', label: '학생 관리', sec: '에이전시' },
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
   'agency-invoice': { el: 'view-agency-invoice', menu: 'menu-agency-invoice', label: '월별 정산 통계', sec: '에이전시' },
-  'dorm-erp': { el: 'view-dorm-erp', menu: 'menu-dorm-erp', label: '기숙사·ERP', sec: '운영' },
+  'dorm-erp': { el: 'view-dorm-erp', menu: 'menu-dorm-erp', label: '기숙사 배정 관리', sec: '운영' },
   'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', label: '교육과정·요율', sec: '학사 관리' },
   'bell-settings': { el: 'view-bell-settings', menu: 'menu-bell-settings', label: '교시 및 벨 설정', sec: '학사 관리' },
   'teacher-dashboard': { el: 'view-teacher-dashboard', menu: 'menu-teacher-dashboard', label: '강사 대시보드', sec: '수업 관리' },
