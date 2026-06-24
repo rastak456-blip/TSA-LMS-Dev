@@ -5654,5 +5654,88 @@
     if (window.lucide) lucide.createIcons();
   }
 </script>
+
+        </div>
+
+        <!-- 호실 번호 배정 모달 -->
+        <div id="room-assign-form-wrap" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:400px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="room-assign-form-label" style="font-size:14px;font-weight:700;color:#111827;margin:0">호실 번호 배정</h3>
+            <button onclick="cancelAssignRoomNumber()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">호실 번호 <span style="color:#EF4444">*</span></label>
+              <input id="room-assign-number-input" class="tsa-input" placeholder="예: 201" style="width:100%"/>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">성별 제한</label>
+              <select id="room-assign-gender-select" class="tsa-input" style="width:100%">
+                <option value="무관">무관</option>
+                <option value="남성">남성 전용</option>
+                <option value="여성">여성 전용</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="cancelAssignRoomNumber()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveRoomNumber()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+        <div id="room-assign-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="cancelAssignRoomNumber()"></div>
+
+        <!-- 배정 모달 -->
+        <div id="erp-assign-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeErpAssignModal()"></div>
+        <div id="erp-assign-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:480px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="erp-assign-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">침대 배정</h3>
+            <button onclick="closeErpAssignModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px">
+            <div id="erp-assign-bed-info" style="background:#F8F9FF;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#374151"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">입실일 <span style="color:#EF4444">*</span></label>
+                <input id="erp-assign-date-in" type="date" class="tsa-input" style="width:100%"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">퇴실일 <span style="color:#EF4444">*</span></label>
+                <input id="erp-assign-date-out" type="date" class="tsa-input" style="width:100%"/>
+              </div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">배정 대기 학생 선택</div>
+            <div id="erp-assign-student-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeErpAssignModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="confirmErpAssign()"><i data-lucide="check"></i> 배정 확정</button>
+          </div>
+        </div>
+
+        <!-- 해제 확인 모달 -->
+        <div id="erp-release-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeErpReleaseModal()"></div>
+        <div id="erp-release-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:400px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB">
+            <h3 style="font-size:15px;font-weight:700;color:#111827;margin:0">배정 해제</h3>
+          </div>
+          <div style="padding:20px 24px">
+            <div id="erp-release-info" style="font-size:13px;color:#374151;margin-bottom:8px"></div>
+            <div style="font-size:12px;color:#EF4444;background:#FEF2F2;padding:10px 14px;border-radius:8px">해제 시 해당 학생은 배정 대기 상태로 전환됩니다.</div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeErpReleaseModal()">취소</button>
+            <button class="tsa-btn" style="background:#EF4444;color:#fff;border:none" onclick="confirmErpRelease()">배정 해제</button>
+          </div>
+        </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: AGENCY INVOICE                             -->
+        <!-- ================================================ -->
+        <div id="view-agency-invoice" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">📊 월별 정산 통계</h2>
+
 </body>
 </html>
