@@ -6976,7 +6976,6 @@ function saveTeacherForm() {
   const birthday = document.getElementById('tf-birthday')?.value || '';
   const joinDate = document.getElementById('tf-joindate')?.value || '';
   const jobGrade = document.getElementById('tf-jobgrade')?.value || '';
-  const talkStatus = document.getElementById('tf-talkstatus')?.value || '';
   const available = status === 'active';
 
   if (!name) { showToast('토크스테이션에서 강사를 선택하세요.', 'danger'); return; }
