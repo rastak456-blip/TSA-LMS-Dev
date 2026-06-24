@@ -436,6 +436,12 @@ const MOCK_STUDENTS = [
       { id: 9001, field: '수강 기간', from: '6주', to: '8주', reason: '학부모 요청으로 연장', status: 'approved', requestDate: '2026-05-10', changedBy: '한국 영어마을', approvedBy: '슈퍼 어드민', approvedDate: '2026-05-11' },
       { id: 9002, field: '항공편 (입국)', from: 'KE501 | 2026-05-28', to: 'KE639 | 2026-06-01', reason: '항공편 일정 변경', status: 'approved', requestDate: '2026-05-20', changedBy: '한국 영어마을', approvedBy: '슈퍼 어드민', approvedDate: '2026-05-21' },
       { id: 9003, field: '비상 연락처', from: '010-9988-0000', to: '010-9988-1234 (부)', reason: '보호자 연락처 업데이트', status: 'approved', requestDate: '2026-06-02', changedBy: '한국 영어마을', approvedBy: '슈퍼 어드민', approvedDate: '2026-06-02' },
+      { id: 9004, field: '식단 구분', from: '일반식', to: '채식', reason: '건강상 이유로 채식 전환 요청', status: 'approved', requestDate: '2026-06-05', changedBy: '한국 영어마을', approvedBy: '슈퍼 어드민', approvedDate: '2026-06-05' },
+      { id: 9005, field: '기숙사 퇴실일', from: '2026-07-28', to: '2026-08-01', reason: '귀국 항공편 일정에 맞춰 퇴실 연장', status: 'approved', requestDate: '2026-06-10', changedBy: '어드민', approvedBy: '슈퍼 어드민', approvedDate: '2026-06-10' },
+    ],
+    remittanceHistory: [
+      { id: 'RH-2501', amount: 2261, currency: 'USD', bank: '국민은행', remitDate: '2026-05-25', receipt: '영수증_Erin_1차.pdf', status: 'approved', note: '1차 송금 확인 완료', approvedDate: '2026-05-26' },
+      { id: 'RH-2502', amount: 150,  currency: 'USD', bank: '신한은행', remitDate: '2026-06-01', receipt: '영수증_Erin_보증금.pdf', status: 'approved', note: '보증금 입금 확인 완료', approvedDate: '2026-06-01' },
     ],
   },
   // 대기생 (입금 및 서류 확인 중, 수강 시작 전)
@@ -7560,6 +7566,8 @@ const MOCK_REMIT_REQUESTS = [
   { id:3, studentId:3,  studentName:'KIM MINJUN (Minjun)',   course:'IELTS 전문 코스', net:2240, remitDate:'2026-06-12', submittedAt:'2026-06-12', receipt:'영수증_Minjun.pdf', status:'rejected', note:'영수증 금액 불일치 ($2,240 vs $2,320). 재제출 요망.', agency:'VN Academy', submittedBy:'Nguyen Agent', approvedBy:'본사 매니저' },
   { id:4, studentId:12, studentName:'NGUYEN THI LAN (Lan)',  course:'가디언 코스',      net:1600, remitDate:'2026-05-28', submittedAt:'2026-05-28', receipt:'영수증_Lan.pdf',    status:'approved', note:'에이전시 선납 확인 완료.', agency:'직접 등록', submittedBy:'학생 본인', approvedBy:'본사 슈퍼어드민' },
   { id:5, studentId:5,  studentName:'PHAM MINH DUC (Duc)',   course:'IELTS 전문 코스', net:3360, remitDate:'2026-06-14', submittedAt:'2026-06-14', receipt:'영수증_Duc.pdf',    status:'pending',  note:'', agency:'VN Academy', submittedBy:'Nguyen Agent', approvedBy:'' },
+  { id:6, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'주니어 패키지',    net:2261, remitDate:'2026-05-25', submittedAt:'2026-05-25', receipt:'영수증_Erin_1차.pdf', status:'approved', note:'1차 송금 확인 완료. 등록 확정 처리.', bank:'국민은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:7, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'주니어 패키지',    net:150,  remitDate:'2026-06-01', submittedAt:'2026-06-01', receipt:'영수증_Erin_보증금.pdf', status:'approved', note:'보증금 입금 확인 완료.', bank:'신한은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
 ];
 let MOCK_DORM_BOOK_REQUESTS = [];
 
