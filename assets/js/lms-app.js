@@ -900,6 +900,36 @@ const MOCK_CLASS_LOG = [
     });
     return entries;
   })(),
+  // Erin (id:25) — 주니어 패키지 06-01~06-20
+  ...(() => {
+    const entries = [];
+    const days = ['2026-06-01','2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-08',
+                  '2026-06-09','2026-06-10','2026-06-11','2026-06-12','2026-06-15','2026-06-16',
+                  '2026-06-17','2026-06-18','2026-06-19'];
+    const subjects = ['Phonics','Story Reading','Speaking','Writing','Vocabulary','Grammar','Phonics','Story Reading','Speaking','Writing','Vocabulary','Listening','Phonics','Speaking','Writing'];
+    const notes = [
+      '첫 수업. 발음 기초 점검. 긍정적 태도 매우 좋음.','리딩 속도 양호. 단어 어휘력 보완 필요.','스피킹 자신감 있음.',
+      '','단어 퀴즈 96점. 우수함.','','','문장 구조 이해력 뛰어남.','','','','',
+      '일찍 발표 자원. 리더십 돋보임.','','라이팅 문단 구성 매우 좋아짐.'
+    ];
+    days.forEach((d, i) => {
+      const periods = [1, 2, 3, 5, 6]; // 주니어 수업 교시
+      periods.forEach((p, pi) => {
+        const absent = (i === 9 && p === 2);
+        const late   = (i === 6 && p === 1);
+        const status = absent ? 'absent' : late ? 'late' : 'present';
+        entries.push({
+          studentId: 25, date: d, period: p,
+          type: p <= 3 ? '1:1' : '1:8',
+          teacherName: p <= 3 ? 'Emily' : 'Emily',
+          subject: subjects[(i + pi) % subjects.length],
+          status,
+          note: p === 1 && notes[i] ? notes[i] : (absent ? '사전 연락 후 결석 처리' : late ? '5분 지각' : '')
+        });
+      });
+    });
+    return entries;
+  })(),
 ];
 
 const MOCK_TIMETABLE_HISTORY = [
