@@ -6335,10 +6335,10 @@ function renderTeacherList(list) {
 
   tbody.innerHTML = sorted.map((t, idx) => {
     const rowNum = total - idx;
-    let statusLabel = '가용';
+    let statusLabel = '재직';
     let statusClass = 'tsa-badge-success';
     if (t.status === 'leave') {
-      statusLabel = '휴가중';
+      statusLabel = '휴가';
       statusClass = 'tsa-badge-warning';
     } else if (t.status === 'resigned') {
       statusLabel = '퇴사';
