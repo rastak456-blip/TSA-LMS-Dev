@@ -419,7 +419,10 @@ const MOCK_STUDENTS = [
   },
   {
     id: 25, name: 'SHIN EUNSOO', nick: 'Erin', gender: '여', age: 17, nationality: '한국', flag: '🇰🇷',
-    course: '주니어 패키지', level: 'Upper-Beginner', duration: 8, dorm: 'Room 106 / Bed A', visaExpiry: '2026-08-01', sspExpiry: '면제',
+    course: '주니어 패키지', level: 'Upper-Beginner', duration: 8, dorm: 'Room 106 / Bed A',
+    dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미',
+    dormIn: '2026-05-31', dormOut: '2026-08-01',
+    visaExpiry: '2026-08-01', sspExpiry: '면제',
     departureDate: '2026-08-01', startDate: '2026-06-01', arrivalDate: '2026-06-01',
     attendance: 100, status: 'current', agency: '한국 영어마을', warning: 0,
     quiz: [92, 95, 97, 96],
@@ -790,6 +793,15 @@ let MOCK_DORM_ROOMS = [
     roomNo: '204', accomType: '콘도', type: '1인실 (디럭스)', capacity: 1, genderRestriction: '여성',
     beds: [
       { id: 'A', student: null, history: [{ student: 'Grace (CHEN GRACE)', start: '03-03', end: '05-25', reason: '졸업' }] }
+    ]
+  },
+  {
+    roomNo: '106', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '여성',
+    beds: [
+      { id: 'A', student: 'Erin (SHIN EUNSOO)', color: '#EC4899', start: '05-31', end: '08-01', studentId: 25,
+        history: []
+      },
+      { id: 'B', student: null, history: [] }
     ]
   },
   {
