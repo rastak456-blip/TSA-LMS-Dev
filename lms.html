@@ -2511,28 +2511,11 @@
           <div class="tsa-card">
             <div class="tsa-card-header">
               <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 소속 등록 학생 목록 · 인보이스 정산 대장</h3>
-              <div style="display:flex;gap:8px">
-                <button class="tsa-btn tsa-btn-outline tsa-btn-sm"><i data-lucide="arrow-down-to-line"></i> 정산서 내보내기</button>
-                <div style="position:relative;display:inline-block">
-                  <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="toggleColumnDropdown(event)">
-                    <i data-lucide="settings-2"></i> 컬럼 설정 ▾
-                  </button>
-                  <div id="column-toggle-dropdown" style="display:none;position:absolute;right:0;top:35px;background:white;border:1px solid #E4E6EF;border-radius:6px;box-shadow:0 5px 15px rgba(0,0,0,0.1);padding:10px;width:180px;z-index:100;text-align:left">
-                    <div style="font-weight:700;font-size:11.5px;color:#3F4254;margin-bottom:8px;border-bottom:1px solid #EFF2F5;padding-bottom:4px">표시 컬럼 선택</div>
-                    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="col-toggle-cb" data-col="flight" checked onchange="handleColumnToggle()"/> 항공편 (입/출국)</label>
-                    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="col-toggle-cb" data-col="visa" checked onchange="handleColumnToggle()"/> 비자 만료일</label>
-                    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="col-toggle-cb" data-col="ssp" checked onchange="handleColumnToggle()"/> SSP 만료일</label>
-                    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="col-toggle-cb" data-col="dorm" checked onchange="handleColumnToggle()"/> 희망 기숙사</label>
-                    <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;cursor:pointer"><input type="checkbox" class="col-toggle-cb" data-col="commission" checked onchange="handleColumnToggle()"/> 커미션액</label>
-                  </div>
-                </div>
-              </div>
             </div>
             <div style="overflow-x:auto">
               <table class="tsa-table" style="min-width:1600px;font-size:12px">
                 <thead>
                   <tr>
-                    <th style="width:30px"><input type="checkbox" id="agency-select-all-cb" onchange="toggleSelectAllAgencyStudents()"/></th>
                     <th style="width:36px;text-align:center">#</th>
                     <th>학생 정보</th>
                     <th>국적</th>

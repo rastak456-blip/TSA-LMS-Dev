@@ -8260,7 +8260,6 @@ function initAgencyStudentList() {
 
     return `
       <tr>
-        <td><input type="checkbox" class="agency-student-cb" data-id="${s.id}" ${isChecked} onchange="toggleSelectAgencyStudent(${s.id})"/></td>
         <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${rowNum}</td>
         <td>
           <div style="display:flex;align-items:center;gap:10px">
