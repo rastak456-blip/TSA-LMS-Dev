@@ -539,7 +539,8 @@ let MOCK_ASSIGNMENT_TAGS = [
 ];
 
 const MOCK_TEACHERS = [
-  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['IELTS 전문', '리딩'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1', '1:4'] },
+  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['IELTS 전문', '리딩'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1', '1:4'],
+    email: 'sarah.j@talkstation.co', phone: '+63-917-111-1111', birthday: '1990-03-15', joinDate: '2024-01-08', jobGrade: 'Regular Tutor', talkStatus: 'Employed', greeting: 'Hi! I\'m Sarah, your IELTS specialist.', intro: 'Experienced IELTS tutor with 5 years of coaching.', education: 'Bachelor of Secondary Education, English', hobby: 'Reading, Yoga' },
   { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true, true, false, true, true, true, true, true], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'] },
   { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true, true, true, true, true, true, false, false], preferredCourses: ['일반 영어 스피킹', '문법'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4', '1:8'] },
   { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['문법', '리딩', '일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1', '1:4', '1:8'] },
@@ -6312,31 +6313,46 @@ function initTeacherList() {
   renderTeacherList(MOCK_TEACHERS);
 }
 
+function previewTeacherPhoto(input, teacherId) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('td-photo-preview');
+    if (preview) preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover"/>`;
+    const t = MOCK_TEACHERS.find(x => x.id === teacherId);
+    if (t) t.photoUrl = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function saveTeacherDetailInline() {
   const t = APP.currentTeacher;
   if (!t) return;
   const getVal = (id, fallback) => { const el = document.getElementById(id); return el ? el.value.trim() : fallback; };
-  const name = getVal('td-name', t.name);
-  const nick = getVal('td-nick', t.nick);
-  if (!name || !nick) { showToast('성명과 닉네임은 필수입니다.', 'danger'); return; }
-  const oldNick = t.nick;
-  t.name     = name;
-  t.nick     = nick;
-  t.gender   = getVal('td-gender', t.gender);
-  t.room     = getVal('td-room', t.room);
-  t.contract = getVal('td-contract', t.contract);
-  t.status   = getVal('td-status', t.status);
-  t.exp      = parseInt(getVal('td-exp', t.exp)) || t.exp;
-  t.rating   = parseFloat(getVal('td-rating', t.rating)) || t.rating;
-  // 시간표 닉네임 동기화
-  const ttRow = MOCK_TIMETABLE.find(r => r.teacher === oldNick);
-  if (ttRow) { ttRow.teacher = nick; ttRow.room = t.room; }
+  // 어학원 운영 탭 항목만 저장
+  const room     = getVal('td-room', t.room);
+  const contract = getVal('td-contract', t.contract);
+  const status   = getVal('td-status', t.status);
+  const rating   = parseFloat(getVal('td-rating', t.rating)) || t.rating;
+  const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
+
+  t.room     = room;
+  t.contract = contract;
+  t.status   = status;
+  t.rating   = rating;
+  if (classTypes.length > 0) t.classTypes = classTypes;
+
+  // 시간표 강의실 동기화
+  const ttRow = MOCK_TIMETABLE.find(r => r.teacher === t.nick);
+  if (ttRow) ttRow.room = room;
+
   // 헤더 갱신
   const nameEl = document.getElementById('modal-teacher-name');
   const metaEl = document.getElementById('modal-teacher-meta');
   if (nameEl) nameEl.textContent = `${t.nick} (${t.name})`;
-  if (metaEl) metaEl.textContent = `${t.gender}성 · ${t.contract} · ${t.status==='active'?'재직':t.status==='leave'?'휴가':'퇴사'}`;
-  showToast(`✓ ${t.nick} 강사 정보가 저장되었습니다.`, 'success');
+  if (metaEl) metaEl.textContent = `${t.gender}성 · ${t.contract} · ${status==='active'?'재직':status==='leave'?'휴가':'퇴사'}`;
+  showToast(`✓ ${t.nick} 강사 어학원 운영 정보가 저장되었습니다.`, 'success');
   renderTeacherList(MOCK_TEACHERS);
 }
 
@@ -6870,35 +6886,56 @@ function initTalkTeacherDropdown() {
 }
 
 function onTalkTeacherMatched(matchedId) {
+  const preview = document.getElementById('tf-talk-preview');
   if (!matchedId) {
-    document.getElementById('tf-name').value = "";
-    document.getElementById('tf-nick').value = "";
-    document.getElementById('tf-gender').value = "여";
+    if (preview) preview.style.display = 'none';
     return;
   }
-  const teacher = MOCK_TALK_LMS_TEACHERS.find(t => t.id === matchedId);
-  if (teacher) {
-    document.getElementById('tf-name').value = teacher.name;
-    document.getElementById('tf-nick').value = teacher.nick;
-    document.getElementById('tf-gender').value = teacher.gender;
-    showToast(`✓ 톡스 LMS 강사 [${teacher.name}] 정보가 연동되었습니다.`, 'success');
+  const teacher = MOCK_TALK_LMS_TEACHERS.find(t => t.id === matchedId)
+    || MOCK_TEACHERS.find(t => String(t.id) === String(matchedId));
+  if (!teacher) return;
+
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('tf-name',       teacher.name || '');
+  setVal('tf-gender',     teacher.gender || '여');
+  setVal('tf-gender-display', teacher.gender === '남' ? '남성' : '여성');
+  setVal('tf-birthday',   teacher.birthday || '-');
+  setVal('tf-email',      teacher.email || '-');
+  setVal('tf-phone',      teacher.phone || '-');
+  setVal('tf-joindate',   teacher.joinDate || '-');
+  setVal('tf-jobgrade',   teacher.jobGrade || '-');
+  setVal('tf-talkstatus', teacher.talkStatus || 'Employed');
+
+  // 사진 미리보기
+  const photoWrap = document.getElementById('tf-photo-preview');
+  if (photoWrap) {
+    const src = teacher.photoUrl || (teacher.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png');
+    photoWrap.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover"/>`;
   }
+
+  if (preview) preview.style.display = 'block';
+  showToast(`✓ [${teacher.name}] 정보가 연동되었습니다.`, 'success');
 }
 
 function saveTeacherForm() {
-  const idVal = document.getElementById('tf-id').value;
-  const name = document.getElementById('tf-name').value.trim();
-  const nick = document.getElementById('tf-nick').value.trim();
-  const gender = document.getElementById('tf-gender').value;
-  const exp = parseInt(document.getElementById('tf-exp').value);
-  const room = document.getElementById('tf-room').value.trim();
-  const type = '일반 영어 (1:1)';
-  const contract = document.getElementById('tf-contract').value;
-  const preferredCourses = getCheckedTags('tf-preferred');
-  const excludedCourses  = getCheckedTags('tf-excluded');
+  const idVal    = document.getElementById('tf-id').value;
+  const name     = (document.getElementById('tf-name')?.value || '').trim();
+  const nick     = name.split(' ')[0] || name; // 첫 이름을 닉네임으로
+  const gender   = document.getElementById('tf-gender')?.value || '여';
+  const room     = (document.getElementById('tf-room')?.value || '').trim();
+  const contract = document.getElementById('tf-contract')?.value || '정규직';
+  const status   = document.getElementById('tf-status')?.value || 'active';
+  const rating   = parseFloat(document.getElementById('tf-rating')?.value) || 4.5;
   const classTypes = [...document.querySelectorAll('input[name="tf-classtype"]:checked')].map(cb => cb.value);
-  const status = document.getElementById('tf-status').value;
-  const available = document.getElementById('tf-available').value === 'true';
+  const email    = document.getElementById('tf-email')?.value || '';
+  const phone    = document.getElementById('tf-phone')?.value || '';
+  const birthday = document.getElementById('tf-birthday')?.value || '';
+  const joinDate = document.getElementById('tf-joindate')?.value || '';
+  const jobGrade = document.getElementById('tf-jobgrade')?.value || '';
+  const talkStatus = document.getElementById('tf-talkstatus')?.value || '';
+  const available = status === 'active';
+
+  if (!name) { showToast('토크스테이션에서 강사를 선택하세요.', 'danger'); return; }
 
   if (idVal) {
     // Edit
@@ -6932,20 +6969,12 @@ function saveTeacherForm() {
     const newId = Math.max(...MOCK_TEACHERS.map(tch => tch.id), 0) + 1;
     const newTeacher = {
       id: newId,
-      name: name,
-      nick: nick,
-      gender: gender,
-      type: type,
-      room: room,
-      contract: contract,
-      available: available,
-      todaySlots: 0,
-      rating: 4.5,
-      exp: exp,
-      status: status,
-      preferredCourses: preferredCourses,
-      excludedCourses: excludedCourses,
-      classTypes: classTypes,
+      name, nick, gender, room, contract, available,
+      type: '일반 영어 (1:1)',
+      todaySlots: 0, rating, exp: 0, status,
+      email, phone, birthday, joinDate, jobGrade, talkStatus,
+      preferredCourses: [], excludedCourses: [],
+      classTypes,
       availability: {
         '월': [true, true, true, true, true, true, true, true],
         '화': [true, true, true, true, true, true, true, true],
@@ -7071,61 +7100,94 @@ function switchTeacherTab(tab, el) {
 
   switch (tab) {
     case 'profile': {
-      const tAvatarSrc = t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png';
-      const roStyle = 'background:#F9FAFB;color:#6B7280;cursor:not-allowed;border-color:#E5E7EB';
-      const roLabel = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">톡스</span>`;
+      const ro = 'background:#F9FAFB;color:#6B7280;cursor:not-allowed;border-color:#E5E7EB';
+      const tLbl = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">톡스</span>`;
+      const photoSrc = t.photoUrl || (t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png');
       container.innerHTML = `
-        <!-- 톡스스테이션 출처 안내 -->
         <div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#3730A3;display:flex;align-items:center;gap:8px">
-          <span style="font-size:14px">🔗</span>
-          <span><b>톡스</b> 표시 항목은 토크스테이션 LMS에서 관리됩니다. 수정이 필요하면 토크스테이션에서 변경 후 다시 불러오세요.</span>
+          🔗 <span>아래 항목은 <b>토크스테이션 LMS</b>에서 관리됩니다. 수정이 필요하면 토크스테이션에서 변경 후 다시 불러오세요.</span>
         </div>
 
         <div style="display:flex;gap:20px;align-items:start;margin-bottom:20px">
-          <div style="width:72px;height:72px;border-radius:12px;overflow:hidden;border:1px solid #E9EDF4;flex-shrink:0">
-            <img src="${tAvatarSrc}" style="width:100%;height:100%;object-fit:cover" alt="Teacher photo"/>
+          <!-- 사진 -->
+          <div style="flex-shrink:0;text-align:center">
+            <div id="td-photo-preview" style="width:90px;height:110px;border-radius:10px;overflow:hidden;border:1px solid #E9EDF4;background:#F3F4F6;display:flex;align-items:center;justify-content:center;margin-bottom:6px">
+              ${t.photoUrl
+                ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover"/>`
+                : `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px">No<br>Image</div>`}
+            </div>
+            <button onclick="document.getElementById('td-photo-file').click()" style="font-size:11px;padding:4px 10px;border:0.5px solid #D1D5DB;border-radius:6px;background:#fff;cursor:pointer;color:#374151">사진 첨부</button>
+            <input id="td-photo-file" type="file" accept="image/*" style="display:none" onchange="previewTeacherPhoto(this,${t.id})"/>
           </div>
-          <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">강사 영문 성명 ${roLabel}</label>
-              <input class="tsa-input" value="${t.name||''}" style="${roStyle}" readonly/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">닉네임 (호칭) ${roLabel}</label>
-              <input class="tsa-input" value="${t.nick||''}" style="${roStyle}" readonly/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">성별 ${roLabel}</label>
-              <input class="tsa-input" value="${t.gender==='여'?'여성':'남성'}" style="${roStyle}" readonly/>
-            </div>
+
+          <!-- 인적 정보 -->
+          <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="tsa-form-group"><label class="tsa-label">영문 성명 ${tLbl}</label><input class="tsa-input" value="${t.name||''}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">성별 ${tLbl}</label><input class="tsa-input" value="${t.gender==='여'?'여성':'남성'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">생년월일 ${tLbl}</label><input class="tsa-input" value="${t.birthday||'-'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">입사일 ${tLbl}</label><input class="tsa-input" value="${t.joinDate||'-'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">이메일 ${tLbl}</label><input class="tsa-input" value="${t.email||'-'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">전화번호 ${tLbl}</label><input class="tsa-input" value="${t.phone||'-'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">직급 ${tLbl}</label><input class="tsa-input" value="${t.jobGrade||'-'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">톡스 재직 상태 ${tLbl}</label><input class="tsa-input" value="${t.talkStatus||'Employed'}" style="${ro}" readonly/></div>
           </div>
         </div>
 
-        <div style="border-top:1px solid #E5E7EB;padding-top:16px;margin-bottom:4px">
-          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px">⚙️ 어학원 운영 정보 <span style="font-size:11px;font-weight:400;color:#6B7280">(어학원 사이트에서 직접 관리)</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">담당 교실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
-              <select id="td-contract" class="tsa-input">
-                <option value="정규직" ${t.contract==='정규직'?'selected':''}>정규직</option>
-                <option value="파트타임" ${t.contract==='파트타임'?'selected':''}>파트타임</option>
-              </select>
-            </div>
-            <div class="tsa-form-group"><label class="tsa-label">재직 상태</label>
-              <select id="td-status" class="tsa-input">
-                <option value="active" ${t.status==='active'?'selected':''}>재직</option>
-                <option value="leave" ${t.status==='leave'?'selected':''}>휴가</option>
-                <option value="resigned" ${t.status==='resigned'?'selected':''}>퇴사</option>
-              </select>
-            </div>
-            <div class="tsa-form-group"><label class="tsa-label">강의 경력 (년)</label><input id="td-exp" class="tsa-input" type="number" value="${t.exp||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">평점</label><input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/></div>
+        <!-- 프로필 콘텐츠 -->
+        <div style="border-top:1px solid #E5E7EB;padding-top:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">프로필 콘텐츠 ${tLbl}</div>
+          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">인사말</label><textarea class="tsa-input" rows="2" style="${ro};resize:none" readonly>${t.greeting||''}</textarea></div>
+          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">소개</label><textarea class="tsa-input" rows="2" style="${ro};resize:none" readonly>${t.intro||''}</textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">학력</label><input class="tsa-input" value="${t.education||''}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">취미 / 특기</label><input class="tsa-input" value="${t.hobby||''}" style="${ro}" readonly/></div>
           </div>
         </div>
       `;
       break;
     }
 
+    case 'school': {
+      const ctColors = {'1:1':['#EEF2FF','#3730A3'], '1:4':['#FEF3C7','#92400E'], '1:8':['#D1FAE5','#065F46']};
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
+              <select id="td-contract" class="tsa-input">
+                <option value="정규직" ${t.contract==='정규직'?'selected':''}>정규직</option>
+                <option value="파트타임" ${t.contract==='파트타임'?'selected':''}>파트타임</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">어학원 재직 상태</label>
+              <select id="td-status" class="tsa-input">
+                <option value="active" ${t.status==='active'?'selected':''}>재직</option>
+                <option value="leave" ${t.status==='leave'?'selected':''}>휴가</option>
+                <option value="resigned" ${t.status==='resigned'?'selected':''}>퇴사</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">어학원 평점</label>
+              <input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/>
+            </div>
+          </div>
+          <div>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 유형</label>
+            <div style="display:flex;gap:10px">
+              ${['1:1','1:4','1:8'].map(ct => {
+                const [bg,c] = ctColors[ct];
+                const chk = (t.classTypes||[]).includes(ct) ? 'checked' : '';
+                return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid ${c}30;background:${bg};font-size:13px;font-weight:600;color:${c}">
+                  <input type="checkbox" name="td-classtype" value="${ct}" ${chk} style="accent-color:${c}"/> ${ct} 수업
+                </label>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case 'schedule':
     case 'availability':
       renderTeacherAvailabilityTab();
       break;
