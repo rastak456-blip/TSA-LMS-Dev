@@ -6312,6 +6312,34 @@ function initTeacherList() {
   renderTeacherList(MOCK_TEACHERS);
 }
 
+function saveTeacherDetailInline() {
+  const t = APP.currentTeacher;
+  if (!t) return;
+  const getVal = (id, fallback) => { const el = document.getElementById(id); return el ? el.value.trim() : fallback; };
+  const name = getVal('td-name', t.name);
+  const nick = getVal('td-nick', t.nick);
+  if (!name || !nick) { showToast('성명과 닉네임은 필수입니다.', 'danger'); return; }
+  const oldNick = t.nick;
+  t.name     = name;
+  t.nick     = nick;
+  t.gender   = getVal('td-gender', t.gender);
+  t.room     = getVal('td-room', t.room);
+  t.contract = getVal('td-contract', t.contract);
+  t.status   = getVal('td-status', t.status);
+  t.exp      = parseInt(getVal('td-exp', t.exp)) || t.exp;
+  t.rating   = parseFloat(getVal('td-rating', t.rating)) || t.rating;
+  // 시간표 닉네임 동기화
+  const ttRow = MOCK_TIMETABLE.find(r => r.teacher === oldNick);
+  if (ttRow) { ttRow.teacher = nick; ttRow.room = t.room; }
+  // 헤더 갱신
+  const nameEl = document.getElementById('modal-teacher-name');
+  const metaEl = document.getElementById('modal-teacher-meta');
+  if (nameEl) nameEl.textContent = `${t.nick} (${t.name})`;
+  if (metaEl) metaEl.textContent = `${t.gender}성 · ${t.contract} · ${t.status==='active'?'재직':t.status==='leave'?'휴가':'퇴사'}`;
+  showToast(`✓ ${t.nick} 강사 정보가 저장되었습니다.`, 'success');
+  renderTeacherList(MOCK_TEACHERS);
+}
+
 function renderTeacherKPIs() {
   const active = MOCK_TEACHERS.filter(t => t.status !== 'resigned');
   const withPreferred = active.filter(t => (t.preferredCourses||[]).length > 0);
@@ -7042,27 +7070,43 @@ function switchTeacherTab(tab, el) {
   if (!t || !container) return;
 
   switch (tab) {
-    case 'profile':
+    case 'profile': {
       const tAvatarSrc = t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png';
       container.innerHTML = `
         <div style="display:flex;gap:20px;align-items:start;margin-bottom:16px">
-          <div style="width:100px;height:100px;border-radius:12px;overflow:hidden;border:1px solid #E9EDF4;flex-shrink:0">
+          <div style="width:72px;height:72px;border-radius:12px;overflow:hidden;border:1px solid #E9EDF4;flex-shrink:0">
             <img src="${tAvatarSrc}" style="width:100%;height:100%;object-fit:cover" alt="Teacher photo"/>
           </div>
-          <div class="tsa-info-grid" style="flex:1;grid-template-columns:repeat(3,1fr);gap:16px">
-            ${infoItem('성명', t.name)}
-            ${infoItem('닉네임', t.nick)}
-            ${infoItem('성별', t.gender+'성')}
-            ${infoItem('전문 분야', t.type)}
-            ${infoItem('담당 교실', 'Room '+t.room)}
-            ${infoItem('고용 형태', t.contract)}
-            ${infoItem('경력', t.exp+'년')}
-            ${infoItem('평점', '⭐ '+t.rating+'/5.0')}
-            ${infoItem('가용 상태', t.status === 'active' ? '<span style="color:#16A34A;font-weight:700">가용</span>' : t.status === 'leave' ? '<span style="color:#F59E0B;font-weight:700">휴가중</span>' : '퇴사')}
+          <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div class="tsa-form-group"><label class="tsa-label">강사 영문 성명</label><input id="td-name" class="tsa-input" value="${t.name||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">닉네임 (호칭)</label><input id="td-nick" class="tsa-input" value="${t.nick||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">성별</label>
+              <select id="td-gender" class="tsa-input">
+                <option value="여" ${t.gender==='여'?'selected':''}>여성</option>
+                <option value="남" ${t.gender==='남'?'selected':''}>남성</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">담당 교실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
+              <select id="td-contract" class="tsa-input">
+                <option value="정규직" ${t.contract==='정규직'?'selected':''}>정규직</option>
+                <option value="파트타임" ${t.contract==='파트타임'?'selected':''}>파트타임</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">재직 상태</label>
+              <select id="td-status" class="tsa-input">
+                <option value="active" ${t.status==='active'?'selected':''}>재직</option>
+                <option value="leave" ${t.status==='leave'?'selected':''}>휴가</option>
+                <option value="resigned" ${t.status==='resigned'?'selected':''}>퇴사</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">강의 경력 (년)</label><input id="td-exp" class="tsa-input" type="number" value="${t.exp||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">평점</label><input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/></div>
           </div>
         </div>
       `;
       break;
+    }
 
     case 'availability':
       renderTeacherAvailabilityTab();
