@@ -6842,15 +6842,24 @@ function openTeacherRegisterModal() {
   // 수업 유형 체크 해제
   document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => { cb.checked = false; });
 
-  // 톡스 미리보기 숨김
+  // 톡스 미리보기 숨김, 수기 입력 폼 표시 (기본값)
   const preview = document.getElementById('tf-talk-preview');
   if (preview) preview.style.display = 'none';
+  const manualForm = document.getElementById('tf-manual-form');
+  if (manualForm) manualForm.style.display = 'block';
 
   // 사진 미리보기 초기화
+  const manualPhoto = document.getElementById('tf-manual-photo-preview');
+  if (manualPhoto) manualPhoto.innerHTML = `No<br>Image<br><span style="font-size:10px">클릭 첨부</span>`;
   const photoWrap = document.getElementById('tf-photo-preview');
   if (photoWrap) photoWrap.innerHTML = `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px">No<br>Image</div>`;
 
-  // 톡스 드롭다운 초기화
+  // 수기 필드 초기화
+  ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+
+  // 톡스 드롭다운 초기화 (기본값 = 선택 안 함)
   initTalkTeacherDropdown();
 
   openModal('teacher-form-modal');
@@ -6953,10 +6962,14 @@ function saveTeacherForm() {
   const name     = (document.getElementById('tf-name')?.value || '').trim();
   const nick     = name.split(' ')[0] || name; // 첫 이름을 닉네임으로
   const gender   = document.getElementById('tf-gender')?.value || '여';
-  const room     = (document.getElementById('tf-room')?.value || '').trim();
-  const contract = document.getElementById('tf-contract')?.value || '정규직';
-  const status   = document.getElementById('tf-status')?.value || 'active';
-  const rating   = parseFloat(document.getElementById('tf-rating')?.value) || 4.5;
+  const room       = (document.getElementById('tf-room')?.value || '').trim();
+  const rating     = parseFloat(document.getElementById('tf-rating')?.value) || 4.5;
+  const talkStatus = document.getElementById('tf-talkstatus')?.value || 'Employed';
+  const experience = document.getElementById('tf-experience')?.value || 'Now';
+  // 톡스 재직 상태 → 어학원 상태 자동 매핑
+  const statusMap  = { 'Employed':'active', 'Resigning':'active', 'Training':'active', 'Resigned':'resigned', 'Dropout':'resigned' };
+  const status     = statusMap[talkStatus] || 'active';
+  const contract   = '정규직';
   const classTypes = [...document.querySelectorAll('input[name="tf-classtype"]:checked')].map(cb => cb.value);
   const email    = document.getElementById('tf-email')?.value || '';
   const phone    = document.getElementById('tf-phone')?.value || '';
@@ -7003,7 +7016,7 @@ function saveTeacherForm() {
       name, nick, gender, room, contract, available,
       type: '일반 영어 (1:1)',
       todaySlots: 0, rating, exp: 0, status,
-      email, phone, birthday, joinDate, jobGrade, talkStatus,
+      email, phone, birthday, joinDate, jobGrade, talkStatus, experience,
       preferredCourses: [], excludedCourses: [],
       classTypes,
       availability: {
@@ -7184,22 +7197,12 @@ function switchTeacherTab(tab, el) {
         <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
-              <select id="td-contract" class="tsa-input">
-                <option value="정규직" ${t.contract==='정규직'?'selected':''}>정규직</option>
-                <option value="파트타임" ${t.contract==='파트타임'?'selected':''}>파트타임</option>
-              </select>
-            </div>
-            <div class="tsa-form-group"><label class="tsa-label">어학원 재직 상태</label>
-              <select id="td-status" class="tsa-input">
-                <option value="active" ${t.status==='active'?'selected':''}>재직</option>
-                <option value="leave" ${t.status==='leave'?'selected':''}>휴가</option>
-                <option value="resigned" ${t.status==='resigned'?'selected':''}>퇴사</option>
-              </select>
-            </div>
             <div class="tsa-form-group"><label class="tsa-label">어학원 평점</label>
               <input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/>
             </div>
+          </div>
+          <div style="background:#F8F9FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;font-size:12px;color:#3730A3;margin-top:8px">
+            🔗 재직 상태: <strong>${t.talkStatus||'Employed'}</strong> (톡스 기준) &nbsp;·&nbsp; 어학원 상태: <strong>${t.status==='active'?'재직':t.status==='leave'?'휴가':'퇴사'}</strong>
           </div>
           <div>
             <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 유형</label>

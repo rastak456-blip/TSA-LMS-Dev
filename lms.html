@@ -5008,8 +5008,27 @@
                   <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">이메일</label><input id="tf-email" class="tsa-input" type="email" placeholder="teacher@talkstation.co"/></div>
                   <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">전화번호</label><input id="tf-phone" class="tsa-input" placeholder="+63-917-000-0000"/></div>
                   <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">입사일</label><input id="tf-joindate" class="tsa-input" type="date"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">직급</label><select id="tf-jobgrade" class="tsa-input"><option value="Regular Tutor">Regular Tutor</option><option value="Probationary Tutor">Probationary Tutor</option></select></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">톡스 재직 상태</label><select id="tf-talkstatus" class="tsa-input"><option value="Employed">Employed</option><option value="Resigned">Resigned</option></select></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">직급</label>
+                    <select id="tf-jobgrade" class="tsa-input">
+                      <option value="Regular Tutor">Regular Tutor</option>
+                      <option value="Probationary Tutor">Probationary Tutor</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">재직 상태</label>
+                    <select id="tf-talkstatus" class="tsa-input">
+                      <option value="Employed">Employed (재직)</option>
+                      <option value="Resigning">Resigning (퇴직 예정)</option>
+                      <option value="Resigned">Resigned (퇴직)</option>
+                      <option value="Training">Training (수습)</option>
+                      <option value="Dropout">Dropout (중도 이탈)</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">경험</label>
+                    <select id="tf-experience" class="tsa-input">
+                      <option value="Now">Now (신규)</option>
+                      <option value="Experienced">Experienced (경력자)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5039,20 +5058,10 @@
             <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">⚙️ Section B — 어학원 운영 정보</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
               <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="tf-room" class="tsa-input" placeholder="예: A-101"/></div>
-              <div class="tsa-form-group"><label class="tsa-label">고용 형태</label>
-                <select id="tf-contract" class="tsa-input">
-                  <option value="정규직">정규직</option>
-                  <option value="파트타임">파트타임</option>
-                </select>
-              </div>
-              <div class="tsa-form-group"><label class="tsa-label">어학원 재직 상태</label>
-                <select id="tf-status" class="tsa-input">
-                  <option value="active">재직</option>
-                  <option value="leave">휴가</option>
-                  <option value="resigned">퇴사</option>
-                </select>
-              </div>
               <div class="tsa-form-group"><label class="tsa-label">어학원 평점</label><input id="tf-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" placeholder="4.5"/></div>
+            </div>
+            <div style="background:#F8F9FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;font-size:12px;color:#3730A3;margin-bottom:12px">
+              🔗 어학원 재직 상태는 톡스 재직 상태(Section A)를 따라갑니다.
             </div>
             <div>
               <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 유형</label>
