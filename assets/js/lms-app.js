@@ -6830,20 +6830,29 @@ function getCheckedTags(name) {
 }
 
 function openTeacherRegisterModal() {
-  document.getElementById('teacher-form-title').textContent = "🧑‍🏫 신규 강사 등록";
-  document.getElementById('teacher-form-subtitle').textContent = "학원 소속 신규 강사의 기본 정보 및 배정 강의실을 설정합니다.";
-
+  // 폼 초기화
   const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  setVal('tf-id',''); setVal('tf-name',''); setVal('tf-nick','');
-  setVal('tf-gender','여'); setVal('tf-exp',''); setVal('tf-room','');
-  setVal('tf-contract','정규직'); setVal('tf-status','active'); setVal('tf-available','true');
+  setVal('tf-id', '');
+  setVal('tf-name', ''); setVal('tf-gender', ''); setVal('tf-gender-display', '');
+  setVal('tf-birthday', ''); setVal('tf-email', ''); setVal('tf-phone', '');
+  setVal('tf-joindate', ''); setVal('tf-jobgrade', ''); setVal('tf-talkstatus', '');
+  setVal('tf-room', ''); setVal('tf-contract', '정규직');
+  setVal('tf-status', 'active'); setVal('tf-rating', '');
 
-  renderTeacherTagCheckboxes([], []);
+  // 수업 유형 체크 해제
   document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => { cb.checked = false; });
 
-  const matchingGroup = document.getElementById('tf-talk-matching-group');
-  if (matchingGroup) matchingGroup.style.display = 'block';
+  // 톡스 미리보기 숨김
+  const preview = document.getElementById('tf-talk-preview');
+  if (preview) preview.style.display = 'none';
+
+  // 사진 미리보기 초기화
+  const photoWrap = document.getElementById('tf-photo-preview');
+  if (photoWrap) photoWrap.innerHTML = `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px">No<br>Image</div>`;
+
+  // 톡스 드롭다운 초기화
   initTalkTeacherDropdown();
+
   openModal('teacher-form-modal');
 }
 
