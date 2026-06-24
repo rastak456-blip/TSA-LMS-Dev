@@ -4991,6 +4991,29 @@
               <select id="tf-talk-matching" class="tsa-input" onchange="onTalkTeacherMatched(this.value)" style="border-color:#C7D2FE;font-weight:600">
               </select>
             </div>
+            <!-- 수기 입력 폼 (선택 안 함 시 노출) -->
+            <div id="tf-manual-form" style="display:none;margin-top:12px">
+              <div style="font-size:11.5px;color:#D97706;background:#FEF3C7;border-radius:6px;padding:8px 12px;margin-bottom:12px">
+                ✏️ 직접 입력 모드 — 토크스테이션 미연동 강사를 수기로 등록합니다.
+              </div>
+              <div style="display:flex;gap:16px;align-items:start">
+                <div onclick="document.getElementById('tf-photo-file-manual').click()" style="width:80px;height:96px;border-radius:10px;overflow:hidden;border:1.5px dashed #D1D5DB;background:#F3F4F6;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">
+                  <div id="tf-manual-photo-preview" style="font-size:11px;color:#9CA3AF;text-align:center">No<br>Image<br><span style="font-size:10px">클릭 첨부</span></div>
+                </div>
+                <input id="tf-photo-file-manual" type="file" accept="image/*" style="display:none" onchange="previewTeacherPhotoManual(this)"/>
+                <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">영문 성명 <span style="color:#EF4444">*</span></label><input id="tf-name" class="tsa-input" placeholder="SARAH JOHNSON"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">성별</label><select id="tf-gender" class="tsa-input"><option value="여">여성</option><option value="남">남성</option></select><input id="tf-gender-display" type="hidden"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">생년월일</label><input id="tf-birthday" class="tsa-input" type="date"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">이메일</label><input id="tf-email" class="tsa-input" type="email" placeholder="teacher@talkstation.co"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">전화번호</label><input id="tf-phone" class="tsa-input" placeholder="+63-917-000-0000"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">입사일</label><input id="tf-joindate" class="tsa-input" type="date"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">직급</label><select id="tf-jobgrade" class="tsa-input"><option value="Regular Tutor">Regular Tutor</option><option value="Probationary Tutor">Probationary Tutor</option></select></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">톡스 재직 상태</label><select id="tf-talkstatus" class="tsa-input"><option value="Employed">Employed</option><option value="Resigned">Resigned</option></select></div>
+                </div>
+              </div>
+            </div>
+
             <!-- 불러온 정보 미리보기 (읽기 전용) -->
             <div id="tf-talk-preview" style="display:none">
               <div style="display:flex;gap:16px;align-items:start">

@@ -6894,12 +6894,34 @@ function initTalkTeacherDropdown() {
   select.value = "";
 }
 
+function previewTeacherPhotoManual(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.getElementById('tf-manual-photo-preview');
+    if (wrap) wrap.innerHTML = `<img src="${e.target.result}" style="width:80px;height:96px;object-fit:cover"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
 function onTalkTeacherMatched(matchedId) {
-  const preview = document.getElementById('tf-talk-preview');
+  const preview    = document.getElementById('tf-talk-preview');
+  const manualForm = document.getElementById('tf-manual-form');
+
   if (!matchedId) {
+    // 선택 안 함 → 수기 입력 폼 표시
     if (preview) preview.style.display = 'none';
+    if (manualForm) manualForm.style.display = 'block';
+    // 필드 초기화
+    ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
     return;
   }
+
+  // 톡스 선택 → 수기 폼 숨김
+  if (manualForm) manualForm.style.display = 'none';
   const teacher = MOCK_TALK_LMS_TEACHERS.find(t => t.id === matchedId)
     || MOCK_TEACHERS.find(t => String(t.id) === String(matchedId));
   if (!teacher) return;
