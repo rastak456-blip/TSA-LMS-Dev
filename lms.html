@@ -2088,6 +2088,7 @@
                       <th>강사명</th>
                       <th>장점 태그</th>
                       <th>배정 제외 태그</th>
+                      <th>수업 유형</th>
                       <th>담당 교실</th>
                       <th>고용 형태</th>
                       <th>오늘 배정</th>
@@ -5030,6 +5031,22 @@
               <option value="정규직">정규직</option>
               <option value="파트타임">파트타임</option>
             </select>
+          </div>
+
+          <!-- 수업 유형 -->
+          <div style="background:#F8F9FF;border:1px solid #C7D2FE;border-radius:10px;padding:14px">
+            <div style="font-size:12px;font-weight:700;color:#3730A3;margin-bottom:10px">📚 수업 가능 유형</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap" id="tf-class-types">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border-radius:8px;border:0.5px solid #C7D2FE;font-size:13px">
+                <input type="checkbox" name="tf-classtype" value="1:1" style="accent-color:#3730A3"/> 1:1 수업
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border-radius:8px;border:0.5px solid #FDE68A;font-size:13px">
+                <input type="checkbox" name="tf-classtype" value="1:4" style="accent-color:#92400E"/> 1:4 수업
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;border-radius:8px;border:0.5px solid #6EE7B7;font-size:13px">
+                <input type="checkbox" name="tf-classtype" value="1:8" style="accent-color:#065F46"/> 1:8 수업
+              </label>
+            </div>
           </div>
 
           <!-- 장점 태그 -->

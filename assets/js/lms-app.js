@@ -539,13 +539,13 @@ let MOCK_ASSIGNMENT_TAGS = [
 ];
 
 const MOCK_TEACHERS = [
-  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['IELTS 전문', '리딩'], excludedCourses: ['주니어 ESL'] },
-  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true, true, false, true, true, true, true, true], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [] },
-  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true, true, true, true, true, true, false, false], preferredCourses: ['일반 영어 스피킹', '문법'], excludedCourses: ['IELTS 전문'] },
-  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['문법', '리딩', '일반 영어 리스닝'], excludedCourses: [] },
-  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['주니어 ESL', '일반 영어 스피킹'], excludedCourses: ['IELTS 전문'] },
-  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true, true, true, false, false, true, true, true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [] },
-  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [] },
+  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['IELTS 전문', '리딩'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1', '1:4'] },
+  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true, true, false, true, true, true, true, true], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'] },
+  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true, true, true, true, true, true, false, false], preferredCourses: ['일반 영어 스피킹', '문법'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4', '1:8'] },
+  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['문법', '리딩', '일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1', '1:4', '1:8'] },
+  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true, true, true, true, true, true, true, true], preferredCourses: ['주니어 ESL', '일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1', '1:4', '1:8'] },
+  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true, true, true, false, false, true, true, true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'] },
+  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false, false, false, false, false, false, false, false], preferredCourses: ['일반 영어 스피킹', '일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1', '1:4'] },
 ];
 
 const MOCK_TIMETABLE = [
@@ -6369,6 +6369,13 @@ function renderTeacherList(list) {
             ? (t.excludedCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#FEE2E2;color:#991B1B;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
             : '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
+        <td>
+          ${(t.classTypes||[]).map(ct => {
+            const ctBg = ct==='1:1'?'#EEF2FF':ct==='1:4'?'#FEF3C7':'#D1FAE5';
+            const ctColor = ct==='1:1'?'#3730A3':ct==='1:4'?'#92400E':'#065F46';
+            return `<span style="font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;background:${ctBg};color:${ctColor};display:inline-block;margin:1px">${ct}</span>`;
+          }).join('') || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
+        </td>
         <td style="font-size:12px;font-weight:500">Room ${t.room}</td>
         <td><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
         <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
@@ -6788,6 +6795,7 @@ function openTeacherRegisterModal() {
   setVal('tf-contract','정규직'); setVal('tf-status','active'); setVal('tf-available','true');
 
   renderTeacherTagCheckboxes([], []);
+  document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => { cb.checked = false; });
 
   const matchingGroup = document.getElementById('tf-talk-matching-group');
   if (matchingGroup) matchingGroup.style.display = 'block';
@@ -6809,6 +6817,9 @@ function openTeacherEditModal(id) {
   setVal('tf-available', String(t.available));
 
   renderTeacherTagCheckboxes(t.preferredCourses||[], t.excludedCourses||[]);
+  document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => {
+    cb.checked = (t.classTypes||[]).includes(cb.value);
+  });
 
   const matchingGroup = document.getElementById('tf-talk-matching-group');
   if (matchingGroup) matchingGroup.style.display = 'none';
@@ -6857,6 +6868,7 @@ function saveTeacherForm() {
   const contract = document.getElementById('tf-contract').value;
   const preferredCourses = getCheckedTags('tf-preferred');
   const excludedCourses  = getCheckedTags('tf-excluded');
+  const classTypes = [...document.querySelectorAll('input[name="tf-classtype"]:checked')].map(cb => cb.value);
   const status = document.getElementById('tf-status').value;
   const available = document.getElementById('tf-available').value === 'true';
 
@@ -6876,6 +6888,7 @@ function saveTeacherForm() {
       t.available = available;
       t.preferredCourses = preferredCourses;
       t.excludedCourses  = excludedCourses;
+      t.classTypes       = classTypes;
 
       // Update nickname and room in MOCK_TIMETABLE too!
       const ttRow = MOCK_TIMETABLE.find(row => row.teacher === oldNick);
@@ -6904,6 +6917,7 @@ function saveTeacherForm() {
       status: status,
       preferredCourses: preferredCourses,
       excludedCourses: excludedCourses,
+      classTypes: classTypes,
       availability: {
         '월': [true, true, true, true, true, true, true, true],
         '화': [true, true, true, true, true, true, true, true],
