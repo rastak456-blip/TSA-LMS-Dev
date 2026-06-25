@@ -890,26 +890,7 @@ function switchTeacherTab(tab, el) {
                     <div style="font-weight:600;color:#374151;font-size:10.5px">${p}교시</div>
                     <div style="font-size:9.5px">${wTimes[p]}</div>
                   </td>
-                  ${wDays.map(d => {
-                    const items = wCellMapFiltered[`${d}-${p}`];
-                    if (!items || items.length === 0) return `<td style="padding:4px;text-align:center;color:#E5E7EB;font-size:10px;vertical-align:top">—</td>`;
-                    return `<td style="padding:3px;vertical-align:top">
-                      ${items.map(c => {
-                        const bg  = wTypeBg(c.room);
-                        const col = wTypeCol(c.room);
-                        const bdr = wTypeBdr(c.room);
-                        const roomNo   = c.room?.roomNo || '-';
-                        const roomType = c.room?.type   || '';
-                        const stuNames = c.students.join(', ') || '미배정';
-                        const courseLevel = [c.course, c.level ? `[${c.level}]` : ''].filter(Boolean).join(' ');
-                        return `<div style="border-radius:5px;padding:4px 6px;margin-bottom:2px;background:${bg};border:1px solid ${bdr};text-align:left;overflow:hidden">
-                          <div style="font-weight:700;font-size:10.5px;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${roomNo} (${roomType})</div>
-                          <div style="font-size:11px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${stuNames}</div>
-                          <div style="font-size:9.5px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${courseLevel}</div>
-                        </div>`;
-                      }).join('')}
-                    </td>`;
-                  }).join('')}
+                  ${wDays.map(d => renderWeeklyCell(wCellMapFiltered[d+'-'+p])).join('')}
                 </tr>
               `).join('')}
             </tbody>
@@ -995,6 +976,28 @@ function switchTeacherTab(tab, el) {
       if (typeof refreshIcons === 'function') refreshIcons();
       break;
   }
+}
+
+function renderWeeklyCell(items) {
+  if (!items || items.length === 0) return '<td style="padding:4px;text-align:center;color:#E5E7EB;font-size:10px;vertical-align:top">—</td>';
+  var typeBg  = function(r){ return !r ? '#F3F4F6' : r.type==='1:1' ? '#EEF2FF' : r.type==='1:4' ? '#FEF3C7' : '#D1FAE5'; };
+  var typeCol = function(r){ return !r ? '#6B7280' : r.type==='1:1' ? '#3730A3' : r.type==='1:4' ? '#92400E' : '#065F46'; };
+  var typeBdr = function(r){ return !r ? '#E5E7EB' : r.type==='1:1' ? '#C7D2FE' : r.type==='1:4' ? '#FDE68A' : '#6EE7B7'; };
+  var inner = items.map(function(c) {
+    var bg  = typeBg(c.room);
+    var col = typeCol(c.room);
+    var bdr = typeBdr(c.room);
+    var roomNo   = c.room ? c.room.roomNo : '-';
+    var roomType = c.room ? c.room.type   : '';
+    var stuNames = c.students.join(', ') || '미배정';
+    var cl = [c.course, c.level ? '['+c.level+']' : ''].filter(Boolean).join(' ');
+    return '<div style="border-radius:5px;padding:4px 6px;margin-bottom:2px;background:'+bg+';border:1px solid '+bdr+';text-align:left;overflow:hidden">'
+      + '<div style="font-weight:700;font-size:10.5px;color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+roomNo+' ('+roomType+')</div>'
+      + '<div style="font-size:11px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+stuNames+'</div>'
+      + '<div style="font-size:9.5px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+cl+'</div>'
+      + '</div>';
+  }).join('');
+  return '<td style="padding:3px;vertical-align:top">'+inner+'</td>';
 }
 
 function shiftTeacherWeek(teacherId, delta) {
