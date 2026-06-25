@@ -616,7 +616,7 @@ const MOCK_TEACHERS = [
     intro: 'I believe learning is better together. I create engaging group activities to build confidence in speaking.',
     education: 'Bachelor of Elementary Education — University of San Jose-Recoletos', hobby: 'Singing, Dancing, Art' },
 
-  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'leave', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['문법','리딩','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
+  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['문법','리딩','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
     email: 'james.p@talkstation.co', phone: '+63-915-444-4444', birthday: '1985-11-30', joinDate: '2019-06-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
     greeting: 'Hi! I\'m Teacher James. With 7 years of experience, I can guide you to fluency step by step.',
     intro: 'I specialize in grammar and comprehensive English skills. Currently on approved leave and returning soon.',
