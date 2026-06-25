@@ -145,7 +145,7 @@ function renderTeacherList(list) {
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})">
               <i data-lucide="eye" style="font-size:11px"></i> 상세
             </button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id}, 'schedule')" style="border-color:#0EA5E9;color:#0EA5E9">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id}, 'weekly')" style="border-color:#0EA5E9;color:#0EA5E9">
               <i data-lucide="calendar" style="font-size:11px"></i> 스케줄
             </button>
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherEditModal(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
