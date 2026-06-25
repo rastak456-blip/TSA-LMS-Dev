@@ -522,11 +522,70 @@ const MOCK_STUDENTS = [
 ];
 
 const MOCK_TALK_LMS_TEACHERS = [
-  { id: 'talk_t1', name: 'John Doe', nick: 'John', gender: '남' },
-  { id: 'talk_t2', name: 'Mary Smith', nick: 'Mary', gender: '여' },
-  { id: 'talk_t3', name: 'Robert Lee', nick: 'Bob', gender: '남' },
-  { id: 'talk_t4', name: 'Patricia Clark', nick: 'Patty', gender: '여' },
-  { id: 'talk_t5', name: 'William Wright', nick: 'Will', gender: '남' }
+  {
+    id: 'talk_t1', name: 'John Doe', nick: 'John', gender: '남',
+    email: 'john.d@talkstation.co', phone: '+63-917-201-0001', birthday: '1991-04-12',
+    joinDate: '2023-09-04', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    greeting: 'Hi! I\'m Teacher John. Let\'s build your English confidence together!',
+    intro: 'I focus on conversational English and help students overcome their fear of speaking.',
+    education: 'Bachelor of Secondary Education — Cebu Normal University', hobby: 'Football, Music, Travel'
+  },
+  {
+    id: 'talk_t2', name: 'Mary Smith', nick: 'Mary', gender: '여',
+    email: 'mary.s@talkstation.co', phone: '+63-918-202-0002', birthday: '1993-08-25',
+    joinDate: '2024-01-15', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now',
+    greeting: 'Hello! I\'m Teacher Mary. I make every lesson enjoyable and productive!',
+    intro: 'New to TalkStation but passionate about teaching. I specialize in phonics and basic English.',
+    education: 'Bachelor of Elementary Education — University of Cebu', hobby: 'Dancing, Reading, Cooking'
+  },
+  {
+    id: 'talk_t3', name: 'Robert Lee', nick: 'Bob', gender: '남',
+    email: 'robert.l@talkstation.co', phone: '+63-920-203-0003', birthday: '1988-11-07',
+    joinDate: '2022-11-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    greeting: 'Hey! I\'m Teacher Bob. Grammar and vocabulary are my strengths — let\'s master them!',
+    intro: 'With a background in linguistics, I help students understand the logic behind English grammar.',
+    education: 'Master of Arts in Linguistics — University of San Carlos', hobby: 'Chess, Badminton, Podcasts'
+  },
+  {
+    id: 'talk_t4', name: 'Patricia Clark', nick: 'Patty', gender: '여',
+    email: 'patricia.c@talkstation.co', phone: '+63-927-204-0004', birthday: '1995-02-19',
+    joinDate: '2024-06-10', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now',
+    greeting: 'Hi there! I\'m Teacher Patty. I\'m energetic and love interactive lessons!',
+    intro: 'Enthusiastic and creative teacher who uses games and activities to make learning fun.',
+    education: 'Bachelor of Arts in Communication — Southwestern University', hobby: 'Painting, Yoga, K-pop'
+  },
+  {
+    id: 'talk_t5', name: 'William Wright', nick: 'Will', gender: '남',
+    email: 'william.w@talkstation.co', phone: '+63-915-205-0005', birthday: '1986-07-03',
+    joinDate: '2020-08-20', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    greeting: 'Hello! I\'m Teacher Will. 6 years of teaching experience and counting!',
+    intro: 'Veteran teacher specializing in business English and advanced academic writing.',
+    education: 'Master of Business Administration — University of the Philippines Cebu', hobby: 'Running, Reading, Mentoring'
+  },
+  {
+    id: 'talk_t6', name: 'Angela Reyes', nick: 'Angela', gender: '여',
+    email: 'angela.r@talkstation.co', phone: '+63-919-206-0006', birthday: '1992-10-14',
+    joinDate: '2023-03-27', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    greeting: 'Hi! I\'m Teacher Angela. I love helping students become fluent and natural speakers!',
+    intro: 'I focus on real-world English and help students apply what they learn in daily life.',
+    education: 'Bachelor of Secondary Education, Major in English — Cebu Institute of Technology', hobby: 'Hiking, Photography, Baking'
+  },
+  {
+    id: 'talk_t7', name: 'Christopher Tan', nick: 'Chris', gender: '남',
+    email: 'chris.t@talkstation.co', phone: '+63-932-207-0007', birthday: '1997-05-30',
+    joinDate: '2024-09-02', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now',
+    greeting: 'Hey! I\'m Teacher Chris. Fresh and motivated — ready to help you learn English fast!',
+    intro: 'New teacher with a modern approach to English learning, incorporating technology and media.',
+    education: 'Bachelor of Secondary Education — Cebu Technological University', hobby: 'Gaming, Anime, Basketball'
+  },
+  {
+    id: 'talk_t8', name: 'Jennifer Santos', nick: 'Jenny', gender: '여',
+    email: 'jennifer.s@talkstation.co', phone: '+63-921-208-0008', birthday: '1990-12-08',
+    joinDate: '2021-07-19', jobGrade: 'Regular Tutor', talkStatus: 'Resigning', experience: 'Experienced',
+    greeting: 'Hello! I\'m Teacher Jenny. I believe every student has the potential to be fluent!',
+    intro: 'I specialize in listening skills and pronunciation coaching. Currently transitioning.',
+    education: 'Bachelor of Arts in English — University of San Jose-Recoletos', hobby: 'Singing, Gardening, Pilates'
+  },
 ];
 
 let MOCK_ASSIGNMENT_TAGS = [
