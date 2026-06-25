@@ -871,7 +871,7 @@ function switchTeacherTab(tab, el) {
             <span style="padding:2px 8px;border-radius:6px;background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;font-weight:600">1:8</span>
           </div>
         </div>
-        <div style="overflow-x:auto">
+        <div style="overflow:auto;max-height:420px;border:0.5px solid #E5E7EB;border-radius:8px">
           <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
             <colgroup>
               <col style="width:58px"/>
