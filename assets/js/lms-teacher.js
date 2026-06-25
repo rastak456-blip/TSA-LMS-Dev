@@ -884,41 +884,91 @@ function switchTeacherTab(tab, el) {
   }
 }
 
+function getAvailState(t, d, p) {
+  // 3단계: 'open'(가용) / 'gray'(화상수업) / 'black'(블랙타임)
+  if (t.availState && t.availState[d] && t.availState[d][p-1] !== undefined) {
+    return t.availState[d][p-1];
+  }
+  // 기존 boolean availability에서 마이그레이션
+  if (t.availability) {
+    const val = t.availability[d] ? t.availability[d][p-1] : (Array.isArray(t.availability) ? t.availability[p-1] : true);
+    return val ? 'open' : 'black';
+  }
+  return 'open';
+}
+
+function cycleAvailState(teacherId, d, p) {
+  const t = MOCK_TEACHERS.find(x => x.id === teacherId);
+  if (!t) return;
+  if (!t.availState) {
+    t.availState = {};
+    ['월','화','수','목','금','토','일'].forEach(day => {
+      t.availState[day] = [1,2,3,4,5,6,7,8].map(period => getAvailState(t, day, period));
+    });
+  }
+  if (!t.availState[d]) t.availState[d] = Array(8).fill('open');
+  const cur = t.availState[d][p-1];
+  const next = cur === 'open' ? 'gray' : cur === 'gray' ? 'black' : 'open';
+  t.availState[d][p-1] = next;
+
+  const cell = document.getElementById(`avail-${d}-p-${p}`);
+  if (cell) {
+    const stateStyles = {
+      open:  { bg:'#EEF2FF', color:'#5E5CE6', border:'#C7D2FE', text:'가용' },
+      gray:  { bg:'#FEF3C7', color:'#B45309', border:'#FDE68A', text:'화상' },
+      black: { bg:'#F3F4F6', color:'#6B7280', border:'#D1D5DB', text:'차단' }
+    };
+    const s = stateStyles[next];
+    cell.style.background = s.bg;
+    cell.style.color = s.color;
+    cell.style.borderColor = s.border;
+    cell.textContent = s.text;
+  }
+}
+
 function renderTeacherAvailabilityTab() {
   const t = APP.currentTeacher;
   const container = document.getElementById('teacher-modal-tab-content');
   if (!t) return;
 
   const days = ['월', '화', '수', '목', '금', '토', '일'];
+  const stateStyles = {
+    open:  { bg:'#EEF2FF', color:'#5E5CE6', border:'#C7D2FE', text:'가용' },
+    gray:  { bg:'#FEF3C7', color:'#B45309', border:'#FDE68A', text:'화상' },
+    black: { bg:'#F3F4F6', color:'#6B7280', border:'#D1D5DB', text:'차단' }
+  };
 
   container.innerHTML = `
-    <div style="font-size:12px;color:#6B7280;margin-bottom:14px">요일 및 교시별 강사 시간표 가용성을 직접 편집합니다. 체크해제 시 배정이 원천 차단됩니다.</div>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <div style="font-size:12px;color:#6B7280">셀을 클릭하면 상태가 순환됩니다.</div>
+      <div style="display:flex;gap:8px;font-size:11px">
+        <span style="padding:2px 10px;border-radius:8px;background:#EEF2FF;color:#5E5CE6;border:1px solid #C7D2FE;font-weight:600">가용 — 배정 가능</span>
+        <span style="padding:2px 10px;border-radius:8px;background:#FEF3C7;color:#B45309;border:1px solid #FDE68A;font-weight:600">화상 — 화상 수업</span>
+        <span style="padding:2px 10px;border-radius:8px;background:#F3F4F6;color:#6B7280;border:1px solid #D1D5DB;font-weight:600">차단 — 블랙타임</span>
+      </div>
+    </div>
     <div style="overflow-x:auto">
-      <table class="tsa-table" style="font-size:11px; text-align: center;">
+      <table class="tsa-table" style="font-size:11px;text-align:center">
         <thead>
           <tr>
-            <th style="text-align: left;">교시</th>
-            ${days.map(d => `<th style="text-align: center;">${d}</th>`).join('')}
+            <th style="text-align:left">교시</th>
+            ${days.map(d => `<th style="text-align:center;min-width:60px">${d}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${[1,2,3,4,5,6,7,8].map(p => `
             <tr>
-              <td style="font-weight:700; text-align: left; white-space: nowrap;">${p}교시</td>
+              <td style="font-weight:700;text-align:left;white-space:nowrap">${p}교시</td>
               ${days.map(d => {
-                let isChecked = false;
-                if (t.availability) {
-                  if (t.availability[d]) {
-                    isChecked = t.availability[d][p-1];
-                  } else if (Array.isArray(t.availability)) {
-                    isChecked = t.availability[p-1];
-                  }
-                }
-                return `
-                  <td style="text-align: center; vertical-align: middle;">
-                    <input type="checkbox" id="avail-${d}-p-${p}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;accent-color:#5E5CE6; cursor:pointer"/>
-                  </td>
-                `;
+                const state = getAvailState(t, d, p);
+                const s = stateStyles[state];
+                return `<td style="text-align:center;vertical-align:middle;padding:4px">
+                  <div id="avail-${d}-p-${p}"
+                    onclick="cycleAvailState(${t.id},'${d}',${p})"
+                    style="cursor:pointer;padding:5px 8px;border-radius:6px;border:1px solid ${s.border};background:${s.bg};color:${s.color};font-size:11px;font-weight:600;user-select:none;min-width:40px">
+                    ${s.text}
+                  </div>
+                </td>`;
               }).join('')}
             </tr>
           `).join('')}
@@ -927,7 +977,7 @@ function renderTeacherAvailabilityTab() {
     </div>
     <div style="margin-top:14px;display:flex;justify-content:flex-end">
       <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="saveTeacherAvailability(${t.id})">
-        <i data-lucide="check"></i> 요일별 가용성 변경 저장
+        <i data-lucide="check"></i> 가용성 저장
       </button>
     </div>
   `;
