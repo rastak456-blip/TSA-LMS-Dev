@@ -142,14 +142,11 @@ function renderTeacherList(list) {
         <td><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
         <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})">
-              <i data-lucide="eye" style="font-size:11px"></i> 상세
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
+              <i data-lucide="pencil" style="font-size:11px"></i> 상세/수정
             </button>
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id}, 'weekly')" style="border-color:#0EA5E9;color:#0EA5E9">
               <i data-lucide="calendar" style="font-size:11px"></i> 스케줄
-            </button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherEditModal(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
-              <i data-lucide="pencil" style="font-size:11px"></i> 수정
             </button>
           </div>
         </td>
