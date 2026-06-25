@@ -808,77 +808,81 @@ function switchTeacherTab(tab, el) {
       break;
 
     case 'weekly': {
-      const days = ['월','화','수','목','금'];
-      const periods = [1,2,3,4,5,6,7,8];
-      const PERIOD_TIMES = {'1':'08:00','2':'09:00','3':'10:00','4':'11:00','5':'12:30','6':'13:30','7':'14:30','8':'15:30'};
+      const wDays = ['월','화','수','목','금'];
+      const wPeriods = [1,2,3,4,5,6,7,8];
+      const wTimes = {'1':'08:00','2':'09:00','3':'10:00','4':'11:00','5':'12:30','6':'13:30','7':'14:30','8':'15:30'};
 
-      // 이 강사의 수업 세션 찾기 (MOCK_CLASS_SESSIONS 활용)
-      const sessions = (typeof MOCK_CLASS_SESSIONS !== 'undefined')
+      const wSessions = (typeof MOCK_CLASS_SESSIONS !== 'undefined')
         ? MOCK_CLASS_SESSIONS.filter(s => {
-            const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-            return room && room.teacherNick === t.nick;
+            const r = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+            return r && r.teacherNick === t.nick;
           })
         : [];
 
-      // 교시×요일 매핑
-      const cellMap = {};
-      sessions.forEach(s => {
+      const wCellMap = {};
+      wSessions.forEach(s => {
+        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+        const students = (s.studentIds || []).map(id => {
+          const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
+          return st ? st.nick : '';
+        }).filter(Boolean);
         s.periods.forEach(p => {
           const key = `${s.day}-${p}`;
-          if (!cellMap[key]) cellMap[key] = [];
-          const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-          const studentNames = (s.studentIds || []).map(id => {
-            const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
-            return st ? st.nick : '';
-          }).filter(Boolean);
-          cellMap[key].push({ room: room?.roomNo || '-', students: studentNames, course: s.course, level: s.level });
+          if (!wCellMap[key]) wCellMap[key] = [];
+          wCellMap[key].push({ room, students, course: s.course, level: s.level });
         });
       });
 
-      const typeColor = (roomNo) => {
-        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.roomNo === roomNo);
-        if (!room) return '#E5E7EB';
-        return room.type === '1:1' ? '#EEF2FF' : room.type === '1:4' ? '#FEF3C7' : '#D1FAE5';
-      };
-      const typeTextColor = (roomNo) => {
-        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.roomNo === roomNo);
-        if (!room) return '#6B7280';
-        return room.type === '1:1' ? '#3730A3' : room.type === '1:4' ? '#92400E' : '#065F46';
-      };
+      const wTypeBg   = r => !r ? '#F3F4F6' : r.type==='1:1' ? '#EEF2FF' : r.type==='1:4' ? '#FEF3C7' : '#D1FAE5';
+      const wTypeCol  = r => !r ? '#6B7280' : r.type==='1:1' ? '#3730A3' : r.type==='1:4' ? '#92400E' : '#065F46';
+      const wTypeBdr  = r => !r ? '#E5E7EB' : r.type==='1:1' ? '#C7D2FE' : r.type==='1:4' ? '#FDE68A' : '#6EE7B7';
 
       container.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-          <div style="font-size:13px;font-weight:600;color:#111827">${t.nick}의 이번 주 수업 배정 현황</div>
-          <div style="display:flex;gap:6px;font-size:11px">
-            <span style="padding:2px 8px;border-radius:6px;background:#EEF2FF;color:#3730A3;font-weight:600">1:1</span>
-            <span style="padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;font-weight:600">1:4</span>
-            <span style="padding:2px 8px;border-radius:6px;background:#D1FAE5;color:#065F46;font-weight:600">1:8</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600;color:#111827">${t.nick} 강사 — 이번 주 수업 현황</div>
+          <div style="display:flex;gap:5px;font-size:11px">
+            <span style="padding:2px 8px;border-radius:6px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;font-weight:600">1:1</span>
+            <span style="padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;font-weight:600">1:4</span>
+            <span style="padding:2px 8px;border-radius:6px;background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;font-weight:600">1:8</span>
           </div>
         </div>
         <div style="overflow-x:auto">
-          <table class="tsa-table" style="font-size:11.5px;text-align:center;min-width:500px">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
             <thead>
-              <tr>
-                <th style="text-align:left;white-space:nowrap">교시</th>
-                ${days.map(d => `<th>${d}요일</th>`).join('')}
+              <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB">
+                <th style="padding:8px 10px;text-align:left;width:70px;color:#6B7280;font-weight:600;white-space:nowrap">교시</th>
+                ${wDays.map(d => `<th style="padding:8px;text-align:center;color:#374151;font-weight:600">${d}요일</th>`).join('')}
               </tr>
             </thead>
             <tbody>
-              ${periods.map(p => `
-                <tr>
-                  <td style="font-weight:600;text-align:left;white-space:nowrap;color:#6B7280;font-size:11px">${p}교시<br>${PERIOD_TIMES[p]}</td>
-                  ${days.map(d => {
-                    const key = `${d}-${p}`;
-                    const cells = cellMap[key];
-                    if (!cells || cells.length === 0) {
-                      return `<td style="color:#D1D5DB;font-size:11px">-</td>`;
-                    }
-                    return `<td style="vertical-align:top;padding:4px">
-                      ${cells.map(c => `
-                        <div style="border-radius:6px;padding:4px 6px;margin-bottom:2px;background:${typeColor(c.room)};color:${typeTextColor(c.room)};text-align:left">
-                          <div style="font-weight:700;font-size:11px">${c.room}</div>
-                          <div style="font-size:10px;opacity:.8">${c.students.join(', ') || '미배정'}</div>
-                        </div>`).join('')}
+              ${wPeriods.map(p => `
+                <tr style="border-bottom:1px solid #F3F4F6">
+                  <td style="padding:6px 10px;color:#9CA3AF;font-size:11px;white-space:nowrap;vertical-align:top">
+                    <div style="font-weight:600;color:#374151">${p}교시</div>
+                    <div>${wTimes[p]}</div>
+                  </td>
+                  ${wDays.map(d => {
+                    const items = wCellMap[`${d}-${p}`];
+                    if (!items || items.length === 0) return `<td style="padding:6px;text-align:center;color:#E5E7EB;font-size:11px;vertical-align:top">—</td>`;
+                    return `<td style="padding:4px;vertical-align:top">
+                      ${items.map(c => {
+                        const bg  = wTypeBg(c.room);
+                        const col = wTypeCol(c.room);
+                        const bdr = wTypeBdr(c.room);
+                        const roomNo   = c.room?.roomNo || '-';
+                        const roomType = c.room?.type   || '';
+                        const teacher  = c.room?.teacherNick ? `${c.room.teacherNick} (강사)` : '';
+                        const stuNames = c.students.join(', ') || '미배정';
+                        const courseLevel = [c.course, c.level ? `[${c.level}]` : ''].filter(Boolean).join(' ');
+                        return `<div style="border-radius:6px;padding:6px 8px;margin-bottom:3px;background:${bg};border:1px solid ${bdr};text-align:left">
+                          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                            <span style="font-weight:700;font-size:11.5px;color:${col}">${roomNo} (${roomType})</span>
+                            <span style="font-size:10px;color:#6B7280">${teacher}</span>
+                          </div>
+                          <div style="font-size:12px;font-weight:600;color:#111827">${stuNames}</div>
+                          <div style="font-size:10px;color:#6B7280;margin-top:1px">${courseLevel}</div>
+                        </div>`;
+                      }).join('')}
                     </td>`;
                   }).join('')}
                 </tr>
@@ -886,7 +890,7 @@ function switchTeacherTab(tab, el) {
             </tbody>
           </table>
         </div>
-        ${sessions.length === 0 ? `<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:30px">이번 주 배정된 수업이 없습니다.</div>` : ''}
+        ${wSessions.length === 0 ? `<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:40px">이번 주 배정된 수업이 없습니다.</div>` : ''}
       `;
       break;
     }
