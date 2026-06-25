@@ -100,10 +100,7 @@ function renderTeacherList(list) {
     const rowNum = total - idx;
     let statusLabel = '재직';
     let statusClass = 'tsa-badge-success';
-    if (t.status === 'leave') {
-      statusLabel = '휴가';
-      statusClass = 'tsa-badge-warning';
-    } else if (t.status === 'resigned') {
+    if (t.status === 'resigned') {
       statusLabel = '퇴사';
       statusClass = 'tsa-badge-gray';
     }
