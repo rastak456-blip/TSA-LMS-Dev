@@ -844,40 +844,40 @@ function switchTeacherTab(tab, el) {
           </div>
         </div>
         <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+            <colgroup>
+              <col style="width:58px"/>
+              <col/><col/><col/><col/><col/>
+            </colgroup>
             <thead>
               <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB">
-                <th style="padding:8px 10px;text-align:left;width:70px;color:#6B7280;font-weight:600;white-space:nowrap">교시</th>
-                ${wDays.map(d => `<th style="padding:8px;text-align:center;color:#374151;font-weight:600">${d}요일</th>`).join('')}
+                <th style="padding:6px 8px;text-align:left;color:#6B7280;font-weight:600;white-space:nowrap;font-size:11px">교시</th>
+                ${wDays.map(d => `<th style="padding:6px 4px;text-align:center;color:#374151;font-weight:600;font-size:11px">${d}요일</th>`).join('')}
               </tr>
             </thead>
             <tbody>
               ${wPeriods.map(p => `
                 <tr style="border-bottom:1px solid #F3F4F6">
-                  <td style="padding:6px 10px;color:#9CA3AF;font-size:11px;white-space:nowrap;vertical-align:top">
-                    <div style="font-weight:600;color:#374151">${p}교시</div>
-                    <div>${wTimes[p]}</div>
+                  <td style="padding:4px 8px;color:#9CA3AF;font-size:10px;white-space:nowrap;vertical-align:top">
+                    <div style="font-weight:600;color:#374151;font-size:10.5px">${p}교시</div>
+                    <div style="font-size:9.5px">${wTimes[p]}</div>
                   </td>
                   ${wDays.map(d => {
                     const items = wCellMap[`${d}-${p}`];
-                    if (!items || items.length === 0) return `<td style="padding:6px;text-align:center;color:#E5E7EB;font-size:11px;vertical-align:top">—</td>`;
-                    return `<td style="padding:4px;vertical-align:top">
+                    if (!items || items.length === 0) return `<td style="padding:4px;text-align:center;color:#E5E7EB;font-size:10px;vertical-align:top">—</td>`;
+                    return `<td style="padding:3px;vertical-align:top">
                       ${items.map(c => {
                         const bg  = wTypeBg(c.room);
                         const col = wTypeCol(c.room);
                         const bdr = wTypeBdr(c.room);
                         const roomNo   = c.room?.roomNo || '-';
                         const roomType = c.room?.type   || '';
-                        const teacher  = c.room?.teacherNick ? `${c.room.teacherNick} (강사)` : '';
                         const stuNames = c.students.join(', ') || '미배정';
                         const courseLevel = [c.course, c.level ? `[${c.level}]` : ''].filter(Boolean).join(' ');
-                        return `<div style="border-radius:6px;padding:6px 8px;margin-bottom:3px;background:${bg};border:1px solid ${bdr};text-align:left">
-                          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-                            <span style="font-weight:700;font-size:11.5px;color:${col}">${roomNo} (${roomType})</span>
-                            <span style="font-size:10px;color:#6B7280">${teacher}</span>
-                          </div>
-                          <div style="font-size:12px;font-weight:600;color:#111827">${stuNames}</div>
-                          <div style="font-size:10px;color:#6B7280;margin-top:1px">${courseLevel}</div>
+                        return `<div style="border-radius:5px;padding:4px 6px;margin-bottom:2px;background:${bg};border:1px solid ${bdr};text-align:left;overflow:hidden">
+                          <div style="font-weight:700;font-size:10.5px;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${roomNo} (${roomType})</div>
+                          <div style="font-size:11px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${stuNames}</div>
+                          <div style="font-size:9.5px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${courseLevel}</div>
                         </div>`;
                       }).join('')}
                     </td>`;

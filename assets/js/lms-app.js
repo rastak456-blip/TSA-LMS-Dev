@@ -1878,9 +1878,12 @@ let MOCK_CLASS_SESSIONS = [
   { id: 19, roomId: 7, day: '목', periods: [4, 5], studentIds: [5, 10], course: 'IELTS 전문 코스', level: 'Band 6.5', weekOf: '2026-06-22' },
   
   { id: 20, roomId: 8, day: '월', periods: [2, 3], studentIds: [13], course: 'IELTS 전문 코스', level: 'Band 5.0', weekOf: '2026-06-22' },
-  { id: 21, roomId: 8, day: '수', periods: [2, 3], studentIds: [13], course: 'IELTS 전문 코스', level: 'Band 5.0', weekOf: '2026-06-22' },
+  { id: 21, roomId: 8, day: '화', periods: [1, 2], studentIds: [5],  course: 'IELTS 전문 코스', level: 'Band 7.0', weekOf: '2026-06-22' },
+  { id: 22, roomId: 8, day: '수', periods: [2, 3], studentIds: [13], course: 'IELTS 전문 코스', level: 'Band 5.0', weekOf: '2026-06-22' },
+  { id: 23, roomId: 8, day: '목', periods: [3, 4], studentIds: [12], course: 'IELTS 전문 코스', level: 'Band 6.5', weekOf: '2026-06-22' },
+  { id: 24, roomId: 8, day: '금', periods: [1, 2], studentIds: [5],  course: 'IELTS 전문 코스', level: 'Band 7.0', weekOf: '2026-06-22' },
 ];
-let _csSessionNextId = 22;
+let _csSessionNextId = 25;
 let _csCurrentWeek = '2026-06-22';
 let _csCurrentDay  = '월';
 let _csAssignTarget = null; // { roomId }
