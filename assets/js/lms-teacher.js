@@ -834,9 +834,37 @@ function switchTeacherTab(tab, el) {
       const wTypeCol  = r => !r ? '#6B7280' : r.type==='1:1' ? '#3730A3' : r.type==='1:4' ? '#92400E' : '#065F46';
       const wTypeBdr  = r => !r ? '#E5E7EB' : r.type==='1:1' ? '#C7D2FE' : r.type==='1:4' ? '#FDE68A' : '#6EE7B7';
 
+      // 주간 피커 상태 초기화
+      if (!APP._teacherWeekOf) APP._teacherWeekOf = '2026-06-22';
+      const curWeek = APP._teacherWeekOf;
+      const wDate = new Date(curWeek);
+      const wEnd  = new Date(wDate); wEnd.setDate(wDate.getDate() + 4);
+      const fmtMD = d => `${d.getMonth()+1}/${d.getDate()}`;
+      const weekLabel = `${wDate.getFullYear()}년 ${wDate.getMonth()+1}월 (${fmtMD(wDate)} ~ ${fmtMD(wEnd)})`;
+
+      // 해당 주 세션으로 재필터
+      const wSessionsFiltered = wSessions.filter(s => s.weekOf === curWeek);
+      const wCellMapFiltered = {};
+      wSessionsFiltered.forEach(s => {
+        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+        const students = (s.studentIds || []).map(id => {
+          const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
+          return st ? st.nick : '';
+        }).filter(Boolean);
+        s.periods.forEach(p => {
+          const key = `${s.day}-${p}`;
+          if (!wCellMapFiltered[key]) wCellMapFiltered[key] = [];
+          wCellMapFiltered[key].push({ room, students, course: s.course, level: s.level });
+        });
+      });
+
       container.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-          <div style="font-size:13px;font-weight:600;color:#111827">${t.nick} 강사 — 이번 주 수업 현황</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button onclick="shiftTeacherWeek(${t.id},-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
+            <div style="font-size:13px;font-weight:600;color:#111827">${weekLabel}</div>
+            <button onclick="shiftTeacherWeek(${t.id},1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
+          </div>
           <div style="display:flex;gap:5px;font-size:11px">
             <span style="padding:2px 8px;border-radius:6px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;font-weight:600">1:1</span>
             <span style="padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;font-weight:600">1:4</span>
@@ -863,7 +891,7 @@ function switchTeacherTab(tab, el) {
                     <div style="font-size:9.5px">${wTimes[p]}</div>
                   </td>
                   ${wDays.map(d => {
-                    const items = wCellMap[`${d}-${p}`];
+                    const items = wCellMapFiltered[`${d}-${p}`];
                     if (!items || items.length === 0) return `<td style="padding:4px;text-align:center;color:#E5E7EB;font-size:10px;vertical-align:top">—</td>`;
                     return `<td style="padding:3px;vertical-align:top">
                       ${items.map(c => {
@@ -967,6 +995,15 @@ function switchTeacherTab(tab, el) {
       if (typeof refreshIcons === 'function') refreshIcons();
       break;
   }
+}
+
+function shiftTeacherWeek(teacherId, delta) {
+  const d = new Date(APP._teacherWeekOf || '2026-06-22');
+  d.setDate(d.getDate() + delta * 7);
+  APP._teacherWeekOf = d.toISOString().slice(0, 10);
+  // weekly 탭 재렌더
+  const activeTab = document.querySelector('#teacher-detail-modal .tsa-tab.active');
+  switchTeacherTab('weekly', activeTab);
 }
 
 function getAvailState(t, d, p) {
