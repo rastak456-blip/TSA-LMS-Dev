@@ -50,16 +50,19 @@ function saveTeacherDetailInline() {
   if (!t) return;
   const getVal = (id, fallback) => { const el = document.getElementById(id); return el ? el.value.trim() : fallback; };
   // 어학원 운영 탭 항목만 저장
-  const room     = getVal('td-room', t.room);
-  const contract = getVal('td-contract', t.contract);
-  const status   = getVal('td-status', t.status);
-  const rating   = parseFloat(getVal('td-rating', t.rating)) || t.rating;
+  const room      = getVal('td-room', t.room);
+  const contract  = getVal('td-contract', t.contract);
+  const status    = getVal('td-status', t.status);
+  const rating    = parseFloat(getVal('td-rating', t.rating)) || t.rating;
+  const workStart = getVal('td-work-start', t.workHours ? t.workHours.start : '08:00');
+  const workEnd   = getVal('td-work-end',   t.workHours ? t.workHours.end   : '17:00');
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
 
-  t.room     = room;
-  t.contract = contract;
-  t.status   = status;
-  t.rating   = rating;
+  t.room      = room;
+  t.contract  = contract;
+  t.status    = status;
+  t.rating    = rating;
+  t.workHours = { start: workStart, end: workEnd };
   if (classTypes.length > 0) t.classTypes = classTypes;
 
   // 시간표 강의실 동기화
@@ -674,6 +677,12 @@ function switchTeacherTab(tab, el) {
             <div class="tsa-form-group"><label class="tsa-label">어학원 평점</label>
               <input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/>
             </div>
+            <div class="tsa-form-group"><label class="tsa-label">근무 시작 시간</label>
+              <input id="td-work-start" type="time" class="tsa-input" value="${t.workHours ? t.workHours.start : '08:00'}"/>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">근무 종료 시간</label>
+              <input id="td-work-end" type="time" class="tsa-input" value="${t.workHours ? t.workHours.end : '17:00'}"/>
+            </div>
           </div>
           <div style="background:#F8F9FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;font-size:12px;color:#3730A3;margin-top:8px">
             🔗 재직 상태: <strong>${t.talkStatus||'Employed'}</strong> (톡스 기준) &nbsp;·&nbsp; 어학원 상태: <strong>${t.status==='active'?'재직':t.status==='leave'?'휴가':'퇴사'}</strong>
@@ -943,30 +952,6 @@ function switchTeacherTab(tab, el) {
           </div>
         </div>
 
-        <div class="tsa-divider" style="margin:16px 0"></div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="tsa-form-group">
-            <label class="tsa-label">수업 가용 타입</label>
-            <select id="tag-class-type" class="tsa-input">
-              <option value="both" ${t.classType === 'both' ? 'selected' : ''}>1:1 및 그룹 수업 모두 가능</option>
-              <option value="1on1" ${t.classType === '1on1' ? 'selected' : ''}>1:1 수업만 가능</option>
-              <option value="group" ${t.classType === 'group' ? 'selected' : ''}>그룹 수업만 가능</option>
-            </select>
-          </div>
-          <div class="tsa-form-group">
-            <label class="tsa-label">담당 강의실</label>
-            <input id="tag-room" type="text" class="tsa-input" value="${t.assignedRoom || t.room || ''}" placeholder="A-101"/>
-          </div>
-          <div class="tsa-form-group">
-            <label class="tsa-label">근무 시작 시간</label>
-            <input id="tag-work-start" type="time" class="tsa-input" value="${t.workHours ? t.workHours.start : '08:00'}"/>
-          </div>
-          <div class="tsa-form-group">
-            <label class="tsa-label">근무 종료 시간</label>
-            <input id="tag-work-end" type="time" class="tsa-input" value="${t.workHours ? t.workHours.end : '17:00'}"/>
-          </div>
-        </div>
         <div style="margin-top:16px;display:flex;justify-content:flex-end">
           <button class="tsa-btn tsa-btn-primary" onclick="saveTeacherTags(${t.id})">
             <i data-lucide="check"></i> 역량 태그 및 배정 제약 저장
