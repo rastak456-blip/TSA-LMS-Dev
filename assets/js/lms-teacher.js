@@ -401,14 +401,23 @@ function onTalkTeacherMatched(matchedId) {
   if (!teacher) return;
 
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-  setVal('tf-name',       teacher.name || '');
-  setVal('tf-gender',     teacher.gender || '여');
-  setVal('tf-gender-display', teacher.gender === '남' ? '남성' : '여성');
-  setVal('tf-birthday',   teacher.birthday || '-');
-  setVal('tf-email',      teacher.email || '-');
-  setVal('tf-phone',      teacher.phone || '-');
-  setVal('tf-joindate',   teacher.joinDate || '-');
-  setVal('tf-jobgrade',   teacher.jobGrade || '-');
+  // 미리보기 섹션 (tfp- 접두사)
+  setVal('tfp-name',         teacher.name || '');
+  setVal('tfp-gender-display', teacher.gender === '남' ? '남성' : '여성');
+  setVal('tfp-birthday',     teacher.birthday || '-');
+  setVal('tfp-email',        teacher.email || '-');
+  setVal('tfp-phone',        teacher.phone || '-');
+  setVal('tfp-joindate',     teacher.joinDate || '-');
+  setVal('tfp-jobgrade',     teacher.jobGrade || '-');
+  setVal('tfp-talkstatus',   teacher.talkStatus || 'Employed');
+  // 저장용 히든 필드 (saveTeacherForm에서 사용)
+  setVal('tf-name',      teacher.name || '');
+  setVal('tf-gender',    teacher.gender || '여');
+  setVal('tf-birthday',  teacher.birthday || '');
+  setVal('tf-email',     teacher.email || '');
+  setVal('tf-phone',     teacher.phone || '');
+  setVal('tf-joindate',  teacher.joinDate || '');
+  setVal('tf-jobgrade',  teacher.jobGrade || '');
   setVal('tf-talkstatus', teacher.talkStatus || 'Employed');
   setVal('tf-experience', teacher.experience || 'Now');
 
