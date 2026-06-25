@@ -807,6 +807,90 @@ function switchTeacherTab(tab, el) {
       `;
       break;
 
+    case 'weekly': {
+      const days = ['월','화','수','목','금'];
+      const periods = [1,2,3,4,5,6,7,8];
+      const PERIOD_TIMES = {'1':'08:00','2':'09:00','3':'10:00','4':'11:00','5':'12:30','6':'13:30','7':'14:30','8':'15:30'};
+
+      // 이 강사의 수업 세션 찾기 (MOCK_CLASS_SESSIONS 활용)
+      const sessions = (typeof MOCK_CLASS_SESSIONS !== 'undefined')
+        ? MOCK_CLASS_SESSIONS.filter(s => {
+            const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+            return room && room.teacherNick === t.nick;
+          })
+        : [];
+
+      // 교시×요일 매핑
+      const cellMap = {};
+      sessions.forEach(s => {
+        s.periods.forEach(p => {
+          const key = `${s.day}-${p}`;
+          if (!cellMap[key]) cellMap[key] = [];
+          const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
+          const studentNames = (s.studentIds || []).map(id => {
+            const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
+            return st ? st.nick : '';
+          }).filter(Boolean);
+          cellMap[key].push({ room: room?.roomNo || '-', students: studentNames, course: s.course, level: s.level });
+        });
+      });
+
+      const typeColor = (roomNo) => {
+        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.roomNo === roomNo);
+        if (!room) return '#E5E7EB';
+        return room.type === '1:1' ? '#EEF2FF' : room.type === '1:4' ? '#FEF3C7' : '#D1FAE5';
+      };
+      const typeTextColor = (roomNo) => {
+        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.roomNo === roomNo);
+        if (!room) return '#6B7280';
+        return room.type === '1:1' ? '#3730A3' : room.type === '1:4' ? '#92400E' : '#065F46';
+      };
+
+      container.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600;color:#111827">${t.nick}의 이번 주 수업 배정 현황</div>
+          <div style="display:flex;gap:6px;font-size:11px">
+            <span style="padding:2px 8px;border-radius:6px;background:#EEF2FF;color:#3730A3;font-weight:600">1:1</span>
+            <span style="padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;font-weight:600">1:4</span>
+            <span style="padding:2px 8px;border-radius:6px;background:#D1FAE5;color:#065F46;font-weight:600">1:8</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tsa-table" style="font-size:11.5px;text-align:center;min-width:500px">
+            <thead>
+              <tr>
+                <th style="text-align:left;white-space:nowrap">교시</th>
+                ${days.map(d => `<th>${d}요일</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${periods.map(p => `
+                <tr>
+                  <td style="font-weight:600;text-align:left;white-space:nowrap;color:#6B7280;font-size:11px">${p}교시<br>${PERIOD_TIMES[p]}</td>
+                  ${days.map(d => {
+                    const key = `${d}-${p}`;
+                    const cells = cellMap[key];
+                    if (!cells || cells.length === 0) {
+                      return `<td style="color:#D1D5DB;font-size:11px">-</td>`;
+                    }
+                    return `<td style="vertical-align:top;padding:4px">
+                      ${cells.map(c => `
+                        <div style="border-radius:6px;padding:4px 6px;margin-bottom:2px;background:${typeColor(c.room)};color:${typeTextColor(c.room)};text-align:left">
+                          <div style="font-weight:700;font-size:11px">${c.room}</div>
+                          <div style="font-size:10px;opacity:.8">${c.students.join(', ') || '미배정'}</div>
+                        </div>`).join('')}
+                    </td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ${sessions.length === 0 ? `<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:30px">이번 주 배정된 수업이 없습니다.</div>` : ''}
+      `;
+      break;
+    }
+
     case 'tags':
       const masterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
       
