@@ -1,4 +1,4 @@
-﻿/* =============================================
+/* =============================================
    TIMETABLE & ASSIGNMENT
    ============================================= */
 function initTimetableGrid() {
@@ -1268,32 +1268,157 @@ function renderCsWeekView() {
 function openDormTemplateModal() {}
 function openDormRoomModal() {}
 
-function saveDormTemplate() {
+function saveDormRoomIndividual() {
+  const roomNo    = document.getElementById('tpl-room-no')?.value.trim();
   const accom     = document.getElementById('tpl-accom')?.value;
   const capacity  = parseInt(document.getElementById('tpl-capacity')?.value);
   const condition = document.getElementById('tpl-condition')?.value;
-  const count     = parseInt(document.getElementById('tpl-count')?.value);
-  const costDay   = parseInt(document.getElementById('tpl-cost-day')?.value) || 0;
-  const costWeek  = parseInt(document.getElementById('tpl-cost-week')?.value) || 0;
-  const cost      = parseInt(document.getElementById('tpl-cost-4week')?.value) || 0;
 
-  if (!count || count < 1) { showToast('방 개수를 입력하세요.', 'danger'); return; }
+  if (!roomNo) { showToast('호실 번호를 입력하세요.', 'danger'); return; }
 
   // 중복 체크
-  const dup = MOCK_DORM_TEMPLATES.find(t => t.accomType === accom && t.capacity === capacity && t.condition === condition);
-  if (dup) { showToast('동일한 유형의 템플릿이 이미 존재합니다.', 'warning'); return; }
+  const dup = MOCK_DORM_ROOMS.find(r => r.roomNo === roomNo);
+  if (dup) { showToast(`이미 등록된 호실 번호입니다. (${roomNo}호)`, 'warning'); return; }
 
-  const newId = Math.max(...MOCK_DORM_TEMPLATES.map(t => t.id), 0) + 1;
-  MOCK_DORM_TEMPLATES.push({ id: newId, accomType: accom, capacity, condition, count, costDay, costWeek, cost });
+  const typeStr = `${capacity}인실 (${condition})`;
+  MOCK_DORM_ROOMS.push({
+    roomNo: roomNo,
+    accomType: accom,
+    type: typeStr,
+    capacity: capacity,
+    genderRestriction: '무관',
+    beds: Array.from({ length: capacity }, (_, i) => ({
+      id: String.fromCharCode(65 + i), // A, B, C, D
+      student: null,
+      studentId: null,
+      start: null,
+      end: null
+    }))
+  });
 
   // 폼 초기화
-  document.getElementById('tpl-count').value = '';
-  document.getElementById('tpl-cost-day').value = '';
-  document.getElementById('tpl-cost-week').value = '';
-  document.getElementById('tpl-cost-4week').value = '';
+  document.getElementById('tpl-room-no').value = '';
 
-  showToast(`✓ ${accom} ${capacity}인실 (${condition}) 템플릿이 등록되었습니다.`, 'success');
+  // 템플릿 정보와 동기화
+  if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
+
+  showToast(`✓ ${roomNo}호가 성공적으로 등록되었습니다.`, 'success');
   renderAdminDormTemplates();
+  if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
+}
+
+let _editingDormRoomIdx = null;
+
+function openEditDormRoomModal(idx) {
+  _editingDormRoomIdx = idx;
+  const room = MOCK_DORM_ROOMS[idx];
+  if (!room) return;
+
+  document.getElementById('edit-room-idx').value = idx;
+  document.getElementById('edit-room-no').value = room.roomNo || '';
+  document.getElementById('edit-room-accom').value = room.accomType || '기숙사';
+  
+  const conditionMatch = room.type ? room.type.match(/\(([^)]+)\)/) : null;
+  const condition = conditionMatch ? conditionMatch[1] : '스탠다드';
+  
+  document.getElementById('edit-room-capacity').value = room.capacity || room.beds.length;
+  document.getElementById('edit-room-condition').value = condition;
+
+  openModal('dorm-room-edit-modal');
+}
+
+function saveDormRoomEdit() {
+  const idx = parseInt(document.getElementById('edit-room-idx').value);
+  const room = MOCK_DORM_ROOMS[idx];
+  if (!room) return;
+
+  const newCapacity = parseInt(document.getElementById('edit-room-capacity').value);
+  const newCondition = document.getElementById('edit-room-condition').value;
+
+  const oldCapacity = room.capacity || room.beds.length;
+  if (newCapacity < oldCapacity) {
+    for (let i = newCapacity; i < oldCapacity; i++) {
+      const bed = room.beds[i];
+      if (bed && (bed.student || bed.incoming)) {
+        showToast(`수정 실패: 축소하려는 침대(${bed.id})에 배정된 학생이 있습니다.`, 'danger');
+        return;
+      }
+    }
+  }
+
+  if (newCapacity < oldCapacity) {
+    room.beds = room.beds.slice(0, newCapacity);
+  } else if (newCapacity > oldCapacity) {
+    for (let i = oldCapacity; i < newCapacity; i++) {
+      room.beds.push({
+        id: String.fromCharCode(65 + i),
+        student: null,
+        studentId: null,
+        start: null,
+        end: null
+      });
+    }
+  }
+
+  room.capacity = newCapacity;
+  room.type = `${newCapacity}인실 (${newCondition})`;
+
+  if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
+  closeModal('dorm-room-edit-modal');
+  showToast('호실 정보가 수정되었습니다.', 'success');
+  renderAdminDormTemplates();
+  if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
+}
+
+function deleteDormRoom(idx) {
+  const room = MOCK_DORM_ROOMS[idx];
+  if (!room) return;
+
+  const occupied = room.beds && room.beds.some(b => b.student || b.incoming);
+  if (occupied) {
+    showToast('해당 호실에 배정된 학생이 있어 삭제할 수 없습니다.', 'danger');
+    return;
+  }
+
+  if (!confirm(`호실 [${room.roomNo}호]를 삭제하시겠습니까?`)) return;
+
+  MOCK_DORM_ROOMS.splice(idx, 1);
+  if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
+  showToast('호실이 삭제되었습니다.', 'success');
+  renderAdminDormTemplates();
+  if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
+}
+
+function renderAdminDormTemplates() {
+  const tbody = document.getElementById('admin-dorm-template-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = MOCK_DORM_ROOMS.filter(r => r.roomNo).map((r, idx) => {
+    // MOCK_DORM_ROOMS에서 roomNo가 있는 방들의 진짜 인덱스를 찾아 삭제/수정 버튼에 매핑
+    const originalIdx = MOCK_DORM_ROOMS.indexOf(r);
+    const conditionMatch = r.type ? r.type.match(/\(([^)]+)\)/) : null;
+    const condition = conditionMatch ? conditionMatch[1] : '스탠다드';
+    const capacity = r.capacity || (r.beds ? r.beds.length : 1);
+
+    const accomBadge = r.accomType === '콘도'
+      ? `<span style="background:#FEF3C7;color:#D97706;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">콘도</span>`
+      : `<span style="background:#EEF2FF;color:#5E5CE6;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">기숙사</span>`;
+
+    return `
+      <tr>
+        <td><strong>${r.roomNo}호</strong></td>
+        <td>${accomBadge}</td>
+        <td>${capacity}인실</td>
+        <td>${condition}</td>
+        <td style="text-align:center">
+          <div style="display:flex;gap:5px;justify-content:center">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditDormRoomModal(${originalIdx})">수정</button>
+            <button class="tsa-btn tsa-btn-danger tsa-btn-xs" style="background:#EF4444;border:none;color:white;" onclick="deleteDormRoom(${originalIdx})">삭제</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function switchDormErpTab(tab) {
