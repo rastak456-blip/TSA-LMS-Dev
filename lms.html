@@ -4991,11 +4991,23 @@
                     </select>
                   </div>
                   <div class="tsa-form-group"><label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
-                    <select id="sf-duration" class="tsa-input">
+                    <select id="sf-duration" class="tsa-input" onchange="updateSfEndDate()">
                       <option value="4" selected>4주 (정규)</option><option value="1">1주</option><option value="2">2주</option><option value="3">3주</option><option value="8">8주</option><option value="12">12주</option>
                     </select>
                   </div>
-                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label><input id="sf-startDate" type="date" class="tsa-input" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label><input id="sf-startDate" type="date" class="tsa-input" required onchange="updateSfEndDate()"/></div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">수강 종료일 <span style="color:#EF4444">*</span></label>
+                    <input id="sf-endDate" type="date" class="tsa-input" style="background:#F9FAFB" readonly/>
+                    <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">시작일 + 수강 기간으로 자동 계산됩니다</div>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 기입)</span></label>
+                    <select id="sf-level" class="tsa-input">
+                      <option value="">— 미선택 —</option>
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
                   <div class="tsa-form-group"><label class="tsa-label">등록 에이전시</label><input id="sf-agency" type="text" class="tsa-input" placeholder="직접 등록"/></div>
                   <div class="tsa-form-group"><label class="tsa-label">학사 상태</label>
                     <select id="sf-status" class="tsa-input">

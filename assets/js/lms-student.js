@@ -1537,6 +1537,8 @@ function openStudentRegisterModal() {
   setVal('sf-course', '일반 코스');
   setVal('sf-duration', '4');
   setVal('sf-startDate', '');
+  setVal('sf-endDate', '');
+  setVal('sf-level', '');
   setVal('sf-agency', '직접 등록');
   setVal('sf-status', 'waiting');
   setVal('sf-dormAccomType', '');
@@ -1565,6 +1567,8 @@ function openStudentEditModal(id) {
   document.getElementById('sf-nationality').value = s.nationality || "한국";
   document.getElementById('sf-course').value = s.course || "일반 코스";
   document.getElementById('sf-duration').value = s.duration || "4";
+  document.getElementById('sf-endDate').value = s.endDate || "";
+  document.getElementById('sf-level').value = s.level || "";
   document.getElementById('sf-dorm').value = s.dorm || "";
   document.getElementById('sf-agency').value = s.agency || "직접 등록";
   document.getElementById('sf-visa').value = s.visaExpiry || "";
@@ -1579,6 +1583,16 @@ function openStudentEditModal(id) {
   // Close details modal if open
   closeModal('student-detail-modal');
   openModal('student-form-modal');
+}
+
+function updateSfEndDate() {
+  const startEl = document.getElementById('sf-startDate');
+  const durEl = document.getElementById('sf-duration');
+  const endEl = document.getElementById('sf-endDate');
+  if (!startEl || !durEl || !endEl || !startEl.value) { if (endEl) endEl.value = ''; return; }
+  const start = new Date(startEl.value);
+  start.setDate(start.getDate() + parseInt(durEl.value) * 7);
+  endEl.value = start.toISOString().split('T')[0];
 }
 
 function saveStudentForm() {
@@ -1627,6 +1641,7 @@ function saveStudentForm() {
   const dietType = document.getElementById('sf-diet').value;
   const status = document.getElementById('sf-status').value;
   const healthNotes = document.getElementById('sf-health').value.trim();
+  const level = (document.getElementById('sf-level') || {}).value || '';
 
   const flag = getNationalityFlag(nationality);
 
@@ -1653,6 +1668,7 @@ function saveStudentForm() {
       s.dietType = dietType;
       s.status = status;
       s.healthNotes = healthNotes || "특이사항 없음.";
+      s.level = level;
 
       s.arrivalDate = startDate;
       const start = new Date(startDate);
@@ -1693,6 +1709,7 @@ function saveStudentForm() {
       flag: flag,
       course: course,
       duration: duration,
+      level: level,
       dorm: '미배정',
       dormAccomType: dormAccomType || null,
       dormType: dormCapacity || null,
