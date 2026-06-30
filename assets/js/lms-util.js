@@ -10,6 +10,7 @@ const VIEW_MAP = {
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 관리', sec: '학사 관리' },
   'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
+  'agency-map': { el: 'view-agency-map', menu: 'menu-agency-map', label: '에이전시 맵', sec: '관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
   'agency-students': { el: 'view-agency-students', menu: 'menu-agency-students', label: '학생 관리', sec: '에이전시' },
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
@@ -109,6 +110,8 @@ function navigate(view) {
     initCoursePricing();
   } else if (view === 'agency-manage') {
     renderAgencyManage();
+  } else if (view === 'agency-map') {
+    if (typeof renderAgencyMap === 'function') renderAgencyMap();
   } else if (view === 'global-dashboard') {
     if (typeof initGlobalDashboard === 'function') initGlobalDashboard();
   } else if (view === 'teacher-dashboard') {

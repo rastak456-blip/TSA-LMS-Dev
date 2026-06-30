@@ -50,10 +50,10 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너' },
-  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '' },
-  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '' },
-  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지' },
+  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123' },
+  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1' },
+  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号' },
+  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam' },
 ];
 let _agencyNextId = 5;
 
@@ -99,6 +99,22 @@ function renderAgencyManage() {
   document.getElementById('agm-kpi-total')    && (document.getElementById('agm-kpi-total').textContent    = total + '개');
   document.getElementById('agm-kpi-active')   && (document.getElementById('agm-kpi-active').textContent   = active + '개');
   document.getElementById('agm-kpi-students') && (document.getElementById('agm-kpi-students').textContent = students + '명');
+
+  // 국가별 에이전시 수 집계
+  const countryStatsEl = document.getElementById('agm-country-stats');
+  if (countryStatsEl) {
+    const counts = {};
+    MOCK_AGENCIES.forEach(a => {
+      const key = a.country || '미지정';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    countryStatsEl.innerHTML = Object.entries(counts).map(([country, cnt]) => {
+      const sample = MOCK_AGENCIES.find(a => (a.country || '미지정') === country);
+      const flag = sample ? sample.flag : '🏳️';
+      return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;background:#F8F9FF;border:1px solid #E0E4FF;font-size:12px;font-weight:600;color:#374151">${flag} ${country} <span style="color:#5E5CE6;font-weight:800">${cnt}개</span></span>`;
+    }).join('');
+  }
+
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
@@ -122,13 +138,14 @@ function toggleAgencyStatus(id) {
 function openAgencyRegisterModal() {
   document.getElementById('agm-modal-title').textContent = '에이전시 등록';
   document.getElementById('agm-modal-id').value = '';
-  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-account-id','agm-password','agm-commission','agm-note'].forEach(id => {
+  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-address','agm-account-id','agm-password','agm-commission','agm-note'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('agm-commission').value = '10';
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
+  updateAgmMapPreview();
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
@@ -142,13 +159,25 @@ function openAgencyEditModal(id) {
   document.getElementById('agm-contact').value    = a.contact;
   document.getElementById('agm-phone').value      = a.phone;
   document.getElementById('agm-email').value      = a.email;
+  document.getElementById('agm-address').value    = a.address || '';
   document.getElementById('agm-account-id').value = a.accountId;
   document.getElementById('agm-password').value   = '';
   document.getElementById('agm-commission').value  = a.commissionRate;
   document.getElementById('agm-note').value        = a.note || '';
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
+  updateAgmMapPreview();
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function updateAgmMapPreview() {
+  const addr = (document.getElementById('agm-address') || {}).value || '';
+  const wrap = document.getElementById('agm-map-preview-wrap');
+  const frame = document.getElementById('agm-map-preview');
+  if (!wrap || !frame) return;
+  if (!addr.trim()) { wrap.style.display = 'none'; frame.src = ''; return; }
+  frame.src = `https://maps.google.com/maps?q=${encodeURIComponent(addr)}&output=embed`;
+  wrap.style.display = 'block';
 }
 
 function closeAgencyManageModal() {
@@ -170,6 +199,7 @@ function saveAgencyManage() {
     name, country, contact,
     phone: document.getElementById('agm-phone').value.trim(),
     email, accountId, commissionRate: commission,
+    address: document.getElementById('agm-address').value.trim(),
     note: document.getElementById('agm-note').value.trim(),
     flag: '🏢',
   };
@@ -184,6 +214,53 @@ function saveAgencyManage() {
   }
   closeAgencyManageModal();
   renderAgencyManage();
+}
+function renderAgencyMap() {
+  const groupsEl = document.getElementById('agmap-country-groups');
+  if (!groupsEl) return;
+
+  const byCountry = {};
+  MOCK_AGENCIES.forEach(a => {
+    const key = a.country || '미지정';
+    if (!byCountry[key]) byCountry[key] = [];
+    byCountry[key].push(a);
+  });
+
+  groupsEl.innerHTML = Object.entries(byCountry).map(([country, list]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">${list[0].flag} ${country} <span style="color:#9CA3AF;font-weight:500">(${list.length}개)</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${list.map(a => `
+          <div onclick="selectAgmPin(${a.id})" style="cursor:pointer;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='#fff'">
+            <i data-lucide="map-pin" style="color:#EF4444;width:16px;height:16px;flex-shrink:0"></i>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12.5px;font-weight:700;color:#111827">${a.name}</div>
+              <div style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.address || '주소 미등록'}</div>
+            </div>
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${a.status === 'active' ? '#D1FAE5' : '#F3F4F6'};color:${a.status === 'active' ? '#065F46' : '#6B7280'}">${a.status === 'active' ? '활성' : '비활성'}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+}
+
+function selectAgmPin(id) {
+  const a = MOCK_AGENCIES.find(x => x.id === id);
+  if (!a) return;
+  const infoEl = document.getElementById('agmap-selected-info');
+  const frame = document.getElementById('agmap-preview-frame');
+  if (infoEl) infoEl.innerHTML = `<strong>${a.flag} ${a.name}</strong> · ${a.country} &nbsp;·&nbsp; ${a.address || '주소 미등록'}`;
+  if (frame) {
+    if (a.address) {
+      frame.src = `https://maps.google.com/maps?q=${encodeURIComponent(a.address)}&output=embed`;
+      frame.style.display = 'block';
+    } else {
+      frame.style.display = 'none';
+    }
+  }
 }
 // ── 에이전시 관리 끝 ──────────────────────────────────
 

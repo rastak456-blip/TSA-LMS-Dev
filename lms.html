@@ -1532,6 +1532,10 @@
         <i data-lucide="building-2"></i>
         에이전시 관리
       </a>
+      <a class="tsa-nav-item admin-only" id="menu-agency-map" onclick="navigate('agency-map')">
+        <i data-lucide="map"></i>
+        에이전시 맵
+      </a>
     </nav>
 
     <div class="tsa-sidebar-footer">
@@ -3518,6 +3522,12 @@
             </div>
           </div>
 
+          <!-- 국가별 에이전시 수 집계 -->
+          <div class="tsa-card" style="padding:14px 18px;margin-bottom:20px">
+            <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:8px">🌍 국가별 에이전시 분포</div>
+            <div id="agm-country-stats" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+
           <!-- 테이블 -->
           <div class="tsa-card">
             <div class="tsa-card-body" style="padding:0">
@@ -3572,6 +3582,15 @@
               <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">이메일</label>
               <input id="agm-email" class="tsa-input" type="email" placeholder="agency@example.com" style="width:100%"/>
             </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">주소 <span style="font-size:10.5px;color:#9CA3AF;font-weight:400">(현지 방문 영업 시 활용)</span></label>
+              <div style="display:flex;gap:6px">
+                <input id="agm-address" class="tsa-input" placeholder="예: 서울특별시 강남구 테헤란로 123" style="width:100%" oninput="updateAgmMapPreview()"/>
+              </div>
+              <div id="agm-map-preview-wrap" style="margin-top:8px;display:none">
+                <iframe id="agm-map-preview" width="100%" height="160" style="border:1px solid #E5E7EB;border-radius:8px" loading="lazy"></iframe>
+              </div>
+            </div>
             <div style="background:#F8F9FF;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
               <div style="font-size:12px;font-weight:700;color:#5E5CE6;margin-bottom:2px">🔐 로그인 계정 설정</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3585,20 +3604,49 @@
                 </div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">커미션율 (%)</label>
-                <input id="agm-commission" class="tsa-input" type="number" min="0" max="100" value="10" style="width:100%"/>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">비고</label>
-                <input id="agm-note" class="tsa-input" placeholder="특이사항" style="width:100%"/>
-              </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">커미션율 (%)</label>
+              <input id="agm-commission" class="tsa-input" type="number" min="0" max="100" value="10" style="width:100%"/>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">특이사항 / SNS 연락처 <span style="font-size:10.5px;color:#9CA3AF;font-weight:400">(카카오톡·라인·위챗·페이스북 등 자유 기재)</span></label>
+              <textarea id="agm-note" class="tsa-input" rows="3" style="width:100%;resize:vertical;min-height:64px" placeholder="예: 라인 ID @kr_academy / 카카오톡 채널 한국영어마을 / 위챗 KR_Academy01"></textarea>
             </div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
             <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyManageModal()">취소</button>
             <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyManage()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: AGENCY MAP                                 -->
+        <!-- ================================================ -->
+        <div id="view-agency-map" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:20px">
+            <div>
+              <h2 class="tsa-page-title">🗺️ 에이전시 맵</h2>
+              <p class="tsa-page-subtitle">국가별 에이전시 위치 및 방문 영업 계획 수립</p>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px">
+            <!-- 좌측: 국가별 에이전시 핀 목록 -->
+            <div class="tsa-card">
+              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="pin" style="color:#5E5CE6"></i> 국가별 에이전시 목록</h3></div>
+              <div class="tsa-card-body" style="padding:14px;max-height:600px;overflow-y:auto">
+                <div id="agmap-country-groups"></div>
+              </div>
+            </div>
+
+            <!-- 우측: 선택 에이전시 지도 미리보기 -->
+            <div class="tsa-card">
+              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="map-pin" style="color:#EF4444"></i> 위치 미리보기</h3></div>
+              <div class="tsa-card-body" style="padding:14px">
+                <div id="agmap-selected-info" style="margin-bottom:10px;font-size:13px;color:#374151">좌측 목록에서 에이전시를 선택하세요.</div>
+                <iframe id="agmap-preview-frame" width="100%" height="420" style="border:1px solid #E5E7EB;border-radius:10px;display:none" loading="lazy"></iframe>
+              </div>
+            </div>
           </div>
         </div>
 
