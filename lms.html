@@ -1323,6 +1323,8 @@
       display: inline-block;
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body style="margin:0;padding:0;">
 
@@ -3639,12 +3641,12 @@
               </div>
             </div>
 
-            <!-- 우측: 선택 에이전시 지도 미리보기 -->
+            <!-- 우측: 전체 지도 (Leaflet) -->
             <div class="tsa-card">
-              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="map-pin" style="color:#EF4444"></i> 위치 미리보기</h3></div>
+              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="map-pin" style="color:#EF4444"></i> 위치 지도</h3></div>
               <div class="tsa-card-body" style="padding:14px">
-                <div id="agmap-selected-info" style="margin-bottom:10px;font-size:13px;color:#374151">좌측 목록에서 에이전시를 선택하세요.</div>
-                <iframe id="agmap-preview-frame" width="100%" height="420" style="border:1px solid #E5E7EB;border-radius:10px;display:none" loading="lazy"></iframe>
+                <div id="agmap-selected-info" style="margin-bottom:10px;font-size:13px;color:#374151">국가명을 클릭하면 해당 국가의 모든 지사가 지도에 표시되고, 지사를 클릭하면 확대됩니다.</div>
+                <div id="agmap-leaflet" style="width:100%;height:460px;border:1px solid #E5E7EB;border-radius:10px"></div>
               </div>
             </div>
           </div>

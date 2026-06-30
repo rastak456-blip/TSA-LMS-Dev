@@ -50,12 +50,14 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123' },
-  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1' },
-  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号' },
-  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam' },
+  { id: 1, name: '한국 영어마을 (강남본사)', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364 },
+  { id: 5, name: '한국 영어마을 (부산지사)', country: '한국', flag: '🇰🇷', contact: '이수진', phone: '+82-10-2345-6789', email: 'busan@talkstn.com', accountId: 'agency_busan', commissionRate: 10, status: 'active', createdAt: '2025-05-20', note: '카카오톡 채널 부산영어마을', address: '부산광역시 해운대구 센텀중앙로 90', lat: 35.1691, lng: 129.1306 },
+  { id: 6, name: '한국 영어마을 (대구지사)', country: '한국', flag: '🇰🇷', contact: '박민호', phone: '+82-10-3456-7890', email: 'daegu@talkstn.com', accountId: 'agency_daegu', commissionRate: 9, status: 'active', createdAt: '2025-07-01', note: '라인 ID @daegu_academy', address: '대구광역시 수성구 동대구로 200', lat: 35.8581, lng: 128.6324 },
+  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921 },
+  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322 },
+  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009 },
 ];
-let _agencyNextId = 5;
+let _agencyNextId = 7;
 
 function renderAgencyManage() {
   const tbody = document.getElementById('agency-manage-tbody');
@@ -215,9 +217,29 @@ function saveAgencyManage() {
   closeAgencyManageModal();
   renderAgencyManage();
 }
+let _agmMap = null;
+let _agmMarkers = {};
+
+function ensureAgmMap() {
+  const el = document.getElementById('agmap-leaflet');
+  if (!el || typeof L === 'undefined') return null;
+  if (_agmMap) {
+    setTimeout(() => _agmMap.invalidateSize(), 50);
+    return _agmMap;
+  }
+  _agmMap = L.map('agmap-leaflet').setView([25, 122], 3);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(_agmMap);
+  return _agmMap;
+}
+
 function renderAgencyMap() {
   const groupsEl = document.getElementById('agmap-country-groups');
   if (!groupsEl) return;
+
+  const map = ensureAgmMap();
 
   const byCountry = {};
   MOCK_AGENCIES.forEach(a => {
@@ -228,7 +250,11 @@ function renderAgencyMap() {
 
   groupsEl.innerHTML = Object.entries(byCountry).map(([country, list]) => `
     <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">${list[0].flag} ${country} <span style="color:#9CA3AF;font-weight:500">(${list.length}개)</span></div>
+      <div onclick="zoomAgmCountry('${country}')" style="cursor:pointer;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='transparent'">
+        <i data-lucide="globe" style="width:13px;height:13px;color:#5E5CE6"></i>
+        ${list[0].flag} ${country} <span style="color:#9CA3AF;font-weight:500">(${list.length}개)</span>
+        <span style="margin-left:auto;font-size:10px;color:#5E5CE6;font-weight:600">전체 보기 →</span>
+      </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${list.map(a => `
           <div onclick="selectAgmPin(${a.id})" style="cursor:pointer;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='#fff'">
@@ -244,22 +270,51 @@ function renderAgencyMap() {
     </div>
   `).join('');
 
+  // 지도 마커 갱신
+  if (map) {
+    Object.values(_agmMarkers).forEach(m => map.removeLayer(m));
+    _agmMarkers = {};
+    MOCK_AGENCIES.forEach(a => {
+      if (typeof a.lat !== 'number' || typeof a.lng !== 'number') return;
+      const marker = L.marker([a.lat, a.lng]).addTo(map);
+      marker.bindPopup(`<strong>${a.flag} ${a.name}</strong><br>${a.address || ''}`);
+      marker.on('click', () => selectAgmPin(a.id, false));
+      _agmMarkers[a.id] = marker;
+    });
+  }
+
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
-function selectAgmPin(id) {
+function zoomAgmCountry(country) {
+  const map = ensureAgmMap();
+  if (!map) return;
+  const infoEl = document.getElementById('agmap-selected-info');
+  const list = MOCK_AGENCIES.filter(a => (a.country || '미지정') === country && typeof a.lat === 'number');
+  if (list.length === 0) {
+    if (infoEl) infoEl.innerHTML = `<strong>${country}</strong> — 등록된 위치 정보가 없습니다.`;
+    return;
+  }
+  if (infoEl) infoEl.innerHTML = `<strong>${list[0].flag} ${country}</strong> 전체 지사 ${list.length}곳을 지도에 표시 중입니다.`;
+  if (list.length === 1) {
+    map.setView([list[0].lat, list[0].lng], 12);
+  } else {
+    const bounds = L.latLngBounds(list.map(a => [a.lat, a.lng]));
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }
+}
+
+function selectAgmPin(id, openPopup) {
+  if (openPopup === undefined) openPopup = true;
   const a = MOCK_AGENCIES.find(x => x.id === id);
   if (!a) return;
   const infoEl = document.getElementById('agmap-selected-info');
-  const frame = document.getElementById('agmap-preview-frame');
   if (infoEl) infoEl.innerHTML = `<strong>${a.flag} ${a.name}</strong> · ${a.country} &nbsp;·&nbsp; ${a.address || '주소 미등록'}`;
-  if (frame) {
-    if (a.address) {
-      frame.src = `https://maps.google.com/maps?q=${encodeURIComponent(a.address)}&output=embed`;
-      frame.style.display = 'block';
-    } else {
-      frame.style.display = 'none';
-    }
+  const map = ensureAgmMap();
+  if (map && typeof a.lat === 'number' && typeof a.lng === 'number') {
+    map.setView([a.lat, a.lng], 15);
+    const marker = _agmMarkers[a.id];
+    if (marker && openPopup) marker.openPopup();
   }
 }
 // ── 에이전시 관리 끝 ──────────────────────────────────
