@@ -56,8 +56,9 @@ let MOCK_AGENCIES = [
   { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', lat: 34.7024, lng: 135.4959 },
   { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322 },
   { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009 },
+  { id: 9, name: '직접 등록', country: '한국', flag: '🏢', contact: 'TSA 본사', phone: '-', email: '-', accountId: '-', commissionRate: 0, status: 'active', createdAt: '2025-01-01', note: '에이전시를 거치지 않고 자사가 직접 등록한 학생', address: '', lat: null, lng: null },
 ];
-let _agencyNextId = 9;
+let _agencyNextId = 10;
 
 function renderAgencyManage() {
   const tbody = document.getElementById('agency-manage-tbody');
@@ -95,11 +96,12 @@ function renderAgencyManage() {
       <td style="text-align:center;font-size:13px;font-weight:700;color:#5E5CE6">${a.commissionRate}%</td>
       <td style="text-align:center">${statusBadge}</td>
       <td>
+        ${a.name === '직접 등록' ? '' : `
         <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
           <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="viewAsAgency('${a.accountId}')">포털 보기</button>
           <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openAgencyEditModal(${a.id})">수정</button>
           <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="toggleAgencyStatus(${a.id})">${a.status === 'active' ? '비활성화' : '활성화'}</button>
-        </div>
+        </div>`}
       </td>
     </tr>`;
   }).join('');
