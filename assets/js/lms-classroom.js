@@ -50,9 +50,9 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을 (강남본사)', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364 },
-  { id: 5, name: '한국 영어마을 (부산지사)', country: '한국', flag: '🇰🇷', contact: '이수진', phone: '+82-10-2345-6789', email: 'busan@talkstn.com', accountId: 'agency_busan', commissionRate: 10, status: 'active', createdAt: '2025-05-20', note: '카카오톡 채널 부산영어마을', address: '부산광역시 해운대구 센텀중앙로 90', lat: 35.1691, lng: 129.1306 },
-  { id: 6, name: '한국 영어마을 (대구지사)', country: '한국', flag: '🇰🇷', contact: '박민호', phone: '+82-10-3456-7890', email: 'daegu@talkstn.com', accountId: 'agency_daegu', commissionRate: 9, status: 'active', createdAt: '2025-07-01', note: '라인 ID @daegu_academy', address: '대구광역시 수성구 동대구로 200', lat: 35.8581, lng: 128.6324 },
+  { id: 1, name: '한국 영어마을', branch: '강남본사', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364 },
+  { id: 5, name: '한국 영어마을', branch: '부산지사', country: '한국', flag: '🇰🇷', contact: '이수진', phone: '+82-10-2345-6789', email: 'busan@talkstn.com', accountId: 'agency_busan', commissionRate: 10, status: 'active', createdAt: '2025-05-20', note: '카카오톡 채널 부산영어마을', address: '부산광역시 해운대구 센텀중앙로 90', lat: 35.1691, lng: 129.1306 },
+  { id: 6, name: '한국 영어마을', branch: '대구지사', country: '한국', flag: '🇰🇷', contact: '박민호', phone: '+82-10-3456-7890', email: 'daegu@talkstn.com', accountId: 'agency_daegu', commissionRate: 9, status: 'active', createdAt: '2025-07-01', note: '라인 ID @daegu_academy', address: '대구광역시 수성구 동대구로 200', lat: 35.8581, lng: 128.6324 },
   { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921 },
   { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322 },
   { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009 },
@@ -63,24 +63,34 @@ function renderAgencyManage() {
   const tbody = document.getElementById('agency-manage-tbody');
   if (!tbody) return;
 
+  // 같은 상위 에이전시명(name)을 공유하는 지사가 여러 개일 경우, 학생 수는
+  // 첫 번째(대표) 지사에서만 집계하여 중복 카운트를 방지한다.
+  const seenAgencyName = {};
   tbody.innerHTML = MOCK_AGENCIES.map(a => {
-    const studentCount = MOCK_STUDENTS.filter(s => s.agency === a.name).length;
-    const activeCount  = MOCK_STUDENTS.filter(s => s.agency === a.name && (s.status === 'current' || s.status === 'extended')).length;
+    const isPrimaryForName = !seenAgencyName[a.name];
+    seenAgencyName[a.name] = true;
+
+    const studentCount = isPrimaryForName ? MOCK_STUDENTS.filter(s => s.agency === a.name).length : null;
+    const activeCount  = isPrimaryForName ? MOCK_STUDENTS.filter(s => s.agency === a.name && (s.status === 'current' || s.status === 'extended')).length : null;
     const statusBadge = a.status === 'active'
       ? `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#D1FAE5;color:#065F46">활성</span>`
       : `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#F3F4F6;color:#6B7280">비활성</span>`;
 
+    const displayName = a.branch ? `${a.name} <span style="font-weight:600;color:#5E5CE6">· ${a.branch}</span>` : a.name;
+    const studentCell = isPrimaryForName
+      ? `<div style="font-size:14px;font-weight:800;color:#111827">${studentCount}명</div><div style="font-size:10.5px;color:#10B981">재학 ${activeCount}명</div>`
+      : `<div style="font-size:11px;color:#9CA3AF">본사 통합 집계</div>`;
+
     return `<tr>
       <td>
-        <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${a.name}</div>
+        <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${displayName}</div>
         <div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country} · 담당: ${a.contact}</div>
         <div style="font-size:11px;color:#9CA3AF">${a.phone}</div>
       </td>
       <td style="font-size:12px;color:#374151">${a.email}</td>
       <td style="font-size:12px;font-weight:600;color:#374151">${a.accountId}</td>
       <td style="text-align:center">
-        <div style="font-size:14px;font-weight:800;color:#111827">${studentCount}명</div>
-        <div style="font-size:10.5px;color:#10B981">재학 ${activeCount}명</div>
+        ${studentCell}
       </td>
       <td style="text-align:center;font-size:13px;font-weight:700;color:#5E5CE6">${a.commissionRate}%</td>
       <td style="text-align:center">${statusBadge}</td>
@@ -120,11 +130,14 @@ function renderAgencyManage() {
     countryStatsEl.innerHTML = buildDonutChartHtml(entries, colorMapWithFlag, `${total}개`, '에이전시');
   }
 
-  // 국가별 소속 학생 수 — 도넛 차트
+  // 국가별 소속 학생 수 — 도넛 차트 (같은 이름의 지사가 여러 개여도 학생은 한 번만 집계)
   const studentChartEl = document.getElementById('agm-country-student-chart');
   if (studentChartEl && typeof buildDonutChartHtml === 'function') {
     const studentCounts = {};
+    const countedAgencyName = {};
     MOCK_AGENCIES.forEach(a => {
+      if (countedAgencyName[a.name]) return;
+      countedAgencyName[a.name] = true;
       const key = a.country || '미지정';
       const cnt = MOCK_STUDENTS.filter(s => s.agency === a.name).length;
       studentCounts[key] = (studentCounts[key] || 0) + cnt;
@@ -278,7 +291,7 @@ function renderAgencyMap() {
           <div onclick="selectAgmPin(${a.id})" style="cursor:pointer;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background='#F8F9FF'" onmouseout="this.style.background='#fff'">
             <i data-lucide="map-pin" style="color:#EF4444;width:16px;height:16px;flex-shrink:0"></i>
             <div style="flex:1;min-width:0">
-              <div style="font-size:12.5px;font-weight:700;color:#111827">${a.name}</div>
+              <div style="font-size:12.5px;font-weight:700;color:#111827">${a.name}${a.branch ? ` · ${a.branch}` : ''}</div>
               <div style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.address || '주소 미등록'}</div>
             </div>
             <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${a.status === 'active' ? '#D1FAE5' : '#F3F4F6'};color:${a.status === 'active' ? '#065F46' : '#6B7280'}">${a.status === 'active' ? '활성' : '비활성'}</span>
@@ -295,7 +308,7 @@ function renderAgencyMap() {
     MOCK_AGENCIES.forEach(a => {
       if (typeof a.lat !== 'number' || typeof a.lng !== 'number') return;
       const marker = L.marker([a.lat, a.lng]).addTo(map);
-      marker.bindPopup(`<strong>${a.flag} ${a.name}</strong><br>${a.address || ''}`);
+      marker.bindPopup(`<strong>${a.flag} ${a.name}${a.branch ? ` · ${a.branch}` : ''}</strong><br>${a.address || ''}`);
       marker.on('click', () => selectAgmPin(a.id, false));
       _agmMarkers[a.id] = marker;
     });
@@ -327,7 +340,7 @@ function selectAgmPin(id, openPopup) {
   const a = MOCK_AGENCIES.find(x => x.id === id);
   if (!a) return;
   const infoEl = document.getElementById('agmap-selected-info');
-  if (infoEl) infoEl.innerHTML = `<strong>${a.flag} ${a.name}</strong> · ${a.country} &nbsp;·&nbsp; ${a.address || '주소 미등록'}`;
+  if (infoEl) infoEl.innerHTML = `<strong>${a.flag} ${a.name}${a.branch ? ` · ${a.branch}` : ''}</strong> · ${a.country} &nbsp;·&nbsp; ${a.address || '주소 미등록'}`;
   const map = ensureAgmMap();
   if (map && typeof a.lat === 'number' && typeof a.lng === 'number') {
     map.setView([a.lat, a.lng], 15);
