@@ -1154,7 +1154,7 @@ function renderAgencyDormList() {
     const vacant = r.total - r.occupied - r.reserved;
     const statusColor = vacant > 0 ? '#10B981' : '#EF4444';
     const statusLabel = vacant > 0 ? `공실 ${vacant}석` : '만실';
-    const accomBadgeColor = r.accomType === '콘도' ? '#8B5CF6' : '#5E5CE6';
+    const accomBadgeColor = r.accomType === 'IT Park 콘도' ? '#8B5CF6' : '#5E5CE6';
     const rowKey = `${r.accomType}__${r.cap}__${r.grade}`;
 
     // 해당 타입 대기 학생 목록
@@ -1259,7 +1259,7 @@ function renderAgencyDormRoomGrid() {
     groups[key].rooms.push(r);
   });
 
-  const accomColor = { '기숙사': '#5E5CE6', '콘도': '#8B5CF6' };
+  const accomColor = { '가든 호텔': '#5E5CE6', 'IT Park 콘도': '#8B5CF6' };
   const genderIcon = { '남성': '♂', '여성': '♀', '무관': '⚥' };
   const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#6B7280' };
 
@@ -1409,7 +1409,7 @@ function renderDormWaitingList(filter) {
 
   tbody.innerHTML = students.map(s => {
     const genderLabel = s.gender === '남' ? '남성' : '여성';
-    const accomColor = s.dormAccomType === '콘도' ? '#8B5CF6' : '#5E5CE6';
+    const accomColor = s.dormAccomType === 'IT Park 콘도' ? '#8B5CF6' : '#5E5CE6';
     return `
       <tr style="transition:background 0.12s" onmouseenter="this.style.background='#F9FAFB'" onmouseleave="this.style.background=''">
         <td>

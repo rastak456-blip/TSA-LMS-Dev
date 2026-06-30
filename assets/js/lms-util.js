@@ -92,6 +92,7 @@ function navigate(view) {
   } else if (view === 'agency-students') {
     if (typeof initAgencyStudentList === 'function') initAgencyStudentList();
   } else if (view === 'agency-dorm') {
+    if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
     searchAgencyDormVacancy();
     if (typeof renderAgencyDormBookHistory === 'function') renderAgencyDormBookHistory();
   } else if (view === 'agency-invoice') {
@@ -103,6 +104,7 @@ function navigate(view) {
   } else if (view === 'teachers') {
     if (typeof initTeacherList === 'function') initTeacherList();
   } else if (view === 'dorm-erp') {
+    if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
     renderDormErpGrid();
   } else if (view === 'classroom-status') {
     renderClassroomManage();
