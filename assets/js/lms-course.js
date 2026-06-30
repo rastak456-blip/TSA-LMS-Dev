@@ -190,7 +190,7 @@ function initAgencyKPIs_legacy() {
   const newCount = students.filter(s => s.status === 'new').length;
   newCountEl.textContent = `${newCount}건`;
 
-  const unpaidStudents = students.filter(s => s.remittanceStatus === 'unpaid' || s.remittanceStatus === 'submitted');
+  const unpaidStudents = students.filter(s => s.remittanceStatus === 'unpaid');
   let unpaidSum = 0;
   unpaidStudents.forEach(s => {
     const prices = calculatePrices(s);
@@ -208,8 +208,8 @@ function initAgencyKPIs_legacy() {
   }).length;
   visaEl.textContent = `${visaExpCount}명`;
 
-  // 미납 송금 건수 (대기 학생 제외, unpaid/submitted만)
-  const unpaidRemitCount = students.filter(s => s.status !== '대기' && (s.remittanceStatus === 'unpaid' || s.remittanceStatus === 'submitted')).length;
+  // 미납 송금 건수 (대기 학생 제외)
+  const unpaidRemitCount = students.filter(s => s.status !== '대기' && s.remittanceStatus === 'unpaid').length;
   if (dormEl) dormEl.textContent = `${unpaidRemitCount}건`;
 
   let commSum = 0;
@@ -343,7 +343,7 @@ function initAgencyRequestInbox() {
   }
 }
 
-function openRemitRequestModal()  { alert('송금 영수증 제출 모달 (추후 구현 예정)'); }
+function openRemitRequestModal()  { alert('입금 확인서 제출 모달 (추후 구현 예정)'); }
 function openChangeRequestModal() { alert('학생 정보 변경 요청 모달 (추후 구현 예정)'); }
 
 let agencySelectedStudentIds = [];
@@ -507,7 +507,7 @@ function initAgencyDormRemit() {
       const prices = calculatePrices(s);
       const net = prices.net;
       const isWaiting  = s.status === 'waiting';
-      const isSubmitted = s.remittanceStatus === 'submitted';
+      const isSubmitted = s.remittanceStatus === 'paid';
       const hasDraft   = !isSubmitted && (s.remittanceMemo || s.remittanceReceipt);
 
       totalNet += net;
@@ -610,7 +610,7 @@ function renderRemitHistory(agencyStudents) {
 
   // 실제 제출된 학생도 병합
   agencyStudents
-    .filter(s => s.remittanceStatus === 'submitted' || s.remittanceStatus === 'paid')
+    .filter(s => s.remittanceStatus === 'paid')
     .forEach(s => {
       const already = mockHistory.find(r => r.studentName && r.studentName.includes(s.nick));
       if (!already) {
@@ -734,18 +734,18 @@ function submitAgencyRemittanceModal() {
   if (!s) return;
 
   if (!remitModalFile) {
-    showToast('⚠ 은행 송금 영수증 파일을 첨부해 주세요.', 'danger');
+    showToast('⚠ 입금 확인서 파일을 첨부해 주세요.', 'danger');
     return;
   }
 
   const memoEl = document.getElementById('remit-modal-memo');
-  s.remittanceStatus = 'submitted';
+  s.remittanceStatus = 'paid';
   s.remittanceReceipt = remitModalFile;
   s.remittanceDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
   s.remittanceMemo = memoEl ? memoEl.value.trim() : (s.remittanceMemo || '');
 
   closeModal('modal-remit-submit');
-  showToast(`✓ ${s.name} 학생의 송금 영수증이 어드민 승인 대기함으로 전송되었습니다.`, 'success');
+  showToast(`✓ ${s.name} 학생의 입금 확인서가 제출되어 완납 처리되었습니다.`, 'success');
 
   initAgencyDormRemit();
   initAgencyStudentList();
@@ -778,7 +778,6 @@ function initAgencyInvoice() {
 
     let paidLabel = '미납', paidClass = 'tsa-badge-danger';
     if (s.remittanceStatus === 'paid') { paidLabel = '완납'; paidClass = 'tsa-badge-success'; }
-    else if (s.remittanceStatus === 'submitted') { paidLabel = '승인대기'; paidClass = 'tsa-badge-warning'; }
 
     let statusLabel = '입학 대기', statusClass = 'tsa-badge-warning';
     if (s.status === 'current') { statusLabel = '재학'; statusClass = 'tsa-badge-success'; }
@@ -905,7 +904,7 @@ function initAgencyStudentList() {
   const invoiceFilter = document.getElementById('filter-agency-invoice').value;
   if (invoiceFilter !== 'all') {
     list = list.filter(s => {
-      const hasInvoice = s.remittanceStatus === 'paid' || s.remittanceStatus === 'submitted';
+      const hasInvoice = s.remittanceStatus === 'paid';
       return invoiceFilter === 'issued' ? hasInvoice : !hasInvoice;
     });
   }
@@ -930,9 +929,7 @@ function initAgencyStudentList() {
 
   const checkedPaid = Array.from(document.querySelectorAll('.filter-agency-paid-cb:checked')).map(cb => cb.value);
   list = list.filter(s => {
-    let state = 'unpaid';
-    if (s.remittanceStatus === 'paid') state = 'paid';
-    else if (s.remittanceStatus === 'submitted') state = 'partial';
+    const state = s.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
     return checkedPaid.includes(state);
   });
 
@@ -954,7 +951,6 @@ function initAgencyStudentList() {
     let paidLabel = '미납';
     let paidClass = 'tsa-badge-danger';
     if (s.remittanceStatus === 'paid') { paidLabel = '완납'; paidClass = 'tsa-badge-success'; }
-    else if (s.remittanceStatus === 'submitted') { paidLabel = '승인대기'; paidClass = 'tsa-badge-warning'; }
 
     const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
 
@@ -1878,15 +1874,15 @@ function submitAgencyRemittance() {
   if (!s) return;
 
   if (!remitSelectedFile) {
-    showToast('⚠ 해외 송금 확인을 위한 은행 영수증 증빙 파일을 첨부해 주세요.', 'danger');
+    showToast('⚠ 해외 송금 확인을 위한 입금 확인서 파일을 첨부해 주세요.', 'danger');
     return;
   }
 
-  s.remittanceStatus = 'submitted';
+  s.remittanceStatus = 'paid';
   s.remittanceReceipt = remitSelectedFile;
   s.remittanceDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
-  showToast(`✓ ${s.name} 학생의 순 송금액(Net) 영수증이 어드민 승인 대기함으로 전송되었습니다.`, 'success');
+  showToast(`✓ ${s.name} 학생의 순 송금액(Net) 입금 확인서가 제출되어 완납 처리되었습니다.`, 'success');
 
   document.getElementById('remit-student-select').value = '';
   updateAgencyRemittanceDetails();
@@ -2364,7 +2360,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           ${isAgency ? `
           <!-- 송금 영수증 제출 섹션 (에이전시용) -->
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 송금 영수증 제출</div>
+            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 입금 확인서 제출</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
               <div class="tsa-form-group" style="margin:0">
                 <label class="tsa-label" style="font-size:11px">송금 일자</label>
@@ -2405,7 +2401,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
 
           <!-- 송금 영수증 제출 내역 -->
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 송금 영수증 제출 이력 (B2B Net 정산)</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 입금 확인서 제출 이력 (B2B Net 정산)</div>
             ${(() => {
               // MOCK_REMIT_REQUESTS(대시보드)와 s.remittanceHistory(직접 제출) 통합
               const fromDashboard = (typeof MOCK_REMIT_REQUESTS !== 'undefined'
@@ -2437,7 +2433,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               const history = [...fromDashboard, ...fromLocal];
 
               if (history.length === 0) {
-                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 B2B 송금 영수증이 없습니다.</div>`;
+                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 B2B 입금 확인서가 없습니다.</div>`;
               }
               return `<table class="tsa-table" style="font-size:11.5px">
                 <thead>
@@ -2739,9 +2735,9 @@ function submitRemittanceReceipt(studentId, editIdx) {
       entry.bank = bank;
       entry.memo = memo;
       if (fileName) entry.fileName = fileName;
-      entry.status = 'pending';
+      entry.status = 'approved';
     }
-    showToast('✅ 송금 영수증이 수정되었습니다. 어드민 재검토 후 처리됩니다.', 'success');
+    showToast('✅ 입금 확인서가 수정되었습니다.', 'success');
   } else {
     s.remittanceHistory.unshift({
       submittedAt: new Date().toISOString().slice(0, 10),
@@ -2750,10 +2746,10 @@ function submitRemittanceReceipt(studentId, editIdx) {
       bank,
       memo,
       fileName,
-      status: 'pending'
+      status: 'approved'
     });
-    s.remittanceStatus = 'submitted';
-    showToast('✅ 송금 영수증이 제출되었습니다. 어드민 승인 후 완납 처리됩니다.', 'success');
+    s.remittanceStatus = 'paid';
+    showToast('✅ 입금 확인서가 제출되어 완납 처리되었습니다.', 'success');
   }
 
   switchAdetailTab('settle');

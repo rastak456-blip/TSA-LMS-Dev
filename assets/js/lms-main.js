@@ -48,13 +48,7 @@ function enhanceMockStudents() {
 
     // 4. Invoice Status (미제출 / 제출 / 반려 / 완납)
     if (!s.invoiceStatus) {
-      if (s.remittanceStatus === 'paid') {
-        s.invoiceStatus = 'approved'; // 완납(승인됨)
-      } else if (s.remittanceStatus === 'submitted') {
-        s.invoiceStatus = 'submitted'; // 제출
-      } else {
-        s.invoiceStatus = 'unsubmitted'; // 미제출
-      }
+      s.invoiceStatus = s.remittanceStatus === 'paid' ? 'approved' : 'unsubmitted';
     }
 
     // 5. Passport & Flight default if not present
@@ -2373,13 +2367,13 @@ let _monthStatsFilter = 'all';
 
 function setMonthStatsFilter(filter) {
   _monthStatsFilter = filter;
-  ['all','paid','submitted','unpaid'].forEach(f => {
+  ['all','paid','unpaid'].forEach(f => {
     const btn = document.getElementById(`ms-filter-${f}`);
     if (!btn) return;
     btn.classList.toggle('tsa-btn-primary', f === filter);
     btn.classList.toggle('tsa-btn-outline', f !== filter);
     if (f !== filter) {
-      const colors = { paid: '#10B981', submitted: '#D97706', unpaid: '#EF4444' };
+      const colors = { paid: '#10B981', unpaid: '#EF4444' };
       btn.style.borderColor = colors[f] || '';
       btn.style.color = colors[f] || '';
     } else {
@@ -2404,29 +2398,25 @@ function renderMonthlyInvoiceStats() {
   });
 
   if (_monthStatsFilter === 'paid') monthStudents = monthStudents.filter(s => s.remittanceStatus === 'paid');
-  else if (_monthStatsFilter === 'submitted') monthStudents = monthStudents.filter(s => s.remittanceStatus === 'submitted');
-  else if (_monthStatsFilter === 'unpaid') monthStudents = monthStudents.filter(s => !s.remittanceStatus || (s.remittanceStatus !== 'paid' && s.remittanceStatus !== 'submitted'));
+  else if (_monthStatsFilter === 'unpaid') monthStudents = monthStudents.filter(s => s.remittanceStatus !== 'paid');
 
   // KPI 카드 업데이트 — 전체 학생 기준 (필터 전)
   const allMonthStudents = students.filter(s => {
     const dateStr = s.arrivalDate || s.startDate;
     return dateStr && dateStr.startsWith(selectedMonth);
   });
-  let paidNet = 0, pendingNet = 0, unpaidNet = 0, totalComm = 0;
-  let paidCnt = 0, pendingCnt = 0, unpaidCnt = 0;
+  let paidNet = 0, unpaidNet = 0, totalComm = 0;
+  let paidCnt = 0, unpaidCnt = 0;
   allMonthStudents.forEach(s => {
     const p = calculatePrices(s);
     totalComm += p.commission;
     if (s.remittanceStatus === 'paid') { paidNet += p.net; paidCnt++; }
-    else if (s.remittanceStatus === 'submitted') { pendingNet += p.net; pendingCnt++; }
     else { unpaidNet += p.net; unpaidCnt++; }
   });
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setEl('month-stat-new-count',         `${allMonthStudents.length}건`);
   setEl('month-stat-paid-amount',       `$${paidNet.toLocaleString()}`);
   setEl('month-stat-paid-count',        `${paidCnt}`);
-  setEl('month-stat-pending-amount',    `$${pendingNet.toLocaleString()}`);
-  setEl('month-stat-pending-count',     `${pendingCnt}`);
   setEl('month-stat-unpaid-amount',     `$${unpaidNet.toLocaleString()}`);
   setEl('month-stat-unpaid-count',      `${unpaidCnt}`);
   setEl('month-stat-commission-amount', `$${totalComm.toLocaleString()}`);
@@ -2456,17 +2446,14 @@ function renderMonthlyInvoiceStats() {
   };
 
   const remitBadge = (s) => {
-    if (s.remittanceStatus === 'paid')      return `<span class="tsa-badge tsa-badge-success">완납</span>`;
-    if (s.remittanceStatus === 'submitted') return `<span class="tsa-badge tsa-badge-warning">승인대기</span>`;
+    if (s.remittanceStatus === 'paid') return `<span class="tsa-badge tsa-badge-success">완납</span>`;
     return `<span class="tsa-badge tsa-badge-danger">미납</span>`;
   };
 
   const invoiceBadge = (s) => {
     let badgeHtml = '';
     if (s.invoiceStatus === 'approved') {
-      badgeHtml = `<span class="tsa-badge tsa-badge-success" style="font-size:11px;cursor:pointer">✅ 승인</span>`;
-    } else if (s.invoiceStatus === 'submitted') {
-      badgeHtml = `<span class="tsa-badge tsa-badge-warning" style="font-size:11px;cursor:pointer">📤 제출됨</span>`;
+      badgeHtml = `<span class="tsa-badge tsa-badge-success" style="font-size:11px;cursor:pointer">✅ 완납</span>`;
     } else if (s.invoiceStatus === 'rejected') {
       badgeHtml = `<span class="tsa-badge tsa-badge-danger"  style="font-size:11px;cursor:pointer">❌ 반려</span>`;
     } else {
@@ -2525,15 +2512,13 @@ function renderMonthlyInvoiceStats() {
 
   // 합계 행
   if (tfoot) {
-    const pendingCount = monthStudents.filter(s => s.remittanceStatus === 'submitted').length;
     tfoot.innerHTML = `
       <tr style="background:#F0F4FF;font-weight:800;border-top:2px solid #C7D2FE">
         <td style="padding:10px 8px;text-align:center;color:#9CA3AF;font-size:11px"></td>
         <td colspan="3" style="padding:10px 12px;font-size:12px;color:#1E3A8A">
           합계 · 총 ${monthStudents.length}명
           <span style="font-size:10.5px;font-weight:600;color:#059669;margin-left:6px">완납 ${paidCount}명</span>
-          <span style="font-size:10.5px;font-weight:600;color:#D97706;margin-left:4px">대기 ${pendingCount}명</span>
-          <span style="font-size:10.5px;font-weight:600;color:#EF4444;margin-left:4px">미납 ${unpaidCount - pendingCount < 0 ? 0 : unpaidCount - pendingCount}명</span>
+          <span style="font-size:10.5px;font-weight:600;color:#EF4444;margin-left:4px">미납 ${unpaidCount}명</span>
         </td>
         <td style="text-align:right;color:#374151;padding:10px 8px">$${sumTuition.toLocaleString()}</td>
         <td style="text-align:right;color:#374151;padding:10px 8px">$${sumDorm.toLocaleString()}</td>
@@ -2728,9 +2713,9 @@ function resetTagForm() {
 function submitInvoiceForApproval(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
-    s.invoiceStatus = 'submitted';
-    s.remittanceStatus = 'submitted';
-    showToast('✓ 인보이스 정산 영수증이 본사 어드민으로 정상 제출되었습니다.', 'success');
+    s.invoiceStatus = 'approved';
+    s.remittanceStatus = 'paid';
+    showToast('✓ 입금 확인서가 제출되어 완납 처리되었습니다.', 'success');
     refreshInvoiceViews(studentId);
   }
 }

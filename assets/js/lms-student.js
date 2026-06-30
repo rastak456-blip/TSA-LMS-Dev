@@ -152,12 +152,9 @@ function applyStudentFilters() {
     }
   }
 
-  // 납부 현황 (체크박스) — submitted → partial 매핑
-  const normPaid = s => {
-    const r = s.remittanceStatus || 'unpaid';
-    return r === 'submitted' ? 'partial' : r;
-  };
-  if (checkedPaid.length > 0 && checkedPaid.length < 3) {
+  // 납부 현황 (체크박스)
+  const normPaid = s => s.remittanceStatus || 'unpaid';
+  if (checkedPaid.length > 0 && checkedPaid.length < 2) {
     list = list.filter(s => checkedPaid.includes(normPaid(s)));
   }
 

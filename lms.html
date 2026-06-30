@@ -1717,8 +1717,8 @@
               </div>
             </div>
             <div class="tsa-card-body" style="padding:18px">
-              <!-- 송금 영수증 승인 -->
-              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 송금 영수증 승인 대기</div>
+              <!-- 입금 확인서 내역 -->
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 입금 확인서 제출 내역</div>
               <div style="overflow-x:auto;margin-bottom:20px">
                 <table class="tsa-table" style="font-size:11.5px">
                   <thead>
@@ -1726,7 +1726,7 @@
                       <th>에이전시</th>
                       <th>학생 성명</th>
                       <th>Net 청구액</th>
-                      <th>송금 영수증</th>
+                      <th>입금 확인서</th>
                       <th>송금 일시</th>
                       <th style="text-align:center">동작</th>
                     </tr>
@@ -1966,7 +1966,6 @@
                 <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px">
                   <span style="font-size:11.5px;font-weight:700;color:#4B5563;white-space:nowrap">납부:</span>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="paid" checked onchange="applyStudentFilters()"/> 완납</label>
-                  <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="partial" checked onchange="applyStudentFilters()"/> 승인대기</label>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="unpaid" checked onchange="applyStudentFilters()"/> 미납</label>
                   <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="resetStudentFilters()" style="margin-left:8px;white-space:nowrap">초기화</button>
                 </div>
@@ -2261,7 +2260,7 @@
             <div style="display:flex;border-bottom:1px solid #E5E7EB;padding:0 18px;gap:0">
               <button id="req-tab-remit" onclick="switchReqTab('remit')"
                   style="padding:10px 18px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid #D97706;color:#D97706">
-                  💰 송금 영수증 제출
+                  💰 입금 확인서
                 </button>
                 <button id="req-tab-change" onclick="switchReqTab('change')"
                   style="padding:10px 18px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280">
@@ -2272,9 +2271,9 @@
               <!-- 송금 영수증 탭 -->
               <div id="req-panel-remit" style="padding:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 영수증을 제출하면 어드민이 확인 후 납부 완료 처리합니다.</div>
+                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 입금 확인서를 제출하면 완납 처리됩니다.</div>
                   <button class="tsa-btn tsa-btn-warning tsa-btn-sm" onclick="openRemitRequestModal()">
-                    <i data-lucide="plus-square"></i> 새 송금 영수증 제출
+                    <i data-lucide="plus-square"></i> 새 입금 확인서 제출
                   </button>
                 </div>
                 <div style="overflow-x:auto">
@@ -2423,7 +2422,6 @@
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="font-size:11.5px;font-weight:700;color:#4B5563">납부 현황:</span>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="paid" checked onchange="filterAgencyStudentList()"/> 완납</label>
-                  <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="partial" checked onchange="filterAgencyStudentList()"/> 승인대기</label>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="unpaid" checked onchange="filterAgencyStudentList()"/> 미납</label>
                 </div>
                 <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="resetAgencyFilters()">필터 초기화</button>
@@ -3459,7 +3457,6 @@
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:24px">
             <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">해당 월 신규 등록</div><div class="tsa-stat-value" id="month-stat-new-count" style="font-size:24px">0건</div><div class="tsa-stat-change" style="color:#6B7280">시작일/도착일 기준</div></div><div class="tsa-stat-icon" style="background:#EEF2FF;color:#5E5CE6"><i data-lucide="plus-square"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('paid')"><div><div class="tsa-stat-label">당월 수납 완료 금액</div><div class="tsa-stat-value" id="month-stat-paid-amount" style="font-size:24px;color:#10B981">$0</div><div class="tsa-stat-change" style="color:#10B981">완납 Net 총액 · <span id="month-stat-paid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#D1FAE5;color:#10B981"><i data-lucide="check-circle"></i></div></div>
-            <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('submitted')"><div><div class="tsa-stat-label">승인 대기 금액</div><div class="tsa-stat-value" id="month-stat-pending-amount" style="font-size:24px;color:#D97706">$0</div><div class="tsa-stat-change" style="color:#D97706">제출 후 승인 대기 · <span id="month-stat-pending-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#FEF3C7;color:#D97706"><i data-lucide="clock"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('unpaid')"><div><div class="tsa-stat-label">미납 금액</div><div class="tsa-stat-value" id="month-stat-unpaid-amount" style="font-size:24px;color:#EF4444">$0</div><div class="tsa-stat-change" style="color:#EF4444">미송금 Net 총액 · <span id="month-stat-unpaid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#FEE2E2;color:#EF4444"><i data-lucide="alert-circle"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">총 커미션 금액</div><div class="tsa-stat-value" id="month-stat-commission-amount" style="font-size:24px;color:#7C3AED">$0</div><div class="tsa-stat-change" style="color:#7C3AED">해당 월 전체 커미션 합계</div></div><div class="tsa-stat-icon" style="background:#F5F3FF;color:#7C3AED"><i data-lucide="percent"></i></div></div>
           </div>
@@ -3470,7 +3467,6 @@
                 <span style="font-size:11.5px;font-weight:600;color:#6B7280">납부 필터:</span>
                 <button id="ms-filter-all" class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="setMonthStatsFilter('all')">전체</button>
                 <button id="ms-filter-paid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('paid')" style="border-color:#10B981;color:#10B981">완납</button>
-                <button id="ms-filter-submitted" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('submitted')" style="border-color:#D97706;color:#D97706">승인대기</button>
                 <button id="ms-filter-unpaid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('unpaid')" style="border-color:#EF4444;color:#EF4444">미납</button>
               </div>
             </div>
@@ -5728,8 +5724,8 @@
       <div style="display:flex;align-items:center;gap:10px">
         <i data-lucide="send" style="color:#5E5CE6;font-size:18px"></i>
         <div>
-          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 송금 영수증 제출</div>
-          <div style="font-size:11px;color:#6B7280">어드민 검토 후 최종 반영됩니다</div>
+          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 입금 확인서 제출</div>
+          <div style="font-size:11px;color:#6B7280">제출 즉시 완납 처리됩니다</div>
         </div>
       </div>
       <button onclick="closeModal('modal-remit-submit')" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:20px;line-height:1">×</button>
