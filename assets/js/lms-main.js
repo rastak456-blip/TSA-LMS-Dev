@@ -1331,15 +1331,6 @@ function openRoomDetailModal(idx) {
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-function switchRoomDetailTab(tab) {
-  ['info','elec','laundry'].forEach(t => {
-    const btn = document.getElementById(`rdm-tab-${t}`);
-    const panel = document.getElementById(`rdm-panel-${t}`);
-    if (btn) { btn.style.color = t === tab ? '#5E5CE6' : '#9CA3AF'; btn.style.borderBottomColor = t === tab ? '#5E5CE6' : 'transparent'; btn.style.fontWeight = t === tab ? '700' : '600'; }
-    if (panel) panel.style.display = t === tab ? 'block' : 'none';
-  });
-}
-
 function saveRoomDetailInfo() {
   const room = MOCK_DORM_ROOMS[_currentRoomIdx];
   if (!room) return;
