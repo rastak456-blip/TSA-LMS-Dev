@@ -2068,6 +2068,53 @@ function renderAdminNationalityChart() {
   `;
 }
 
+/* ─── 범용 도넛 차트 생성기 ─── */
+function buildDonutChartHtml(entries, colorMap, centerLabel, centerSub, size) {
+  size = size || 110;
+  const total = entries.reduce((sum, [, cnt]) => sum + cnt, 0);
+  if (total === 0) {
+    return `<div style="font-size:12px;color:#9CA3AF;padding:10px 0">데이터가 없습니다.</div>`;
+  }
+  const fallbackColors = ['#5E5CE6','#EF4444','#F59E0B','#10B981','#8B5CF6','#0EA5E9','#EC4899','#6B7280'];
+  const R = 40, CX = 50, CY = 50, innerR = 24;
+  let startAngle = -Math.PI / 2;
+  let slices = '';
+  entries.forEach(([key, cnt], idx) => {
+    const angle = (cnt / total) * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+    const x1 = CX + R * Math.cos(startAngle), y1 = CY + R * Math.sin(startAngle);
+    const x2 = CX + R * Math.cos(endAngle),   y2 = CY + R * Math.sin(endAngle);
+    const xi1 = CX + innerR * Math.cos(startAngle), yi1 = CY + innerR * Math.sin(startAngle);
+    const xi2 = CX + innerR * Math.cos(endAngle),   yi2 = CY + innerR * Math.sin(endAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    const color = (colorMap && colorMap[key]) || fallbackColors[idx % fallbackColors.length];
+    slices += `<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${xi2},${yi2} A${innerR},${innerR} 0 ${large},0 ${xi1},${yi1}" fill="${color}">
+      <title>${key}: ${cnt} (${Math.round(cnt/total*100)}%)</title></path>`;
+    startAngle = endAngle;
+  });
+  const svgHtml = `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="flex-shrink:0">
+    ${slices}
+    <text x="50" y="48" text-anchor="middle" font-size="13" font-weight="700" fill="#374151">${centerLabel}</text>
+    <text x="50" y="62" text-anchor="middle" font-size="8" fill="#9CA3AF">${centerSub}</text>
+  </svg>`;
+
+  const labelsHtml = entries.map(([key, cnt], idx) => {
+    const pct = Math.round(cnt / total * 100);
+    const color = (colorMap && colorMap[key]) || fallbackColors[idx % fallbackColors.length];
+    return `<div style="display:flex;align-items:center;gap:6px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></span>
+      <span style="font-size:12px;font-weight:600;color:#374151;min-width:36px">${key}</span>
+      <span style="font-size:11.5px;color:#6B7280">${cnt}</span>
+      <span style="font-size:11px;color:#9CA3AF">(${pct}%)</span>
+    </div>`;
+  }).join('');
+
+  return `<div style="display:flex;align-items:center;gap:14px">
+    ${svgHtml}
+    <div style="display:flex;flex-direction:column;gap:6px">${labelsHtml}</div>
+  </div>`;
+}
+
 
 /* ─── 에이전시 기숙사 공실 조회 (룸 타입별) ─── */
 let _dormFilterGender = '전체';

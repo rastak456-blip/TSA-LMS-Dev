@@ -102,19 +102,37 @@ function renderAgencyManage() {
   document.getElementById('agm-kpi-active')   && (document.getElementById('agm-kpi-active').textContent   = active + '개');
   document.getElementById('agm-kpi-students') && (document.getElementById('agm-kpi-students').textContent = students + '명');
 
-  // 국가별 에이전시 수 집계
+  // 국가별 색상 매핑 (국기 라벨에 국가명 포함하여 범례에 표시)
+  const countryColors = { '한국': '#5E5CE6', '일본': '#EF4444', '중국': '#F59E0B', '베트남': '#10B981', '몽골': '#8B5CF6' };
+  const flagOf = country => { const s = MOCK_AGENCIES.find(a => (a.country || '미지정') === country); return s ? s.flag : '🏳️'; };
+
+  // 국가별 에이전시 수 — 도넛 차트
   const countryStatsEl = document.getElementById('agm-country-stats');
-  if (countryStatsEl) {
+  if (countryStatsEl && typeof buildDonutChartHtml === 'function') {
     const counts = {};
     MOCK_AGENCIES.forEach(a => {
       const key = a.country || '미지정';
       counts[key] = (counts[key] || 0) + 1;
     });
-    countryStatsEl.innerHTML = Object.entries(counts).map(([country, cnt]) => {
-      const sample = MOCK_AGENCIES.find(a => (a.country || '미지정') === country);
-      const flag = sample ? sample.flag : '🏳️';
-      return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;background:#F8F9FF;border:1px solid #E0E4FF;font-size:12px;font-weight:600;color:#374151">${flag} ${country} <span style="color:#5E5CE6;font-weight:800">${cnt}개</span></span>`;
-    }).join('');
+    const entries = Object.entries(counts).map(([country, cnt]) => [`${flagOf(country)} ${country}`, cnt]);
+    const colorMapWithFlag = {};
+    Object.keys(counts).forEach(country => { colorMapWithFlag[`${flagOf(country)} ${country}`] = countryColors[country] || null; });
+    countryStatsEl.innerHTML = buildDonutChartHtml(entries, colorMapWithFlag, `${total}개`, '에이전시');
+  }
+
+  // 국가별 소속 학생 수 — 도넛 차트
+  const studentChartEl = document.getElementById('agm-country-student-chart');
+  if (studentChartEl && typeof buildDonutChartHtml === 'function') {
+    const studentCounts = {};
+    MOCK_AGENCIES.forEach(a => {
+      const key = a.country || '미지정';
+      const cnt = MOCK_STUDENTS.filter(s => s.agency === a.name).length;
+      studentCounts[key] = (studentCounts[key] || 0) + cnt;
+    });
+    const entries = Object.entries(studentCounts).filter(([, cnt]) => cnt > 0).map(([country, cnt]) => [`${flagOf(country)} ${country}`, cnt]);
+    const colorMapWithFlag = {};
+    Object.keys(studentCounts).forEach(country => { colorMapWithFlag[`${flagOf(country)} ${country}`] = countryColors[country] || null; });
+    studentChartEl.innerHTML = buildDonutChartHtml(entries, colorMapWithFlag, `${students}명`, '소속 학생');
   }
 
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
