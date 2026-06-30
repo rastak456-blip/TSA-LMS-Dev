@@ -3,16 +3,13 @@
 <head>
   <script>
     window.onerror = function(message, source, lineno, colno, error) {
-      // 외부 CDN cross-origin 에러는 브라우저 보안 정책상 항상 "Script error." / 라인 0으로 오기 때문에 무시
       if (message === 'Script error.' && lineno === 0 && colno === 0) return false;
-      var errDiv = document.createElement('div');
-      errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#FEE2E2;border-bottom:2px solid #EF4444;color:#991B1B;padding:16px;z-index:999999;font-family:monospace;font-size:14px;white-space:pre-wrap;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
-      errDiv.innerHTML = '<strong>🚨 브라우저 스크립트 에러 감지 (Debug)</strong><br><br>' +
-        '메시지: ' + message + '<br>' +
-        '파일: ' + source + '<br>' +
-        '라인: ' + lineno + ' / 컬럼: ' + colno + '<br>' +
-        (error && error.stack ? '<br>스택 트레이스:<br>' + error.stack : '');
-      document.documentElement.appendChild(errDiv);
+      var errorMsg = '🚨 브라우저 스크립트 에러 감지 (Debug)\n\n' +
+        '메시지: ' + message + '\n' +
+        '파일: ' + source + '\n' +
+        '라인: ' + lineno + ' / 컬럼: ' + colno + '\n' +
+        (error && error.stack ? '\n스택 트레이스:\n' + error.stack : '');
+      alert(errorMsg);
       return false;
     };
   </script>
@@ -1323,6 +1320,8 @@
       display: inline-block;
     }
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body style="margin:0;padding:0;">
 
@@ -1532,6 +1531,10 @@
         <i data-lucide="building-2"></i>
         에이전시 관리
       </a>
+      <a class="tsa-nav-item admin-only" id="menu-agency-map" onclick="navigate('agency-map')">
+        <i data-lucide="map"></i>
+        에이전시 맵
+      </a>
     </nav>
 
     <div class="tsa-sidebar-footer">
@@ -1717,8 +1720,8 @@
               </div>
             </div>
             <div class="tsa-card-body" style="padding:18px">
-              <!-- 송금 영수증 승인 -->
-              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 송금 영수증 승인 대기</div>
+              <!-- 입금 확인서 내역 -->
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 입금 확인서 제출 내역</div>
               <div style="overflow-x:auto;margin-bottom:20px">
                 <table class="tsa-table" style="font-size:11.5px">
                   <thead>
@@ -1726,7 +1729,7 @@
                       <th>에이전시</th>
                       <th>학생 성명</th>
                       <th>Net 청구액</th>
-                      <th>송금 영수증</th>
+                      <th>입금 확인서</th>
                       <th>송금 일시</th>
                       <th style="text-align:center">동작</th>
                     </tr>
@@ -1966,7 +1969,6 @@
                 <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px">
                   <span style="font-size:11.5px;font-weight:700;color:#4B5563;white-space:nowrap">납부:</span>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="paid" checked onchange="applyStudentFilters()"/> 완납</label>
-                  <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="partial" checked onchange="applyStudentFilters()"/> 승인대기</label>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" class="sf-paid-cb" value="unpaid" checked onchange="applyStudentFilters()"/> 미납</label>
                   <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="resetStudentFilters()" style="margin-left:8px;white-space:nowrap">초기화</button>
                 </div>
@@ -2062,7 +2064,6 @@
                   <div class="tsa-filter-pills" id="teacher-filter-pills">
                     <span class="tsa-pill active" onclick="filterTeacherList('all')">전체 (22)</span>
                     <span class="tsa-pill" onclick="filterTeacherList('active')">재직 중 (18)</span>
-                    <span class="tsa-pill" onclick="filterTeacherList('leave')">휴가 중 (3)</span>
                     <span class="tsa-pill" onclick="filterTeacherList('resigned')">퇴사 (1)</span>
                   </div>
                   <input type="text" id="teacher-search" class="tsa-input" placeholder="강사명 / 닉네임 검색..." style="width:200px;font-size:12px;padding:6px 12px" oninput="filterTeacherList()"/>
@@ -2085,7 +2086,7 @@
                       <th>강사명</th>
                       <th>장점 태그</th>
                       <th>배정 제외 태그</th>
-                      <th>수업 유형</th>
+                      <th>수업 가능 유형</th>
                       <th>담당 교실</th>
                       <th>고용 형태</th>
                       <th>오늘 배정</th>
@@ -2262,7 +2263,7 @@
             <div style="display:flex;border-bottom:1px solid #E5E7EB;padding:0 18px;gap:0">
               <button id="req-tab-remit" onclick="switchReqTab('remit')"
                   style="padding:10px 18px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid #D97706;color:#D97706">
-                  💰 송금 영수증 제출
+                  💰 입금 확인서
                 </button>
                 <button id="req-tab-change" onclick="switchReqTab('change')"
                   style="padding:10px 18px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280">
@@ -2273,9 +2274,9 @@
               <!-- 송금 영수증 탭 -->
               <div id="req-panel-remit" style="padding:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 영수증을 제출하면 어드민이 확인 후 납부 완료 처리합니다.</div>
+                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 입금 확인서를 제출하면 완납 처리됩니다.</div>
                   <button class="tsa-btn tsa-btn-warning tsa-btn-sm" onclick="openRemitRequestModal()">
-                    <i data-lucide="plus-square"></i> 새 송금 영수증 제출
+                    <i data-lucide="plus-square"></i> 새 입금 확인서 제출
                   </button>
                 </div>
                 <div style="overflow-x:auto">
@@ -2424,7 +2425,6 @@
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="font-size:11.5px;font-weight:700;color:#4B5563">납부 현황:</span>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="paid" checked onchange="filterAgencyStudentList()"/> 완납</label>
-                  <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="partial" checked onchange="filterAgencyStudentList()"/> 승인대기</label>
                   <label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" class="filter-agency-paid-cb" value="unpaid" checked onchange="filterAgencyStudentList()"/> 미납</label>
                 </div>
                 <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="resetAgencyFilters()">필터 초기화</button>
@@ -2546,12 +2546,6 @@
             <button class="tsa-dorm-filter-chip" id="dorm-cap-1" onclick="setAgencyDormCapFilter(this,'1인실')">1인실</button>
             <button class="tsa-dorm-filter-chip" id="dorm-cap-2" onclick="setAgencyDormCapFilter(this,'2인실')">2인실</button>
             <button class="tsa-dorm-filter-chip" id="dorm-cap-4" onclick="setAgencyDormCapFilter(this,'4인실')">4인실</button>
-            <span style="width:1px;height:18px;background:#E5E7EB;margin:0 4px"></span>
-            <span style="font-size:12px;font-weight:700;color:#374151">등급:</span>
-            <button class="tsa-dorm-filter-chip active" id="dorm-grade-all" onclick="setAgencyDormGradeFilter(this,'전체')">전체</button>
-            <button class="tsa-dorm-filter-chip" id="dorm-grade-std" onclick="setAgencyDormGradeFilter(this,'스탠다드')">스탠다드</button>
-            <button class="tsa-dorm-filter-chip" id="dorm-grade-eco" onclick="setAgencyDormGradeFilter(this,'이코노미')">이코노미</button>
-            <button class="tsa-dorm-filter-chip" id="dorm-grade-dlx" onclick="setAgencyDormGradeFilter(this,'디럭스')">디럭스</button>
             <div style="margin-left:auto;font-size:11.5px;color:#6B7280" id="agency-dorm-result-summary"></div>
           </div>
 
@@ -2565,7 +2559,7 @@
           <tbody id="agency-dorm-book-history" style="display:none"></tbody>
 
           <!-- 배정 대기 학생 리스트 -->
-          <div id="dorm-waiting-section" style="margin-top:8px">
+          <div id="dorm-waiting-section" style="display:none;margin-top:8px">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">
               <div style="display:flex;align-items:center;gap:10px">
                 <span style="font-size:13px;font-weight:700;color:#111827">배정 대기 학생</span>
@@ -2705,14 +2699,19 @@
           </div><!-- /dorm-erp-panel-assign -->
 
           <!-- 기숙사 설정 패널 -->
+          <!-- [탭 C] 기숙사 설정 패널 -->
           <div id="dorm-erp-panel-settings" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">
 
-              <!-- 신규 템플릿 등록 폼 -->
+              <!-- 신규 호실 개별 등록 폼 -->
               <div class="tsa-card">
                 <div class="tsa-card-body" style="padding:20px 24px">
-                  <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:20px">신규 템플릿 등록</div>
+                  <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:20px">신규 호실 개별 등록</div>
                   <div style="display:flex;flex-direction:column;gap:14px">
+                    <div>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">호실 번호</label>
+                      <input id="tpl-room-no" type="text" class="tsa-input" placeholder="예: 101" style="width:100%"/>
+                    </div>
                     <div>
                       <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">숙소 유형</label>
                       <select id="tpl-accom" class="tsa-input" style="width:100%">
@@ -2729,45 +2728,28 @@
                       </select>
                     </div>
                     <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">컨디션 유형</label>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">등급</label>
                       <select id="tpl-condition" class="tsa-input" style="width:100%">
                         <option value="스탠다드">스탠다드</option>
                         <option value="이코노미">이코노미</option>
                         <option value="디럭스">디럭스</option>
                       </select>
                     </div>
-                    <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">생성할 방 개수</label>
-                      <input id="tpl-count" type="number" min="1" class="tsa-input" placeholder="예: 5" style="width:100%"/>
-                    </div>
-                    <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1일 이용 요금 ($)</label>
-                      <input id="tpl-cost-day" type="number" min="0" class="tsa-input" placeholder="예: 30" style="width:100%"/>
-                    </div>
-                    <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1주 이용 요금 ($)</label>
-                      <input id="tpl-cost-week" type="number" min="0" class="tsa-input" placeholder="예: 180" style="width:100%"/>
-                    </div>
-                    <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">4주 이용 요금 ($)</label>
-                      <input id="tpl-cost-4week" type="number" min="0" class="tsa-input" placeholder="예: 600" style="width:100%"/>
-                    </div>
-                    <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="saveDormTemplate()">
-                      <i data-lucide="save"></i> 템플릿 저장
+                    <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="saveDormRoomIndividual()">
+                      <i data-lucide="save"></i> 호실 저장
                     </button>
                   </div>
                 </div>
               </div>
 
-              <!-- 등록된 템플릿 목록 -->
+              <!-- 등록된 호실 목록 -->
               <div class="tsa-card">
                 <div class="tsa-card-body" style="padding:0">
-                  <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;font-size:13px;font-weight:700;color:#111827">현재 등록 템플릿 대장</div>
+                  <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;font-size:13px;font-weight:700;color:#111827">현재 등록 호실 목록</div>
                   <table class="tsa-table" style="font-size:12px">
                     <thead>
                       <tr>
-                        <th>숙소 유형</th><th>기숙사 타입</th><th>방 개수 (참고)</th>
-                        <th>1일</th><th>1주</th><th>4주</th><th>동작</th>
+                        <th>호실 번호</th><th>숙소 유형</th><th>인실 기준</th><th>등급</th><th style="text-align:center">동작</th>
                       </tr>
                     </thead>
                     <tbody id="admin-dorm-template-tbody"></tbody>
@@ -3460,7 +3442,6 @@
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:24px">
             <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">해당 월 신규 등록</div><div class="tsa-stat-value" id="month-stat-new-count" style="font-size:24px">0건</div><div class="tsa-stat-change" style="color:#6B7280">시작일/도착일 기준</div></div><div class="tsa-stat-icon" style="background:#EEF2FF;color:#5E5CE6"><i data-lucide="plus-square"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('paid')"><div><div class="tsa-stat-label">당월 수납 완료 금액</div><div class="tsa-stat-value" id="month-stat-paid-amount" style="font-size:24px;color:#10B981">$0</div><div class="tsa-stat-change" style="color:#10B981">완납 Net 총액 · <span id="month-stat-paid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#D1FAE5;color:#10B981"><i data-lucide="check-circle"></i></div></div>
-            <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('submitted')"><div><div class="tsa-stat-label">승인 대기 금액</div><div class="tsa-stat-value" id="month-stat-pending-amount" style="font-size:24px;color:#D97706">$0</div><div class="tsa-stat-change" style="color:#D97706">제출 후 승인 대기 · <span id="month-stat-pending-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#FEF3C7;color:#D97706"><i data-lucide="clock"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('unpaid')"><div><div class="tsa-stat-label">미납 금액</div><div class="tsa-stat-value" id="month-stat-unpaid-amount" style="font-size:24px;color:#EF4444">$0</div><div class="tsa-stat-change" style="color:#EF4444">미송금 Net 총액 · <span id="month-stat-unpaid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#FEE2E2;color:#EF4444"><i data-lucide="alert-circle"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">총 커미션 금액</div><div class="tsa-stat-value" id="month-stat-commission-amount" style="font-size:24px;color:#7C3AED">$0</div><div class="tsa-stat-change" style="color:#7C3AED">해당 월 전체 커미션 합계</div></div><div class="tsa-stat-icon" style="background:#F5F3FF;color:#7C3AED"><i data-lucide="percent"></i></div></div>
           </div>
@@ -3471,7 +3452,6 @@
                 <span style="font-size:11.5px;font-weight:600;color:#6B7280">납부 필터:</span>
                 <button id="ms-filter-all" class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="setMonthStatsFilter('all')">전체</button>
                 <button id="ms-filter-paid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('paid')" style="border-color:#10B981;color:#10B981">완납</button>
-                <button id="ms-filter-submitted" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('submitted')" style="border-color:#D97706;color:#D97706">승인대기</button>
                 <button id="ms-filter-unpaid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('unpaid')" style="border-color:#EF4444;color:#EF4444">미납</button>
               </div>
             </div>
@@ -3520,6 +3500,18 @@
             <div class="tsa-card" style="padding:16px 20px">
               <div style="font-size:11px;color:#5E5CE6;font-weight:600">소속 학생 수</div>
               <div id="agm-kpi-students" style="font-size:26px;font-weight:800;color:#5E5CE6">-</div>
+            </div>
+          </div>
+
+          <!-- 국가별 에이전시 분포 & 학생 수 도넛 차트 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:10px">🌍 국가별 에이전시 분포</div>
+              <div id="agm-country-stats"></div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:10px">👥 국가별 소속 학생 수</div>
+              <div id="agm-country-student-chart"></div>
             </div>
           </div>
 
@@ -3577,6 +3569,15 @@
               <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">이메일</label>
               <input id="agm-email" class="tsa-input" type="email" placeholder="agency@example.com" style="width:100%"/>
             </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">주소 <span style="font-size:10.5px;color:#9CA3AF;font-weight:400">(현지 방문 영업 시 활용)</span></label>
+              <div style="display:flex;gap:6px">
+                <input id="agm-address" class="tsa-input" placeholder="예: 서울특별시 강남구 테헤란로 123" style="width:100%" oninput="updateAgmMapPreview()"/>
+              </div>
+              <div id="agm-map-preview-wrap" style="margin-top:8px;display:none">
+                <iframe id="agm-map-preview" width="100%" height="160" style="border:1px solid #E5E7EB;border-radius:8px" loading="lazy"></iframe>
+              </div>
+            </div>
             <div style="background:#F8F9FF;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
               <div style="font-size:12px;font-weight:700;color:#5E5CE6;margin-bottom:2px">🔐 로그인 계정 설정</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3590,20 +3591,49 @@
                 </div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">커미션율 (%)</label>
-                <input id="agm-commission" class="tsa-input" type="number" min="0" max="100" value="10" style="width:100%"/>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">비고</label>
-                <input id="agm-note" class="tsa-input" placeholder="특이사항" style="width:100%"/>
-              </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">커미션율 (%)</label>
+              <input id="agm-commission" class="tsa-input" type="number" min="0" max="100" value="10" style="width:100%"/>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">특이사항 / SNS 연락처 <span style="font-size:10.5px;color:#9CA3AF;font-weight:400">(카카오톡·라인·위챗·페이스북 등 자유 기재)</span></label>
+              <textarea id="agm-note" class="tsa-input" rows="3" style="width:100%;resize:vertical;min-height:64px" placeholder="예: 라인 ID @kr_academy / 카카오톡 채널 한국영어마을 / 위챗 KR_Academy01"></textarea>
             </div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
             <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyManageModal()">취소</button>
             <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyManage()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: AGENCY MAP                                 -->
+        <!-- ================================================ -->
+        <div id="view-agency-map" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:20px">
+            <div>
+              <h2 class="tsa-page-title">🗺️ 에이전시 맵</h2>
+              <p class="tsa-page-subtitle">국가별 에이전시 위치 및 방문 영업 계획 수립</p>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px">
+            <!-- 좌측: 국가별 에이전시 핀 목록 -->
+            <div class="tsa-card">
+              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="pin" style="color:#5E5CE6"></i> 국가별 에이전시 목록</h3></div>
+              <div class="tsa-card-body" style="padding:14px;max-height:600px;overflow-y:auto">
+                <div id="agmap-country-groups"></div>
+              </div>
+            </div>
+
+            <!-- 우측: 전체 지도 (Leaflet) -->
+            <div class="tsa-card">
+              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="map-pin" style="color:#EF4444"></i> 위치 지도</h3></div>
+              <div class="tsa-card-body" style="padding:14px">
+                <div id="agmap-selected-info" style="margin-bottom:10px;font-size:13px;color:#374151">국가명을 클릭하면 해당 국가의 모든 지사가 지도에 표시되고, 지사를 클릭하면 확대됩니다.</div>
+                <div id="agmap-leaflet" style="width:100%;height:460px;border:1px solid #E5E7EB;border-radius:10px"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4280,7 +4310,7 @@
 <!-- Teacher Detail Modal -->
 <div id="teacher-detail-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('teacher-detail-modal')">
-    <div class="tsa-modal tsa-modal-lg" onclick="event.stopPropagation()">
+    <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
           <h3 class="tsa-modal-title" id="modal-teacher-name">강사 상세 프로필</h3>
@@ -4292,7 +4322,8 @@
         <div class="tsa-tabs" style="margin-bottom:16px">
           <div class="tsa-tab active" onclick="switchTeacherTab('profile', this)">📋 기본 정보</div>
           <div class="tsa-tab" onclick="switchTeacherTab('school', this)">🏫 어학원 운영</div>
-          <div class="tsa-tab" onclick="switchTeacherTab('schedule', this)">📅 주간 스케줄</div>
+          <div class="tsa-tab" onclick="switchTeacherTab('schedule', this)">⏰ 시간 관리</div>
+          <div class="tsa-tab" onclick="switchTeacherTab('weekly', this)">📊 주간 스케줄 현황</div>
           <div class="tsa-tab" onclick="switchTeacherTab('tags', this)">🏷️ 역량 태그</div>
         </div>
         <div id="teacher-modal-tab-content" style="min-height:360px;max-height:55vh;overflow-y:auto;padding-bottom:16px"></div>
@@ -4591,6 +4622,52 @@
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('level-modal')">취소</button>
         <button class="tsa-btn tsa-btn-primary" onclick="saveMasterLevel()"><i data-lucide="check"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dorm Room Edit Modal -->
+<div id="dorm-room-edit-modal" style="display:none">
+  <div class="tsa-modal-backdrop" onclick="closeModal('dorm-room-edit-modal')">
+    <div class="tsa-modal tsa-modal-sm" onclick="event.stopPropagation()">
+      <div class="tsa-modal-header">
+        <div>
+          <h3 class="tsa-modal-title" id="dorm-room-edit-modal-title">호실 정보 수정</h3>
+          <p class="tsa-modal-subtitle">호실의 인실 기준과 등급을 수정합니다</p>
+        </div>
+        <button class="tsa-modal-close" onclick="closeModal('dorm-room-edit-modal')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="tsa-modal-body" style="display:flex;flex-direction:column;gap:14px">
+        <input type="hidden" id="edit-room-idx"/>
+        <div class="tsa-form-group">
+          <label class="tsa-label">호실 번호</label>
+          <input id="edit-room-no" type="text" class="tsa-input" style="width:100%;background:#F3F4F6" readonly/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">숙소 유형</label>
+          <input id="edit-room-accom" type="text" class="tsa-input" style="width:100%;background:#F3F4F6" readonly/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">인실 기준</label>
+          <select id="edit-room-capacity" class="tsa-input" style="width:100%">
+            <option value="1">1인실</option>
+            <option value="2">2인실</option>
+            <option value="4">4인실</option>
+          </select>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">등급</label>
+          <select id="edit-room-condition" class="tsa-input" style="width:100%">
+            <option value="스탠다드">스탠다드</option>
+            <option value="이코노미">이코노미</option>
+            <option value="디럭스">디럭스</option>
+          </select>
+        </div>
+      </div>
+      <div class="tsa-modal-footer">
+        <button class="tsa-btn tsa-btn-outline" onclick="closeModal('dorm-room-edit-modal')">취소</button>
+        <button class="tsa-btn tsa-btn-primary" onclick="saveDormRoomEdit()"><i data-lucide="check"></i> 저장</button>
       </div>
     </div>
   </div>
@@ -4995,11 +5072,23 @@
                     </select>
                   </div>
                   <div class="tsa-form-group"><label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
-                    <select id="sf-duration" class="tsa-input">
+                    <select id="sf-duration" class="tsa-input" onchange="updateSfEndDate()">
                       <option value="4" selected>4주 (정규)</option><option value="1">1주</option><option value="2">2주</option><option value="3">3주</option><option value="8">8주</option><option value="12">12주</option>
                     </select>
                   </div>
-                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label><input id="sf-startDate" type="date" class="tsa-input" required/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label><input id="sf-startDate" type="date" class="tsa-input" required onchange="updateSfEndDate()"/></div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">수강 종료일 <span style="color:#EF4444">*</span></label>
+                    <input id="sf-endDate" type="date" class="tsa-input" style="background:#F9FAFB" readonly/>
+                    <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">시작일 + 수강 기간으로 자동 계산됩니다</div>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 기입)</span></label>
+                    <select id="sf-level" class="tsa-input">
+                      <option value="">— 미선택 —</option>
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
                   <div class="tsa-form-group"><label class="tsa-label">등록 에이전시</label><input id="sf-agency" type="text" class="tsa-input" placeholder="직접 등록"/></div>
                   <div class="tsa-form-group"><label class="tsa-label">학사 상태</label>
                     <select id="sf-status" class="tsa-input">
@@ -5179,14 +5268,14 @@
                   <div style="font-size:11px;color:#9CA3AF;text-align:center">No<br>Image</div>
                 </div>
                 <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">영문 성명</label><input id="tf-name" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">성별</label><input id="tf-gender-display" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/><input type="hidden" id="tf-gender"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">생년월일</label><input id="tf-birthday" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">이메일</label><input id="tf-email" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">전화번호</label><input id="tf-phone" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">입사일</label><input id="tf-joindate" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">직급</label><input id="tf-jobgrade" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
-                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">톡스 재직 상태</label><input id="tf-talkstatus" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">영문 성명</label><input id="tfp-name" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">성별</label><input id="tfp-gender-display" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">생년월일</label><input id="tfp-birthday" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">이메일</label><input id="tfp-email" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">전화번호</label><input id="tfp-phone" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">입사일</label><input id="tfp-joindate" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">직급</label><input id="tfp-jobgrade" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
+                  <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">톡스 재직 상태</label><input id="tfp-talkstatus" class="tsa-input" style="background:#F9FAFB;color:#6B7280;cursor:not-allowed" readonly/></div>
                 </div>
               </div>
             </div>
@@ -5292,9 +5381,9 @@
                     <option value="글루텐 프리">🌾 글루텐 프리</option>
                   </select>
                 </div>
-                <div class="tsa-form-group">
+                <div class="tsa-form-group" style="grid-column:span 2">
                   <label class="tsa-label">건강 및 정서 특이사항</label>
-                  <input id="areg-special" type="text" class="tsa-input" placeholder="알레르기 없음, 복약 정보 없음"/>
+                  <textarea id="areg-special" class="tsa-input" rows="3" style="resize:vertical;min-height:72px;width:100%" placeholder="알레르기 없음, 복약 정보 없음"></textarea>
                 </div>
               </div>
             </div>
@@ -5376,7 +5465,7 @@
                 </div>
                 <div class="tsa-form-group">
                   <label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
-                  <select id="areg-duration" class="tsa-input" onchange="calculateAregExpectedFees()">
+                  <select id="areg-duration" class="tsa-input" onchange="calculateAregExpectedFees();calculateAregDates()">
                     <option value="1">1주 (단기 할증)</option>
                     <option value="2">2주 (단기 할증)</option>
                     <option value="3">3주 (단기 할증)</option>
@@ -5385,9 +5474,23 @@
                     <option value="12">12주 (정규)</option>
                   </select>
                 </div>
-                <div class="tsa-form-group" style="grid-column: span 2">
+                <div class="tsa-form-group">
                   <label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label>
                   <input id="areg-start-date" type="date" class="tsa-input" required onchange="calculateAregDates()"/>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">수강 종료일</label>
+                  <input id="areg-end-date" type="date" class="tsa-input" style="background:#F9FAFB" readonly/>
+                  <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">시작일 + 수강 기간으로 자동 계산됩니다</div>
+                </div>
+                <div class="tsa-form-group" style="grid-column: span 2">
+                  <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원에서 기입)</span></label>
+                  <select id="areg-level" class="tsa-input">
+                    <option value="">— 미선택 —</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
                 </div>
                 <!-- 수강 등록일 -->
                 <div class="tsa-form-group" style="grid-column: span 2">
@@ -5728,8 +5831,8 @@
       <div style="display:flex;align-items:center;gap:10px">
         <i data-lucide="send" style="color:#5E5CE6;font-size:18px"></i>
         <div>
-          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 송금 영수증 제출</div>
-          <div style="font-size:11px;color:#6B7280">어드민 검토 후 최종 반영됩니다</div>
+          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 입금 확인서 제출</div>
+          <div style="font-size:11px;color:#6B7280">제출 즉시 완납 처리됩니다</div>
         </div>
       </div>
       <button onclick="closeModal('modal-remit-submit')" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:20px;line-height:1">×</button>
@@ -5792,14 +5895,14 @@
 <!-- Toast Notification Container -->
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
-<script src="assets/js/lms-data.js"></script>
-<script src="assets/js/lms-util.js"></script>
-<script src="assets/js/lms-auth.js"></script>
-<script src="assets/js/lms-teacher.js"></script>
-<script src="assets/js/lms-student.js"></script>
-<script src="assets/js/lms-course.js"></script>
-<script src="assets/js/lms-classroom.js"></script>
-<script src="assets/js/lms-main.js"></script>
+<script src="assets/js/lms-data.js?v=0.5.1"></script>
+<script src="assets/js/lms-util.js?v=0.5.1"></script>
+<script src="assets/js/lms-auth.js?v=0.5.1"></script>
+<script src="assets/js/lms-teacher.js?v=0.5.1"></script>
+<script src="assets/js/lms-student.js?v=0.5.1"></script>
+<script src="assets/js/lms-course.js?v=0.5.1"></script>
+<script src="assets/js/lms-classroom.js?v=0.5.1"></script>
+<script src="assets/js/lms-main.js?v=0.5.1"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>
   // 정적 아이콘 초기화

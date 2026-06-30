@@ -1,4 +1,4 @@
-﻿/* =============================================
+/* =============================================
    STUDENT MANAGEMENT
    ============================================= */
 function updateStudentFilterCounts() {
@@ -1825,6 +1825,7 @@ function getFilteredDormRooms() {
   const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 6);
 
   return MOCK_DORM_ROOMS.filter(r => {
+    if (!r.roomNo) return false;
     if (_dormFilters.accom && r.accomType !== _dormFilters.accom) return false;
     if (_dormFilters.capacity) {
       const cap = parseInt(_dormFilters.capacity);

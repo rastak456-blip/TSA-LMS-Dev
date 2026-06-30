@@ -795,7 +795,7 @@ let MOCK_DORM_TEMPLATES = [
 // 호실 단위 데이터
 let MOCK_DORM_ROOMS = [
   {
-    roomNo: '101', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '남성',
+    roomNo: '101', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '남성',
     beds: [
       { id: 'A', student: 'Kevin (김홍길동)', color: '#5E5CE6', start: '06-01', end: '07-27', studentId: 1,
         history: [
@@ -811,7 +811,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '102', accomType: '기숙사', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '여성',
+    roomNo: '102', accomType: '가든 호텔', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Amy (최학생)', color: '#D97706', start: '06-01', end: '06-29', studentId: 3,
         history: [{ student: 'Sara (KIM SARA)', start: '03-10', end: '05-04', reason: '졸업' }]
@@ -824,7 +824,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '201', accomType: '콘도', type: '1인실 (디럭스)', capacity: 1, genderRestriction: '여성',
+    roomNo: '201', accomType: 'IT Park 콘도', type: '1인실 (프리미엄)', capacity: 1, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Sophie (박소연)', color: '#EF4444', start: '05-15', end: '08-14', studentId: 5,
         history: [{ student: 'Elena (IVANOVA ELENA)', start: '02-10', end: '05-11', reason: '졸업' }]
@@ -832,7 +832,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '103', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '남성',
+    roomNo: '103', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '남성',
     beds: [
       { id: 'A', student: 'Tom (김민수)', color: '#10B981', start: '06-08', end: '06-22', studentId: 7,
         history: [
@@ -844,7 +844,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '203', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '여성',
+    roomNo: '203', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Lan (NGUYEN THI LAN)', color: '#8B5CF6', start: '06-01', end: '07-27', studentId: 12,
         history: [{ student: 'Mai (TRAN THI MAI)', start: '03-03', end: '05-25', reason: '졸업' }]
@@ -853,20 +853,20 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '202', accomType: '기숙사', type: '1인실 (스탠다드)', capacity: 1, genderRestriction: '남성',
+    roomNo: '202', accomType: '가든 호텔', type: '1인실 (스탠다드)', capacity: 1, genderRestriction: '남성',
     beds: [
       { id: 'A', student: null, lastCheckout: '06-09', history: [{ student: 'Marco (ROSSI MARCO)', start: '02-17', end: '04-13', reason: '졸업' }] }
     ]
   },
   {
-    roomNo: '104', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '여성',
+    roomNo: '104', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '여성',
     beds: [
       { id: 'A', student: null, history: [{ student: 'Rina (YAMADA RINA)', start: '03-10', end: '05-04', reason: '졸업' }] },
       { id: 'B', student: null, history: [{ student: 'Chloe (WANG CHLOE)', start: '04-07', end: '05-18', reason: '졸업' }] }
     ]
   },
   {
-    roomNo: '301', accomType: '기숙사', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '남성',
+    roomNo: '301', accomType: '가든 호텔', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '남성',
     beds: [
       { id: 'A', student: 'Duc (PHAM MINH DUC)', color: '#F59E0B', start: '06-15', end: '09-13',
         history: [{ student: 'Nam (NGUYEN VAN NAM)', start: '03-03', end: '06-01', reason: '졸업' }]
@@ -879,7 +879,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '302', accomType: '기숙사', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '여성',
+    roomNo: '302', accomType: '가든 호텔', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Hana (YAMAMOTO HANA)', color: '#8B5CF6', start: '06-09', end: '08-03',
         history: [{ student: 'Saki (FUJII SAKI)', start: '03-24', end: '06-01', reason: '졸업' }]
@@ -890,13 +890,13 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '204', accomType: '콘도', type: '1인실 (디럭스)', capacity: 1, genderRestriction: '여성',
+    roomNo: '204', accomType: 'IT Park 콘도', type: '1인실 (프리미엄)', capacity: 1, genderRestriction: '여성',
     beds: [
       { id: 'A', student: null, history: [{ student: 'Grace (CHEN GRACE)', start: '03-03', end: '05-25', reason: '졸업' }] }
     ]
   },
   {
-    roomNo: '106', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '여성',
+    roomNo: '106', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Erin (SHIN EUNSOO)', color: '#EC4899', start: '05-31', end: '08-01', studentId: 25,
         history: []
@@ -905,7 +905,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '207', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '여성',
+    roomNo: '207', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Yeon (KIM YEONHEE)', color: '#EC4899', start: '05-31', end: '06-29', studentId: 21,
         history: [
@@ -921,7 +921,7 @@ let MOCK_DORM_ROOMS = [
     ]
   },
   {
-    roomNo: '105', accomType: '기숙사', type: '2인실 (이코노미)', capacity: 2, genderRestriction: '남성',
+    roomNo: '105', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '남성',
     beds: [
       { id: 'A', student: 'Long (NGUYEN VAN LONG)', color: '#0EA5E9', start: '06-15', end: '09-13',
         history: [{ student: 'Minh (LE VAN MINH)', start: '03-10', end: '06-08', reason: '졸업' }]
@@ -931,20 +931,8 @@ let MOCK_DORM_ROOMS = [
   },
 ];
 
-// 템플릿 기준으로 이미 배정된 방 수를 빼고 미배정 슬롯 자동 생성
-(function initUnassignedRoomsFromTemplates() {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  MOCK_DORM_TEMPLATES.forEach(tpl => {
-    const typeStr = `${tpl.capacity}인실 (${tpl.condition})`;
-    const assigned = MOCK_DORM_ROOMS.filter(r => r.accomType === tpl.accomType && r.type === typeStr && r.roomNo !== null).length;
-    const needed = Math.max(0, tpl.count - assigned);
-    for (let i = 0; i < needed; i++) {
-      const beds = [];
-      for (let b = 0; b < tpl.capacity; b++) beds.push({ id: alphabet[b], student: null, start: null, end: null });
-      MOCK_DORM_ROOMS.push({ roomNo: null, accomType: tpl.accomType, type: typeStr, capacity: tpl.capacity, genderRestriction: '무관', beds });
-    }
-  });
-})();
+
+
 
 // day 필드 없는 기존 슬롯을 '월' 기본값으로 정규화
 MOCK_TIMETABLE.forEach(t => t.slots.forEach(sl => { if (!sl.day) sl.day = '월'; }));
@@ -1058,4 +1046,46 @@ const BRANCH_CONFIG = {
   'ph-cebu': { label: '🇵🇭 세부 캠퍼스', country: '필리핀 세부 (Cebu)' },
   'mt-malta': { label: '🇲🇹 몰타 캠퍼스', country: '몰타 (Malta) — 확장 예정' },
 };
+
+function syncDormTemplatesFromRooms() {
+  const uniqueTypes = {};
+  MOCK_DORM_ROOMS.forEach(r => {
+    if (!r.roomNo) return; // 미배정 호실 제외
+    const conditionMatch = r.type ? r.type.match(/\(([^)]+)\)/) : null;
+    const condition = conditionMatch ? conditionMatch[1] : '스탠다드';
+    const capacity = r.capacity || (r.beds ? r.beds.length : 1);
+    const key = `${r.accomType}__${capacity}__${condition}`;
+
+    if (!uniqueTypes[key]) {
+      uniqueTypes[key] = {
+        accomType: r.accomType,
+        capacity: capacity,
+        condition: condition,
+        count: 0
+      };
+    }
+    uniqueTypes[key].count++;
+  });
+
+  const newTemplates = [];
+  let idCounter = 1;
+  for (const key in uniqueTypes) {
+    const ut = uniqueTypes[key];
+    const exist = MOCK_DORM_TEMPLATES.find(t => t.accomType === ut.accomType && t.capacity === ut.capacity && t.condition === ut.condition);
+    newTemplates.push({
+      id: exist ? exist.id : idCounter++,
+      accomType: ut.accomType,
+      capacity: ut.capacity,
+      condition: ut.condition,
+      count: ut.count,
+      costDay: exist ? exist.costDay : 0,
+      costWeek: exist ? exist.costWeek : 0,
+      cost: exist ? exist.cost : 0
+    });
+    idCounter = Math.max(idCounter, exist ? exist.id + 1 : idCounter);
+  }
+  MOCK_DORM_TEMPLATES.length = 0;
+  newTemplates.forEach(t => MOCK_DORM_TEMPLATES.push(t));
+}
+
 

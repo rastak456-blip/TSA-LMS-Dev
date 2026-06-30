@@ -1400,9 +1400,9 @@ function renderAdminDormTemplates() {
     const condition = conditionMatch ? conditionMatch[1] : '스탠다드';
     const capacity = r.capacity || (r.beds ? r.beds.length : 1);
 
-    const accomBadge = r.accomType === '콘도'
-      ? `<span style="background:#FEF3C7;color:#D97706;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">콘도</span>`
-      : `<span style="background:#EEF2FF;color:#5E5CE6;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">기숙사</span>`;
+    const accomBadge = r.accomType === 'IT Park 콘도'
+      ? `<span style="background:#FEF3C7;color:#D97706;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">IT Park 콘도</span>`
+      : `<span style="background:#EEF2FF;color:#5E5CE6;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">가든 호텔</span>`;
 
     return `
       <tr>
@@ -1724,6 +1724,9 @@ function confirmErpAssign() {
   bed.end       = endVal;
   bed.color     = '#5E5CE6';
   s.dorm = `${room.roomNo}호 침대${bed.id}`;
+  // 8-5: 배정 시 호실 성별 제한 자동 갱신
+  if (s.gender === '남' || s.gender === '남성') room.genderRestriction = '남성';
+  else if (s.gender === '여' || s.gender === '여성') room.genderRestriction = '여성';
   showToast(`✓ ${s.nick} → ${room.roomNo}호 침대${bed.id} 배정 완료`, 'success');
   closeErpAssignModal();
   renderDormErpGrid();
@@ -1733,11 +1736,14 @@ function openErpReleaseModal(roomNo, bedId) {
   const room = MOCK_DORM_ROOMS.find(r => r.roomNo === roomNo);
   const bed  = room?.beds?.find(b => b.id === bedId);
   if (!bed) return;
-  _erpAssignTarget = { roomNo, bedId };
-  const infoEl = document.getElementById('erp-release-info');
-  if (infoEl) infoEl.innerHTML = `<b>${bed.student || '학생'}</b>의 <b>${roomNo}호 침대 ${bedId}</b> 배정을 해제하시겠습니까?`;
-  document.getElementById('erp-release-modal').style.display = 'block';
-  document.getElementById('erp-release-backdrop').style.display = 'block';
+  const s = MOCK_STUDENTS.find(x => x.id === bed.studentId);
+  if (s) s.dorm = '미배정';
+  if (bed.history && bed.student) {
+    bed.history.push({ student: bed.student, start: bed.start, end: bed.end, reason: '배정 해제' });
+  }
+  bed.student = null; bed.studentId = null; bed.start = null; bed.end = null; bed.color = null;
+  showToast('배정이 해제되었습니다.', 'success');
+  renderDormErpGrid();
 }
 
 function closeErpReleaseModal() {
@@ -1747,19 +1753,7 @@ function closeErpReleaseModal() {
 }
 
 function confirmErpRelease() {
-  if (!_erpAssignTarget) return;
-  const room = MOCK_DORM_ROOMS.find(r => r.roomNo === _erpAssignTarget.roomNo);
-  const bed  = room?.beds?.find(b => b.id === _erpAssignTarget.bedId);
-  if (!bed) return;
-  const s = MOCK_STUDENTS.find(x => x.id === bed.studentId);
-  if (s) s.dorm = '미배정';
-  if (bed.history && bed.student) {
-    bed.history.push({ student: bed.student, start: bed.start, end: bed.end, reason: '배정 해제' });
-  }
-  bed.student = null; bed.studentId = null; bed.start = null; bed.end = null; bed.color = null;
-  showToast('배정이 해제되었습니다.', 'success');
-  closeErpReleaseModal();
-  renderDormErpGrid();
+  // 사용되지 않음
 }
 // ── 기숙사 ERP 끝 ──────────────────────────────────────
 

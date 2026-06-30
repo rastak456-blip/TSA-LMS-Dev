@@ -1,4 +1,4 @@
-﻿/* =============================================
+/* =============================================
    GLOBAL HEADQUARTERS DASHBOARD LOGIC
    ============================================= */
 function initGlobalDashboard() {
@@ -275,31 +275,7 @@ function switchAdminDormTab(tab) {
   }
 }
 
-function renderAdminDormTemplates() {
-  const tbody = document.getElementById('admin-dorm-template-tbody');
-  if (!tbody) return;
 
-  tbody.innerHTML = MOCK_DORM_TEMPLATES.map(t => {
-    const accomBadge = t.accomType === '콘도'
-      ? `<span style="background:#FEF3C7;color:#D97706;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">콘도</span>`
-      : `<span style="background:#EEF2FF;color:#5E5CE6;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">기숙사</span>`;
-    return `
-      <tr>
-        <td>${accomBadge}</td>
-        <td><strong>${t.capacity}인실</strong> (${t.condition})</td>
-        <td>${t.count}개 방</td>
-        <td style="font-weight:700;color:#059669">${t.costDay ? '$' + t.costDay.toLocaleString() : '<span style="color:#9CA3AF">-</span>'}</td>
-        <td style="font-weight:700;color:#0EA5E9">${t.costWeek ? '$' + t.costWeek.toLocaleString() : '<span style="color:#9CA3AF">-</span>'}</td>
-        <td style="font-weight:700;color:#1E3A8A">$${t.cost.toLocaleString()}</td>
-        <td style="text-align:center">
-          <button class="tsa-btn tsa-btn-danger tsa-btn-xs" style="background:#EF4444;border:none;color:white;" onclick="deleteDormTemplate(${t.id})">삭제</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-  
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
 
 function initAdminDormRoomsView() {
   const select = document.getElementById('dorm-assign-student');
@@ -1151,11 +1127,21 @@ function openBedDetailPanel(roomIdx, bedId) {
   // 현재 상태
   const statusEl = document.getElementById('bdp-current-status');
   if (bed.student) {
+    const stu = MOCK_STUDENTS.find(x => x.id === bed.studentId) || {};
+    const birthYear = stu.birth ? parseInt(stu.birth.slice(0,4)) : null;
+    const age = birthYear ? (new Date().getFullYear() - birthYear) : null;
+    const ageStr = age ? `만 ${age}세` : '';
+    const flagStr = stu.flag || '';
+    const natStr = stu.nationality || '';
     statusEl.style.cssText = 'background:#D1FAE5;border:1px solid #6EE7B7;border-radius:8px;padding:12px 14px;margin-bottom:16px';
     statusEl.innerHTML = `
       <div style="font-size:12px;font-weight:700;color:#065F46">입실 중</div>
-      <div style="font-size:13px;font-weight:600;color:#064E3B;margin-top:4px">${bed.student}</div>
-      <div style="font-size:11.5px;color:#047857;margin-top:2px">${bed.start} ~ ${bed.end}</div>`;
+      <div style="font-size:13px;font-weight:700;color:#064E3B;margin-top:6px">${bed.student}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+        ${natStr ? `<span style="font-size:11.5px;color:#047857">${flagStr} ${natStr}</span>` : ''}
+        ${ageStr ? `<span style="font-size:11px;color:#6B7280">·</span><span style="font-size:11.5px;color:#047857">${ageStr}</span>` : ''}
+      </div>
+      <div style="font-size:11px;color:#6B7280;margin-top:4px">${bed.start} ~ ${bed.end}</div>`;
   } else if (bed.incoming) {
     statusEl.style.cssText = 'background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between';
     statusEl.innerHTML = `
@@ -1298,7 +1284,7 @@ function openRoomDetailModal(idx) {
   document.getElementById('rdm-title').innerHTML = `<i data-lucide="home"></i> Room ${displayNo}`;
   document.getElementById('rdm-subtitle').textContent = `${room.accomType || ''} · ${room.type} · ${room.genderRestriction || '무관'}`;
   document.getElementById('rdm-roomno').value = room.roomNo || '';
-  document.getElementById('rdm-accomtype').value = room.accomType || '기숙사';
+  document.getElementById('rdm-accomtype').value = room.accomType || '가든 호텔';
   document.getElementById('rdm-type').value = room.type || '';
   document.getElementById('rdm-gender').value = room.genderRestriction || '무관';
 
@@ -1409,7 +1395,7 @@ function openBedAssignModal(idx, bedId, afterDate) {
     : `Room ${displayNo} · ${room ? room.type : ''} · Bed ${bedId}`;
   document.getElementById('bam-subtitle').textContent = subtitle;
 
-  const accomBadge = room && room.accomType === '콘도' ? '콘도' : '기숙사';
+  const accomBadge = room && room.accomType === 'IT Park 콘도' ? 'IT Park 콘도' : '가든 호텔';
   document.getElementById('bam-room-info').innerHTML =
     `<strong>${accomBadge}</strong> · ${room ? room.type : ''} · ${room ? (room.genderRestriction || '무관') : ''} · <strong>Bed ${bedId}</strong>`
     + (isPrebook ? ` · <span style="color:#7C3AED;font-weight:700">📋 사전 예약</span>` : '');
@@ -1506,6 +1492,9 @@ function confirmBedAssign() {
     bed.studentId = s.id;
     bed.start     = checkinMD;
     bed.end       = checkoutMD;
+    // 8-5: 배정 시 호실 성별 제한 자동 갱신
+    if (s.gender === '남' || s.gender === '남성') room.genderRestriction = '남성';
+    else if (s.gender === '여' || s.gender === '여성') room.genderRestriction = '여성';
     showToast(`✓ Room ${displayNo} Bed ${_assignTarget.bedId}에 ${s.nick} 배정 완료`, 'success');
   }
   closeModal('bed-assign-modal');

@@ -1286,8 +1286,8 @@ function renderAgencyDormRoomGrid() {
         let bedBg, bedBorder, bedLabel, bedSub;
         if (occupied) {
           bedBg = '#F3F4F6'; bedBorder = '#D1D5DB';
-          bedLabel = `<span style="font-size:11px;font-weight:600;color:#374151">${b.student ? b.student.split(' ')[0] : '사용 중'}</span>`;
-          bedSub = b.end ? `<div style="font-size:10px;color:#9CA3AF">~ ${b.end}</div>` : '';
+          bedLabel = `<span style="font-size:11px;font-weight:600;color:#374151">사용 중</span>`;
+          bedSub = '';
         } else if (hasIncoming) {
           bedBg = '#FEF3C7'; bedBorder = '#FCD34D';
           bedLabel = `<span style="font-size:11px;font-weight:600;color:#D97706">입실 예정</span>`;
@@ -1378,6 +1378,10 @@ function resetDormWaitingFilter() {
 
 function renderDormWaitingList(filter) {
   const tbody = document.getElementById('dorm-waiting-list-tbody');
+  if (typeof APP !== 'undefined' && APP.user && APP.user.startsWith('agency')) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:32px;color:#9CA3AF;font-size:12px">접근 권한이 없습니다.</td></tr>`;
+    return;
+  }
   const labelEl = document.getElementById('dorm-waiting-filter-label');
   const resetBtn = document.getElementById('dorm-waiting-reset-btn');
   if (!tbody) return;
