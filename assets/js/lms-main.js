@@ -1310,23 +1310,6 @@ function openRoomDetailModal(idx) {
     </div>`;
   }).join('');
 
-  // 전기료 탭
-  const occupiedCnt = (room.beds || []).filter(b => b.student).length;
-  document.getElementById('rdm-elec-room-info').textContent = `Room ${displayNo} · ${room.type} · 현재 입실 ${occupiedCnt}명`;
-  document.getElementById('rdm-elec-total').value = '';
-  document.getElementById('rdm-elec-result').innerHTML = '';
-
-  // 세탁물 탭
-  document.getElementById('rdm-laundry-room-info').textContent = `Room ${displayNo} · ${room.type}`;
-  const laundryStudentSel = document.getElementById('rdm-laundry-student');
-  const occupants = (room.beds || []).filter(b => b.student);
-  laundryStudentSel.innerHTML = occupants.length
-    ? occupants.map(b => `<option value="${b.studentId || ''}">${b.student}</option>`).join('')
-    : `<option value="">입실 학생 없음</option>`;
-  document.getElementById('rdm-laundry-weight').value = '';
-  document.getElementById('rdm-laundry-result').innerHTML = '';
-
-  switchRoomDetailTab('info');
   document.getElementById('room-detail-modal').style.display = 'block';
   if (typeof refreshIcons === 'function') refreshIcons();
 }
