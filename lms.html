@@ -5384,7 +5384,7 @@
                 </div>
                 <div class="tsa-form-group">
                   <label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
-                  <select id="areg-duration" class="tsa-input" onchange="calculateAregExpectedFees()">
+                  <select id="areg-duration" class="tsa-input" onchange="calculateAregExpectedFees();calculateAregDates()">
                     <option value="1">1주 (단기 할증)</option>
                     <option value="2">2주 (단기 할증)</option>
                     <option value="3">3주 (단기 할증)</option>
@@ -5393,9 +5393,23 @@
                     <option value="12">12주 (정규)</option>
                   </select>
                 </div>
-                <div class="tsa-form-group" style="grid-column: span 2">
+                <div class="tsa-form-group">
                   <label class="tsa-label">수강 시작일 (월요일 필수) <span style="color:#EF4444">*</span></label>
                   <input id="areg-start-date" type="date" class="tsa-input" required onchange="calculateAregDates()"/>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">수강 종료일</label>
+                  <input id="areg-end-date" type="date" class="tsa-input" style="background:#F9FAFB" readonly/>
+                  <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">시작일 + 수강 기간으로 자동 계산됩니다</div>
+                </div>
+                <div class="tsa-form-group" style="grid-column: span 2">
+                  <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원에서 기입)</span></label>
+                  <select id="areg-level" class="tsa-input">
+                    <option value="">— 미선택 —</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
                 </div>
                 <!-- 수강 등록일 -->
                 <div class="tsa-form-group" style="grid-column: span 2">

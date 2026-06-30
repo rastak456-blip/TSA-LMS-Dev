@@ -1588,6 +1588,13 @@ function calculateAregDates() {
   document.getElementById('areg-dorm-in').value = checkinDate.toISOString().split('T')[0];
   document.getElementById('areg-dorm-out').value = checkoutDate.toISOString().split('T')[0];
 
+  const endEl = document.getElementById('areg-end-date');
+  if (endEl) {
+    const sd = new Date(startVal);
+    sd.setDate(sd.getDate() + durVal * 7);
+    endEl.value = sd.toISOString().split('T')[0];
+  }
+
   calculateAregExpectedFees();
 }
 
@@ -1636,6 +1643,8 @@ function submitAgencyStudentRegistration() {
   const course = document.getElementById('areg-course').value;
   const duration = parseInt(document.getElementById('areg-duration').value);
   const startDateVal = document.getElementById('areg-start-date').value;
+  const endDateVal = (document.getElementById('areg-end-date') || {}).value || '';
+  const level = (document.getElementById('areg-level') || {}).value || '';
   const dormAccomType = (document.getElementById('areg-dormAccomType') || {}).value || '';
   const dormCapacity  = (document.getElementById('areg-dormCapacity')  || {}).value || '';
   const dormGrade     = (document.getElementById('areg-dormGrade')     || {}).value || '';
@@ -1744,6 +1753,7 @@ function submitAgencyStudentRegistration() {
     flag: nationality === '한국' ? '🇰🇷' : nationality === '일본' ? '🇯🇵' : nationality === '중국' ? '🇨🇳' : nationality === '베트남' ? '🇻🇳' : '🇲🇳',
     course: course,
     duration: duration,
+    level: level,
     dorm: '미배정',
     dormAccomType: dormAccomType || null,
     dormType: dormCapacity || null,
@@ -1754,6 +1764,7 @@ function submitAgencyStudentRegistration() {
     dormIn: dormIn,
     dormOut: dormOut,
     startDate: startDateVal,
+    endDate: endDateVal,
     departureDate: dormOut,
     attendance: 100,
     status: 'waiting',
@@ -2270,6 +2281,14 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         <div class="tsa-form-group">
           <label class="tsa-label">수강 시작일 ${changeBtn('startDate', '수강 시작일')}</label>
           <input id="ad-start-date" type="date" class="tsa-input" value="${s.startDate || '2026-06-01'}" ${lockAttr}/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">수강 종료일</label>
+          <input class="tsa-input" type="date" value="${s.endDate || ''}" style="background:#F9FAFB" readonly/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원 기입)</span></label>
+          <input class="tsa-input" type="text" value="${s.level || '미정'}" style="background:#F9FAFB" readonly/>
         </div>
         <div class="tsa-form-group">
           <label class="tsa-label" style="display:flex;align-items:center;gap:6px">
