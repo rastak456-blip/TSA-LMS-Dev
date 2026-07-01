@@ -2479,7 +2479,7 @@ function renderMonthlyInvoiceStats() {
       agencyTh = document.createElement('th');
       agencyTh.id = 'month-stats-th-agency';
       agencyTh.textContent = '에이전시';
-      theadRow.children[1].insertAdjacentElement('afterend', agencyTh);
+      theadRow.children[0].insertAdjacentElement('afterend', agencyTh);
     } else if (isAgency && agencyTh) {
       agencyTh.remove();
     }
@@ -2536,6 +2536,7 @@ function renderMonthlyInvoiceStats() {
 
     return `<tr>
       <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${rowNum}</td>
+      ${!isAgency ? `<td style="font-size:12px;color:#374151">${s.agency || '-'}</td>` : ''}
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <img src="${avatarSrc}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #E9EDF4;flex-shrink:0" alt=""/>
@@ -2546,7 +2547,6 @@ function renderMonthlyInvoiceStats() {
           </div>
         </div>
       </td>
-      ${!isAgency ? `<td style="font-size:12px;color:#374151">${s.agency || '-'}</td>` : ''}
       <td style="font-size:12px">${s.course}</td>
       <td style="text-align:center;font-weight:600">${s.duration}주</td>
       <td style="text-align:right;font-weight:600">$${p.tuition.toLocaleString()}</td>
