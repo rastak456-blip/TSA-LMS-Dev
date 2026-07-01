@@ -75,7 +75,7 @@ function renderStudentList(list) {
       <td>
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
         <div style="font-size:11px;color:#6B7280"><span style="color:#5E5CE6;font-weight:600">${s.level || '-'}</span></div>
-        <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.departureDate ? s.departureDate.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>
+        <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
       </td>
       <td style="font-size:12px;font-weight:500">${s.dorm}</td>
       <td>
