@@ -1441,7 +1441,6 @@ function switchDormErpTab(tab) {
 let _erpGenderFilter = '전체';
 let _erpAccomFilter  = '전체';
 let _erpCapFilter    = '전체';
-let _erpGradeFilter  = '전체';
 let _erpAssignTarget = null; // { roomNo, bedId }
 
 function setErpGenderFilter(btn, val) {
@@ -1462,13 +1461,6 @@ function setErpCapFilter(btn, val) {
   btn.classList.add('active');
   renderDormErpGrid();
 }
-function setErpGradeFilter(btn, val) {
-  _erpGradeFilter = val;
-  document.querySelectorAll('[id^="erp-grade-"]').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderDormErpGrid();
-}
-
 function renderDormErpGrid() {
   const grid = document.getElementById('erp-dorm-room-grid');
   if (!grid) return;
@@ -1489,7 +1481,6 @@ function renderDormErpGrid() {
   let rooms = [...MOCK_DORM_ROOMS];
   if (_erpAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _erpAccomFilter);
   if (_erpCapFilter   !== '전체') rooms = rooms.filter(r => r.capacity === parseInt(_erpCapFilter));
-  if (_erpGradeFilter !== '전체') rooms = rooms.filter(r => r.type && r.type.includes(_erpGradeFilter));
   if (_erpGenderFilter !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _erpGenderFilter);
 
   // KPI 계산
