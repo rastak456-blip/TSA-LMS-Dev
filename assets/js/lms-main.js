@@ -79,12 +79,29 @@ function enhanceMockStudents() {
       s.dormOut = outDate.toISOString().split('T')[0];
     }
 
-    // 6. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정
+    // 6. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정 (어학원 최종 확인일)
     if (s.remittanceStatus === 'paid' && !s.remittanceDate && s.startDate) {
       const start = new Date(s.startDate);
       const offset = ((s.id || 1) % 5) + 1;
       start.setDate(start.getDate() - offset);
       s.remittanceDate = start.toISOString().split('T')[0];
+    }
+    // 6-1. 입금 확인서 제출일/제출자 — 어학원 확인일보다 1~3일 앞선 날짜로 자동 설정
+    if (s.remittanceStatus === 'paid' && !s.remittanceSubmittedDate && s.remittanceDate) {
+      const submitted = new Date(s.remittanceDate);
+      submitted.setDate(submitted.getDate() - (((s.id || 1) % 3) + 1));
+      s.remittanceSubmittedDate = submitted.toISOString().split('T')[0];
+    }
+    if (s.remittanceStatus === 'paid' && !s.remittanceSubmittedBy) {
+      s.remittanceSubmittedBy = s.agency || '에이전시 담당자';
+    }
+    if (s.remittanceStatus === 'paid' && !s.remittanceApprovedBy) {
+      s.remittanceApprovedBy = '본사 슈퍼어드민';
+    }
+    // 미납이지만 확인서를 이미 제출한 경우(제출 후 미승인 상태) — 제출 정보만 채움
+    if (s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo) && !s.remittanceSubmittedDate) {
+      s.remittanceSubmittedDate = s.startDate || todayStr;
+      s.remittanceSubmittedBy = s.agency || '에이전시 담당자';
     }
 
     // 5. Passport & Flight default if not present
@@ -2514,7 +2531,7 @@ function renderMonthlyInvoiceStats() {
     }
   }
 
-  const colCount = isAgency ? 11 : 12;
+  const colCount = isAgency ? 12 : 14;
   if (monthStudents.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;color:#9CA3AF">해당 월에 등록된 학생이 없습니다.</td></tr>`;
     if (tfoot) tfoot.innerHTML = '';
@@ -2588,7 +2605,20 @@ function renderMonthlyInvoiceStats() {
       <td style="text-align:right;font-weight:800;color:#059669">$${p.net.toLocaleString()}</td>
       <td style="text-align:center">${statusBadge(s)}</td>
       <td style="text-align:center">${remitBadge(s)}</td>
-      <td style="text-align:center;font-size:11px;color:#6B7280">${s.remittanceStatus === 'paid' && s.remittanceDate ? s.remittanceDate.substring(0,10) : '-'}</td>
+      <td style="text-align:center;font-size:11px;color:#6B7280">
+        ${s.remittanceSubmittedDate ? `<div>${s.remittanceSubmittedDate.substring(0,10)}</div><div style="font-size:10px;color:#9CA3AF">${s.remittanceSubmittedBy || '-'}</div>` : '-'}
+      </td>
+      <td style="text-align:center;font-size:11px;color:#6B7280">
+        ${s.remittanceStatus === 'paid' && s.remittanceDate ? `<div>${s.remittanceDate.substring(0,10)}</div><div style="font-size:10px;color:#9CA3AF">${s.remittanceApprovedBy || '-'}</div>` : '-'}
+      </td>
+      ${!isAgency ? `<td style="text-align:center">
+        ${(s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo))
+          ? `<div style="display:flex;gap:4px;justify-content:center">
+               <button class="tsa-btn tsa-btn-xs" style="background:#D1FAE5;color:#065F46;border:none" onclick="approveInvoice(${s.id})">승인</button>
+               <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#991B1B;border:none" onclick="rejectInvoice(${s.id})">반려</button>
+             </div>`
+          : `<span style="color:#D1D5DB;font-size:11px">-</span>`}
+      </td>` : ''}
     </tr>`;
   }).join('');
 
@@ -2609,7 +2639,7 @@ function renderMonthlyInvoiceStats() {
         <td style="text-align:right;font-weight:900;color:#5E5CE6;padding:10px 8px">$${sumGross.toLocaleString()}</td>
         <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sumComm.toLocaleString()}</td>
         <td style="text-align:right;font-weight:900;color:#059669;padding:10px 8px">$${sumNet.toLocaleString()}</td>
-        <td colspan="3" style="padding:10px 8px"></td>
+        <td colspan="${isAgency ? 4 : 5}" style="padding:10px 8px"></td>
       </tr>`;
   }
 
@@ -2805,6 +2835,8 @@ function approveInvoice(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
     s.remittanceStatus = 'paid';
+    s.remittanceDate = new Date().toISOString().split('T')[0];
+    s.remittanceApprovedBy = APP.userName || '본사 슈퍼어드민';
     showToast('✓ 완납 처리되었습니다.', 'success');
     refreshInvoiceViews(studentId);
   }
@@ -2816,6 +2848,7 @@ function rejectInvoice(studentId) {
     const reason = prompt('미납 처리 사유를 입력하세요:', '금액 불일치');
     if (reason === null) return;
     s.remittanceStatus = 'unpaid';
+    s.remittanceDate = null;
     showToast('✓ 미납 처리되었습니다.', 'warning');
     refreshInvoiceViews(studentId);
   }
