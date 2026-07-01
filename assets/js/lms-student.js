@@ -81,16 +81,15 @@ function renderStudentList(list) {
         <div style="color:#9CA3AF;font-size:10.5px">~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
       </td>
       <td style="font-size:12px;font-weight:500">${s.dorm}</td>
+      <td style="font-size:11.5px;white-space:nowrap">
+        ${s.dormIn ? `<div>${s.dormIn.replace('2026-','26.').replace(/-/g,'.')}</div><div style="color:#9CA3AF;font-size:10.5px">~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : `<span style="color:#D1D5DB">-</span>`}
+      </td>
       <td>
         <span class="tsa-badge tsa-badge-info" style="font-size:10.5px">${s.passportStatus}</span>
       </td>
       <td style="font-size:11.5px;color:#374151;line-height:1.8">
         <div><span style="font-size:10px;color:#6B7280;font-weight:600;margin-right:4px">입국</span>${fmtFlightStr(s.flightInfo) || '-'}</div>
         <div><span style="font-size:10px;color:#D97706;font-weight:600;margin-right:4px">출국</span>${fmtFlightStr(s.flightOutInfo) || '-'}</div>
-      </td>
-      <td>
-        <div style="font-size:12px;font-weight:600;color:#374151">${fmtDate(s.departureDate) || '미설정'}</div>
-        <div style="font-size:10px;color:#D97706;font-weight:700">${getDepartureDDay(s.departureDate)}</div>
       </td>
       <td>
         <div style="font-size:12px;font-weight:${visaUrgent?'700':'500'};color:${visaUrgent?'#EF4444':'#374151'}">${s.visaExpiry}</div>
