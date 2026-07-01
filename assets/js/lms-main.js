@@ -2500,6 +2500,7 @@ function renderMonthlyInvoiceStats() {
       <td style="text-align:right;font-weight:800;color:#059669">$${p.net.toLocaleString()}</td>
       <td style="text-align:center">${statusBadge(s)}</td>
       <td style="text-align:center">${remitBadge(s)}</td>
+      <td style="text-align:center;font-size:11px;color:#6B7280">${s.remittanceStatus === 'paid' && s.remittanceDate ? s.remittanceDate.substring(0,10) : '-'}</td>
     </tr>`;
   }).join('');
 
@@ -2519,7 +2520,7 @@ function renderMonthlyInvoiceStats() {
         <td style="text-align:right;font-weight:900;color:#5E5CE6;padding:10px 8px">$${sumGross.toLocaleString()}</td>
         <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sumComm.toLocaleString()}</td>
         <td style="text-align:right;font-weight:900;color:#059669;padding:10px 8px">$${sumNet.toLocaleString()}</td>
-        <td colspan="2" style="padding:10px 8px"></td>
+        <td colspan="3" style="padding:10px 8px"></td>
       </tr>`;
   }
 
