@@ -38,7 +38,9 @@ function navigate(view) {
 
   // Update menu active state
   document.querySelectorAll('.tsa-nav-item, .tsa-nav-sub-item').forEach(m => m.classList.remove('active'));
-  const menuEl = document.getElementById(cfg.menu);
+  const isAgencyUser = APP.user && APP.user.includes('agency');
+  const menuId = (view === 'agency-invoice' && !isAgencyUser) ? 'menu-admin-invoice' : cfg.menu;
+  const menuEl = document.getElementById(menuId);
   if (menuEl) menuEl.classList.add('active');
 
   // Highlight parent menu for timetable sub-items and expand/collapse submenu accordingly
