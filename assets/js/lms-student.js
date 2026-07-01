@@ -98,10 +98,10 @@ function renderStudentList(list) {
         <div class="tsa-progress" style="width:80px">
           <div class="tsa-progress-bar" style="width:${s.attendance}%;background:${attColor}"></div>
         </div>
+        ${s.warning > 0 ? `<div style="font-size:10px;color:#EF4444;margin-top:2px">경고 ${s.warning}회</div>` : ''}
       </td>
       <td>
         ${statusPill}
-        ${s.warning > 0 ? `<div style="font-size:10px;color:#EF4444;margin-top:2px">경고 ${s.warning}회</div>` : ''}
       </td>
       <td style="text-align:center">
         <div style="display:flex;gap:6px;justify-content:center;align-items:center">
