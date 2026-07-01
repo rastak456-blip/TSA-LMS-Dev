@@ -975,7 +975,10 @@ function initAgencyStudentList() {
         <td>${s.course}</td>
         <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
         <td><span class="tsa-badge ${paidClass}">${paidLabel}</span></td>
-        <td>${fmtDate(s.startDate)} ~ (${s.duration}주)</td>
+        <td style="font-size:11.5px;white-space:nowrap">
+          <div>${fmtDate(s.startDate) || '-'}</div>
+          <div style="color:#9CA3AF;font-size:10.5px">~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
+        </td>
         <td class="col-flight" style="font-size:11px;line-height:1.8">
           <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
           <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
