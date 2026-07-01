@@ -2485,7 +2485,7 @@ function renderMonthlyInvoiceStats() {
     }
   }
 
-  const colCount = isAgency ? 12 : 13;
+  const colCount = isAgency ? 11 : 12;
   if (monthStudents.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;color:#9CA3AF">해당 월에 등록된 학생이 없습니다.</td></tr>`;
     if (tfoot) tfoot.innerHTML = '';
@@ -2547,8 +2547,10 @@ function renderMonthlyInvoiceStats() {
           </div>
         </div>
       </td>
-      <td style="font-size:12px">${s.course}</td>
-      <td style="text-align:center;font-weight:600">${s.duration}주</td>
+      <td style="font-size:11.5px;white-space:nowrap">
+        <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
+        <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
+      </td>
       <td style="text-align:right;font-weight:600">$${p.tuition.toLocaleString()}</td>
       <td style="text-align:right;font-weight:600">$${p.dorm.toLocaleString()}</td>
       <td style="text-align:right;font-weight:600">$${p.registration.toLocaleString()}</td>
@@ -2567,7 +2569,7 @@ function renderMonthlyInvoiceStats() {
       <tr style="background:#F0F4FF;font-weight:800;border-top:2px solid #C7D2FE">
         <td style="padding:10px 8px;text-align:center;color:#9CA3AF;font-size:11px"></td>
         ${!isAgency ? '<td></td>' : ''}
-        <td colspan="3" style="padding:10px 12px;font-size:12px;color:#1E3A8A">
+        <td colspan="2" style="padding:10px 12px;font-size:12px;color:#1E3A8A">
           합계 · 총 ${monthStudents.length}명
           <span style="font-size:10.5px;font-weight:600;color:#059669;margin-left:6px">완납 ${paidCount}명</span>
           <span style="font-size:10.5px;font-weight:600;color:#EF4444;margin-left:4px">미납 ${unpaidCount}명</span>
