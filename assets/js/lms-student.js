@@ -72,11 +72,11 @@ function renderStudentList(list) {
           </div>
         </div>
       </td>
+      <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
         <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
       </td>
-      <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-weight:600;color:#374151">${s.dorm}</div>
         ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
