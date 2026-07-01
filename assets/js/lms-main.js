@@ -46,7 +46,7 @@ function enhanceMockStudents() {
       }
     }
 
-    // 4. 희망 기숙사 타입 — dorm 필드의 Room 번호로 MOCK_DORM_ROOMS에서 자동 조회
+    // 4. 희망 기숙사 타입 — Room 번호로 MOCK_DORM_ROOMS 조회, 구버전값 교정
     if (s.dorm && s.dorm !== '미배정' && (!s.dormAccomType || s.dormAccomType === '기숙사' || s.dormAccomType === '콘도')) {
       const roomMatch = s.dorm.match(/Room\s*(\d+)/i);
       if (roomMatch && typeof MOCK_DORM_ROOMS !== 'undefined') {
@@ -63,6 +63,9 @@ function enhanceMockStudents() {
         s.dormAccomType = '가든 호텔';
       }
     }
+    // 미배정 학생도 구버전 dormAccomType 값 교정
+    if (s.dormAccomType === '기숙사') s.dormAccomType = '가든 호텔';
+    if (s.dormAccomType === '콘도')   s.dormAccomType = 'IT Park 콘도';
 
     // 5. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정
     if (s.remittanceStatus === 'paid' && !s.remittanceDate && s.startDate) {
