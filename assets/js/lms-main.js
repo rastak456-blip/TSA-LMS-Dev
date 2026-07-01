@@ -67,7 +67,19 @@ function enhanceMockStudents() {
     if (s.dormAccomType === '기숙사') s.dormAccomType = '가든 호텔';
     if (s.dormAccomType === '콘도')   s.dormAccomType = 'IT Park 콘도';
 
-    // 5. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정
+    // 5. 기숙사 입실/퇴실 기간 자동 설정 — dorm 배정된 학생이 dormIn 없으면 startDate-1일, endDate+1일
+    if (!s.dormIn && s.dorm && s.dorm !== '미배정' && s.startDate) {
+      const inDate = new Date(s.startDate);
+      inDate.setDate(inDate.getDate() - 1);
+      s.dormIn = inDate.toISOString().split('T')[0];
+    }
+    if (!s.dormOut && s.dorm && s.dorm !== '미배정' && s.endDate) {
+      const outDate = new Date(s.endDate);
+      outDate.setDate(outDate.getDate() + 1);
+      s.dormOut = outDate.toISOString().split('T')[0];
+    }
+
+    // 6. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정
     if (s.remittanceStatus === 'paid' && !s.remittanceDate && s.startDate) {
       const start = new Date(s.startDate);
       const offset = ((s.id || 1) % 5) + 1;
