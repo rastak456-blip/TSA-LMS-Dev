@@ -46,7 +46,15 @@ function enhanceMockStudents() {
       }
     }
 
-    // 4. Passport & Flight default if not present
+    // 4. 납부 확인일 — paid인데 날짜 없으면 시작일 기준 1~5일 전으로 자동 설정
+    if (s.remittanceStatus === 'paid' && !s.remittanceDate && s.startDate) {
+      const start = new Date(s.startDate);
+      const offset = ((s.id || 1) % 5) + 1;
+      start.setDate(start.getDate() - offset);
+      s.remittanceDate = start.toISOString().split('T')[0];
+    }
+
+    // 5. Passport & Flight default if not present
     if (!s.passportNum) {
       s.passportNum = 'M' + (s.id ? (10000000 + s.id) : Math.floor(10000000 + Math.random() * 90000000));
     }
