@@ -5793,6 +5793,28 @@
 </div>
 
 <!-- ================================================ -->
+<!--  MODAL: 입금 확인서 검토 (어드민)                    -->
+<!-- ================================================ -->
+<div id="modal-remit-review" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden">
+    <div style="background:#EEF2FF;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #C7D2FE">
+      <div style="display:flex;align-items:center;gap:10px">
+        <i data-lucide="file-search" style="color:#5E5CE6;font-size:18px"></i>
+        <div style="font-size:14px;font-weight:700;color:#3730A3">입금 확인서 검토</div>
+      </div>
+      <button onclick="closeModal('modal-remit-review')" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:20px;line-height:1">×</button>
+    </div>
+    <div id="remit-review-body" style="padding:20px 24px;font-size:12.5px;color:#374151;line-height:1.9">
+      <!-- JS로 채워짐 -->
+    </div>
+    <div style="display:flex;gap:10px;padding:16px 24px;border-top:1px solid #F3F4F6">
+      <button id="remit-review-reject-btn" class="tsa-btn" style="flex:1;background:#FEE2E2;color:#991B1B;border:none">반려</button>
+      <button id="remit-review-approve-btn" class="tsa-btn" style="flex:1;background:#5E5CE6;color:#fff;border:none">승인 (완납 처리)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================ -->
 <!--  MODAL: 입금 확인서 제출                            -->
 <!-- ================================================ -->
 <div id="modal-remit-submit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;align-items:center;justify-content:center">

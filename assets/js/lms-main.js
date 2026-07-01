@@ -2613,10 +2613,7 @@ function renderMonthlyInvoiceStats() {
       </td>
       ${!isAgency ? `<td style="text-align:center">
         ${(s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo))
-          ? `<div style="display:flex;gap:4px;justify-content:center">
-               <button class="tsa-btn tsa-btn-xs" style="background:#D1FAE5;color:#065F46;border:none" onclick="approveInvoice(${s.id})">승인</button>
-               <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#991B1B;border:none" onclick="rejectInvoice(${s.id})">반려</button>
-             </div>`
+          ? `<button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-color:#5E5CE6;color:#5E5CE6" onclick="openRemitReviewModal(${s.id})">보기</button>`
           : `<span style="color:#D1D5DB;font-size:11px">-</span>`}
       </td>` : ''}
     </tr>`;
@@ -2852,6 +2849,37 @@ function rejectInvoice(studentId) {
     showToast('✓ 미납 처리되었습니다.', 'warning');
     refreshInvoiceViews(studentId);
   }
+}
+
+function openRemitReviewModal(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const p = calculatePrices(s);
+
+  const body = document.getElementById('remit-review-body');
+  if (body) {
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">학생명</span><strong>${s.name} (Nick: ${s.nick})</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">에이전시</span><strong>${s.agency || '-'}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">코스</span><strong>${s.course}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">청구 NET 금액</span><strong style="color:#059669">$${p.net.toLocaleString()}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">제출일</span><strong>${s.remittanceSubmittedDate || '-'}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#6B7280">제출자</span><strong>${s.remittanceSubmittedBy || '-'}</strong></div>
+      <div style="border-top:1px solid #F3F4F6;margin:10px 0;padding-top:10px">
+        <div style="color:#6B7280;margin-bottom:4px">첨부 파일</div>
+        <div style="color:#2563EB;font-weight:600">${s.remittanceReceipt || '첨부 없음'}</div>
+      </div>
+      ${s.remittanceMemo ? `<div><div style="color:#6B7280;margin-bottom:4px">비고 메모</div><div style="background:#F8F9FC;padding:8px 10px;border-radius:8px">${s.remittanceMemo}</div></div>` : ''}
+    `;
+  }
+
+  const approveBtn = document.getElementById('remit-review-approve-btn');
+  const rejectBtn = document.getElementById('remit-review-reject-btn');
+  if (approveBtn) approveBtn.onclick = () => { approveInvoice(studentId); closeModal('modal-remit-review'); };
+  if (rejectBtn) rejectBtn.onclick = () => { rejectInvoice(studentId); closeModal('modal-remit-review'); };
+
+  const modal = document.getElementById('modal-remit-review');
+  if (modal) { modal.style.display = 'flex'; if (typeof refreshIcons === 'function') refreshIcons(); }
 }
 
 function refreshInvoiceViews(studentId) {
