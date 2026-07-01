@@ -80,9 +80,9 @@ function renderStudentList(list) {
         <div>${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>
         <div style="color:#9CA3AF;font-size:10.5px">~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
       </td>
-      <td style="font-size:12px;font-weight:500">${s.dorm}</td>
       <td style="font-size:11.5px;white-space:nowrap">
-        ${s.dormIn ? `<div>${s.dormIn.replace('2026-','26.').replace(/-/g,'.')}</div><div style="color:#9CA3AF;font-size:10.5px">~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : `<span style="color:#D1D5DB">-</span>`}
+        <div style="font-weight:600;color:#374151">${s.dorm}</div>
+        ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
       </td>
       <td>
         <span class="tsa-badge tsa-badge-info" style="font-size:10.5px">${s.passportStatus}</span>
