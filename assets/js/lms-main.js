@@ -2438,6 +2438,35 @@ function renderMonthlyInvoiceStats() {
   let students = MOCK_STUDENTS;
   if (agencyName) students = students.filter(s => s.agency === agencyName);
 
+  // 어드민 전용 에이전시 필터 드롭다운 채우기
+  const agencyFilterEl = document.getElementById('ms-filter-agency');
+  if (agencyFilterEl) {
+    if (!isAgency) {
+      if (agencyFilterEl.options.length <= 1) {
+        const agencies = [...new Set(MOCK_STUDENTS.map(s => s.agency).filter(Boolean))].sort();
+        agencies.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a; opt.textContent = a;
+          agencyFilterEl.appendChild(opt);
+        });
+      }
+      const agencyFilterVal = agencyFilterEl.value;
+      if (agencyFilterVal && agencyFilterVal !== 'all') {
+        students = students.filter(s => s.agency === agencyFilterVal);
+      }
+    }
+  }
+
+  // 학생명/닉네임 검색
+  const searchEl = document.getElementById('ms-search');
+  const searchTerm = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  if (searchTerm) {
+    students = students.filter(s =>
+      (s.name && s.name.toLowerCase().includes(searchTerm)) ||
+      (s.nick && s.nick.toLowerCase().includes(searchTerm))
+    );
+  }
+
   let monthStudents = students.filter(s => {
     const dateStr = s.arrivalDate || s.startDate;
     return dateStr && dateStr.startsWith(selectedMonth);
