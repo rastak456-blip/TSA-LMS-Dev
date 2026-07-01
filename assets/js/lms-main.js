@@ -46,12 +46,7 @@ function enhanceMockStudents() {
       }
     }
 
-    // 4. Invoice Status (미제출 / 제출 / 반려 / 완납)
-    if (!s.invoiceStatus) {
-      s.invoiceStatus = s.remittanceStatus === 'paid' ? 'approved' : 'unsubmitted';
-    }
-
-    // 5. Passport & Flight default if not present
+    // 4. Passport & Flight default if not present
     if (!s.passportNum) {
       s.passportNum = 'M' + (s.id ? (10000000 + s.id) : Math.floor(10000000 + Math.random() * 90000000));
     }
@@ -2460,17 +2455,6 @@ function renderMonthlyInvoiceStats() {
     return `<span class="tsa-badge tsa-badge-danger">미납</span>`;
   };
 
-  const invoiceBadge = (s) => {
-    let badgeHtml = '';
-    if (s.invoiceStatus === 'approved') {
-      badgeHtml = `<span class="tsa-badge tsa-badge-success" style="font-size:11px;cursor:pointer">✅ 완납</span>`;
-    } else if (s.invoiceStatus === 'rejected') {
-      badgeHtml = `<span class="tsa-badge tsa-badge-danger"  style="font-size:11px;cursor:pointer">❌ 반려</span>`;
-    } else {
-      badgeHtml = `<span class="tsa-badge tsa-badge-gray" style="font-size:11px;cursor:pointer">미제출</span>`;
-    }
-    return `<div onclick="openStudentSettleDetail(${s.id})" title="인보이스 상세 보기" style="display:inline-block">${badgeHtml}</div>`;
-  };
 
   // 합계 집계
   let sumTuition = 0, sumDorm = 0, sumReg = 0, sumGross = 0, sumComm = 0, sumNet = 0;
@@ -2516,7 +2500,6 @@ function renderMonthlyInvoiceStats() {
       <td style="text-align:right;font-weight:800;color:#059669">$${p.net.toLocaleString()}</td>
       <td style="text-align:center">${statusBadge(s)}</td>
       <td style="text-align:center">${remitBadge(s)}</td>
-      <td style="text-align:center">${invoiceBadge(s)}</td>
     </tr>`;
   }).join('');
 
@@ -2536,7 +2519,7 @@ function renderMonthlyInvoiceStats() {
         <td style="text-align:right;font-weight:900;color:#5E5CE6;padding:10px 8px">$${sumGross.toLocaleString()}</td>
         <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sumComm.toLocaleString()}</td>
         <td style="text-align:right;font-weight:900;color:#059669;padding:10px 8px">$${sumNet.toLocaleString()}</td>
-        <td colspan="3" style="padding:10px 8px"></td>
+        <td colspan="2" style="padding:10px 8px"></td>
       </tr>`;
   }
 
@@ -2719,11 +2702,9 @@ function resetTagForm() {
 
 // Course Saving defined elsewhere
 
-// B2B Invoice Submissions Inside Student Detail Modal
 function submitInvoiceForApproval(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
-    s.invoiceStatus = 'approved';
     s.remittanceStatus = 'paid';
     showToast('✓ 입금 확인서가 제출되어 완납 처리되었습니다.', 'success');
     refreshInvoiceViews(studentId);
@@ -2733,9 +2714,8 @@ function submitInvoiceForApproval(studentId) {
 function approveInvoice(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
-    s.invoiceStatus = 'approved';
     s.remittanceStatus = 'paid';
-    showToast('✓ 해당 학생의 인보이스 정산 및 완납 처리가 승인 완료되었습니다.', 'success');
+    showToast('✓ 완납 처리되었습니다.', 'success');
     refreshInvoiceViews(studentId);
   }
 }
@@ -2743,12 +2723,10 @@ function approveInvoice(studentId) {
 function rejectInvoice(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
-    const reason = prompt('반려 사유를 입력하세요:', '정산 금액 불일치 (송금 피 누락)');
-    if (reason === null) return; // cancelled
-    s.invoiceStatus = 'rejected';
+    const reason = prompt('미납 처리 사유를 입력하세요:', '금액 불일치');
+    if (reason === null) return;
     s.remittanceStatus = 'unpaid';
-    s.invoiceRejectReason = reason;
-    showToast('✓ 인보이스 정산 건이 반려 처리되었습니다.', 'warning');
+    showToast('✓ 미납 처리되었습니다.', 'warning');
     refreshInvoiceViews(studentId);
   }
 }

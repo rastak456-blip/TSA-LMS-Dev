@@ -2379,9 +2379,8 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ${localFeesHtml}
 
-          <!-- 송금 영수증 제출 섹션 (어드민은 미표시, 에이전시는 영수증 제출창 노출) -->
+          <!-- 입금 확인서 제출 섹션 (어드민은 미표시, 에이전시만 노출) -->
           ${isAgency ? `
-          <!-- 송금 영수증 제출 섹션 (에이전시용) -->
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
             <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 입금 확인서 제출</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
@@ -2422,7 +2421,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ` : ''}
 
-          <!-- 송금 영수증 제출 내역 -->
+          <!-- 입금 확인서 제출 이력 -->
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
             <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 입금 확인서 제출 이력 (B2B Net 정산)</div>
             ${(() => {
@@ -3293,7 +3292,7 @@ function initAdminInbox() {
   remitCount.textContent = `송금 대기: ${waitingRemits.length}건`;
 
   if (waitingRemits.length === 0) {
-    remitBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#9CA3AF">승인 대기 중인 송금 영수증이 없습니다.</td></tr>`;
+    remitBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#9CA3AF">승인 대기 중인 입금 확인서가 없습니다.</td></tr>`;
   } else {
     remitBody.innerHTML = waitingRemits.map(s => {
       const prices = calculatePrices(s);
@@ -3515,7 +3514,7 @@ function rejectAdminRemittance(id) {
   const s = MOCK_STUDENTS.find(std => std.id === id);
   if (!s) return;
 
-  const reason = prompt("송금 영수증 반려 사유를 입력하십시오:");
+  const reason = prompt("미납 처리 사유를 입력하십시오:");
   if (reason === null) return;
 
   s.remittanceStatus = 'unpaid';
@@ -3539,7 +3538,7 @@ function rejectAdminRemittance(id) {
 
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[송금 반려] ${s.name} 학생의 송금 확인 요청이 반려되었습니다. 사유: ${reason || '이체 확인 불가'}`,
+    text: `[미납 처리] ${s.name} 학생의 입금 확인이 반려되었습니다. 사유: ${reason || '이체 확인 불가'}`,
     type: 'danger',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });

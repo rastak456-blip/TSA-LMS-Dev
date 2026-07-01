@@ -2385,11 +2385,11 @@
                   </select>
                 </div>
                 <div class="tsa-form-group">
-                  <label class="tsa-label">인보이스 상태</label>
+                  <label class="tsa-label">납부 상태</label>
                   <select id="filter-agency-invoice" class="tsa-input" onchange="filterAgencyStudentList()">
                     <option value="all">전체</option>
-                    <option value="issued">발행 완료</option>
-                    <option value="unissued">미발행</option>
+                    <option value="issued">완납</option>
+                    <option value="unissued">미납</option>
                   </select>
                 </div>
               </div>
@@ -2487,7 +2487,7 @@
                     <th class="col-ssp">SSP 만료일</th>
                     <th class="col-dorm">희망 기숙사</th>
                     <th class="col-commission">커미션</th>
-                    <th>인보이스</th>
+                    <th>납부 상태</th>
                     <th>상세 액션</th>
                   </tr>
                 </thead>
@@ -3465,7 +3465,7 @@
                     <th style="text-align:right">수강료</th><th style="text-align:right">기숙사비</th>
                     <th style="text-align:right">등록금</th><th style="text-align:right;color:#5E5CE6">GROSS</th>
                     <th style="text-align:right;color:#D97706">커미션</th><th style="text-align:right;color:#059669">NET</th>
-                    <th>등록 상태</th><th>납부 상태</th><th>인보이스</th>
+                    <th>등록 상태</th><th>납부 상태</th>
                   </tr>
                 </thead>
                 <tbody id="month-stats-tbody"></tbody>
@@ -4292,7 +4292,7 @@
         <div class="tsa-tabs" style="margin-bottom:16px">
           <div class="tsa-tab active" onclick="switchStudentTab('basic', this)">기본 정보</div>
           <div class="tsa-tab" onclick="switchStudentTab('class', this)">수강 현황 · 학습성적</div>
-          <div class="tsa-tab" onclick="switchStudentTab('settle', this)">정산 & 인보이스</div>
+          <div class="tsa-tab" onclick="switchStudentTab('settle', this)">정산</div>
           <div class="tsa-tab" onclick="switchStudentTab('classlog', this)">📋 수업 현황</div>
           <div class="tsa-tab" onclick="switchStudentTab('dorm', this)">🏠 기숙사</div>
           <div class="tsa-tab" onclick="switchStudentTab('fees', this)">로컬피</div>
@@ -5581,7 +5581,7 @@
         <div class="tsa-tabs" style="margin-bottom: 16px;">
           <div class="tsa-tab active" id="adetail-tab-basic" onclick="switchAdetailTab('basic')">기본 정보</div>
           <div class="tsa-tab" id="adetail-tab-class" onclick="switchAdetailTab('class')">수강 현황</div>
-          <div class="tsa-tab" id="adetail-tab-settle" onclick="switchAdetailTab('settle')">정산 & 인보이스</div>
+          <div class="tsa-tab" id="adetail-tab-settle" onclick="switchAdetailTab('settle')">정산</div>
           <div class="tsa-tab" id="adetail-tab-dorm" onclick="switchAdetailTab('dorm')">🏠 기숙사</div>
           <div class="tsa-tab" id="adetail-tab-changelog" onclick="switchAdetailTab('changelog')">🔄 변경 이력</div>
         </div>
@@ -5782,7 +5782,7 @@
 </div>
 
 <!-- ================================================ -->
-<!--  MODAL: 송금 영수증 제출                           -->
+<!--  MODAL: 입금 확인서 제출                            -->
 <!-- ================================================ -->
 <div id="modal-remit-submit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;width:520px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden">
@@ -5810,7 +5810,7 @@
 
     <!-- 영수증 업로드 -->
     <div style="padding:20px 24px">
-      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">송금 증빙 영수증 업로드 <span style="color:#EF4444">*</span></label>
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">입금 확인서 업로드 <span style="color:#EF4444">*</span></label>
       <div onclick="document.getElementById('remit-modal-file-input').click()"
            style="border:1.5px dashed #A5B4FC;border-radius:10px;padding:20px;text-align:center;background:#FAFBFF;cursor:pointer;transition:background 0.15s"
            onmouseover="this.style.background='#EEF2FF'" onmouseout="this.style.background='#FAFBFF'">
@@ -5845,7 +5845,7 @@
         </button>
         <button onclick="submitAgencyRemittanceModal()"
                 style="flex:2;padding:10px;background:#5E5CE6;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-          <i data-lucide="check" style="font-size:14px"></i> 송금 확인 요청
+          <i data-lucide="check" style="font-size:14px"></i> 입금 확인서 제출
         </button>
       </div>
     </div>
