@@ -975,6 +975,12 @@ function initAgencyStudentList() {
         <td>${s.course}</td>
         <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
         <td><span class="tsa-badge ${paidClass}">${paidLabel}</span></td>
+        <td class="col-commission">${s.status === 'waiting'
+          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.commission.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
+          : `$${prices.commission.toLocaleString()} (20%)`}</td>
+        <td>${s.status === 'waiting'
+          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.gross.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
+          : `$${prices.gross.toLocaleString()}`}</td>
         <td style="font-size:11.5px;white-space:nowrap">
           <div>${fmtDate(s.startDate) || '-'}</div>
           <div style="color:#9CA3AF;font-size:10.5px">~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
@@ -994,12 +1000,6 @@ function initAgencyStudentList() {
           }
           return `<span style="color:#D1D5DB;font-size:12px">-</span>`;
         })()}</td>
-        <td class="col-commission">${s.status === 'waiting'
-          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.commission.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
-          : `$${prices.commission.toLocaleString()} (20%)`}</td>
-        <td>${s.status === 'waiting'
-          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.gross.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
-          : `$${prices.gross.toLocaleString()}`}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailModal(${s.id})">상세/수정</button>
