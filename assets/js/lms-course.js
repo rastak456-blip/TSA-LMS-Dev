@@ -975,10 +975,10 @@ function initAgencyStudentList() {
         <td>${s.course}</td>
         <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
         <td><span class="tsa-badge ${paidClass}">${paidLabel}</span></td>
-        <td class="col-commission">${s.status === 'waiting'
+        <td class="col-commission">${s.remittanceStatus !== 'paid'
           ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.commission.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
           : `$${prices.commission.toLocaleString()} (20%)`}</td>
-        <td>${s.status === 'waiting'
+        <td>${s.remittanceStatus !== 'paid'
           ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.gross.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
           : `$${prices.gross.toLocaleString()}`}</td>
         <td style="font-size:11.5px;white-space:nowrap">
