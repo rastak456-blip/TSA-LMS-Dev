@@ -268,14 +268,41 @@ function ensureAgmMap() {
   return _agmMap;
 }
 
+let _agmapFilter = 'all';
+
+function setAgencyMapFilter(filter) {
+  _agmapFilter = filter;
+  ['all','active','inactive'].forEach(f => {
+    const btn = document.getElementById(`agmap-filter-${f}`);
+    if (!btn) return;
+    btn.classList.toggle('tsa-btn-primary', f === filter);
+    btn.classList.toggle('tsa-btn-outline', f !== filter);
+    if (f !== filter) {
+      const colors = { active: '#10B981', inactive: '#9CA3AF' };
+      btn.style.borderColor = colors[f] || '';
+      btn.style.color = colors[f] || '';
+    } else {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  });
+  renderAgencyMap();
+}
+
 function renderAgencyMap() {
   const groupsEl = document.getElementById('agmap-country-groups');
   if (!groupsEl) return;
 
   const map = ensureAgmMap();
 
+  const filteredAgencies = MOCK_AGENCIES.filter(a => {
+    if (_agmapFilter === 'active') return a.status === 'active';
+    if (_agmapFilter === 'inactive') return a.status !== 'active';
+    return true;
+  });
+
   const byCountry = {};
-  MOCK_AGENCIES.forEach(a => {
+  filteredAgencies.forEach(a => {
     const key = a.country || '미지정';
     if (!byCountry[key]) byCountry[key] = [];
     byCountry[key].push(a);
@@ -307,7 +334,7 @@ function renderAgencyMap() {
   if (map) {
     Object.values(_agmMarkers).forEach(m => map.removeLayer(m));
     _agmMarkers = {};
-    MOCK_AGENCIES.forEach(a => {
+    filteredAgencies.forEach(a => {
       if (typeof a.lat !== 'number' || typeof a.lng !== 'number') return;
       const marker = L.marker([a.lat, a.lng]).addTo(map);
       marker.bindPopup(`<strong>${a.flag} ${a.name}${a.branch ? ` · ${a.branch}` : ''}</strong><br>${a.address || ''}`);
@@ -323,7 +350,11 @@ function zoomAgmCountry(country) {
   const map = ensureAgmMap();
   if (!map) return;
   const infoEl = document.getElementById('agmap-selected-info');
-  const list = MOCK_AGENCIES.filter(a => (a.country || '미지정') === country && typeof a.lat === 'number');
+  const list = MOCK_AGENCIES.filter(a => {
+    if (_agmapFilter === 'active' && a.status !== 'active') return false;
+    if (_agmapFilter === 'inactive' && a.status === 'active') return false;
+    return (a.country || '미지정') === country && typeof a.lat === 'number';
+  });
   if (list.length === 0) {
     if (infoEl) infoEl.innerHTML = `<strong>${country}</strong> — 등록된 위치 정보가 없습니다.`;
     return;

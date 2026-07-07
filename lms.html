@@ -3629,7 +3629,14 @@
           <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px">
             <!-- 좌측: 국가별 에이전시 핀 목록 -->
             <div class="tsa-card">
-              <div class="tsa-card-header"><h3 class="tsa-card-title"><i data-lucide="pin" style="color:#5E5CE6"></i> 국가별 에이전시 목록</h3></div>
+              <div class="tsa-card-header" style="flex-wrap:wrap;gap:8px">
+                <h3 class="tsa-card-title"><i data-lucide="pin" style="color:#5E5CE6"></i> 국가별 에이전시 목록</h3>
+                <div style="display:flex;gap:6px">
+                  <button id="agmap-filter-all" class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="setAgencyMapFilter('all')">전체</button>
+                  <button id="agmap-filter-active" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setAgencyMapFilter('active')" style="border-color:#10B981;color:#10B981">활성</button>
+                  <button id="agmap-filter-inactive" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setAgencyMapFilter('inactive')" style="border-color:#9CA3AF;color:#9CA3AF">비활성</button>
+                </div>
+              </div>
               <div class="tsa-card-body" style="padding:14px;max-height:600px;overflow-y:auto">
                 <div id="agmap-country-groups"></div>
               </div>
