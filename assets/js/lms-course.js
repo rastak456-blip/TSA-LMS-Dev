@@ -3831,7 +3831,11 @@ function renderMasterSettings() {
 
   const lvBody = document.getElementById('master-level-list-body');
   if (lvBody) {
-    lvBody.innerHTML = MOCK_MASTER_LEVELS.map((l, idx) => `
+    lvBody.innerHTML = MOCK_MASTER_LEVELS.map((l, idx) => {
+      const visibleBadge = l.visible !== false
+        ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleMasterLevelVisibility(${idx})">노출</span>`
+        : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleMasterLevelVisibility(${idx})">비노출</span>`;
+      return `
       <tr draggable="true" data-level-idx="${idx}"
           ondragstart="onLevelRowDragStart(event, ${idx})"
           ondragover="onLevelRowDragOver(event)"
@@ -3842,13 +3846,23 @@ function renderMasterSettings() {
         <td style="font-weight:600;font-size:12.5px">${l.name}</td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${l.order}</td>
         <td style="font-size:11.5px;color:#6B7280">${l.desc || '-'}</td>
+        <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditLevelModal(${idx})">수정</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
+}
+
+function toggleMasterLevelVisibility(idx) {
+  const l = MOCK_MASTER_LEVELS[idx];
+  if (!l) return;
+  l.visible = l.visible === false ? true : false;
+  renderMasterSettings();
+  showToast(`✓ ${l.name} 레벨이 ${l.visible ? '노출' : '비노출'} 처리되었습니다.`, 'success');
 }
 
 let _levelDragSrcIdx = null;
