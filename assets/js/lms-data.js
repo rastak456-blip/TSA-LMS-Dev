@@ -770,11 +770,21 @@ let MOCK_MASTER_LEVELS = [
   { id: 'LV_01', name: 'Beginner', order: 1, desc: '입문 기초 레벨' },
   { id: 'LV_02', name: 'Elementary', order: 2, desc: '초급 기초 회화 레벨' },
   { id: 'LV_03', name: 'Intermediate', order: 3, desc: '중급 프리토킹 준비 레벨' },
-  { id: 'LV_04', name: 'Advanced', order: 4, desc: '고급 토론 및 아카데믹 레벨' },
-  { id: 'LV_05', name: 'Band 5.0', order: 5, desc: 'IELTS 기본 반' },
-  { id: 'LV_06', name: 'Band 6.0', order: 6, desc: 'IELTS 실전 반' },
-  { id: 'LV_07', name: 'Band 7.0', order: 7, desc: 'IELTS 고득점 보장 반' }
+  { id: 'LV_04', name: 'Upper-Int', order: 4, desc: '중상급 프리토킹 심화 레벨' },
+  { id: 'LV_05', name: 'Advanced', order: 5, desc: '고급 토론 및 아카데믹 레벨' }
 ];
+
+// 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
+const LEVEL_NORMALIZE_MAP = {
+  'Upper-Beginner':      'Elementary',
+  'Pre-Intermediate':    'Elementary',
+  'Upper-Intermediate':  'Upper-Int',
+  'Band 5.0':            'Intermediate',
+  'Band 5.5':            'Upper-Int',
+  'Band 6.0':            'Upper-Int',
+  'Band 6.5':            'Advanced',
+  'Band 7.0':            'Advanced',
+};
 
 const MOCK_COURSES = [
   { name: '일반 코스', type: '일반 영어', oneone: 4, group1on4: 2, group: 1, fee: 800, active: true, subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }], levels: ['LV_01', 'LV_03', 'LV_04'] },

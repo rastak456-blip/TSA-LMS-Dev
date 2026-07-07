@@ -22,6 +22,11 @@ function enhanceMockStudents() {
   const today = new Date(todayStr);
 
   MOCK_STUDENTS.forEach(s => {
+    // 0. 레벨 표준화 — Beginner/Elementary/Intermediate/Upper-Int/Advanced 5단계 외 값(IELTS Band 등) 매핑
+    if (s.level && typeof LEVEL_NORMALIZE_MAP !== 'undefined' && LEVEL_NORMALIZE_MAP[s.level]) {
+      s.level = LEVEL_NORMALIZE_MAP[s.level];
+    }
+
     // 1. Email & Emergency Contact
     if (!s.email) {
       s.email = `${s.nick.toLowerCase()}@naver.com`;
