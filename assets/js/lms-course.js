@@ -3818,7 +3818,6 @@ function renderMasterSettings() {
     subBody.innerHTML = MOCK_MASTER_SUBJECTS.map((s, idx) => `
       <tr>
         <td style="font-weight:600;font-size:12.5px">${s.name}</td>
-        <td><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${s.type}</span></td>
         <td style="font-size:11.5px;color:#6B7280">${s.desc || '-'}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
