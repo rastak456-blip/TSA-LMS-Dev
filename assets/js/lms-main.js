@@ -2485,7 +2485,7 @@ function renderMonthlyInvoiceStats() {
   }
 
   let monthStudents = students.filter(s => {
-    const dateStr = s.arrivalDate || s.startDate;
+    const dateStr = s.remittanceSubmittedDate || s.arrivalDate || s.startDate;
     return dateStr && dateStr.startsWith(selectedMonth);
   });
 
@@ -2494,7 +2494,7 @@ function renderMonthlyInvoiceStats() {
 
   // KPI 카드 업데이트 — 전체 학생 기준 (필터 전)
   const allMonthStudents = students.filter(s => {
-    const dateStr = s.arrivalDate || s.startDate;
+    const dateStr = s.remittanceSubmittedDate || s.arrivalDate || s.startDate;
     return dateStr && dateStr.startsWith(selectedMonth);
   });
   let paidNet = 0, unpaidNet = 0, totalComm = 0;
