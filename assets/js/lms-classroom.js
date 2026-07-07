@@ -1657,29 +1657,18 @@ function renderErpWaitingList() {
   </tr>`).join('');
 }
 
+let _erpAssignWaitingList = [];
+
 function openErpAssignModal(roomNo, bedId, accomType, roomType, gender) {
   _erpAssignTarget = { roomNo, bedId };
   const infoEl = document.getElementById('erp-assign-bed-info');
   if (infoEl) infoEl.innerHTML = `<b>${roomNo}호</b> · 침대 ${bedId} &nbsp;|&nbsp; ${accomType} ${roomType} &nbsp;|&nbsp; ${gender}`;
   document.getElementById('erp-assign-modal-title').textContent = `${roomNo}호 침대 ${bedId} 배정`;
   // 조건 맞는 대기 학생 필터
-  const waiting = MOCK_STUDENTS.filter(s => s.dorm === '미배정' && s.remittanceStatus === 'paid' && s.dormAccomType === accomType);
-  const listEl = document.getElementById('erp-assign-student-list');
-  if (listEl) {
-    if (waiting.length === 0) {
-      listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px">배정 가능한 대기 학생이 없습니다.</div>`;
-    } else {
-      listEl.innerHTML = waiting.map(s => `
-        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#5E5CE6'" onmouseout="this.style.borderColor='#E5E7EB'">
-          <input type="radio" name="erp-assign-student" value="${s.id}" style="accent-color:#5E5CE6"/>
-          <div style="flex:1">
-            <div style="font-size:12.5px;font-weight:600;color:#111827">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
-            <div style="font-size:11px;color:#6B7280">${s.flag||''} ${s.nationality} · ${s.gender==='남'?'남성':'여성'} · ${[s.dormType, s.dormGrade].filter(Boolean).join(' ')}</div>
-          </div>
-          <span style="font-size:11px;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:8px">대기</span>
-        </label>`).join('');
-    }
-  }
+  _erpAssignWaitingList = MOCK_STUDENTS.filter(s => s.dorm === '미배정' && s.remittanceStatus === 'paid' && s.dormAccomType === accomType);
+  const searchEl = document.getElementById('erp-assign-student-search');
+  if (searchEl) searchEl.value = '';
+  renderErpAssignStudentList(_erpAssignWaitingList);
   // 날짜 기본값: 필터 날짜
   const dateIn  = document.getElementById('erp-assign-date-in');
   const dateOut = document.getElementById('erp-assign-date-out');
@@ -1687,6 +1676,41 @@ function openErpAssignModal(roomNo, bedId, accomType, roomType, gender) {
   if (dateOut) dateOut.value = document.getElementById('erp-dorm-end')?.value   || '';
   document.getElementById('erp-assign-modal').style.display = 'block';
   document.getElementById('erp-assign-backdrop').style.display = 'block';
+}
+
+function renderErpAssignStudentList(list) {
+  const listEl = document.getElementById('erp-assign-student-list');
+  if (!listEl) return;
+  if (list.length === 0) {
+    listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#9CA3AF;font-size:12px">배정 가능한 대기 학생이 없습니다.</div>`;
+    return;
+  }
+  listEl.innerHTML = list.map(s => `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#5E5CE6'" onmouseout="this.style.borderColor='#E5E7EB'">
+      <input type="radio" name="erp-assign-student" value="${s.id}" style="accent-color:#5E5CE6" onchange="onErpAssignStudentSelected(${s.id})"/>
+      <div style="flex:1">
+        <div style="font-size:12.5px;font-weight:600;color:#111827">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
+        <div style="font-size:11px;color:#6B7280">${s.flag||''} ${s.nationality} · ${s.gender==='남'?'남성':'여성'} · ${[s.dormType, s.dormGrade].filter(Boolean).join(' ')}</div>
+      </div>
+      <span style="font-size:11px;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:8px">대기</span>
+    </label>`).join('');
+}
+
+function filterErpAssignStudentList() {
+  const term = (document.getElementById('erp-assign-student-search')?.value || '').trim().toLowerCase();
+  const filtered = term
+    ? _erpAssignWaitingList.filter(s => (s.name && s.name.toLowerCase().includes(term)) || (s.nick && s.nick.toLowerCase().includes(term)))
+    : _erpAssignWaitingList;
+  renderErpAssignStudentList(filtered);
+}
+
+function onErpAssignStudentSelected(studentId) {
+  const s = MOCK_STUDENTS.find(x => x.id === studentId);
+  if (!s) return;
+  const dateIn  = document.getElementById('erp-assign-date-in');
+  const dateOut = document.getElementById('erp-assign-date-out');
+  if (dateIn  && s.startDate) dateIn.value  = s.startDate;
+  if (dateOut && s.endDate)   dateOut.value = s.endDate;
 }
 
 function openErpAssignModalForStudent(studentId) {

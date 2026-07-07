@@ -5949,18 +5949,20 @@
           </div>
           <div style="padding:20px 24px">
             <div id="erp-assign-bed-info" style="background:#F8F9FF;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#374151"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">① 배정 대기 학생 검색 및 선택 <span style="color:#EF4444">*</span></div>
+            <input id="erp-assign-student-search" type="text" class="tsa-input" placeholder="학생명/Nick 검색" style="width:100%;margin-bottom:10px" oninput="filterErpAssignStudentList()"/>
+            <div id="erp-assign-student-list" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;margin-bottom:16px"></div>
+            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">② 입실일 · 퇴실일 지정 <span style="color:#EF4444">*</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">입실일 <span style="color:#EF4444">*</span></label>
+                <label style="font-size:11.5px;color:#6B7280;display:block;margin-bottom:5px">입실일</label>
                 <input id="erp-assign-date-in" type="date" class="tsa-input" style="width:100%"/>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">퇴실일 <span style="color:#EF4444">*</span></label>
+                <label style="font-size:11.5px;color:#6B7280;display:block;margin-bottom:5px">퇴실일</label>
                 <input id="erp-assign-date-out" type="date" class="tsa-input" style="width:100%"/>
               </div>
             </div>
-            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">배정 대기 학생 선택</div>
-            <div id="erp-assign-student-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
             <button class="tsa-btn tsa-btn-outline" onclick="closeErpAssignModal()">취소</button>
