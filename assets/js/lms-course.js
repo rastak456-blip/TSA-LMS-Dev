@@ -3640,7 +3640,6 @@ function rejectAdminChangeRequest(studentId, reqId) {
    ============================================= */
 function initCoursePricing() {
   renderCourseList();
-  updateFeeEstimate();
 }
 
 function renderCourseList() {
@@ -3964,37 +3963,6 @@ function deleteMasterLevel(idx) {
   MOCK_MASTER_LEVELS.splice(idx, 1);
   showToast('레벨이 삭제되었습니다.', 'success');
   renderMasterSettings();
-}
-
-function setPricingMode(mode) {
-  APP.pricingMode = mode;
-  document.getElementById('mode-btn-a').className = `tsa-btn ${mode==='A'?'tsa-btn-primary':'tsa-btn-outline'}`;
-  document.getElementById('mode-btn-b').className = `tsa-btn ${mode==='B'?'tsa-btn-primary':'tsa-btn-outline'}`;
-  document.getElementById('active-mode-label').textContent = mode==='A' ? 'A안 (절댓값 할증)' : 'B안 (차등 가산)';
-
-  if (mode === 'A') {
-    document.getElementById('rate-1w').value = 200;
-    document.getElementById('rate-2w').value = 150;
-    document.getElementById('rate-3w').value = 125;
-  } else {
-    document.getElementById('rate-1w').value = 40;
-    document.getElementById('rate-2w').value = 60;
-    document.getElementById('rate-3w').value = 85;
-  }
-  updatePricingParams();
-  showToast(`${mode}안 할증 요율이 적용되었습니다 — 견적 반영`, 'success');
-}
-
-function updatePricingParams() {
-  updateFeeEstimate();
-}
-
-function updateFeeEstimate() {
-  const course = parseFloat(document.getElementById('fee-course-general')?.value) || 800;
-  const dorm = parseFloat(document.getElementById('fee-dorm-2')?.value) || 600;
-  const reg = parseFloat(document.getElementById('fee-register')?.value) || 100;
-  const el = document.getElementById('fee-estimate-total');
-  if (el) el.textContent = `$${(course + dorm + reg).toLocaleString()}`;
 }
 
 function createNewBranch() {

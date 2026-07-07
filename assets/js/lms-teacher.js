@@ -570,9 +570,7 @@ function switchCoursePricingTab(tab, el) {
     el.classList.add('active');
   }
   document.querySelectorAll('.course-pricing-tab-content').forEach(c => c.style.display = 'none');
-  if (tab === 'fees') {
-    document.getElementById('course-pricing-tab-fees').style.display = 'block';
-  } else if (tab === 'curriculum') {
+  if (tab === 'curriculum') {
     document.getElementById('course-pricing-tab-curriculum').style.display = 'block';
     renderCourseList();
   } else if (tab === 'master') {
