@@ -3832,19 +3832,52 @@ function renderMasterSettings() {
   const lvBody = document.getElementById('master-level-list-body');
   if (lvBody) {
     lvBody.innerHTML = MOCK_MASTER_LEVELS.map((l, idx) => `
-      <tr>
+      <tr draggable="true" data-level-idx="${idx}"
+          ondragstart="onLevelRowDragStart(event, ${idx})"
+          ondragover="onLevelRowDragOver(event)"
+          ondrop="onLevelRowDrop(event, ${idx})"
+          ondragend="onLevelRowDragEnd(event)"
+          style="cursor:grab">
+        <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
         <td style="font-weight:600;font-size:12.5px">${l.name}</td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${l.order}</td>
         <td style="font-size:11.5px;color:#6B7280">${l.desc || '-'}</td>
         <td style="text-align:center">
-          <div style="display:flex;gap:5px;justify-content:center">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditLevelModal(${idx})">수정</button>
-            <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="deleteMasterLevel(${idx})">삭제</button>
-          </div>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditLevelModal(${idx})">수정</button>
         </td>
       </tr>
     `).join('');
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
+}
+
+let _levelDragSrcIdx = null;
+
+function onLevelRowDragStart(ev, idx) {
+  _levelDragSrcIdx = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.style.opacity = '0.4';
+}
+
+function onLevelRowDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+
+function onLevelRowDrop(ev, targetIdx) {
+  ev.preventDefault();
+  if (_levelDragSrcIdx === null || _levelDragSrcIdx === targetIdx) return;
+  const [moved] = MOCK_MASTER_LEVELS.splice(_levelDragSrcIdx, 1);
+  MOCK_MASTER_LEVELS.splice(targetIdx, 0, moved);
+  MOCK_MASTER_LEVELS.forEach((l, i) => { l.order = i + 1; });
+  _levelDragSrcIdx = null;
+  renderMasterSettings();
+  showToast('✓ 레벨 우선순위가 변경되었습니다.', 'success');
+}
+
+function onLevelRowDragEnd(ev) {
+  ev.currentTarget.style.opacity = '';
+  _levelDragSrcIdx = null;
 }
 
 let _editingSubjectIdx = null;
