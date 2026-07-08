@@ -3292,7 +3292,7 @@ function initAdminInbox() {
   if (!remitBody) return;
 
   const waitingRemits = MOCK_STUDENTS.filter(s => s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo));
-  remitCount.textContent = `송금 대기: ${waitingRemits.length}건`;
+  remitCount.textContent = `승인 대기: ${waitingRemits.length}건`;
 
   if (waitingRemits.length === 0) {
     remitBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#9CA3AF">승인 대기 중인 입금 확인서가 없습니다.</td></tr>`;
