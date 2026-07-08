@@ -3285,9 +3285,7 @@ function printInvoiceDocument() {
 // 어드민 전용 에이전시 업무 처리 함
 function initAdminInbox() {
   const remitBody = document.getElementById('admin-remit-inbox-body');
-  const changeBody = document.getElementById('admin-change-inbox-body');
   const remitCount = document.getElementById('admin-waiting-remits-count');
-  const changeCount = document.getElementById('admin-waiting-changes-count');
 
   if (!remitBody) return;
 
@@ -3315,42 +3313,6 @@ function initAdminInbox() {
     }).join('');
   }
 
-  const pendingRequests = [];
-  MOCK_STUDENTS.forEach(s => {
-    if (s.changeRequests) {
-      s.changeRequests.forEach(cr => {
-        if (cr.status === 'pending') {
-          pendingRequests.push({ student: s, cr: cr });
-        }
-      });
-    }
-  });
-
-  changeCount.textContent = `변경 대기: ${pendingRequests.length}건`;
-
-  if (pendingRequests.length === 0) {
-    changeBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#9CA3AF">승인 대기 중인 중요 정보 변경 요청이 없습니다.</td></tr>`;
-  } else {
-    changeBody.innerHTML = pendingRequests.map(item => {
-      const s = item.student;
-      const cr = item.cr;
-      return `
-        <tr>
-          <td>한국 영어마을</td>
-          <td><strong>${s.name} (Nick: ${s.nick})</strong></td>
-          <td><span class="tsa-badge tsa-badge-primary">${cr.field}</span></td>
-          <td style="color:#6B7280;text-decoration:line-through">${cr.from}</td>
-          <td style="font-weight:700;color:#10B981">${cr.to}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cr.reason}</td>
-          <td style="text-align:center">
-            <button class="tsa-btn tsa-btn-success tsa-btn-xs" style="background:#10B981;border:none" onclick="confirmAdminChangeRequest(${s.id}, ${cr.id})">승인</button>
-            <button class="tsa-btn tsa-btn-danger tsa-btn-xs" onclick="rejectAdminChangeRequest(${s.id}, ${cr.id})">반려</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-  
   if (typeof initAdminAttendanceInbox === 'function') {
     initAdminAttendanceInbox();
   }
