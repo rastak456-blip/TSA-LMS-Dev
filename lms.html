@@ -2908,6 +2908,31 @@
                   </table>
                 </div>
               </div>
+
+              <!-- 그룹 수업 유형 관리 -->
+              <div class="tsa-card" style="grid-column:span 2">
+                <div class="tsa-card-header" style="display:flex;justify-content:space-between;align-items:center;background:#EEF2FF;padding:12px 20px">
+                  <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 그룹 수업 유형 관리</h3>
+                  <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openClassTypeModal()"><i data-lucide="plus"></i> 수업 유형 추가</button>
+                </div>
+                <div style="overflow:hidden">
+                  <table class="tsa-table" style="width:100%">
+                    <thead>
+                      <tr>
+                        <th style="width:30px"></th>
+                        <th>우선순위</th>
+                        <th>코드</th>
+                        <th>수업명</th>
+                        <th style="text-align:center">최대 인원</th>
+                        <th>설명</th>
+                        <th style="text-align:center">노출</th>
+                        <th style="text-align:center">관리</th>
+                      </tr>
+                    </thead>
+                    <tbody id="master-classtype-list-body"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -4538,6 +4563,43 @@
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('level-modal')">취소</button>
         <button class="tsa-btn tsa-btn-primary" onclick="saveMasterLevel()"><i data-lucide="check"></i> 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="classtype-modal" style="display:none">
+  <div class="tsa-modal-backdrop" onclick="closeModal('classtype-modal')">
+    <div class="tsa-modal tsa-modal-sm" onclick="event.stopPropagation()">
+      <div class="tsa-modal-header">
+        <div>
+          <h3 class="tsa-modal-title" id="classtype-modal-title">그룹 수업 유형 추가</h3>
+          <p class="tsa-modal-subtitle">1:1 · 1:4 · 1:8 등 수업 유형을 설정합니다</p>
+        </div>
+        <button class="tsa-modal-close" onclick="closeModal('classtype-modal')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="tsa-modal-body" style="display:flex;flex-direction:column;gap:14px">
+        <input type="hidden" id="classtype-modal-id"/>
+        <div class="tsa-form-group">
+          <label class="tsa-label">코드 <span style="color:#EF4444">*</span></label>
+          <input id="classtype-modal-code" type="text" class="tsa-input" placeholder="예: 1:4"/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">수업명 <span style="color:#EF4444">*</span></label>
+          <input id="classtype-modal-name" type="text" class="tsa-input" placeholder="예: 1:4 그룹 수업"/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">최대 인원</label>
+          <input id="classtype-modal-max" type="number" min="1" class="tsa-input" placeholder="4"/>
+        </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label">설명</label>
+          <input id="classtype-modal-desc" type="text" class="tsa-input" placeholder="간단한 수업 유형 설명"/>
+        </div>
+      </div>
+      <div class="tsa-modal-footer">
+        <button class="tsa-btn tsa-btn-outline" onclick="closeModal('classtype-modal')">취소</button>
+        <button class="tsa-btn tsa-btn-primary" onclick="saveMasterClassType()"><i data-lucide="check"></i> 저장</button>
       </div>
     </div>
   </div>

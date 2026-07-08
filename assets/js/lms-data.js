@@ -774,6 +774,12 @@ let MOCK_MASTER_LEVELS = [
   { id: 'LV_05', name: 'Advanced', order: 5, desc: '고급 토론 및 아카데믹 레벨', visible: true }
 ];
 
+let MOCK_MASTER_CLASS_TYPES = [
+  { id: 'CT_01', code: '1:1', name: '1:1 개인 수업',     maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
+  { id: 'CT_02', code: '1:4', name: '1:4 그룹 수업',     maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
+  { id: 'CT_03', code: '1:8', name: '1:8 스페셜 클래스', maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대형 그룹 수업', visible: true },
+];
+
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
 const LEVEL_NORMALIZE_MAP = {
   'Upper-Beginner':      'Elementary',

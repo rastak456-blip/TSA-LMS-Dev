@@ -3829,6 +3829,124 @@ function renderMasterSettings() {
     }).join('');
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
+
+  MOCK_MASTER_CLASS_TYPES.sort((a, b) => (a.order || 0) - (b.order || 0));
+  const ctBody = document.getElementById('master-classtype-list-body');
+  if (ctBody) {
+    ctBody.innerHTML = MOCK_MASTER_CLASS_TYPES.map((c, idx) => {
+      const visibleBadge = c.visible !== false
+        ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleMasterClassTypeVisibility(${idx})">노출</span>`
+        : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleMasterClassTypeVisibility(${idx})">비노출</span>`;
+      return `
+      <tr draggable="true" data-classtype-idx="${idx}"
+          ondragstart="onClassTypeRowDragStart(event, ${idx})"
+          ondragover="onClassTypeRowDragOver(event)"
+          ondrop="onClassTypeRowDrop(event, ${idx})"
+          ondragend="onClassTypeRowDragEnd(event)"
+          style="cursor:grab">
+        <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
+        <td style="font-weight:700;color:#4B5563;font-size:12px">${c.order}</td>
+        <td><span class="tsa-badge tsa-badge-outline" style="font-size:11px">${c.code}</span></td>
+        <td style="font-weight:600;font-size:12.5px">${c.name}</td>
+        <td style="text-align:center;font-size:12px">${c.maxStudents}명</td>
+        <td style="font-size:11.5px;color:#6B7280">${c.desc || '-'}</td>
+        <td style="text-align:center">${visibleBadge}</td>
+        <td style="text-align:center">
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditClassTypeModal(${idx})">수정</button>
+        </td>
+      </tr>
+    `;
+    }).join('');
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
+  }
+}
+
+function toggleMasterClassTypeVisibility(idx) {
+  const c = MOCK_MASTER_CLASS_TYPES[idx];
+  if (!c) return;
+  c.visible = c.visible === false ? true : false;
+  renderMasterSettings();
+  showToast(`✓ ${c.name} 수업 유형이 ${c.visible ? '노출' : '비노출'} 처리되었습니다.`, 'success');
+}
+
+let _classTypeDragSrcIdx = null;
+
+function onClassTypeRowDragStart(ev, idx) {
+  _classTypeDragSrcIdx = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.style.opacity = '0.4';
+}
+function onClassTypeRowDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+function onClassTypeRowDrop(ev, targetIdx) {
+  ev.preventDefault();
+  if (_classTypeDragSrcIdx === null || _classTypeDragSrcIdx === targetIdx) return;
+  const [moved] = MOCK_MASTER_CLASS_TYPES.splice(_classTypeDragSrcIdx, 1);
+  MOCK_MASTER_CLASS_TYPES.splice(targetIdx, 0, moved);
+  MOCK_MASTER_CLASS_TYPES.forEach((c, i) => { c.order = i + 1; });
+  _classTypeDragSrcIdx = null;
+  renderMasterSettings();
+  showToast('✓ 수업 유형 우선순위가 변경되었습니다.', 'success');
+}
+function onClassTypeRowDragEnd(ev) {
+  ev.currentTarget.style.opacity = '';
+  _classTypeDragSrcIdx = null;
+}
+
+let _editingClassTypeIdx = null;
+
+function openClassTypeModal() {
+  _editingClassTypeIdx = null;
+  document.getElementById('classtype-modal-title').textContent = '그룹 수업 유형 추가';
+  document.getElementById('classtype-modal-id').value = '';
+  document.getElementById('classtype-modal-code').value = '';
+  document.getElementById('classtype-modal-name').value = '';
+  document.getElementById('classtype-modal-max').value = '';
+  document.getElementById('classtype-modal-desc').value = '';
+  openModal('classtype-modal');
+}
+
+function openEditClassTypeModal(idx) {
+  _editingClassTypeIdx = idx;
+  const c = MOCK_MASTER_CLASS_TYPES[idx];
+  if (!c) return;
+  document.getElementById('classtype-modal-title').textContent = '그룹 수업 유형 수정';
+  document.getElementById('classtype-modal-id').value = c.id;
+  document.getElementById('classtype-modal-code').value = c.code;
+  document.getElementById('classtype-modal-name').value = c.name;
+  document.getElementById('classtype-modal-max').value = c.maxStudents;
+  document.getElementById('classtype-modal-desc').value = c.desc || '';
+  openModal('classtype-modal');
+}
+
+function saveMasterClassType() {
+  const code = document.getElementById('classtype-modal-code').value.trim();
+  const name = document.getElementById('classtype-modal-name').value.trim();
+  const maxStudents = parseInt(document.getElementById('classtype-modal-max').value) || 1;
+  const desc = document.getElementById('classtype-modal-desc').value.trim();
+
+  if (!code || !name) {
+    showToast('코드와 수업명을 입력하세요.', 'warning');
+    return;
+  }
+
+  if (_editingClassTypeIdx !== null) {
+    const c = MOCK_MASTER_CLASS_TYPES[_editingClassTypeIdx];
+    c.code = code;
+    c.name = name;
+    c.maxStudents = maxStudents;
+    c.desc = desc;
+    showToast('수업 유형 정보가 수정되었습니다.', 'success');
+  } else {
+    const newId = 'CT_' + String(MOCK_MASTER_CLASS_TYPES.length + 1).padStart(2, '0');
+    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code, name, maxStudents, desc, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
+    showToast('신규 수업 유형이 추가되었습니다.', 'success');
+  }
+
+  closeModal('classtype-modal');
+  renderMasterSettings();
 }
 
 function toggleMasterSubjectVisibility(idx) {
