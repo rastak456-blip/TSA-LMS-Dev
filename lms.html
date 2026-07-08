@@ -2862,7 +2862,7 @@
 
           <!-- [탭 C] 과목 및 레벨 마스터 설정 -->
           <div id="course-pricing-tab-master" class="course-pricing-tab-content" style="display:none">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
               <!-- 과목 풀 관리 -->
               <div class="tsa-card">
                 <div class="tsa-card-header" style="display:flex;justify-content:space-between;align-items:center;background:#EEF2FF;padding:12px 20px">
@@ -2876,7 +2876,6 @@
                         <th style="width:30px"></th>
                         <th>우선순위</th>
                         <th>과목명</th>
-                        <th>설명</th>
                         <th style="text-align:center">노출</th>
                         <th style="text-align:center">관리</th>
                       </tr>
@@ -2885,7 +2884,7 @@
                   </table>
                 </div>
               </div>
-              
+
               <!-- 레벨 풀 관리 -->
               <div class="tsa-card">
                 <div class="tsa-card-header" style="display:flex;justify-content:space-between;align-items:center;background:#EEF2FF;padding:12px 20px">
@@ -2899,7 +2898,6 @@
                         <th style="width:30px"></th>
                         <th>우선순위</th>
                         <th>레벨명</th>
-                        <th>설명</th>
                         <th style="text-align:center">노출</th>
                         <th style="text-align:center">관리</th>
                       </tr>
@@ -2910,7 +2908,7 @@
               </div>
 
               <!-- 그룹 수업 유형 관리 -->
-              <div class="tsa-card" style="grid-column:span 2">
+              <div class="tsa-card">
                 <div class="tsa-card-header" style="display:flex;justify-content:space-between;align-items:center;background:#EEF2FF;padding:12px 20px">
                   <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 그룹 수업 유형 관리</h3>
                   <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openClassTypeModal()"><i data-lucide="plus"></i> 수업 유형 추가</button>
@@ -2924,7 +2922,6 @@
                         <th>코드</th>
                         <th>수업명</th>
                         <th style="text-align:center">최대 인원</th>
-                        <th>설명</th>
                         <th style="text-align:center">노출</th>
                         <th style="text-align:center">관리</th>
                       </tr>
@@ -4522,10 +4519,6 @@
           <label class="tsa-label">과목명 <span style="color:#EF4444">*</span></label>
           <input id="subject-modal-name" type="text" class="tsa-input" placeholder="예: 스피킹"/>
         </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">설명</label>
-          <input id="subject-modal-desc" type="text" class="tsa-input" placeholder="간단한 과목 설명"/>
-        </div>
       </div>
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('subject-modal')">취소</button>
@@ -4555,10 +4548,6 @@
         <div class="tsa-form-group">
           <label class="tsa-label">정렬 우선순위 (숫자)</label>
           <input id="level-modal-order" type="number" class="tsa-input" placeholder="1"/>
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">레벨 설명</label>
-          <input id="level-modal-desc" type="text" class="tsa-input" placeholder="간단한 레벨 설명"/>
         </div>
       </div>
       <div class="tsa-modal-footer">
@@ -4592,10 +4581,6 @@
         <div class="tsa-form-group">
           <label class="tsa-label">최대 인원</label>
           <input id="classtype-modal-max" type="number" min="1" class="tsa-input" placeholder="4"/>
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">설명</label>
-          <input id="classtype-modal-desc" type="text" class="tsa-input" placeholder="간단한 수업 유형 설명"/>
         </div>
       </div>
       <div class="tsa-modal-footer">

@@ -3792,7 +3792,6 @@ function renderMasterSettings() {
         <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${s.order}</td>
         <td style="font-weight:600;font-size:12.5px">${s.name}</td>
-        <td style="font-size:11.5px;color:#6B7280">${s.desc || '-'}</td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditSubjectModal(${idx})">수정</button>
@@ -3819,7 +3818,6 @@ function renderMasterSettings() {
         <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${l.order}</td>
         <td style="font-weight:600;font-size:12.5px">${l.name}</td>
-        <td style="font-size:11.5px;color:#6B7280">${l.desc || '-'}</td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditLevelModal(${idx})">수정</button>
@@ -3849,7 +3847,6 @@ function renderMasterSettings() {
         <td><span class="tsa-badge tsa-badge-outline" style="font-size:11px">${c.code}</span></td>
         <td style="font-weight:600;font-size:12.5px">${c.name}</td>
         <td style="text-align:center;font-size:12px">${c.maxStudents}명</td>
-        <td style="font-size:11.5px;color:#6B7280">${c.desc || '-'}</td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditClassTypeModal(${idx})">수정</button>
@@ -3904,7 +3901,6 @@ function openClassTypeModal() {
   document.getElementById('classtype-modal-code').value = '';
   document.getElementById('classtype-modal-name').value = '';
   document.getElementById('classtype-modal-max').value = '';
-  document.getElementById('classtype-modal-desc').value = '';
   openModal('classtype-modal');
 }
 
@@ -3917,7 +3913,6 @@ function openEditClassTypeModal(idx) {
   document.getElementById('classtype-modal-code').value = c.code;
   document.getElementById('classtype-modal-name').value = c.name;
   document.getElementById('classtype-modal-max').value = c.maxStudents;
-  document.getElementById('classtype-modal-desc').value = c.desc || '';
   openModal('classtype-modal');
 }
 
@@ -3925,7 +3920,6 @@ function saveMasterClassType() {
   const code = document.getElementById('classtype-modal-code').value.trim();
   const name = document.getElementById('classtype-modal-name').value.trim();
   const maxStudents = parseInt(document.getElementById('classtype-modal-max').value) || 1;
-  const desc = document.getElementById('classtype-modal-desc').value.trim();
 
   if (!code || !name) {
     showToast('코드와 수업명을 입력하세요.', 'warning');
@@ -3937,11 +3931,10 @@ function saveMasterClassType() {
     c.code = code;
     c.name = name;
     c.maxStudents = maxStudents;
-    c.desc = desc;
     showToast('수업 유형 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'CT_' + String(MOCK_MASTER_CLASS_TYPES.length + 1).padStart(2, '0');
-    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code, name, maxStudents, desc, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
+    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code, name, maxStudents, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
     showToast('신규 수업 유형이 추가되었습니다.', 'success');
   }
 
@@ -4031,7 +4024,6 @@ function openSubjectModal() {
   document.getElementById('subject-modal-title').textContent = '마스터 과목 추가';
   document.getElementById('subject-modal-id').value = '';
   document.getElementById('subject-modal-name').value = '';
-  document.getElementById('subject-modal-desc').value = '';
   openModal('subject-modal');
 }
 
@@ -4043,13 +4035,11 @@ function openEditSubjectModal(idx) {
   document.getElementById('subject-modal-title').textContent = '마스터 과목 수정';
   document.getElementById('subject-modal-id').value = s.id;
   document.getElementById('subject-modal-name').value = s.name;
-  document.getElementById('subject-modal-desc').value = s.desc || '';
   openModal('subject-modal');
 }
 
 function saveMasterSubject() {
   const name = document.getElementById('subject-modal-name').value.trim();
-  const desc = document.getElementById('subject-modal-desc').value.trim();
 
   if (!name) {
     showToast('과목명을 입력하세요.', 'warning');
@@ -4059,11 +4049,10 @@ function saveMasterSubject() {
   if (_editingSubjectIdx !== null) {
     const s = MOCK_MASTER_SUBJECTS[_editingSubjectIdx];
     s.name = name;
-    s.desc = desc;
     showToast('과목 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'SUB_' + String(MOCK_MASTER_SUBJECTS.length + 1).padStart(2, '0');
-    MOCK_MASTER_SUBJECTS.push({ id: newId, name, desc, order: MOCK_MASTER_SUBJECTS.length + 1, visible: true });
+    MOCK_MASTER_SUBJECTS.push({ id: newId, name, order: MOCK_MASTER_SUBJECTS.length + 1, visible: true });
     showToast('신규 마스터 과목이 추가되었습니다.', 'success');
   }
 
@@ -4085,7 +4074,6 @@ function openLevelModal() {
   document.getElementById('level-modal-id').value = '';
   document.getElementById('level-modal-name').value = '';
   document.getElementById('level-modal-order').value = MOCK_MASTER_LEVELS.length + 1;
-  document.getElementById('level-modal-desc').value = '';
   openModal('level-modal');
 }
 
@@ -4098,14 +4086,12 @@ function openEditLevelModal(idx) {
   document.getElementById('level-modal-id').value = l.id;
   document.getElementById('level-modal-name').value = l.name;
   document.getElementById('level-modal-order').value = l.order;
-  document.getElementById('level-modal-desc').value = l.desc || '';
   openModal('level-modal');
 }
 
 function saveMasterLevel() {
   const name = document.getElementById('level-modal-name').value.trim();
   const order = parseInt(document.getElementById('level-modal-order').value, 10) || 1;
-  const desc = document.getElementById('level-modal-desc').value.trim();
 
   if (!name) {
     showToast('레벨명을 입력하세요.', 'warning');
@@ -4116,11 +4102,10 @@ function saveMasterLevel() {
     const l = MOCK_MASTER_LEVELS[_editingLevelIdx];
     l.name = name;
     l.order = order;
-    l.desc = desc;
     showToast('레벨 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'LV_' + String(MOCK_MASTER_LEVELS.length + 1).padStart(2, '0');
-    MOCK_MASTER_LEVELS.push({ id: newId, name, order, desc });
+    MOCK_MASTER_LEVELS.push({ id: newId, name, order, visible: true });
     showToast('신규 마스터 레벨이 추가되었습니다.', 'success');
   }
 
