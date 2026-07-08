@@ -4788,8 +4788,12 @@
               </select>
             </div>
             <div class="tsa-form-group">
-              <label class="tsa-label">유형 (인실·컨디션)</label>
-              <input id="rdm-type" type="text" class="tsa-input" placeholder="예: 2인실 (이코노미)"/>
+              <label class="tsa-label">인실</label>
+              <select id="rdm-capacity" class="tsa-input" onchange="syncRdmTypeFields()"></select>
+            </div>
+            <div class="tsa-form-group">
+              <label class="tsa-label">컨디션</label>
+              <select id="rdm-condition" class="tsa-input" onchange="syncRdmTypeFields()"></select>
             </div>
             <div class="tsa-form-group">
               <label class="tsa-label">성별 구분</label>

@@ -1343,8 +1343,21 @@ function openRoomDetailModal(idx) {
   document.getElementById('rdm-subtitle').textContent = `${room.accomType || ''} · ${room.type} · ${room.genderRestriction || '무관'}`;
   document.getElementById('rdm-roomno').value = room.roomNo || '';
   document.getElementById('rdm-accomtype').value = room.accomType || '가든 호텔';
-  document.getElementById('rdm-type').value = room.type || '';
   document.getElementById('rdm-gender').value = room.genderRestriction || '무관';
+
+  // 유형(인실/컨디션) 드롭다운을 마스터 풀 기준으로 채우고 기존 값 파싱해 선택
+  const capMatch = (room.type || '').match(/(\d+)인실/);
+  const condMatch = (room.type || '').match(/\(([^)]+)\)/);
+  const capSel = document.getElementById('rdm-capacity');
+  const condSel = document.getElementById('rdm-condition');
+  if (capSel && typeof MOCK_DORM_MASTER_CAPACITIES !== 'undefined') {
+    capSel.innerHTML = MOCK_DORM_MASTER_CAPACITIES.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    if (capMatch) capSel.value = `${capMatch[1]}인실`;
+  }
+  if (condSel && typeof MOCK_DORM_MASTER_GRADES !== 'undefined') {
+    condSel.innerHTML = MOCK_DORM_MASTER_GRADES.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+    if (condMatch) condSel.value = condMatch[1];
+  }
 
   // 호실 번호가 이미 배정된 방은 숙소 유형/성별 구분만 변경 불가 (인실·컨디션은 항상 변경 가능)
   const isAssigned = !!room.roomNo;
@@ -1353,8 +1366,10 @@ function openRoomDetailModal(idx) {
     const el = document.getElementById(id);
     if (el) { el.disabled = isAssigned; el.style.cssText = lockStyle; }
   });
-  const typeEl = document.getElementById('rdm-type');
-  if (typeEl) { typeEl.disabled = false; typeEl.style.cssText = ''; }
+  ['rdm-capacity','rdm-condition'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = false; el.style.cssText = ''; }
+  });
   const lockNote = document.getElementById('rdm-lock-note');
   if (lockNote) lockNote.style.display = isAssigned ? 'block' : 'none';
 
@@ -1374,6 +1389,17 @@ function openRoomDetailModal(idx) {
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
+function syncRdmTypeFields() {
+  const capSel = document.getElementById('rdm-capacity');
+  const condSel = document.getElementById('rdm-condition');
+  const subtitle = document.getElementById('rdm-subtitle');
+  if (subtitle && capSel && condSel) {
+    const accomType = document.getElementById('rdm-accomtype')?.value || '';
+    const gender = document.getElementById('rdm-gender')?.value || '';
+    subtitle.textContent = `${accomType} · ${capSel.value} (${condSel.value}) · ${gender}`;
+  }
+}
+
 function saveRoomDetailInfo() {
   const room = MOCK_DORM_ROOMS[_currentRoomIdx];
   if (!room) return;
@@ -1381,9 +1407,11 @@ function saveRoomDetailInfo() {
   if (!newNo) { showToast('호실 번호를 입력하세요.', 'warning'); return; }
   const conflict = MOCK_DORM_ROOMS.find((r, i) => r.roomNo === newNo && i !== _currentRoomIdx);
   if (conflict) { showToast('이미 사용 중인 호실 번호입니다.', 'warning'); return; }
+  const capacity = document.getElementById('rdm-capacity').value;
+  const condition = document.getElementById('rdm-condition').value;
   room.roomNo = newNo;
   room.accomType = document.getElementById('rdm-accomtype').value;
-  room.type = document.getElementById('rdm-type').value;
+  room.type = `${capacity} (${condition})`;
   room.genderRestriction = document.getElementById('rdm-gender').value;
   showToast(`✓ Room ${newNo} 정보가 저장되었습니다.`, 'success');
   closeModal('room-detail-modal');
