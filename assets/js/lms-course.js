@@ -3611,7 +3611,7 @@ function renderCourseList() {
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
     const subjectsByType = c.subjectsByType || {};
 
-    // 유형별 과목 배지 (그룹 수업 유형 마스터 풀 순서 기준, 한 줄씩)
+    // 유형별 과목 + 시간 배분 (그룹 수업 유형 마스터 풀 순서 기준, 한 줄씩)
     const subjectsBadge = [...MOCK_MASTER_CLASS_TYPES].sort((a, b) => a.order - b.order).map(t => {
       const list = subjectsByType[t.code] || [];
       if (list.length === 0) return '';
@@ -3619,25 +3619,25 @@ function renderCourseList() {
         const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === sObj.id);
         return `${sub ? sub.name : sObj.id}(${sObj.hours}h)`;
       }).join(', ');
-      return `<div style="margin-top:1px"><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${t.code}</span> ${names}</div>`;
-    }).join('');
+      return `<div style="margin-top:2px"><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${t.code}</span> ${names}</div>`;
+    }).join('') || '<span style="color:#D1D5DB">과목 미설정</span>';
 
-    // 유형별 시수 요약 — 각 유형을 한 줄씩 표시 (예: 1:1 4h / 1:4 2h / 1:8 1h)
-    const hoursSummary = [...MOCK_MASTER_CLASS_TYPES].sort((a, b) => a.order - b.order)
-      .map(t => {
-        const hours = (subjectsByType[t.code] || []).reduce((sum, x) => sum + x.hours, 0);
-        return `<div>${t.code} ${hours}h</div>`;
-      }).join('') || '-';
+    // 매핑 레벨 배지
+    const levelsBadge = (c.levels || [])
+      .map(lvId => MOCK_MASTER_LEVELS.find(m => m.id === lvId))
+      .filter(Boolean)
+      .map(lv => `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin:1px">${lv.name}</span>`)
+      .join('') || '<span style="color:#D1D5DB">-</span>';
 
     return `
       <tr>
         <td>
           <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
-          <div style="font-size:11px;color:#6B7280;margin-top:3px">${subjectsBadge || '과목 미설정'}</div>
         </td>
         <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
-        <td style="font-size:12px">${hoursSummary}</td>
+        <td style="font-size:11.5px">${subjectsBadge}</td>
         <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
+        <td>${levelsBadge}</td>
         <td><span class="tsa-badge ${c.active?'tsa-badge-success':'tsa-badge-gray'}">${c.active?'활성':'비활성'}</span></td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
