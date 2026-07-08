@@ -1477,59 +1477,111 @@ function switchDormErpTab(tab) {
 /* =============================================
    기숙사 유형·인실·등급 마스터 풀 관리
    ============================================= */
-let MOCK_DORM_MASTER_ACCOM_TYPES = ['가든 호텔', 'IT Park 콘도'];
-let MOCK_DORM_MASTER_GRADES      = ['스탠다드', '프리미엄'];
-let MOCK_DORM_MASTER_CAPACITIES  = [1, 2, 3, 4, 5, 6];
+let MOCK_DORM_MASTER_ACCOM_TYPES = [
+  { name: '가든 호텔',    order: 1, visible: true },
+  { name: 'IT Park 콘도', order: 2, visible: true },
+];
+let MOCK_DORM_MASTER_GRADES = [
+  { name: '스탠다드', order: 1, visible: true },
+  { name: '프리미엄', order: 2, visible: true },
+];
+let MOCK_DORM_MASTER_CAPACITIES = [1, 2, 3, 4, 5, 6].map((n, i) => ({ name: `${n}인실`, order: i + 1, visible: true }));
+
+const _dormMasterDragSrc = { accom: null, grade: null, capacity: null };
+
+function _renderDormMasterTable(list, bodyId, key, labelFn) {
+  const el = document.getElementById(bodyId);
+  if (!el) return;
+  list.sort((a, b) => a.order - b.order);
+  el.innerHTML = list.map((item, idx) => {
+    const visibleBadge = item.visible !== false
+      ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleDormMasterVisibility('${key}', ${idx})">노출</span>`
+      : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleDormMasterVisibility('${key}', ${idx})">비노출</span>`;
+    return `
+      <tr draggable="true"
+          ondragstart="onDormMasterDragStart(event, '${key}', ${idx})"
+          ondragover="onDormMasterDragOver(event)"
+          ondrop="onDormMasterDrop(event, '${key}', ${idx})"
+          ondragend="onDormMasterDragEnd(event)"
+          style="cursor:grab">
+        <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
+        <td style="font-weight:700;color:#4B5563;font-size:12px">${item.order}</td>
+        <td style="font-weight:600;font-size:12.5px">${labelFn(item)}</td>
+        <td style="text-align:center">${visibleBadge}</td>
+        <td style="text-align:center;color:#D1D5DB;font-size:11px">-</td>
+      </tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:#9CA3AF;padding:14px;font-size:12px">등록된 항목이 없습니다.</td></tr>`;
+}
+
+const _dormMasterListMap = {
+  accom:    () => MOCK_DORM_MASTER_ACCOM_TYPES,
+  grade:    () => MOCK_DORM_MASTER_GRADES,
+  capacity: () => MOCK_DORM_MASTER_CAPACITIES,
+};
 
 function renderDormMasterLists() {
-  const accomEl = document.getElementById('dorm-master-accom-list');
-  if (accomEl) {
-    accomEl.innerHTML = MOCK_DORM_MASTER_ACCOM_TYPES.map((v, idx) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
-        <span style="font-size:12.5px;font-weight:600;color:#374151">${v}</span>
-        <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="removeDormMasterAccomType(${idx})">삭제</button>
-      </div>`).join('') || `<div style="color:#9CA3AF;font-size:12px;text-align:center;padding:12px">등록된 유형이 없습니다.</div>`;
-  }
-
-  const gradeEl = document.getElementById('dorm-master-grade-list');
-  if (gradeEl) {
-    gradeEl.innerHTML = MOCK_DORM_MASTER_GRADES.map((v, idx) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
-        <span style="font-size:12.5px;font-weight:600;color:#374151">${v}</span>
-        <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="removeDormMasterGrade(${idx})">삭제</button>
-      </div>`).join('') || `<div style="color:#9CA3AF;font-size:12px;text-align:center;padding:12px">등록된 등급이 없습니다.</div>`;
-  }
-
-  const capEl = document.getElementById('dorm-master-capacity-list');
-  if (capEl) {
-    capEl.innerHTML = MOCK_DORM_MASTER_CAPACITIES.map((v, idx) => `
-      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#F8F9FC;border-radius:8px;border:1px solid #E9EDF4">
-        <span style="font-size:12.5px;font-weight:600;color:#374151">${v}인실</span>
-        <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none;padding:2px 6px" onclick="removeDormMasterCapacity(${idx})">×</button>
-      </div>`).join('') || `<div style="color:#9CA3AF;font-size:12px">등록된 인실 기준이 없습니다.</div>`;
-  }
-
+  _renderDormMasterTable(MOCK_DORM_MASTER_ACCOM_TYPES,   'dorm-master-accom-list',    'accom',    i => i.name);
+  _renderDormMasterTable(MOCK_DORM_MASTER_GRADES,        'dorm-master-grade-list',    'grade',    i => i.name);
+  _renderDormMasterTable(MOCK_DORM_MASTER_CAPACITIES,    'dorm-master-capacity-list', 'capacity', i => i.name);
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   refreshDormRegistrationSelects();
+}
+
+function toggleDormMasterVisibility(key, idx) {
+  const list = _dormMasterListMap[key]();
+  const item = list[idx];
+  if (!item) return;
+  item.visible = item.visible === false ? true : false;
+  renderDormMasterLists();
+  showToast(`✓ '${item.name}' 항목이 ${item.visible ? '노출' : '비노출'} 처리되었습니다.`, 'success');
+}
+
+function onDormMasterDragStart(ev, key, idx) {
+  _dormMasterDragSrc[key] = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.style.opacity = '0.4';
+}
+function onDormMasterDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+function onDormMasterDrop(ev, key, targetIdx) {
+  ev.preventDefault();
+  const srcIdx = _dormMasterDragSrc[key];
+  if (srcIdx === null || srcIdx === targetIdx) return;
+  const list = _dormMasterListMap[key]();
+  const [moved] = list.splice(srcIdx, 1);
+  list.splice(targetIdx, 0, moved);
+  list.forEach((item, i) => { item.order = i + 1; });
+  _dormMasterDragSrc[key] = null;
+  renderDormMasterLists();
+  showToast('✓ 우선순위가 변경되었습니다.', 'success');
+}
+function onDormMasterDragEnd(ev) {
+  ev.currentTarget.style.opacity = '';
 }
 
 function refreshDormRegistrationSelects() {
   const accomSel = document.getElementById('tpl-accom');
   if (accomSel) {
     const cur = accomSel.value;
-    accomSel.innerHTML = MOCK_DORM_MASTER_ACCOM_TYPES.map(v => `<option value="${v}">${v}</option>`).join('');
-    if (MOCK_DORM_MASTER_ACCOM_TYPES.includes(cur)) accomSel.value = cur;
+    accomSel.innerHTML = MOCK_DORM_MASTER_ACCOM_TYPES.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
+    if (MOCK_DORM_MASTER_ACCOM_TYPES.some(i => i.name === cur)) accomSel.value = cur;
   }
   const gradeSel = document.getElementById('tpl-condition');
   if (gradeSel) {
     const cur = gradeSel.value;
-    gradeSel.innerHTML = MOCK_DORM_MASTER_GRADES.map(v => `<option value="${v}">${v}</option>`).join('');
-    if (MOCK_DORM_MASTER_GRADES.includes(cur)) gradeSel.value = cur;
+    gradeSel.innerHTML = MOCK_DORM_MASTER_GRADES.map(i => `<option value="${i.name}">${i.name}</option>`).join('');
+    if (MOCK_DORM_MASTER_GRADES.some(i => i.name === cur)) gradeSel.value = cur;
   }
   const capSel = document.getElementById('tpl-capacity');
   if (capSel) {
     const cur = capSel.value;
-    capSel.innerHTML = MOCK_DORM_MASTER_CAPACITIES.map(v => `<option value="${v}">${v}인실</option>`).join('');
-    if (MOCK_DORM_MASTER_CAPACITIES.map(String).includes(cur)) capSel.value = cur;
+    capSel.innerHTML = MOCK_DORM_MASTER_CAPACITIES.map(i => {
+      const num = parseInt(i.name);
+      return `<option value="${num}">${i.name}</option>`;
+    }).join('');
+    capSel.value = cur;
   }
 }
 
@@ -1537,46 +1589,34 @@ function addDormMasterAccomType() {
   const input = document.getElementById('dorm-master-accom-input');
   const val = input.value.trim();
   if (!val) return;
-  if (MOCK_DORM_MASTER_ACCOM_TYPES.includes(val)) { showToast('이미 등록된 유형입니다.', 'warning'); return; }
-  MOCK_DORM_MASTER_ACCOM_TYPES.push(val);
+  if (MOCK_DORM_MASTER_ACCOM_TYPES.some(i => i.name === val)) { showToast('이미 등록된 유형입니다.', 'warning'); return; }
+  MOCK_DORM_MASTER_ACCOM_TYPES.push({ name: val, order: MOCK_DORM_MASTER_ACCOM_TYPES.length + 1, visible: true });
   input.value = '';
   renderDormMasterLists();
   showToast(`✓ 숙소 유형 '${val}' 추가되었습니다.`, 'success');
-}
-function removeDormMasterAccomType(idx) {
-  MOCK_DORM_MASTER_ACCOM_TYPES.splice(idx, 1);
-  renderDormMasterLists();
 }
 
 function addDormMasterGrade() {
   const input = document.getElementById('dorm-master-grade-input');
   const val = input.value.trim();
   if (!val) return;
-  if (MOCK_DORM_MASTER_GRADES.includes(val)) { showToast('이미 등록된 등급입니다.', 'warning'); return; }
-  MOCK_DORM_MASTER_GRADES.push(val);
+  if (MOCK_DORM_MASTER_GRADES.some(i => i.name === val)) { showToast('이미 등록된 등급입니다.', 'warning'); return; }
+  MOCK_DORM_MASTER_GRADES.push({ name: val, order: MOCK_DORM_MASTER_GRADES.length + 1, visible: true });
   input.value = '';
   renderDormMasterLists();
   showToast(`✓ 등급 '${val}' 추가되었습니다.`, 'success');
-}
-function removeDormMasterGrade(idx) {
-  MOCK_DORM_MASTER_GRADES.splice(idx, 1);
-  renderDormMasterLists();
 }
 
 function addDormMasterCapacity() {
   const input = document.getElementById('dorm-master-capacity-input');
   const val = parseInt(input.value);
   if (!val || val < 1) return;
-  if (MOCK_DORM_MASTER_CAPACITIES.includes(val)) { showToast('이미 등록된 인실 기준입니다.', 'warning'); return; }
-  MOCK_DORM_MASTER_CAPACITIES.push(val);
-  MOCK_DORM_MASTER_CAPACITIES.sort((a, b) => a - b);
+  const label = `${val}인실`;
+  if (MOCK_DORM_MASTER_CAPACITIES.some(i => i.name === label)) { showToast('이미 등록된 인실 기준입니다.', 'warning'); return; }
+  MOCK_DORM_MASTER_CAPACITIES.push({ name: label, order: MOCK_DORM_MASTER_CAPACITIES.length + 1, visible: true });
   input.value = '';
   renderDormMasterLists();
-  showToast(`✓ ${val}인실 기준이 추가되었습니다.`, 'success');
-}
-function removeDormMasterCapacity(idx) {
-  MOCK_DORM_MASTER_CAPACITIES.splice(idx, 1);
-  renderDormMasterLists();
+  showToast(`✓ ${label} 기준이 추가되었습니다.`, 'success');
 }
 let _erpGenderFilter = '전체';
 let _erpAccomFilter  = '전체';
