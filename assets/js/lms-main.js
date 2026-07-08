@@ -1346,13 +1346,15 @@ function openRoomDetailModal(idx) {
   document.getElementById('rdm-type').value = room.type || '';
   document.getElementById('rdm-gender').value = room.genderRestriction || '무관';
 
-  // 호실 번호가 이미 배정된 방은 유형/성별 변경 불가
+  // 호실 번호가 이미 배정된 방은 숙소 유형/성별 구분만 변경 불가 (인실·컨디션은 항상 변경 가능)
   const isAssigned = !!room.roomNo;
   const lockStyle = isAssigned ? 'opacity:0.5;pointer-events:none;background:#F3F4F6' : '';
-  ['rdm-accomtype','rdm-type','rdm-gender'].forEach(id => {
+  ['rdm-accomtype','rdm-gender'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.disabled = isAssigned; el.style.cssText = lockStyle; }
   });
+  const typeEl = document.getElementById('rdm-type');
+  if (typeEl) { typeEl.disabled = false; typeEl.style.cssText = ''; }
   const lockNote = document.getElementById('rdm-lock-note');
   if (lockNote) lockNote.style.display = isAssigned ? 'block' : 'none';
 
