@@ -3622,18 +3622,12 @@ function renderCourseList() {
       return `<div style="margin-top:1px"><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${t.code}</span> ${names}</div>`;
     }).join('');
 
-    // 유형별 시수 요약 (예: 1:1 4h · 1:4 2h · 1:8 1h)
-    const hoursSummary = MOCK_MASTER_CLASS_TYPES
-      .filter(t => (subjectsByType[t.code] || []).length > 0)
-      .map(t => `${t.code} ${(subjectsByType[t.code] || []).reduce((sum, x) => sum + x.hours, 0)}h`)
-      .join(' · ') || '-';
-
-    // Map level IDs back to master names
-    const levelsBadge = (c.levels || [])
-      .map(lvId => MOCK_MASTER_LEVELS.find(m => m.id === lvId))
-      .filter(Boolean)
-      .map(lv => `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin-right:2px">${lv.name}</span>`)
-      .join('');
+    // 유형별 시수 요약 — 각 유형을 한 줄씩 표시 (예: 1:1 4h / 1:4 2h / 1:8 1h)
+    const hoursSummary = [...MOCK_MASTER_CLASS_TYPES].sort((a, b) => a.order - b.order)
+      .map(t => {
+        const hours = (subjectsByType[t.code] || []).reduce((sum, x) => sum + x.hours, 0);
+        return `<div>${t.code} ${hours}h</div>`;
+      }).join('') || '-';
 
     return `
       <tr>
@@ -3642,10 +3636,7 @@ function renderCourseList() {
           <div style="font-size:11px;color:#6B7280;margin-top:3px">${subjectsBadge || '과목 미설정'}</div>
         </td>
         <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
-        <td style="font-size:12px">
-          <div>${hoursSummary}</div>
-          <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">레벨: ${levelsBadge || '-'}</div>
-        </td>
+        <td style="font-size:12px">${hoursSummary}</td>
         <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
         <td><span class="tsa-badge ${c.active?'tsa-badge-success':'tsa-badge-gray'}">${c.active?'활성':'비활성'}</span></td>
         <td style="text-align:center">
