@@ -2847,10 +2847,9 @@
                     <tr>
                       <th>과정명</th>
                       <th>유형</th>
+                      <th>매핑 레벨</th>
                       <th>과목별 시간 배분</th>
                       <th>4주 기본학비</th>
-                      <th>매핑 레벨</th>
-                      <th>상태</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
@@ -4454,7 +4453,7 @@
             <label class="tsa-label">과정명 <span style="color:#EF4444">*</span></label>
             <input id="add-course-name" type="text" class="tsa-input" placeholder="예: IELTS 집중 코스" required/>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
             <div class="tsa-form-group">
               <label class="tsa-label">유형</label>
               <select id="add-course-type" class="tsa-input">
@@ -4468,6 +4467,13 @@
             <div class="tsa-form-group">
               <label class="tsa-label">4주 기본학비 ($)</label>
               <input id="add-course-fee" type="number" class="tsa-input" placeholder="800"/>
+            </div>
+            <div class="tsa-form-group">
+              <label class="tsa-label">상태</label>
+              <select id="add-course-active" class="tsa-input">
+                <option value="true">활성</option>
+                <option value="false">비활성</option>
+              </select>
             </div>
           </div>
           <div class="tsa-form-group">

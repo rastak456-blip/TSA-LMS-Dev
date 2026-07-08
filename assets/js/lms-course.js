@@ -3630,15 +3630,15 @@ function renderCourseList() {
       .join('') || '<span style="color:#D1D5DB">-</span>';
 
     return `
-      <tr>
+      <tr${c.active === false ? ' style="opacity:0.55"' : ''}>
         <td>
           <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
+          ${c.active === false ? '<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin-top:2px">비활성</span>' : ''}
         </td>
         <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
+        <td>${levelsBadge}</td>
         <td style="font-size:11.5px">${subjectsBadge}</td>
         <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
-        <td>${levelsBadge}</td>
-        <td><span class="tsa-badge ${c.active?'tsa-badge-success':'tsa-badge-gray'}">${c.active?'활성':'비활성'}</span></td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditCourseModal(${idx})">수정</button>
@@ -3658,6 +3658,7 @@ function openCourseModal() {
   document.getElementById('add-course-name').value = '';
   document.getElementById('add-course-type').value = '일반 영어';
   document.getElementById('add-course-fee').value = '';
+  document.getElementById('add-course-active').value = 'true';
 
   renderCourseLevelCheckboxes([]);
   renderCourseClassTypeSections({});
@@ -3673,6 +3674,7 @@ function openEditCourseModal(idx) {
   document.getElementById('add-course-name').value = c.name;
   document.getElementById('add-course-type').value = c.type;
   document.getElementById('add-course-fee').value = c.fee;
+  document.getElementById('add-course-active').value = c.active === false ? 'false' : 'true';
 
   // 구버전 데이터(subjectsByType 없이 flat subjects만 있는 경우) 1:1 유형으로 마이그레이션
   let subjectsByType = c.subjectsByType;
@@ -3789,9 +3791,11 @@ function saveCourse() {
   });
   const subjects = Object.values(subjectsByType).flat();
 
+  const active = document.getElementById('add-course-active').value === 'true';
+
   const courseData = {
     name, type, fee,
-    active: true, subjects, subjectsByType, levels,
+    active, subjects, subjectsByType, levels,
     oneone: (subjectsByType['1:1'] || []).reduce((s, x) => s + x.hours, 0),
     group1on4: (subjectsByType['1:4'] || []).reduce((s, x) => s + x.hours, 0),
     group: (subjectsByType['1:8'] || []).reduce((s, x) => s + x.hours, 0),
