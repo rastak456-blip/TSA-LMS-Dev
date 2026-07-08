@@ -233,7 +233,7 @@ const MOCK_STUDENTS = [
     id: 13, name: 'PHAM MINH DUC', nick: 'Duc', gender: '남', age: 25, nationality: '베트남', flag: '🇻🇳',
     course: 'IELTS 전문 코스', level: 'Band 5.0', duration: 12, dorm: 'Room 303 / Bed A', visaExpiry: '2026-09-01', sspExpiry: '2026-08-01',
     departureDate: '2026-09-01', startDate: '2026-06-15', arrivalDate: '2026-06-15',
-    attendance: 0, status: 'current', agency: '한국 영어마을', warning: 0,
+    attendance: 0, status: 'current', remittanceStatus: 'unpaid', remittanceMemo: '', remittanceReceipt: '영수증_Duc.pdf', agency: '한국 영어마을', warning: 0,
     quiz: [],
     passportStatus: '미제출',
     flightInfo: 'VN634 | 06-15 입국 예정',
