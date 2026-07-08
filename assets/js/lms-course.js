@@ -3655,11 +3655,11 @@ function renderCourseList() {
     }).join('');
 
     // Map level IDs back to master names
-    const levelsBadge = (c.levels || []).map(lvId => {
-      const lv = MOCK_MASTER_LEVELS.find(m => m.id === lvId);
-      const lvName = lv ? lv.name : lvId;
-      return `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin-right:2px">${lvName}</span>`;
-    }).join('');
+    const levelsBadge = (c.levels || [])
+      .map(lvId => MOCK_MASTER_LEVELS.find(m => m.id === lvId))
+      .filter(Boolean)
+      .map(lv => `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin-right:2px">${lv.name}</span>`)
+      .join('');
     
     return `
       <tr>

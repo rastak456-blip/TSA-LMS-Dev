@@ -788,7 +788,7 @@ const LEVEL_NORMALIZE_MAP = {
 
 const MOCK_COURSES = [
   { name: '일반 코스', type: '일반 영어', oneone: 4, group1on4: 2, group: 1, fee: 800, active: true, subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }], levels: ['LV_01', 'LV_03', 'LV_04'] },
-  { name: 'IELTS 전문 코스', type: 'IELTS', oneone: 5, group1on4: 0, group: 2, fee: 950, active: true, subjects: [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_01', hours: 1 }, { id: 'SUB_05', hours: 1 }], levels: ['LV_05', 'LV_06', 'LV_07'] },
+  { name: 'IELTS 전문 코스', type: 'IELTS', oneone: 5, group1on4: 0, group: 2, fee: 950, active: true, subjects: [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_01', hours: 1 }, { id: 'SUB_05', hours: 1 }], levels: ['LV_04', 'LV_05'] },
   { name: '주니어 패키지', type: '주니어', oneone: 5, group1on4: 1, group: 0, fee: 880, active: true, subjects: [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }, { id: 'SUB_02', hours: 1 }], levels: ['LV_01', 'LV_02'] },
   { name: '가디언 코스', type: '가디언', oneone: 3, group1on4: 1, group: 1, fee: 700, active: true, subjects: [{ id: 'SUB_08', hours: 2 }, { id: 'SUB_05', hours: 1 }], levels: ['LV_01', 'LV_03'] },
   { name: '비즈니스 영어', type: '비즈니스', oneone: 4, group1on4: 0, group: 1, fee: 900, active: true, subjects: [{ id: 'SUB_09', hours: 2 }, { id: 'SUB_10', hours: 2 }], levels: ['LV_03', 'LV_04'] },
