@@ -3291,7 +3291,7 @@ function initAdminInbox() {
 
   if (!remitBody) return;
 
-  const waitingRemits = MOCK_STUDENTS.filter(s => s.remittanceStatus === 'submitted');
+  const waitingRemits = MOCK_STUDENTS.filter(s => s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo));
   remitCount.textContent = `송금 대기: ${waitingRemits.length}건`;
 
   if (waitingRemits.length === 0) {
