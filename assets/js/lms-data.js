@@ -754,16 +754,16 @@ const MOCK_AGENCY_STUDENTS = [
 ];
 
 let MOCK_MASTER_SUBJECTS = [
-  { id: 'SUB_01', name: '스피킹', type: 'ESL', desc: '회화 및 스피킹 중심 수업' },
-  { id: 'SUB_02', name: '문법', type: 'ESL', desc: 'Grammar 기본 및 응용' },
-  { id: 'SUB_03', name: '리딩', type: 'ESL', desc: '독해 및 지문 읽기 수업' },
-  { id: 'SUB_04', name: '라이팅', type: 'IELTS', desc: 'IELTS 에세이 및 첨삭 수업' },
-  { id: 'SUB_05', name: '리스닝', type: 'IELTS', desc: 'IELTS 듣기 연습 및 문항 풀이' },
-  { id: 'SUB_06', name: '회화', type: 'Junior', desc: '주니어 기초 대화 패턴' },
-  { id: 'SUB_07', name: '단어', type: 'Junior', desc: '보카 및 어휘 암기 단독 세션' },
-  { id: 'SUB_08', name: '일상회화', type: 'ESL', desc: '성인 일상 생활 회화' },
-  { id: 'SUB_09', name: '프레젠테이션', type: 'Business', desc: '비즈니스 프레젠테이션 스킬' },
-  { id: 'SUB_10', name: '토론', type: 'Business', desc: '비즈니스 토론 및 협상' }
+  { id: 'SUB_01', name: '스피킹', type: 'ESL', desc: '회화 및 스피킹 중심 수업', order: 1, visible: true },
+  { id: 'SUB_02', name: '문법', type: 'ESL', desc: 'Grammar 기본 및 응용', order: 2, visible: true },
+  { id: 'SUB_03', name: '리딩', type: 'ESL', desc: '독해 및 지문 읽기 수업', order: 3, visible: true },
+  { id: 'SUB_04', name: '라이팅', type: 'IELTS', desc: 'IELTS 에세이 및 첨삭 수업', order: 4, visible: true },
+  { id: 'SUB_05', name: '리스닝', type: 'IELTS', desc: 'IELTS 듣기 연습 및 문항 풀이', order: 5, visible: true },
+  { id: 'SUB_06', name: '회화', type: 'Junior', desc: '주니어 기초 대화 패턴', order: 6, visible: true },
+  { id: 'SUB_07', name: '단어', type: 'Junior', desc: '보카 및 어휘 암기 단독 세션', order: 7, visible: true },
+  { id: 'SUB_08', name: '일상회화', type: 'ESL', desc: '성인 일상 생활 회화', order: 8, visible: true },
+  { id: 'SUB_09', name: '프레젠테이션', type: 'Business', desc: '비즈니스 프레젠테이션 스킬', order: 9, visible: true },
+  { id: 'SUB_10', name: '토론', type: 'Business', desc: '비즈니스 토론 및 협상', order: 10, visible: true }
 ];
 
 let MOCK_MASTER_LEVELS = [

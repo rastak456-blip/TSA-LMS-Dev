@@ -3813,20 +3813,32 @@ function deleteCourse(idx) {
 
 // --- 과목 및 레벨 마스터 설정 CRUD 로직 ---
 function renderMasterSettings() {
+  MOCK_MASTER_SUBJECTS.sort((a, b) => (a.order || 0) - (b.order || 0));
   const subBody = document.getElementById('master-subject-list-body');
   if (subBody) {
-    subBody.innerHTML = MOCK_MASTER_SUBJECTS.map((s, idx) => `
-      <tr>
+    subBody.innerHTML = MOCK_MASTER_SUBJECTS.map((s, idx) => {
+      const visibleBadge = s.visible !== false
+        ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleMasterSubjectVisibility(${idx})">노출</span>`
+        : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleMasterSubjectVisibility(${idx})">비노출</span>`;
+      return `
+      <tr draggable="true" data-subject-idx="${idx}"
+          ondragstart="onSubjectRowDragStart(event, ${idx})"
+          ondragover="onSubjectRowDragOver(event)"
+          ondrop="onSubjectRowDrop(event, ${idx})"
+          ondragend="onSubjectRowDragEnd(event)"
+          style="cursor:grab">
+        <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
+        <td style="font-weight:700;color:#4B5563;font-size:12px">${s.order}</td>
         <td style="font-weight:600;font-size:12.5px">${s.name}</td>
         <td style="font-size:11.5px;color:#6B7280">${s.desc || '-'}</td>
+        <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
-          <div style="display:flex;gap:5px;justify-content:center">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditSubjectModal(${idx})">수정</button>
-            <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="deleteMasterSubject(${idx})">삭제</button>
-          </div>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditSubjectModal(${idx})">수정</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
 
   const lvBody = document.getElementById('master-level-list-body');
@@ -3843,8 +3855,8 @@ function renderMasterSettings() {
           ondragend="onLevelRowDragEnd(event)"
           style="cursor:grab">
         <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
-        <td style="font-weight:600;font-size:12.5px">${l.name}</td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${l.order}</td>
+        <td style="font-weight:600;font-size:12.5px">${l.name}</td>
         <td style="font-size:11.5px;color:#6B7280">${l.desc || '-'}</td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
@@ -3855,6 +3867,43 @@ function renderMasterSettings() {
     }).join('');
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
+}
+
+function toggleMasterSubjectVisibility(idx) {
+  const s = MOCK_MASTER_SUBJECTS[idx];
+  if (!s) return;
+  s.visible = s.visible === false ? true : false;
+  renderMasterSettings();
+  showToast(`✓ ${s.name} 과목이 ${s.visible ? '노출' : '비노출'} 처리되었습니다.`, 'success');
+}
+
+let _subjectDragSrcIdx = null;
+
+function onSubjectRowDragStart(ev, idx) {
+  _subjectDragSrcIdx = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.style.opacity = '0.4';
+}
+
+function onSubjectRowDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+
+function onSubjectRowDrop(ev, targetIdx) {
+  ev.preventDefault();
+  if (_subjectDragSrcIdx === null || _subjectDragSrcIdx === targetIdx) return;
+  const [moved] = MOCK_MASTER_SUBJECTS.splice(_subjectDragSrcIdx, 1);
+  MOCK_MASTER_SUBJECTS.splice(targetIdx, 0, moved);
+  MOCK_MASTER_SUBJECTS.forEach((s, i) => { s.order = i + 1; });
+  _subjectDragSrcIdx = null;
+  renderMasterSettings();
+  showToast('✓ 과목 우선순위가 변경되었습니다.', 'success');
+}
+
+function onSubjectRowDragEnd(ev) {
+  ev.currentTarget.style.opacity = '';
+  _subjectDragSrcIdx = null;
 }
 
 function toggleMasterLevelVisibility(idx) {
