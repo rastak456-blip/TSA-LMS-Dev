@@ -3609,12 +3609,24 @@ function renderCourseList() {
   if (!tbody) return;
 
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
-    // Map subject IDs back to master names with hours
-    const subjectsBadge = (c.subjects || []).map(sObj => {
-      const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === sObj.id);
-      const subName = sub ? sub.name : sObj.id;
-      return `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin-right:2px">${subName} (${sObj.hours}h)</span>`;
+    const subjectsByType = c.subjectsByType || {};
+
+    // 유형별 과목 배지 (예: 1:1: 스피킹(2h) · 1:4: 리딩(1h))
+    const subjectsBadge = Object.keys(subjectsByType).map(code => {
+      const list = subjectsByType[code] || [];
+      if (list.length === 0) return '';
+      const names = list.map(sObj => {
+        const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === sObj.id);
+        return `${sub ? sub.name : sObj.id}(${sObj.hours}h)`;
+      }).join(', ');
+      return `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin-right:2px">${code}: ${names}</span>`;
     }).join('');
+
+    // 유형별 시수 요약 (예: 1:1 4h · 1:4 2h · 1:8 1h)
+    const hoursSummary = MOCK_MASTER_CLASS_TYPES
+      .filter(t => (subjectsByType[t.code] || []).length > 0)
+      .map(t => `${t.code} ${(subjectsByType[t.code] || []).reduce((sum, x) => sum + x.hours, 0)}h`)
+      .join(' · ') || '-';
 
     // Map level IDs back to master names
     const levelsBadge = (c.levels || [])
@@ -3622,7 +3634,7 @@ function renderCourseList() {
       .filter(Boolean)
       .map(lv => `<span class="tsa-badge tsa-badge-gray" style="font-size:10px;margin-right:2px">${lv.name}</span>`)
       .join('');
-    
+
     return `
       <tr>
         <td>
@@ -3631,7 +3643,7 @@ function renderCourseList() {
         </td>
         <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
         <td style="font-size:12px">
-          <div>1:1 ${c.oneone}h / 그룹 ${c.group}h</div>
+          <div>${hoursSummary}</div>
           <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">레벨: ${levelsBadge || '-'}</div>
         </td>
         <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
@@ -3655,11 +3667,9 @@ function openCourseModal() {
   document.getElementById('add-course-name').value = '';
   document.getElementById('add-course-type').value = '일반 영어';
   document.getElementById('add-course-fee').value = '';
-  document.getElementById('add-course-oneone').value = '4';
-  document.getElementById('add-course-group1on4').value = '2';
-  document.getElementById('add-course-group').value = '1';
 
-  renderCourseCheckboxes([], []);
+  renderCourseLevelCheckboxes([]);
+  renderCourseClassTypeSections({});
   openModal('course-add-modal');
 }
 
@@ -3672,37 +3682,19 @@ function openEditCourseModal(idx) {
   document.getElementById('add-course-name').value = c.name;
   document.getElementById('add-course-type').value = c.type;
   document.getElementById('add-course-fee').value = c.fee;
-  document.getElementById('add-course-oneone').value = c.oneone || '0';
-  document.getElementById('add-course-group1on4').value = c.group1on4 || '0';
-  document.getElementById('add-course-group').value = c.group || '0';
 
-  renderCourseCheckboxes(c.subjects || [], c.levels || []);
+  // 구버전 데이터(subjectsByType 없이 flat subjects만 있는 경우) 1:1 유형으로 마이그레이션
+  let subjectsByType = c.subjectsByType;
+  if (!subjectsByType && c.subjects && c.subjects.length > 0) {
+    subjectsByType = { '1:1': c.subjects };
+  }
+
+  renderCourseLevelCheckboxes(c.levels || []);
+  renderCourseClassTypeSections(subjectsByType || {});
   openModal('course-add-modal');
 }
 
-function renderCourseCheckboxes(selectedSubjects, selectedLevels) {
-  const subContainer = document.getElementById('course-subject-checkboxes-container');
-  if (subContainer) {
-    subContainer.innerHTML = MOCK_MASTER_SUBJECTS.map(s => {
-      const selected = selectedSubjects.find(x => x.id === s.id);
-      const isChecked = selected ? 'checked' : '';
-      const hours = selected ? selected.hours : 1;
-      const displayHours = selected ? '' : 'display:none';
-      return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;flex:1;margin:0">
-            <input type="checkbox" name="course-subjects-cb" value="${s.id}" ${isChecked} onchange="toggleSubjectHoursInput(this)"/>
-            <span>${s.name} <span style="font-size:11px;color:#9CA3AF">(${s.type})</span></span>
-          </label>
-          <div id="hours-wrap-${s.id}" style="${displayHours};display:flex;align-items:center;gap:4px">
-            <input type="number" id="hours-input-${s.id}" value="${hours}" min="1" max="8" style="width:50px;padding:2px 4px;border:1px solid #D1D5DB;border-radius:4px;font-size:12px;text-align:center"/>
-            <span style="font-size:11px;color:#6B7280">시간</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
+function renderCourseLevelCheckboxes(selectedLevels) {
   const lvContainer = document.getElementById('course-level-checkboxes-container');
   if (lvContainer) {
     lvContainer.innerHTML = MOCK_MASTER_LEVELS.map(l => {
@@ -3717,41 +3709,101 @@ function renderCourseCheckboxes(selectedSubjects, selectedLevels) {
   }
 }
 
-function toggleSubjectHoursInput(checkbox) {
-  const wrap = document.getElementById(`hours-wrap-${checkbox.value}`);
-  if (wrap) {
-    wrap.style.display = checkbox.checked ? 'flex' : 'none';
-  }
+function renderCourseClassTypeSections(subjectsByType) {
+  const container = document.getElementById('course-classtype-sections');
+  if (!container) return;
+
+  const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
+
+  container.innerHTML = types.map(t => {
+    const selected = subjectsByType[t.code] || [];
+    const subjectRows = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => {
+      const sel = selected.find(x => x.id === s.id);
+      const checked = sel ? 'checked' : '';
+      const hours = sel ? sel.hours : 1;
+      const showHours = sel ? '' : 'display:none';
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;flex:1;margin:0">
+            <input type="checkbox" class="ct-subject-cb" data-code="${t.code}" value="${s.id}" ${checked} onchange="onCourseSubjectToggle(this)"/>
+            <span>${s.name}</span>
+          </label>
+          <div class="ct-hours-wrap" id="ct-hours-wrap-${t.code}-${s.id}" style="${showHours};display:flex;align-items:center;gap:4px">
+            <input type="number" class="ct-hours-input" id="ct-hours-input-${t.code}-${s.id}" value="${hours}" min="1" max="8" style="width:50px;padding:2px 4px;border:1px solid #D1D5DB;border-radius:4px;font-size:12px;text-align:center" onchange="recalcClassTypeHours('${t.code}')"/>
+            <span style="font-size:11px;color:#6B7280">시간</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px;background:#FAFAFA">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <label class="tsa-label" style="margin:0">${t.name} 시수/일</label>
+          <div style="font-size:15px;font-weight:800;color:#5E5CE6" id="ct-hours-total-${t.code}">0시간</div>
+        </div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:8px">과목 구성 (마스터 풀 연계)</div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:140px;overflow-y:auto">
+          ${subjectRows || '<div style="color:#9CA3AF;font-size:12px">등록된 과목이 없습니다.</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  types.forEach(t => recalcClassTypeHours(t.code));
+}
+
+function onCourseSubjectToggle(checkbox) {
+  const code = checkbox.dataset.code;
+  const wrap = document.getElementById(`ct-hours-wrap-${code}-${checkbox.value}`);
+  if (wrap) wrap.style.display = checkbox.checked ? 'flex' : 'none';
+  recalcClassTypeHours(code);
+}
+
+function recalcClassTypeHours(code) {
+  let total = 0;
+  document.querySelectorAll(`.ct-subject-cb[data-code="${code}"]:checked`).forEach(cb => {
+    const input = document.getElementById(`ct-hours-input-${code}-${cb.value}`);
+    total += parseInt(input && input.value, 10) || 0;
+  });
+  const totalEl = document.getElementById(`ct-hours-total-${code}`);
+  if (totalEl) totalEl.textContent = `${total}시간`;
 }
 
 function saveCourse() {
   const name = document.getElementById('add-course-name').value.trim();
   const type = document.getElementById('add-course-type').value;
   const fee = parseInt(document.getElementById('add-course-fee').value, 10) || 0;
-  const oneone = parseInt(document.getElementById('add-course-oneone').value, 10) || 0;
-  const group1on4 = parseInt(document.getElementById('add-course-group1on4').value, 10) || 0;
-  const group = parseInt(document.getElementById('add-course-group').value, 10) || 0;
 
   if (!name) {
     showToast('과정명을 입력해주세요.', 'warning');
     return;
   }
 
-  const subjects = [];
-  document.querySelectorAll('input[name="course-subjects-cb"]:checked').forEach(cb => {
-    const sId = cb.value;
-    const hours = parseInt(document.getElementById(`hours-input-${sId}`).value, 10) || 1;
-    subjects.push({ id: sId, hours: hours });
-  });
-
   const levels = [];
   document.querySelectorAll('input[name="course-levels-cb"]:checked').forEach(cb => {
     levels.push(cb.value);
   });
 
+  // 그룹 수업 유형별 과목 매핑 수집 + 시수 자동 계산
+  const subjectsByType = {};
+  MOCK_MASTER_CLASS_TYPES.forEach(t => {
+    const list = [];
+    document.querySelectorAll(`.ct-subject-cb[data-code="${t.code}"]:checked`).forEach(cb => {
+      const input = document.getElementById(`ct-hours-input-${t.code}-${cb.value}`);
+      const hours = parseInt(input && input.value, 10) || 1;
+      list.push({ id: cb.value, hours });
+    });
+    subjectsByType[t.code] = list;
+  });
+  const subjects = Object.values(subjectsByType).flat();
+
   const courseData = {
-    name, type, oneone, group1on4, group, fee,
-    active: true, subjects, levels
+    name, type, fee,
+    active: true, subjects, subjectsByType, levels,
+    oneone: (subjectsByType['1:1'] || []).reduce((s, x) => s + x.hours, 0),
+    group1on4: (subjectsByType['1:4'] || []).reduce((s, x) => s + x.hours, 0),
+    group: (subjectsByType['1:8'] || []).reduce((s, x) => s + x.hours, 0),
   };
 
   if (_editingCourseIdx !== null) {
