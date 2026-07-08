@@ -3951,7 +3951,6 @@ function openSubjectModal() {
   document.getElementById('subject-modal-title').textContent = '마스터 과목 추가';
   document.getElementById('subject-modal-id').value = '';
   document.getElementById('subject-modal-name').value = '';
-  document.getElementById('subject-modal-type').value = 'ESL';
   document.getElementById('subject-modal-desc').value = '';
   openModal('subject-modal');
 }
@@ -3964,14 +3963,12 @@ function openEditSubjectModal(idx) {
   document.getElementById('subject-modal-title').textContent = '마스터 과목 수정';
   document.getElementById('subject-modal-id').value = s.id;
   document.getElementById('subject-modal-name').value = s.name;
-  document.getElementById('subject-modal-type').value = s.type;
   document.getElementById('subject-modal-desc').value = s.desc || '';
   openModal('subject-modal');
 }
 
 function saveMasterSubject() {
   const name = document.getElementById('subject-modal-name').value.trim();
-  const type = document.getElementById('subject-modal-type').value;
   const desc = document.getElementById('subject-modal-desc').value.trim();
 
   if (!name) {
@@ -3982,12 +3979,11 @@ function saveMasterSubject() {
   if (_editingSubjectIdx !== null) {
     const s = MOCK_MASTER_SUBJECTS[_editingSubjectIdx];
     s.name = name;
-    s.type = type;
     s.desc = desc;
     showToast('과목 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'SUB_' + String(MOCK_MASTER_SUBJECTS.length + 1).padStart(2, '0');
-    MOCK_MASTER_SUBJECTS.push({ id: newId, name, type, desc });
+    MOCK_MASTER_SUBJECTS.push({ id: newId, name, desc, order: MOCK_MASTER_SUBJECTS.length + 1, visible: true });
     showToast('신규 마스터 과목이 추가되었습니다.', 'success');
   }
 
