@@ -144,6 +144,11 @@ function renderTeacherList(list) {
         <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
         <td><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
         <td style="text-align:center">
+          ${t.videoCapable !== false
+            ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleTeacherVideoCapable(${t.id})">가능</span>`
+            : `<span class="tsa-badge tsa-badge-gray" style="cursor:pointer" onclick="toggleTeacherVideoCapable(${t.id})">불가</span>`}
+        </td>
+        <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
               <i data-lucide="pencil" style="font-size:11px"></i> 상세/수정
@@ -156,6 +161,14 @@ function renderTeacherList(list) {
       </tr>
     `;
   }).join('');
+}
+
+function toggleTeacherVideoCapable(id) {
+  const t = MOCK_TEACHERS.find(x => x.id === id);
+  if (!t) return;
+  t.videoCapable = t.videoCapable === false ? true : false;
+  showToast(`✓ ${t.nick} 강사의 화상 수업 진행 여부가 '${t.videoCapable ? '가능' : '불가'}'로 변경되었습니다.`, 'success');
+  if (typeof initTeacherList === 'function') initTeacherList();
 }
 
 function openTeacherScheduleModal(nick) {
