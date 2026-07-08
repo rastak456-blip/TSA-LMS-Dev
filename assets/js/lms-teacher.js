@@ -57,6 +57,7 @@ function saveTeacherDetailInline() {
   const workStart = getVal('td-work-start', t.workHours ? t.workHours.start : '08:00');
   const workEnd   = getVal('td-work-end',   t.workHours ? t.workHours.end   : '17:00');
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
+  const videoCapableEl = document.getElementById('td-video-capable');
 
   t.room      = room;
   t.contract  = contract;
@@ -64,6 +65,7 @@ function saveTeacherDetailInline() {
   t.rating    = rating;
   t.workHours = { start: workStart, end: workEnd };
   if (classTypes.length > 0) t.classTypes = classTypes;
+  if (videoCapableEl) t.videoCapable = videoCapableEl.checked;
 
   // 시간표 강의실 동기화
   const ttRow = MOCK_TIMETABLE.find(r => r.teacher === t.nick);
@@ -709,6 +711,12 @@ function switchTeacherTab(tab, el) {
                 </label>`;
               }).join('')}
             </div>
+          </div>
+          <div>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">화상 수업 가능 여부</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #A7F3D0;background:#ECFDF5;font-size:13px;font-weight:600;color:#065F46;width:fit-content">
+              <input type="checkbox" id="td-video-capable" ${t.videoCapable !== false ? 'checked' : ''} style="accent-color:#059669"/> 화상 수업 가능
+            </label>
           </div>
         </div>
       `;
