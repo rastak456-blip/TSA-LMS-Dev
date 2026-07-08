@@ -3611,15 +3611,15 @@ function renderCourseList() {
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
     const subjectsByType = c.subjectsByType || {};
 
-    // 유형별 과목 배지 (예: 1:1: 스피킹(2h) · 1:4: 리딩(1h))
-    const subjectsBadge = Object.keys(subjectsByType).map(code => {
-      const list = subjectsByType[code] || [];
+    // 유형별 과목 배지 (그룹 수업 유형 마스터 풀 순서 기준, 한 줄씩)
+    const subjectsBadge = [...MOCK_MASTER_CLASS_TYPES].sort((a, b) => a.order - b.order).map(t => {
+      const list = subjectsByType[t.code] || [];
       if (list.length === 0) return '';
       const names = list.map(sObj => {
         const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === sObj.id);
         return `${sub ? sub.name : sObj.id}(${sObj.hours}h)`;
       }).join(', ');
-      return `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin-right:2px">${code}: ${names}</span>`;
+      return `<div style="margin-top:1px"><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${t.code}</span> ${names}</div>`;
     }).join('');
 
     // 유형별 시수 요약 (예: 1:1 4h · 1:4 2h · 1:8 1h)
@@ -3639,7 +3639,7 @@ function renderCourseList() {
       <tr>
         <td>
           <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
-          <div style="font-size:11px;color:#6B7280;margin-top:2px">과목: ${subjectsBadge || '-'}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:3px">${subjectsBadge || '과목 미설정'}</div>
         </td>
         <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
         <td style="font-size:12px">
