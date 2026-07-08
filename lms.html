@@ -3386,7 +3386,6 @@
           <div class="tsa-card">
             <div class="tsa-card-header" style="background:#F8F9FC;flex-wrap:wrap;gap:10px">
               <h3 class="tsa-card-title"><i data-lucide="file-text" style="color:#5E5CE6"></i> 월별 학생별 상세 청구 및 수납 목록</h3>
-              <input id="ms-search" type="text" placeholder="학생명/Nick 검색" class="tsa-input" style="width:160px;font-size:12px;padding:6px 10px" oninput="renderMonthlyInvoiceStats()"/>
             </div>
             <div style="padding:12px 20px;border-bottom:1px solid #E5E7EB;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
               <select id="ms-filter-agency" class="tsa-input admin-only" style="width:150px;font-size:12px;padding:6px 10px;display:none" onchange="renderMonthlyInvoiceStats()">
@@ -3396,6 +3395,8 @@
               <button id="ms-filter-all" class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="setMonthStatsFilter('all')">전체</button>
               <button id="ms-filter-paid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('paid')" style="border-color:#10B981;color:#10B981">완납</button>
               <button id="ms-filter-unpaid" class="tsa-btn tsa-btn-sm tsa-btn-outline" onclick="setMonthStatsFilter('unpaid')" style="border-color:#EF4444;color:#EF4444">미납</button>
+              <input id="ms-search" type="text" placeholder="학생명/Nick 검색" class="tsa-input" style="width:160px;font-size:12px;padding:6px 10px" onkeydown="if(event.key==='Enter')renderMonthlyInvoiceStats()"/>
+              <button class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="renderMonthlyInvoiceStats()">검색</button>
             </div>
             <div style="overflow-x:auto">
               <table class="tsa-table">
