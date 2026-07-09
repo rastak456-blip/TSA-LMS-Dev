@@ -2323,7 +2323,7 @@
           <div class="tsa-card" style="margin-bottom:20px">
             <div class="tsa-card-body" style="padding:18px">
               <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px"><i data-lucide="settings"></i> 상세 교차 검색 필터</div>
-              <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:14px">
+              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;margin-bottom:14px">
                 <div class="tsa-form-group">
                   <label class="tsa-label">코스 유형</label>
                   <select id="filter-agency-course" class="tsa-input" onchange="filterAgencyStudentList()">
@@ -2332,24 +2332,6 @@
                     <option value="IELTS 전문 코스">IELTS 전문 코스</option>
                     <option value="주니어 패키지">주니어 패키지</option>
                     <option value="가디언 코스">가디언 코스</option>
-                  </select>
-                </div>
-                <div class="tsa-form-group">
-                  <label class="tsa-label">비자 만료</label>
-                  <select id="filter-agency-visa" class="tsa-input" onchange="filterAgencyStudentList()">
-                    <option value="all">전체</option>
-                    <option value="30">30일 이내</option>
-                    <option value="7">7일 이내</option>
-                    <option value="expired">만료됨</option>
-                  </select>
-                </div>
-                <div class="tsa-form-group">
-                  <label class="tsa-label">SSP 만료</label>
-                  <select id="filter-agency-ssp" class="tsa-input" onchange="filterAgencyStudentList()">
-                    <option value="all">전체</option>
-                    <option value="30">30일 이내</option>
-                    <option value="7">7일 이내</option>
-                    <option value="expired">만료됨</option>
                   </select>
                 </div>
                 <div class="tsa-form-group">
@@ -2453,8 +2435,6 @@
                     <th>납부 금액</th>
                     <th>수강 기간</th>
                     <th class="col-flight">항공편 (입/출국)</th>
-                    <th class="col-visa">비자 만료일</th>
-                    <th class="col-ssp">SSP 만료일</th>
                     <th class="col-dorm">희망 기숙사</th>
                     <th>상세 액션</th>
                   </tr>

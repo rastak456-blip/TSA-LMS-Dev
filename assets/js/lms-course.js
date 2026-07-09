@@ -877,30 +877,6 @@ function initAgencyStudentList() {
     list = list.filter(s => s.course && s.course.includes(courseFilter));
   }
 
-  const visaFilter = document.getElementById('filter-agency-visa').value;
-  if (visaFilter !== 'all') {
-    const today = new Date();
-    list = list.filter(s => {
-      if (!s.visaExpiry || s.visaExpiry === '면제') return false;
-      const exp = new Date(s.visaExpiry);
-      const diff = Math.ceil((exp - today) / (1000*60*60*24));
-      if (visaFilter === 'expired') return diff < 0;
-      return diff >= 0 && diff <= parseInt(visaFilter);
-    });
-  }
-
-  const sspFilter = document.getElementById('filter-agency-ssp').value;
-  if (sspFilter !== 'all') {
-    const today = new Date();
-    list = list.filter(s => {
-      if (!s.sspExpiry || s.sspExpiry === '면제') return false;
-      const exp = new Date(s.sspExpiry);
-      const diff = Math.ceil((exp - today) / (1000*60*60*24));
-      if (sspFilter === 'expired') return diff < 0;
-      return diff >= 0 && diff <= parseInt(sspFilter);
-    });
-  }
-
   const invoiceFilter = document.getElementById('filter-agency-invoice').value;
   if (invoiceFilter !== 'all') {
     list = list.filter(s => {
@@ -989,8 +965,6 @@ function initAgencyStudentList() {
           <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
           <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
         </td>
-        <td class="col-visa">${fmtDate(s.visaExpiry)}</td>
-        <td class="col-ssp">${fmtDate(s.sspExpiry)}</td>
         <td class="col-dorm">${(() => {
           const req = MOCK_DORM_BOOK_REQUESTS.find(r => r.studentId === s.id || r.studentName === s.name || r.studentName === s.nick);
           if (req) return `<span style="font-size:12px;font-weight:600;color:#374151">${req.roomType}</span>${req.genderPref && req.genderPref !== '전체' ? `<br><span style="font-size:10px;color:#9CA3AF">${req.genderPref} 희망</span>` : ''}`;
@@ -1027,8 +1001,6 @@ function initAgencyStudentList() {
 
 function resetAgencyFilters() {
   document.getElementById('filter-agency-course').value = 'all';
-  document.getElementById('filter-agency-visa').value = 'all';
-  document.getElementById('filter-agency-ssp').value = 'all';
   document.getElementById('filter-agency-invoice').value = 'all';
   document.getElementById('filter-agency-start-from').value = '';
   document.getElementById('filter-agency-start-to').value = '';
@@ -1081,8 +1053,6 @@ function filterAgencyStudentListByKpi(type) {
     else if (type === 'waiting' || type === 'new') { APP._agencyStatusFilter = 'waiting'; }
     else if (type === 'unpaid') {
       document.querySelectorAll('.filter-agency-paid-cb').forEach(cb => { cb.checked = (cb.value === 'unpaid'); });
-    } else if (type === 'visa') {
-      document.getElementById('filter-agency-visa').value = '30';
     }
     renderAgencyStatusCards();
     filterAgencyStudentList();
