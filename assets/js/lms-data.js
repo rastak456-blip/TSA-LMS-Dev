@@ -521,6 +521,14 @@ const MOCK_STUDENTS = [
   },
 ];
 
+// 에이전시 담당 어학원 직원 후보 목록
+const MOCK_HQ_STAFF = [
+  { id: 'staff_01', name: '김민지', dept: '등록관리팀' },
+  { id: 'staff_02', name: '박서준', dept: '등록관리팀' },
+  { id: 'staff_03', name: '이하늘', dept: '정산팀' },
+  { id: 'staff_04', name: '최우진', dept: '영업지원팀' },
+];
+
 const MOCK_TALK_LMS_TEACHERS = [
   {
     id: 'talk_t1', name: 'John Doe', nick: 'John', gender: '남',

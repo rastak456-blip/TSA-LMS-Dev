@@ -50,13 +50,13 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364 },
-  { id: 7, name: '서울 유학원', country: '한국', flag: '🇰🇷', contact: '최영희', phone: '+82-10-9876-5432', email: 'seoul@talkstn.com', accountId: 'agency_seoul', commissionRate: 10, status: 'active', createdAt: '2025-08-12', note: '카카오톡 채널 서울유학원', address: '서울특별시 종로구 종로 50', lat: 37.5704, lng: 126.9831 },
-  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921 },
-  { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', lat: 34.7024, lng: 135.4959 },
-  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322 },
-  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009 },
-  { id: 9, name: '직접 등록', country: '한국', flag: '🏢', contact: 'TSA 본사', phone: '-', email: '-', accountId: '-', commissionRate: 0, status: 'active', createdAt: '2025-01-01', note: '에이전시를 거치지 않고 자사가 직접 등록한 학생', address: '', lat: null, lng: null },
+  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364, manager: '김민지' },
+  { id: 7, name: '서울 유학원', country: '한국', flag: '🇰🇷', contact: '최영희', phone: '+82-10-9876-5432', email: 'seoul@talkstn.com', accountId: 'agency_seoul', commissionRate: 10, status: 'active', createdAt: '2025-08-12', note: '카카오톡 채널 서울유학원', address: '서울특별시 종로구 종로 50', lat: 37.5704, lng: 126.9831, manager: '박서준' },
+  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921, manager: '이하늘' },
+  { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', lat: 34.7024, lng: 135.4959, manager: '이하늘' },
+  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322, manager: '최우진' },
+  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009, manager: '최우진' },
+  { id: 9, name: '직접 등록', country: '한국', flag: '🏢', contact: 'TSA 본사', phone: '-', email: '-', accountId: '-', commissionRate: 0, status: 'active', createdAt: '2025-01-01', note: '에이전시를 거치지 않고 자사가 직접 등록한 학생', address: '', lat: null, lng: null, manager: '-' },
 ];
 let _agencyNextId = 10;
 
@@ -87,6 +87,7 @@ function renderAgencyManage() {
         <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${displayName}</div>
         <div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country} · 담당: ${a.contact}</div>
         <div style="font-size:11px;color:#9CA3AF">${a.phone}</div>
+        <div style="font-size:10.5px;color:#5E5CE6;margin-top:2px">🧑‍💼 담당 직원: ${a.manager || '-'}</div>
       </td>
       <td style="font-size:12px;color:#374151">${a.email}</td>
       <td style="font-size:12px;font-weight:600;color:#374151">${a.accountId}</td>
@@ -170,6 +171,14 @@ function toggleAgencyStatus(id) {
   renderAgencyManage();
 }
 
+function populateAgmManagerSelect(selectedId) {
+  const sel = document.getElementById('agm-manager');
+  if (!sel || typeof MOCK_HQ_STAFF === 'undefined') return;
+  sel.innerHTML = '<option value="">— 선택 —</option>' +
+    MOCK_HQ_STAFF.map(st => `<option value="${st.name}">${st.name} (${st.dept})</option>`).join('');
+  if (selectedId) sel.value = selectedId;
+}
+
 function openAgencyRegisterModal() {
   document.getElementById('agm-modal-title').textContent = '에이전시 등록';
   document.getElementById('agm-modal-id').value = '';
@@ -178,6 +187,7 @@ function openAgencyRegisterModal() {
     if (el) el.value = '';
   });
   document.getElementById('agm-commission').value = '10';
+  populateAgmManagerSelect('');
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
   updateAgmMapPreview();
@@ -199,6 +209,7 @@ function openAgencyEditModal(id) {
   document.getElementById('agm-password').value   = '';
   document.getElementById('agm-commission').value  = a.commissionRate;
   document.getElementById('agm-note').value        = a.note || '';
+  populateAgmManagerSelect(a.manager || '');
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
   updateAgmMapPreview();
@@ -227,13 +238,15 @@ function saveAgencyManage() {
   const email   = document.getElementById('agm-email').value.trim();
   const accountId = document.getElementById('agm-account-id').value.trim();
   const commission = parseFloat(document.getElementById('agm-commission').value) || 0;
+  const manager = document.getElementById('agm-manager').value;
   if (!name || !accountId) { showToast('에이전시명과 계정 ID는 필수입니다.', 'danger'); return; }
+  if (!manager) { showToast('담당 어학원 직원을 선택해 주세요.', 'danger'); return; }
 
   const id = document.getElementById('agm-modal-id').value;
   const data = {
     name, country, contact,
     phone: document.getElementById('agm-phone').value.trim(),
-    email, accountId, commissionRate: commission,
+    email, accountId, commissionRate: commission, manager,
     address: document.getElementById('agm-address').value.trim(),
     note: document.getElementById('agm-note').value.trim(),
     flag: '🏢',
