@@ -855,6 +855,16 @@ function initAgencyStudentList() {
 
   let list = MOCK_STUDENTS.filter(s => s.agency === '한국 영어마을');
 
+  const natSel = document.getElementById('filter-agency-nationality');
+  if (natSel && natSel.options.length <= 1) {
+    const nats = [...new Set(list.map(s => s.nationality).filter(Boolean))].sort();
+    nats.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      natSel.appendChild(opt);
+    });
+  }
+
   if (APP.user === 'agency_branch') {
     list = list.filter(s => {
       const agencyStd = MOCK_AGENCY_STUDENTS.find(a => a.name.includes(s.name) || a.name.includes(s.nick));
@@ -875,6 +885,11 @@ function initAgencyStudentList() {
   const courseFilter = document.getElementById('filter-agency-course').value;
   if (courseFilter !== 'all') {
     list = list.filter(s => s.course && s.course.includes(courseFilter));
+  }
+
+  const nationalityFilter = document.getElementById('filter-agency-nationality').value;
+  if (nationalityFilter !== 'all') {
+    list = list.filter(s => s.nationality === nationalityFilter);
   }
 
   const invoiceFilter = document.getElementById('filter-agency-invoice').value;
@@ -1001,6 +1016,7 @@ function initAgencyStudentList() {
 
 function resetAgencyFilters() {
   document.getElementById('filter-agency-course').value = 'all';
+  document.getElementById('filter-agency-nationality').value = 'all';
   document.getElementById('filter-agency-invoice').value = 'all';
   document.getElementById('filter-agency-start-from').value = '';
   document.getElementById('filter-agency-start-to').value = '';

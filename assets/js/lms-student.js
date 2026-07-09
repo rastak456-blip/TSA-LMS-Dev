@@ -22,7 +22,29 @@ function updateStudentFilterCounts() {
 function initStudentList() {
   enhanceMockStudents();
   updateStudentFilterCounts();
+  populateStudentFilterOptions();
   filterStudentList(APP.activeStudentFilter || 'all');
+}
+
+function populateStudentFilterOptions() {
+  const natSel = document.getElementById('sf-nationality');
+  if (natSel && natSel.options.length <= 1) {
+    const nats = [...new Set(MOCK_STUDENTS.map(s => s.nationality).filter(Boolean))].sort();
+    nats.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      natSel.appendChild(opt);
+    });
+  }
+  const agencySel = document.getElementById('sf-agency');
+  if (agencySel && agencySel.options.length <= 1) {
+    const agencies = [...new Set(MOCK_STUDENTS.map(s => s.agency).filter(Boolean))].sort();
+    agencies.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = a;
+      agencySel.appendChild(opt);
+    });
+  }
 }
 
 function renderStudentList(list) {
@@ -125,6 +147,8 @@ function applyStudentFilters() {
 
   const q           = g('student-search').toLowerCase();
   const sfCourse    = g('sf-course');
+  const sfNationality = g('sf-nationality');
+  const sfAgency    = g('sf-agency');
   const sfVisa      = g('sf-visa');
   const sfSsp       = g('sf-ssp');
   const sfDorm      = g('sf-dorm');
@@ -167,6 +191,12 @@ function applyStudentFilters() {
 
   // 코스 유형
   if (sfCourse) list = list.filter(s => s.course === sfCourse);
+
+  // 국적
+  if (sfNationality) list = list.filter(s => s.nationality === sfNationality);
+
+  // 에이전시
+  if (sfAgency) list = list.filter(s => s.agency === sfAgency);
 
   // 비자 만료
   if (sfVisa) {
@@ -260,7 +290,7 @@ function navigateStudentsKpi(type) {
 }
 
 function resetStudentFilters() {
-  ['sf-course','sf-visa','sf-ssp','sf-dorm',
+  ['sf-course','sf-nationality','sf-agency','sf-visa','sf-ssp','sf-dorm',
    'sf-start-from','sf-start-to','sf-arrival-from','sf-arrival-to','student-search'
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 

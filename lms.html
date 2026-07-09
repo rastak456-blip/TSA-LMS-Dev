@@ -1900,7 +1900,7 @@
           <div class="tsa-card" style="margin-bottom:16px">
             <div class="tsa-card-body" style="padding:16px 20px">
               <!-- 1행: 드롭다운 4개 -->
-              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:12px">
                 <div class="tsa-form-group">
                   <label class="tsa-label">코스 유형</label>
                   <select id="sf-course" class="tsa-input" onchange="applyStudentFilters()">
@@ -1910,6 +1910,18 @@
                     <option value="가디언 코스">가디언 코스</option>
                     <option value="주니어 패키지">주니어 패키지</option>
                     <option value="비즈니스 영어">비즈니스 영어</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">국적</label>
+                  <select id="sf-nationality" class="tsa-input" onchange="applyStudentFilters()">
+                    <option value="">전체 국적</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">에이전시</label>
+                  <select id="sf-agency" class="tsa-input" onchange="applyStudentFilters()">
+                    <option value="">전체 에이전시</option>
                   </select>
                 </div>
                 <div class="tsa-form-group">
@@ -2323,7 +2335,7 @@
           <div class="tsa-card" style="margin-bottom:20px">
             <div class="tsa-card-body" style="padding:18px">
               <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px"><i data-lucide="settings"></i> 상세 교차 검색 필터</div>
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;margin-bottom:14px">
+              <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:14px">
                 <div class="tsa-form-group">
                   <label class="tsa-label">코스 유형</label>
                   <select id="filter-agency-course" class="tsa-input" onchange="filterAgencyStudentList()">
@@ -2332,6 +2344,12 @@
                     <option value="IELTS 전문 코스">IELTS 전문 코스</option>
                     <option value="주니어 패키지">주니어 패키지</option>
                     <option value="가디언 코스">가디언 코스</option>
+                  </select>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">국적</label>
+                  <select id="filter-agency-nationality" class="tsa-input" onchange="filterAgencyStudentList()">
+                    <option value="all">전체 국적</option>
                   </select>
                 </div>
                 <div class="tsa-form-group">
