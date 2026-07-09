@@ -53,7 +53,6 @@ function renderStudentList(list) {
 
     const statusPill = `<span class="tsa-badge ${statusBadgeClass}" style="font-size:10.5px;margin-top:4px;display:inline-block">${statusLabel}</span>`;
 
-    const visaUrgent = isVisaUrgent(s.visaExpiry);
     const attColor = s.attendance >= 90 ? '#16A34A' : s.attendance >= 85 ? '#D97706' : '#EF4444';
     const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
 
@@ -88,15 +87,6 @@ function renderStudentList(list) {
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-weight:600;color:#374151">${s.dorm}</div>
         ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
-      </td>
-      <td style="font-size:11.5px;color:#374151;line-height:1.8">
-        <div><span style="font-size:10px;color:#6B7280;font-weight:600;margin-right:4px">입국</span>${fmtFlightStr(s.flightInfo) || '-'}</div>
-        <div><span style="font-size:10px;color:#D97706;font-weight:600;margin-right:4px">출국</span>${fmtFlightStr(s.flightOutInfo) || '-'}</div>
-      </td>
-      <td>
-        <div style="font-size:12px;font-weight:${visaUrgent?'700':'500'};color:${visaUrgent?'#EF4444':'#374151'}">${s.visaExpiry}</div>
-        ${visaUrgent ? '<div style="font-size:10px;color:#EF4444">⚠ 만료 임박</div>' : ''}
-        ${s.sspExpiry !== '면제' ? `<div style="font-size:10px;color:#9CA3AF">SSP: ${s.sspExpiry}</div>` : '<div style="font-size:10px;color:#16A34A">SSP 면제</div>'}
       </td>
       <td>
         <div style="font-weight:700;color:${attColor};font-size:13px">${s.attendance}%</div>
