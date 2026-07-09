@@ -57,20 +57,27 @@ function renderStudentList(list) {
     const attColor = s.attendance >= 90 ? '#16A34A' : s.attendance >= 85 ? '#D97706' : '#EF4444';
     const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
 
+    const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
+
+    let mentorName = '미배정';
+    const mentorMatch = (typeof MOCK_TIMETABLE !== 'undefined') ? MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick)) : null;
+    if (mentorMatch) mentorName = mentorMatch.teacher;
+
     return `<tr>
       <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${rowNum}</td>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <img class="tsa-avatar" src="${avatarSrc}" style="width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #E5E7EB;" alt="${s.nick}"/>
           <div>
-            <div style="font-weight:700;font-size:13px;color:#1A1D23">
-              ${s.nick} (${s.name})
-              <span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin-left:4px;padding:1px 5px;background:#F3F4F6;color:#4B5563;border:1px solid #E5E7EB;">${s.agency}</span>
-            </div>
+            <div style="font-weight:700;font-size:13px;color:#1A1D23">${s.nick} (${s.name})</div>
             <div style="font-size:11px;color:#6B7280">${s.flag} ${s.nationality} · ${s.gender}성 ${s.age}세</div>
             <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">여권: ${s.passportNum || '-'}</div>
           </div>
         </div>
+      </td>
+      <td style="font-size:11.5px;white-space:nowrap">
+        <div style="font-weight:600;color:#374151">${s.agency || '-'}</div>
+        ${agencyInfo ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:1px">${agencyInfo.contact} · ${agencyInfo.phone}</div>` : ''}
       </td>
       <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
@@ -81,9 +88,7 @@ function renderStudentList(list) {
         <div style="font-weight:600;color:#374151">${s.dorm}</div>
         ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
       </td>
-      <td>
-        <span class="tsa-badge tsa-badge-info" style="font-size:10.5px">${s.passportStatus}</span>
-      </td>
+      <td style="font-size:11.5px;font-weight:600;color:#374151">${mentorName}</td>
       <td style="font-size:11.5px;color:#374151;line-height:1.8">
         <div><span style="font-size:10px;color:#6B7280;font-weight:600;margin-right:4px">입국</span>${fmtFlightStr(s.flightInfo) || '-'}</div>
         <div><span style="font-size:10px;color:#D97706;font-weight:600;margin-right:4px">출국</span>${fmtFlightStr(s.flightOutInfo) || '-'}</div>
