@@ -1717,14 +1717,14 @@
           <!-- 에이전시 업무 승인 대기함 (전체 너비) -->
           <div class="tsa-card" style="margin-bottom:20px" id="admin-agency-inbox-card">
             <div class="tsa-card-header" style="background:#FFFBEB;border-bottom:1px solid #FEF3C7">
-              <h3 class="tsa-card-title"><i data-lucide="receipt" style="color:#D97706"></i> 입금 확인서 승인 대기함</h3>
+              <h3 class="tsa-card-title"><i data-lucide="receipt" style="color:#D97706"></i> 송금 명세서 승인 대기함</h3>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <span class="tsa-badge tsa-badge-warning" id="admin-waiting-remits-count" style="font-size:11px">승인 대기: 0건</span>
               </div>
             </div>
             <div class="tsa-card-body" style="padding:18px">
-              <!-- 입금 확인서 내역 -->
-              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 입금 확인서 제출 내역</div>
+              <!-- 송금 명세서 내역 -->
+              <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">💰 B2B 학비 송금 명세서 제출 내역</div>
               <div style="overflow-x:auto;margin-bottom:20px">
                 <table class="tsa-table" style="font-size:11.5px">
                   <thead>
@@ -1732,7 +1732,7 @@
                       <th>에이전시</th>
                       <th>학생 성명</th>
                       <th>Net 청구액</th>
-                      <th>입금 확인서</th>
+                      <th>송금 명세서</th>
                       <th>송금 일시</th>
                       <th style="text-align:center">동작</th>
                     </tr>
@@ -2267,14 +2267,14 @@
             <div style="display:flex;border-bottom:1px solid #E5E7EB;padding:0 18px;gap:0">
               <button id="req-tab-remit" onclick="switchReqTab('remit')"
                   style="padding:10px 18px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid #D97706;color:#D97706">
-                  💰 입금 확인서
+                  💰 송금 명세서
                 </button>
               </div>
 
               <!-- 송금 영수증 탭 -->
               <div id="req-panel-remit" style="padding:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 입금 확인서를 제출하면 완납 처리됩니다.</div>
+                  <div style="font-size:11.5px;color:#6B7280">학비 송금 후 송금 명세서를 제출하면 완납 처리됩니다.</div>
                 </div>
                 <div style="overflow-x:auto">
                   <table class="tsa-table" style="font-size:11.5px">
@@ -3403,7 +3403,7 @@
                     <th style="text-align:right">등록금</th><th style="text-align:right;color:#5E5CE6">GROSS</th>
                     <th style="text-align:right;color:#D97706">커미션</th><th style="text-align:right;color:#059669">NET</th>
                     <th>등록 상태</th><th>납부 상태</th>
-                    <th>입금 확인서 제출일</th><th>어학원 납부 확인일</th>
+                    <th>송금 명세서 제출일</th><th>어학원 납부 확인일</th>
                     <th class="admin-only" style="display:none">관리</th>
                   </tr>
                 </thead>
@@ -5741,14 +5741,14 @@
 </div>
 
 <!-- ================================================ -->
-<!--  MODAL: 입금 확인서 검토 (어드민)                    -->
+<!--  MODAL: 송금 명세서 검토 (어드민)                    -->
 <!-- ================================================ -->
 <div id="modal-remit-review" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9100;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden">
     <div style="background:#EEF2FF;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #C7D2FE">
       <div style="display:flex;align-items:center;gap:10px">
         <i data-lucide="file-search" style="color:#5E5CE6;font-size:18px"></i>
-        <div style="font-size:14px;font-weight:700;color:#3730A3">입금 확인서 검토</div>
+        <div style="font-size:14px;font-weight:700;color:#3730A3">송금 명세서 검토</div>
       </div>
       <button onclick="closeModal('modal-remit-review')" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:20px;line-height:1">×</button>
     </div>
@@ -5763,7 +5763,7 @@
 </div>
 
 <!-- ================================================ -->
-<!--  MODAL: 입금 확인서 제출                            -->
+<!--  MODAL: 송금 명세서 제출                            -->
 <!-- ================================================ -->
 <div id="modal-remit-submit" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;width:520px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden">
@@ -5772,7 +5772,7 @@
       <div style="display:flex;align-items:center;gap:10px">
         <i data-lucide="send" style="color:#5E5CE6;font-size:18px"></i>
         <div>
-          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 입금 확인서 제출</div>
+          <div style="font-size:14px;font-weight:700;color:#3730A3">B2B 학비 송금 명세서 제출</div>
           <div style="font-size:11px;color:#6B7280">제출 즉시 완납 처리됩니다</div>
         </div>
       </div>
@@ -5791,7 +5791,7 @@
 
     <!-- 영수증 업로드 -->
     <div style="padding:20px 24px">
-      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">입금 확인서 업로드 <span style="color:#EF4444">*</span></label>
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">송금 명세서 업로드 <span style="color:#EF4444">*</span></label>
       <div onclick="document.getElementById('remit-modal-file-input').click()"
            style="border:1.5px dashed #A5B4FC;border-radius:10px;padding:20px;text-align:center;background:#FAFBFF;cursor:pointer;transition:background 0.15s"
            onmouseover="this.style.background='#EEF2FF'" onmouseout="this.style.background='#FAFBFF'">
@@ -5826,7 +5826,7 @@
         </button>
         <button onclick="submitAgencyRemittanceModal()"
                 style="flex:2;padding:10px;background:#5E5CE6;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-          <i data-lucide="check" style="font-size:14px"></i> 입금 확인서 제출
+          <i data-lucide="check" style="font-size:14px"></i> 송금 명세서 제출
         </button>
       </div>
     </div>

@@ -343,7 +343,7 @@ function initAgencyRequestInbox() {
   }
 }
 
-function openRemitRequestModal()  { alert('입금 확인서 제출 모달 (추후 구현 예정)'); }
+function openRemitRequestModal()  { alert('송금 명세서 제출 모달 (추후 구현 예정)'); }
 function openChangeRequestModal() { alert('학생 정보 변경 요청 모달 (추후 구현 예정)'); }
 
 let agencySelectedStudentIds = [];
@@ -734,7 +734,7 @@ function submitAgencyRemittanceModal() {
   if (!s) return;
 
   if (!remitModalFile) {
-    showToast('⚠ 입금 확인서 파일을 첨부해 주세요.', 'danger');
+    showToast('⚠ 송금 명세서 파일을 첨부해 주세요.', 'danger');
     return;
   }
 
@@ -745,7 +745,7 @@ function submitAgencyRemittanceModal() {
   s.remittanceMemo = memoEl ? memoEl.value.trim() : (s.remittanceMemo || '');
 
   closeModal('modal-remit-submit');
-  showToast(`✓ ${s.name} 학생의 입금 확인서가 제출되어 완납 처리되었습니다.`, 'success');
+  showToast(`✓ ${s.name} 학생의 송금 명세서가 제출되어 완납 처리되었습니다.`, 'success');
 
   initAgencyDormRemit();
   initAgencyStudentList();
@@ -1892,7 +1892,7 @@ function submitAgencyRemittance() {
   if (!s) return;
 
   if (!remitSelectedFile) {
-    showToast('⚠ 해외 송금 확인을 위한 입금 확인서 파일을 첨부해 주세요.', 'danger');
+    showToast('⚠ 해외 송금 확인을 위한 송금 명세서 파일을 첨부해 주세요.', 'danger');
     return;
   }
 
@@ -1900,7 +1900,7 @@ function submitAgencyRemittance() {
   s.remittanceReceipt = remitSelectedFile;
   s.remittanceDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
-  showToast(`✓ ${s.name} 학생의 순 송금액(Net) 입금 확인서가 제출되어 완납 처리되었습니다.`, 'success');
+  showToast(`✓ ${s.name} 학생의 순 송금액(Net) 송금 명세서가 제출되어 완납 처리되었습니다.`, 'success');
 
   document.getElementById('remit-student-select').value = '';
   updateAgencyRemittanceDetails();
@@ -2382,10 +2382,10 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ${localFeesHtml}
 
-          <!-- 입금 확인서 제출 섹션 (어드민은 미표시, 에이전시만 노출) -->
+          <!-- 송금 명세서 제출 섹션 (어드민은 미표시, 에이전시만 노출) -->
           ${isAgency ? `
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 입금 확인서 제출</div>
+            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 송금 명세서 제출</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
               <div class="tsa-form-group" style="margin:0">
                 <label class="tsa-label" style="font-size:11px">송금 일자</label>
@@ -2424,9 +2424,9 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ` : ''}
 
-          <!-- 입금 확인서 제출 이력 -->
+          <!-- 송금 명세서 제출 이력 -->
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 입금 확인서 제출 이력 (B2B Net 정산)</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 송금 명세서 제출 이력 (B2B Net 정산)</div>
             ${(() => {
               // MOCK_REMIT_REQUESTS(대시보드)와 s.remittanceHistory(직접 제출) 통합
               const fromDashboard = (typeof MOCK_REMIT_REQUESTS !== 'undefined'
@@ -2458,7 +2458,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               const history = [...fromDashboard, ...fromLocal];
 
               if (history.length === 0) {
-                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 B2B 입금 확인서가 없습니다.</div>`;
+                return `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:12px">제출된 B2B 송금 명세서가 없습니다.</div>`;
               }
               return `<table class="tsa-table" style="font-size:11.5px">
                 <thead>
@@ -2762,7 +2762,7 @@ function submitRemittanceReceipt(studentId, editIdx) {
       if (fileName) entry.fileName = fileName;
       entry.status = 'approved';
     }
-    showToast('✅ 입금 확인서가 수정되었습니다.', 'success');
+    showToast('✅ 송금 명세서가 수정되었습니다.', 'success');
   } else {
     s.remittanceHistory.unshift({
       submittedAt: new Date().toISOString().slice(0, 10),
@@ -2774,7 +2774,7 @@ function submitRemittanceReceipt(studentId, editIdx) {
       status: 'approved'
     });
     s.remittanceStatus = 'paid';
-    showToast('✅ 입금 확인서가 제출되어 완납 처리되었습니다.', 'success');
+    showToast('✅ 송금 명세서가 제출되어 완납 처리되었습니다.', 'success');
   }
 
   switchAdetailTab('settle');
@@ -3293,7 +3293,7 @@ function initAdminInbox() {
   remitCount.textContent = `승인 대기: ${waitingRemits.length}건`;
 
   if (waitingRemits.length === 0) {
-    remitBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#9CA3AF">승인 대기 중인 입금 확인서가 없습니다.</td></tr>`;
+    remitBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#9CA3AF">승인 대기 중인 송금 명세서가 없습니다.</td></tr>`;
   } else {
     remitBody.innerHTML = waitingRemits.map(s => {
       const prices = calculatePrices(s);

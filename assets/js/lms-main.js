@@ -91,7 +91,7 @@ function enhanceMockStudents() {
       start.setDate(start.getDate() - offset);
       s.remittanceDate = start.toISOString().split('T')[0];
     }
-    // 6-1. 입금 확인서 제출일/제출자 — 어학원 확인일보다 1~3일 앞선 날짜로 자동 설정
+    // 6-1. 송금 명세서 제출일/제출자 — 어학원 확인일보다 1~3일 앞선 날짜로 자동 설정
     if (s.remittanceStatus === 'paid' && !s.remittanceSubmittedDate && s.remittanceDate) {
       const submitted = new Date(s.remittanceDate);
       submitted.setDate(submitted.getDate() - (((s.id || 1) % 3) + 1));
@@ -2858,7 +2858,7 @@ function submitInvoiceForApproval(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
     s.remittanceStatus = 'paid';
-    showToast('✓ 입금 확인서가 제출되어 완납 처리되었습니다.', 'success');
+    showToast('✓ 송금 명세서가 제출되어 완납 처리되었습니다.', 'success');
     refreshInvoiceViews(studentId);
   }
 }
