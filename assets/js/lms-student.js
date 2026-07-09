@@ -79,6 +79,7 @@ function renderStudentList(list) {
         <div style="font-weight:600;color:#374151">${s.agency || '-'}</div>
         ${agencyInfo ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:1px">${agencyInfo.contact} · ${agencyInfo.phone}</div>` : ''}
       </td>
+      <td style="font-size:11.5px;font-weight:600;color:#374151">${mentorName}</td>
       <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
@@ -88,7 +89,6 @@ function renderStudentList(list) {
         <div style="font-weight:600;color:#374151">${s.dorm}</div>
         ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
       </td>
-      <td style="font-size:11.5px;font-weight:600;color:#374151">${mentorName}</td>
       <td style="font-size:11.5px;color:#374151;line-height:1.8">
         <div><span style="font-size:10px;color:#6B7280;font-weight:600;margin-right:4px">입국</span>${fmtFlightStr(s.flightInfo) || '-'}</div>
         <div><span style="font-size:10px;color:#D97706;font-weight:600;margin-right:4px">출국</span>${fmtFlightStr(s.flightOutInfo) || '-'}</div>
