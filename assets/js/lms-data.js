@@ -851,8 +851,8 @@ const MOCK_COURSES = [
 // 기숙사 템플릿 (인실 x 컨디션 x 총개수 x 비용)
 let MOCK_DORM_TEMPLATES = [
   { id: 1, accomType: '가든 호텔',    capacity: 1, condition: '스탠다드', count: 10, costDay: 30,  costWeek: 180, cost: 800 },
-  { id: 2, accomType: '가든 호텔',    capacity: 2, condition: '이코노미', count: 20, costDay: 22,  costWeek: 140, cost: 600 },
-  { id: 3, accomType: 'IT Park 콘도', capacity: 1, condition: '디럭스',   count: 5,  costDay: 50,  costWeek: 300, cost: 1200 },
+  { id: 2, accomType: '가든 호텔',    capacity: 2, condition: '스탠다드', count: 20, costDay: 22,  costWeek: 140, cost: 600 },
+  { id: 3, accomType: 'IT Park 콘도', capacity: 1, condition: '프리미엄', count: 5,  costDay: 50,  costWeek: 300, cost: 1200 },
   { id: 4, accomType: '가든 호텔',    capacity: 4, condition: '스탠다드', count: 8,  costDay: 18,  costWeek: 110, cost: 500 }
 ];
 
