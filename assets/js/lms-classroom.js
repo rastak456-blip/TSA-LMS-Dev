@@ -60,6 +60,56 @@ let MOCK_AGENCIES = [
 ];
 let _agencyNextId = 10;
 
+const AGENCY_COMMISSION_ITEMS = [
+  { key: 'registration', label: '등록금', defaultType: 'none', defaultValue: 0 },
+  { key: 'education', label: '수강료', defaultType: 'rate', defaultValue: 10 },
+  { key: 'dorm', label: '기숙사비', defaultType: 'rate', defaultValue: 10 },
+  { key: 'local', label: '기타 비용', defaultType: 'none', defaultValue: 0 },
+];
+
+function normalizeAgencyCommissionPolicies(a) {
+  const legacyType = a?.commissionType === 'fixed' ? 'fixed' : 'rate';
+  const legacyValue = legacyType === 'fixed'
+    ? Number(a?.commissionAmount ?? a?.commissionRate ?? 0)
+    : Number(a?.commissionRate ?? 0);
+  const safeLegacyValue = Number.isFinite(legacyValue) ? legacyValue : 0;
+  const source = a?.commissionPolicies || {};
+  return Object.fromEntries(AGENCY_COMMISSION_ITEMS.map(item => {
+    const saved = source[item.key] || {};
+    const fallbackType = (item.key === 'education' || item.key === 'dorm')
+      ? legacyType
+      : item.defaultType;
+    const fallbackValue = (item.key === 'education' || item.key === 'dorm')
+      ? safeLegacyValue
+      : item.defaultValue;
+    const type = ['none', 'rate', 'fixed'].includes(saved.type) ? saved.type : fallbackType;
+    const value = Number(saved.value ?? fallbackValue);
+    return [item.key, {
+      type,
+      value: Number.isFinite(value) ? value : 0,
+    }];
+  }));
+}
+
+function renderAgencyCommissionPolicyCell(a, key) {
+  const policies = normalizeAgencyCommissionPolicies(a);
+  const policy = policies[key] || { type: 'none', value: 0 };
+  const value = Number(policy.value || 0);
+  if (policy.type === 'none' || value <= 0) {
+    return `<span style="font-size:11px;color:#9CA3AF">-</span>`;
+  }
+  const label = policy.type === 'fixed'
+    ? `$${value.toLocaleString()}`
+    : `${value}%`;
+  const subLabel = policy.type === 'fixed' ? '정액' : '정률';
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span style="font-size:12px;font-weight:800;color:#5E5CE6;white-space:nowrap">${label}</span>
+      <span style="font-size:10px;color:#9CA3AF">${subLabel}</span>
+    </div>
+  `;
+}
+
 function renderAgencyManage() {
   const tbody = document.getElementById('agency-manage-tbody');
   if (!tbody) return;
@@ -81,20 +131,30 @@ function renderAgencyManage() {
     const studentCell = isPrimaryForName
       ? `<div style="font-size:14px;font-weight:800;color:#111827">${studentCount}명</div><div style="font-size:10.5px;color:#10B981">재학 ${activeCount}명</div>`
       : `<div style="font-size:11px;color:#9CA3AF">본사 통합 집계</div>`;
+    const managerStaff = typeof MOCK_HQ_STAFF === 'undefined'
+      ? null
+      : MOCK_HQ_STAFF.find(st => st.name === a.manager);
+    const managerCell = a.manager && a.manager !== '-'
+      ? `<div style="font-size:12px;font-weight:700;color:#374151">${a.manager}</div>
+         <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">${managerStaff ? managerStaff.dept : ''}</div>`
+      : '<span style="font-size:11px;color:#9CA3AF">미지정</span>';
 
     return `<tr>
       <td>
         <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${displayName}</div>
         <div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country} · 담당: ${a.contact}</div>
         <div style="font-size:11px;color:#9CA3AF">${a.phone}</div>
-        <div style="font-size:10.5px;color:#5E5CE6;margin-top:2px">🧑‍💼 담당 직원: ${a.manager || '-'}</div>
       </td>
       <td style="font-size:12px;color:#374151">${a.email}</td>
       <td style="font-size:12px;font-weight:600;color:#374151">${a.accountId}</td>
+      <td style="text-align:center">${managerCell}</td>
       <td style="text-align:center">
         ${studentCell}
       </td>
-      <td style="text-align:center;font-size:13px;font-weight:700;color:#5E5CE6">${a.commissionRate}%</td>
+      <td style="text-align:center">${renderAgencyCommissionPolicyCell(a, 'registration')}</td>
+      <td style="text-align:center">${renderAgencyCommissionPolicyCell(a, 'education')}</td>
+      <td style="text-align:center">${renderAgencyCommissionPolicyCell(a, 'dorm')}</td>
+      <td style="text-align:center">${renderAgencyCommissionPolicyCell(a, 'local')}</td>
       <td style="text-align:center">${statusBadge}</td>
       <td>
         ${a.name === '직접 등록' ? '' : `
@@ -182,11 +242,11 @@ function populateAgmManagerSelect(selectedId) {
 function openAgencyRegisterModal() {
   document.getElementById('agm-modal-title').textContent = '에이전시 등록';
   document.getElementById('agm-modal-id').value = '';
-  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-address','agm-account-id','agm-password','agm-commission','agm-note'].forEach(id => {
+  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-address','agm-account-id','agm-password','agm-note'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('agm-commission').value = '10';
+  setAgencyCommissionPolicyInputs(normalizeAgencyCommissionPolicies({ commissionRate: 10 }));
   populateAgmManagerSelect('');
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
@@ -207,7 +267,7 @@ function openAgencyEditModal(id) {
   document.getElementById('agm-address').value    = a.address || '';
   document.getElementById('agm-account-id').value = a.accountId;
   document.getElementById('agm-password').value   = '';
-  document.getElementById('agm-commission').value  = a.commissionRate;
+  setAgencyCommissionPolicyInputs(normalizeAgencyCommissionPolicies(a));
   document.getElementById('agm-note').value        = a.note || '';
   populateAgmManagerSelect(a.manager || '');
   document.getElementById('agency-manage-modal').style.display = 'block';
@@ -231,13 +291,52 @@ function closeAgencyManageModal() {
   document.getElementById('agency-manage-backdrop').style.display = 'none';
 }
 
+function setAgencyCommissionPolicyInputs(policies) {
+  AGENCY_COMMISSION_ITEMS.forEach(item => {
+    const typeEl = document.getElementById(`agm-commission-type-${item.key}`);
+    const valueEl = document.getElementById(`agm-commission-${item.key}`);
+    const policy = policies[item.key] || { type: item.defaultType, value: item.defaultValue };
+    if (typeEl) typeEl.value = policy.type;
+    if (valueEl) valueEl.value = Number(policy.value || 0);
+  });
+  updateAgencyCommissionInputLabels();
+}
+
+function readAgencyCommissionPolicyInputs() {
+  return Object.fromEntries(AGENCY_COMMISSION_ITEMS.map(item => {
+    const type = (document.getElementById(`agm-commission-type-${item.key}`) || {}).value || item.defaultType;
+    const value = Math.max(parseFloat((document.getElementById(`agm-commission-${item.key}`) || {}).value) || 0, 0);
+    return [item.key, {
+      type: ['none', 'rate', 'fixed'].includes(type) ? type : item.defaultType,
+      value,
+    }];
+  }));
+}
+
+function updateAgencyCommissionInputLabels() {
+  const help = document.getElementById('agm-commission-help');
+  AGENCY_COMMISSION_ITEMS.forEach(item => {
+    const type = (document.getElementById(`agm-commission-type-${item.key}`) || {}).value || item.defaultType;
+    const input = document.getElementById(`agm-commission-${item.key}`);
+    if (!input) return;
+    input.disabled = type === 'none';
+    input.placeholder = type === 'fixed' ? '예: 200' : type === 'rate' ? '예: 10' : '0';
+    input.max = type === 'rate' ? '100' : '';
+    input.step = type === 'fixed' ? '1' : '0.1';
+    if (type === 'none') input.value = '0';
+  });
+  if (help) {
+    help.textContent = '정률은 해당 항목 금액의 비율로, 정액은 해당 항목에서 고정 금액으로 커미션을 계산합니다.';
+  }
+}
+
 function saveAgencyManage() {
   const name    = document.getElementById('agm-name').value.trim();
   const country = document.getElementById('agm-country').value.trim();
   const contact = document.getElementById('agm-contact').value.trim();
   const email   = document.getElementById('agm-email').value.trim();
   const accountId = document.getElementById('agm-account-id').value.trim();
-  const commission = parseFloat(document.getElementById('agm-commission').value) || 0;
+  const commissionPolicies = readAgencyCommissionPolicyInputs();
   const manager = document.getElementById('agm-manager').value;
   if (!name || !accountId) { showToast('에이전시명과 계정 ID는 필수입니다.', 'danger'); return; }
   if (!manager) { showToast('담당 어학원 직원을 선택해 주세요.', 'danger'); return; }
@@ -246,7 +345,12 @@ function saveAgencyManage() {
   const data = {
     name, country, contact,
     phone: document.getElementById('agm-phone').value.trim(),
-    email, accountId, commissionRate: commission, manager,
+    email, accountId,
+    commissionPolicies,
+    commissionType: 'itemized',
+    commissionRate: Number(commissionPolicies.education?.type === 'rate' ? commissionPolicies.education.value : 0),
+    commissionAmount: 0,
+    manager,
     address: document.getElementById('agm-address').value.trim(),
     note: document.getElementById('agm-note').value.trim(),
     flag: '🏢',
@@ -1469,15 +1573,18 @@ function renderAdminDormTemplates() {
 
 function switchDormErpTab(tab) {
   document.getElementById('dorm-erp-panel-assign').style.display   = tab === 'assign'   ? '' : 'none';
+  document.getElementById('dorm-erp-panel-gantt').style.display    = tab === 'gantt'    ? '' : 'none';
   document.getElementById('dorm-erp-panel-settings').style.display = tab === 'settings' ? '' : 'none';
   document.getElementById('dorm-erp-panel-master').style.display   = tab === 'master'   ? '' : 'none';
-  ['assign','settings','master'].forEach(t => {
+  ['assign','gantt','settings','master'].forEach(t => {
     const btn = document.getElementById(`dorm-erp-tab-${t}`);
     if (!btn) return;
     btn.style.color = t === tab ? '#5E5CE6' : '#6B7280';
     btn.style.borderBottomColor = t === tab ? '#5E5CE6' : 'transparent';
   });
-  if (tab === 'settings') {
+  if (tab === 'gantt') {
+    renderDormErpAnnualGantt();
+  } else if (tab === 'settings') {
     renderAdminDormTemplates();
     renderAdminDormRoomsTable();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
@@ -1636,6 +1743,193 @@ let _erpAccomFilter  = '전체';
 let _erpCapFilter    = '전체';
 let _erpAssignTarget = null; // { roomNo, bedId }
 
+function onDormErpGanttViewChange() {
+  const view = document.getElementById('erp-gantt-view')?.value || 'month';
+  const monthSel = document.getElementById('erp-gantt-month');
+  const desc = document.getElementById('erp-gantt-desc');
+  if (monthSel) {
+    if (view === 'year') {
+      monthSel.style.display = 'none';
+    } else if (view === 'quarter') {
+      monthSel.style.display = '';
+      const curQuarter = Math.ceil((parseInt(monthSel.value, 10) || 1) / 3);
+      monthSel.innerHTML = [1,2,3,4].map(q => `<option value="${q}">${q}분기</option>`).join('');
+      monthSel.value = curQuarter;
+    } else {
+      monthSel.style.display = '';
+      if (monthSel.options.length !== 12 || monthSel.options[0].textContent.includes('분기')) {
+        monthSel.innerHTML = Array.from({length:12}, (_,i) => `<option value="${i+1}">${i+1}월</option>`).join('');
+        monthSel.value = 1;
+      }
+    }
+  }
+  if (desc) {
+    desc.textContent = view === 'year' ? '선택한 연도의 1월 1일~12월 31일을 침대 단위로 조회해.'
+      : view === 'quarter' ? '선택한 분기(3개월)의 배정 일정을 침대 단위로 조회해.'
+      : '선택한 월의 배정 일정을 침대 단위로 조회해.';
+  }
+  renderDormErpAnnualGantt();
+}
+
+function shiftDormErpGanttPeriod(delta) {
+  const view = document.getElementById('erp-gantt-view')?.value || 'month';
+  const yearInput = document.getElementById('erp-gantt-year');
+  const monthSel = document.getElementById('erp-gantt-month');
+  if (!yearInput) return;
+  let year = parseInt(yearInput.value, 10) || 2026;
+
+  if (view === 'year') {
+    year = Math.max(2020, Math.min(2035, year + delta));
+    yearInput.value = year;
+  } else if (view === 'quarter') {
+    let q = (parseInt(monthSel?.value, 10) || 1) + delta;
+    if (q < 1) { q = 4; year = Math.max(2020, year - 1); }
+    else if (q > 4) { q = 1; year = Math.min(2035, year + 1); }
+    yearInput.value = year;
+    if (monthSel) monthSel.value = q;
+  } else {
+    let m = (parseInt(monthSel?.value, 10) || 1) + delta;
+    if (m < 1) { m = 12; year = Math.max(2020, year - 1); }
+    else if (m > 12) { m = 1; year = Math.min(2035, year + 1); }
+    yearInput.value = year;
+    if (monthSel) monthSel.value = m;
+  }
+  renderDormErpAnnualGantt();
+}
+
+function getDormErpFilteredRooms() {
+  let rooms = [...MOCK_DORM_ROOMS];
+  if (_erpAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _erpAccomFilter);
+  if (_erpCapFilter !== '전체') rooms = rooms.filter(r => (r.capacity || r.beds?.length) === parseInt(_erpCapFilter));
+  if (_erpGenderFilter !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _erpGenderFilter);
+  return rooms.filter(r => r.roomNo);
+}
+
+function getDormErpAnnualFilteredRooms() {
+  const accom = document.getElementById('erp-gantt-accom')?.value || '전체';
+  const cap = document.getElementById('erp-gantt-cap')?.value || '전체';
+  const gender = document.getElementById('erp-gantt-gender')?.value || '전체';
+  return MOCK_DORM_ROOMS.filter(room => {
+    if (!room.roomNo) return false;
+    if (accom !== '전체' && room.accomType !== accom) return false;
+    if (cap !== '전체' && (room.capacity || room.beds?.length) !== parseInt(cap, 10)) return false;
+    if (gender !== '전체' && room.genderRestriction !== '무관' && room.genderRestriction !== gender) return false;
+    return true;
+  });
+}
+
+function renderDormErpAnnualGantt() {
+  const year = Math.max(2020, Math.min(2035, parseInt(document.getElementById('erp-gantt-year')?.value, 10) || 2026));
+  const input = document.getElementById('erp-gantt-year');
+  if (input) input.value = year;
+
+  const view = document.getElementById('erp-gantt-view')?.value || 'month';
+  const monthVal = parseInt(document.getElementById('erp-gantt-month')?.value, 10) || 1;
+
+  let startVal, endVal;
+  if (view === 'year') {
+    startVal = `${year}-01-01`;
+    endVal = `${year}-12-31`;
+  } else if (view === 'quarter') {
+    const startMonth = (monthVal - 1) * 3 + 1;
+    const endMonth = startMonth + 2;
+    const lastDay = new Date(year, endMonth, 0).getDate();
+    startVal = `${year}-${String(startMonth).padStart(2,'0')}-01`;
+    endVal = `${year}-${String(endMonth).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  } else {
+    const lastDay = new Date(year, monthVal, 0).getDate();
+    startVal = `${year}-${String(monthVal).padStart(2,'0')}-01`;
+    endVal = `${year}-${String(monthVal).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+
+  renderDormErpGantt(getDormErpAnnualFilteredRooms(), startVal, endVal);
+}
+
+function renderDormErpGantt(rooms, startVal, endVal) {
+  const wrap = document.getElementById('erp-dorm-gantt-wrap');
+  if (!wrap) return;
+  const start = new Date(`${startVal}T00:00:00`);
+  const end = new Date(`${endVal}T00:00:00`);
+  if (!startVal || !endVal || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    wrap.innerHTML = '<div class="tsa-card" style="padding:36px;text-align:center;color:#EF4444;font-size:12px">올바른 조회 시작일과 종료일을 선택해줘.</div>';
+    return;
+  }
+
+  const dayMs = 86400000;
+  const totalDays = Math.round((end - start) / dayMs) + 1;
+  const dayWidth = totalDays > 300 ? 8 : totalDays > 100 ? 14 : totalDays > 62 ? 24 : 34;
+  const trackWidth = Math.max(900, totalDays * dayWidth);
+  const dateFromMd = (md) => md ? new Date(`${start.getFullYear()}-${md}T00:00:00`) : null;
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const offset = date => Math.round((date - start) / dayMs);
+  const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#5E5CE6' };
+
+  const weekdayLabels = ['일','월','화','수','목','금','토'];
+  const dateItems = Array.from({ length: totalDays }, (_, idx) => {
+    const d = new Date(start); d.setDate(start.getDate() + idx);
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    const showDay = totalDays <= 100 || d.getDate() === 1 || d.getDay() === 1;
+    const showWeekday = dayWidth >= 24 && showDay;
+    return `<div style="width:${dayWidth}px;min-width:${dayWidth}px;text-align:center;padding:5px 0;background:${weekend ? '#F8FAFC' : '#fff'};border-right:1px solid #F1F5F9">
+      <div style="font-size:9px;font-weight:700;color:${weekend ? '#EF4444' : '#64748B'}">${showDay ? d.getDate() : ''}</div>
+      ${showWeekday ? `<div style="font-size:8px;color:${weekend ? '#EF4444' : '#94A3B8'};margin-top:1px">${weekdayLabels[d.getDay()]}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const months = Array.from({ length: 12 }, (_, monthIdx) => {
+    const monthStart = new Date(start.getFullYear(), monthIdx, 1);
+    const monthEnd = new Date(start.getFullYear(), monthIdx + 1, 0);
+    const visibleStart = monthStart < start ? start : monthStart;
+    const visibleEnd = monthEnd > end ? end : monthEnd;
+    if (visibleEnd < start || visibleStart > end) return '';
+    const days = Math.round((visibleEnd - visibleStart) / dayMs) + 1;
+    return `<div style="width:${days * dayWidth}px;min-width:${days * dayWidth}px;padding:6px 0;text-align:center;background:${monthIdx % 2 ? '#F8FAFC' : '#EEF2FF'};border-right:1px solid #CBD5E1;font-size:10.5px;font-weight:800;color:#475569">${monthIdx + 1}월</div>`;
+  }).join('');
+
+  const today = new Date('2026-07-13T00:00:00');
+  const todayLine = today >= start && today <= end
+    ? `<div class="erp-gantt-today" style="left:${offset(today) * dayWidth + dayWidth / 2}px" title="오늘"></div>` : '';
+
+  const rows = rooms.flatMap(room => (room.beds || []).map(bed => {
+    const assignments = [];
+    if (bed.student && bed.start && bed.end) assignments.push({ student: bed.student, start: bed.start, end: bed.end, status: 'occupied' });
+    (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
+    const bars = assignments.map(item => {
+      const itemStart = dateFromMd(item.start);
+      const itemEnd = dateFromMd(item.end);
+      if (!itemStart || !itemEnd || itemEnd < start || itemStart > end) return '';
+      const leftDays = clamp(offset(itemStart), 0, totalDays - 1);
+      const rightDays = clamp(offset(itemEnd), 0, totalDays - 1);
+      const left = leftDays * dayWidth + 2;
+      const width = Math.max(dayWidth - 4, (rightDays - leftDays + 1) * dayWidth - 4);
+      const color = item.status === 'reserved' ? '#8B5CF6' : (genderColor[room.genderRestriction] || '#5E5CE6');
+      const label = String(item.student || '배정').split(' ')[0];
+      return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;' : ''}" title="${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}">
+        <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
+      </div>`;
+    }).join('');
+    return `<div class="erp-gantt-row">
+      <div class="erp-gantt-room-cell"><div style="font-size:11.5px;font-weight:800;color:#111827">${room.roomNo}호 · 침대 ${bed.id}</div><div style="font-size:10px;color:#64748B;margin-top:2px">${room.accomType} · ${room.genderRestriction || '무관'}${bed.student ? ` · ${String(bed.student).split(' ')[0]}` : ' · 공실'}</div></div>
+      <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
+    </div>`;
+  })).join('');
+
+  wrap.innerHTML = `<div class="erp-gantt-shell">
+    <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <strong style="font-size:13px;color:#111827">침대별 배정 일정</strong>
+      <span style="font-size:11px;color:#64748B">${start.getFullYear()}년 전체 · ${rooms.length}개 호실 · ${rows ? '침대별 일정' : '배정 없음'}</span>
+      <div style="margin-left:auto;display:flex;gap:12px;font-size:10.5px;color:#64748B"><span>● 입실 중</span><span style="color:#8B5CF6">◆ 예약</span><span style="color:#EF4444">│ 오늘</span></div>
+    </div>
+    <div class="erp-gantt-scroll">
+      <div style="display:flex;position:sticky;top:0;z-index:4;border-bottom:1px solid #E5E7EB">
+        <div class="erp-gantt-room-cell" style="z-index:5;background:#F8FAFC;font-size:11px;font-weight:800;color:#475569">객실 / 침대</div>
+        <div style="width:${trackWidth}px;min-width:${trackWidth}px"><div style="display:flex">${months}</div><div style="display:flex">${dateItems}</div></div>
+      </div>
+      ${rows || '<div style="padding:50px;text-align:center;color:#94A3B8;font-size:12px">조건에 맞는 배정 데이터가 없어.</div>'}
+    </div>
+  </div>`;
+}
+
 function setErpGenderFilter(btn, val) {
   _erpGenderFilter = val;
   document.querySelectorAll('[id^="erp-gf-"]').forEach(b => b.classList.remove('active'));
@@ -1671,10 +1965,8 @@ function renderDormErpGrid() {
     return bs <= searchEnd && be >= searchStart;
   }
 
-  let rooms = [...MOCK_DORM_ROOMS];
-  if (_erpAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _erpAccomFilter);
-  if (_erpCapFilter   !== '전체') rooms = rooms.filter(r => r.capacity === parseInt(_erpCapFilter));
-  if (_erpGenderFilter !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _erpGenderFilter);
+  let rooms = getDormErpFilteredRooms();
+
 
   // KPI 계산
   let kpiTotal = 0, kpiOccupied = 0, kpiVacant = 0;
@@ -1690,6 +1982,7 @@ function renderDormErpGrid() {
 
   const summaryEl = document.getElementById('erp-dorm-summary');
   if (summaryEl) summaryEl.textContent = `총 ${rooms.length}개 호실 · 공실 ${kpiVacant}침대`;
+
 
   // 유형별 그룹
   const groups = {};
