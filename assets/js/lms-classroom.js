@@ -1859,11 +1859,14 @@ function renderDormErpGantt(rooms, startVal, endVal) {
     return String(a.roomNo).localeCompare(String(b.roomNo));
   });
 
+  const roomColWidth = 90;
+  const bedColWidth = 120;
+
   const rows = sortedRooms.map((room, ridx) => {
     const bandBg = ridx % 2 ? '#FAFBFF' : '#fff';
-    const headerBg = ridx % 2 ? '#EEF2FF' : '#F8FAFC';
+    const beds = room.beds || [];
 
-    const bedRows = (room.beds || []).map(bed => {
+    const bedRows = beds.map(bed => {
       const assignments = [];
       if (bed.student && bed.start && bed.end) assignments.push({ student: bed.student, start: bed.start, end: bed.end, status: 'occupied' });
       (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
@@ -1882,17 +1885,25 @@ function renderDormErpGantt(rooms, startVal, endVal) {
         </div>`;
       }).join('');
       return `<div class="erp-gantt-row" style="background:${bandBg}">
-        <div class="erp-gantt-room-cell" style="padding-left:26px;background:${bandBg}"><div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div><div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div></div>
+        <div style="position:sticky;left:${roomColWidth}px;z-index:2;width:${bedColWidth}px;min-width:${bedColWidth}px;padding:6px 10px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div>
+          <div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div>
+        </div>
         <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
       </div>`;
     }).join('');
 
-    return `<div style="border-top:2px solid #E2E8F0">
-      <div class="erp-gantt-row" style="min-height:30px;background:${headerBg}">
-        <div class="erp-gantt-room-cell" style="background:${headerBg}"><div style="font-size:12px;font-weight:800;color:#111827">${room.roomNo}호 · ${room.accomType}</div><div style="font-size:10px;color:#64748B;margin-top:1px">${room.genderRestriction || '무관'} · 침대 ${(room.beds || []).length}개</div></div>
-        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background:${headerBg}">${todayLine}</div>
+    return `<div style="display:flex;border-top:2px solid #E2E8F0">
+      <div style="position:sticky;left:0;z-index:3;width:${roomColWidth}px;min-width:${roomColWidth}px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 4px">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#111827">${room.roomNo}호</div>
+          <div style="font-size:9px;color:#64748B;margin-top:2px">${room.accomType}</div>
+          <div style="font-size:9px;color:#94A3B8">${room.genderRestriction || '무관'}</div>
+        </div>
       </div>
-      ${bedRows}
+      <div style="flex:1;display:flex;flex-direction:column">
+        ${bedRows}
+      </div>
     </div>`;
   }).join('');
 
