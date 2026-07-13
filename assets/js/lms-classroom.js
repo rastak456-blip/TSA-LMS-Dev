@@ -1888,7 +1888,8 @@ function renderDormErpGantt(rooms, startVal, endVal) {
           const a = resolved[i], b = resolved[j];
           const overlapLeft = Math.max(a.leftDays, b.leftDays);
           const overlapRight = Math.min(a.rightDays, b.rightDays);
-          if (overlapLeft <= overlapRight) overlapRanges.push({ leftDays: overlapLeft, rightDays: overlapRight });
+          // 퇴실일 = 입실일인 당일 교차(청소 후 당일 재배정)는 정상 처리로 보고 제외, 2일 이상 겹칠 때만 표시
+          if (overlapLeft < overlapRight) overlapRanges.push({ leftDays: overlapLeft, rightDays: overlapRight });
         }
       }
       const overlapHighlights = overlapRanges.map(o => {
