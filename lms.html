@@ -1159,11 +1159,11 @@
     .erp-dorm-view-btn { border:0;background:transparent;color:#6B7280;font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:7px;cursor:pointer; }
     .erp-dorm-view-btn.active { background:#fff;color:#5E5CE6;box-shadow:0 1px 3px rgba(15,23,42,.1); }
     .erp-gantt-shell { border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden; }
-    .erp-gantt-scroll { overflow:auto;max-height:620px; }
-    .erp-gantt-row { display:flex;min-height:38px;border-bottom:1px solid #F1F5F9; }
-    .erp-gantt-room-cell { position:sticky;left:0;z-index:2;width:210px;min-width:210px;padding:8px 12px;background:#fff;border-right:1px solid #E5E7EB; }
+    .erp-gantt-scroll { overflow:auto;max-height:calc(100vh - 320px);min-height:520px; }
+    .erp-gantt-row { display:flex;min-height:32px;border-bottom:1px solid #F1F5F9; }
+    .erp-gantt-room-cell { position:sticky;left:0;z-index:2;width:210px;min-width:210px;padding:6px 12px;background:#fff;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;justify-content:center; }
     .erp-gantt-track { position:relative;min-height:38px;background-image:linear-gradient(to right,#F1F5F9 1px,transparent 1px); }
-    .erp-gantt-bar { position:absolute;top:6px;height:26px;border-radius:6px;padding:0 8px;display:flex;align-items:center;gap:6px;color:#fff;font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.16); }
+    .erp-gantt-bar { position:absolute;top:3px;height:26px;border-radius:6px;padding:0 8px;display:flex;align-items:center;gap:6px;color:#fff;font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.16); }
     .erp-gantt-today { position:absolute;top:0;bottom:0;width:2px;background:#EF4444;z-index:1;pointer-events:none; }
 
     /* ===== PROGRESS BAR ===== */

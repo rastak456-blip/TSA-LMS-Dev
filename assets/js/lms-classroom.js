@@ -1806,7 +1806,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
 
   const dayMs = 86400000;
   const totalDays = Math.round((end - start) / dayMs) + 1;
-  const dayWidth = totalDays > 300 ? 8 : totalDays > 100 ? 14 : totalDays > 62 ? 24 : 34;
+  const dayWidth = totalDays > 300 ? 8 : totalDays > 100 ? 14 : totalDays > 62 ? 32 : 40;
   const trackWidth = Math.max(900, totalDays * dayWidth);
   const dateFromMd = (md) => {
     if (!md) return null;
