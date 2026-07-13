@@ -865,6 +865,9 @@ let MOCK_DORM_ROOMS = [
         history: [
           { student: 'Carlos (GARCIA CARLOS)', start: '03-03', end: '04-27', reason: '졸업' },
           { student: 'Riku (TANAKA RIKU)', start: '05-01', end: '05-31', reason: '졸업' },
+        ],
+        reservations: [
+          { student: 'Minho (PARK MINHO)', start: '06-10', end: '06-25' }, // 중복 배정 테스트용 — Kevin 재학 기간과 겹침
         ]
       },
       { id: 'B', student: 'James (이영어)', color: '#0EA5E9', start: '06-08', end: '07-06', studentId: 2,
@@ -911,7 +914,10 @@ let MOCK_DORM_ROOMS = [
     roomNo: '203', accomType: '가든 호텔', type: '2인실 (스탠다드)', capacity: 2, genderRestriction: '여성',
     beds: [
       { id: 'A', student: 'Lan (NGUYEN THI LAN)', color: '#8B5CF6', start: '06-01', end: '07-27', studentId: 12,
-        history: [{ student: 'Mai (TRAN THI MAI)', start: '03-03', end: '05-25', reason: '졸업' }]
+        history: [{ student: 'Mai (TRAN THI MAI)', start: '03-03', end: '05-25', reason: '졸업' }],
+        reservations: [
+          { student: 'Yuna (KIM YUNA)', start: '06-05', end: '06-15' }, // 중복 배정 테스트용 — Lan 재학 기간과 겹침
+        ]
       },
       { id: 'B', student: null, history: [{ student: 'Aoi (YOSHIDA AOI)', start: '04-14', end: '05-18', reason: '졸업' }] }
     ]
@@ -933,7 +939,10 @@ let MOCK_DORM_ROOMS = [
     roomNo: '301', accomType: '가든 호텔', type: '4인실 (스탠다드)', capacity: 4, genderRestriction: '남성',
     beds: [
       { id: 'A', student: 'Duc (PHAM MINH DUC)', color: '#F59E0B', start: '06-15', end: '09-13',
-        history: [{ student: 'Nam (NGUYEN VAN NAM)', start: '03-03', end: '06-01', reason: '졸업' }]
+        history: [{ student: 'Nam (NGUYEN VAN NAM)', start: '03-03', end: '06-01', reason: '졸업' }],
+        reservations: [
+          { student: 'Taro (SUZUKI TARO)', start: '06-20', end: '07-05' }, // 중복 배정 테스트용 — Duc 재학 기간과 겹침
+        ]
       },
       { id: 'B', student: 'John (BAE JONGHO)', color: '#10B981', start: '06-10', end: '08-08',
         history: [{ student: 'Kento (KOBAYASHI KENTO)', start: '04-21', end: '06-08', reason: '졸업' }]
