@@ -1853,29 +1853,48 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   const todayLine = today >= start && today <= end
     ? `<div class="erp-gantt-today" style="left:${offset(today) * dayWidth + dayWidth / 2}px" title="오늘"></div>` : '';
 
-  const rows = rooms.flatMap(room => (room.beds || []).map(bed => {
-    const assignments = [];
-    if (bed.student && bed.start && bed.end) assignments.push({ student: bed.student, start: bed.start, end: bed.end, status: 'occupied' });
-    (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
-    const bars = assignments.map(item => {
-      const itemStart = dateFromMd(item.start);
-      const itemEnd = dateFromMd(item.end);
-      if (!itemStart || !itemEnd || itemEnd < start || itemStart > end) return '';
-      const leftDays = clamp(offset(itemStart), 0, totalDays - 1);
-      const rightDays = clamp(offset(itemEnd), 0, totalDays - 1);
-      const left = leftDays * dayWidth + 2;
-      const width = Math.max(dayWidth - 4, (rightDays - leftDays + 1) * dayWidth - 4);
-      const color = item.status === 'reserved' ? '#8B5CF6' : (genderColor[room.genderRestriction] || '#5E5CE6');
-      const label = String(item.student || '배정').split(' ')[0];
-      return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;' : ''}" title="${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}">
-        <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
+  const sortedRooms = [...rooms].sort((a, b) => {
+    const na = parseInt(a.roomNo, 10), nb = parseInt(b.roomNo, 10);
+    if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+    return String(a.roomNo).localeCompare(String(b.roomNo));
+  });
+
+  const rows = sortedRooms.map((room, ridx) => {
+    const bandBg = ridx % 2 ? '#FAFBFF' : '#fff';
+    const headerBg = ridx % 2 ? '#EEF2FF' : '#F8FAFC';
+
+    const bedRows = (room.beds || []).map(bed => {
+      const assignments = [];
+      if (bed.student && bed.start && bed.end) assignments.push({ student: bed.student, start: bed.start, end: bed.end, status: 'occupied' });
+      (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
+      const bars = assignments.map(item => {
+        const itemStart = dateFromMd(item.start);
+        const itemEnd = dateFromMd(item.end);
+        if (!itemStart || !itemEnd || itemEnd < start || itemStart > end) return '';
+        const leftDays = clamp(offset(itemStart), 0, totalDays - 1);
+        const rightDays = clamp(offset(itemEnd), 0, totalDays - 1);
+        const left = leftDays * dayWidth + 2;
+        const width = Math.max(dayWidth - 4, (rightDays - leftDays + 1) * dayWidth - 4);
+        const color = item.status === 'reserved' ? '#8B5CF6' : (genderColor[room.genderRestriction] || '#5E5CE6');
+        const label = String(item.student || '배정').split(' ')[0];
+        return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;' : ''}" title="${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}">
+          <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
+        </div>`;
+      }).join('');
+      return `<div class="erp-gantt-row" style="background:${bandBg}">
+        <div class="erp-gantt-room-cell" style="padding-left:26px;background:${bandBg}"><div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div><div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div></div>
+        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
       </div>`;
     }).join('');
-    return `<div class="erp-gantt-row">
-      <div class="erp-gantt-room-cell"><div style="font-size:11.5px;font-weight:800;color:#111827">${room.roomNo}호 · 침대 ${bed.id}</div><div style="font-size:10px;color:#64748B;margin-top:2px">${room.accomType} · ${room.genderRestriction || '무관'}${bed.student ? ` · ${String(bed.student).split(' ')[0]}` : ' · 공실'}</div></div>
-      <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
+
+    return `<div style="border-top:2px solid #E2E8F0">
+      <div class="erp-gantt-row" style="min-height:30px;background:${headerBg}">
+        <div class="erp-gantt-room-cell" style="background:${headerBg}"><div style="font-size:12px;font-weight:800;color:#111827">${room.roomNo}호 · ${room.accomType}</div><div style="font-size:10px;color:#64748B;margin-top:1px">${room.genderRestriction || '무관'} · 침대 ${(room.beds || []).length}개</div></div>
+        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background:${headerBg}">${todayLine}</div>
+      </div>
+      ${bedRows}
     </div>`;
-  })).join('');
+  }).join('');
 
   wrap.innerHTML = `<div class="erp-gantt-shell">
     <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
