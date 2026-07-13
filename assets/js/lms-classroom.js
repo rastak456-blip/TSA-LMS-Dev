@@ -1743,57 +1743,16 @@ let _erpAccomFilter  = '전체';
 let _erpCapFilter    = '전체';
 let _erpAssignTarget = null; // { roomNo, bedId }
 
-function onDormErpGanttViewChange() {
-  const view = document.getElementById('erp-gantt-view')?.value || 'month';
-  const monthSel = document.getElementById('erp-gantt-month');
-  const desc = document.getElementById('erp-gantt-desc');
-  if (monthSel) {
-    if (view === 'year') {
-      monthSel.style.display = 'none';
-    } else if (view === 'quarter') {
-      monthSel.style.display = '';
-      const curQuarter = Math.ceil((parseInt(monthSel.value, 10) || 1) / 3);
-      monthSel.innerHTML = [1,2,3,4].map(q => `<option value="${q}">${q}분기</option>`).join('');
-      monthSel.value = curQuarter;
-    } else {
-      monthSel.style.display = '';
-      if (monthSel.options.length !== 12 || monthSel.options[0].textContent.includes('분기')) {
-        monthSel.innerHTML = Array.from({length:12}, (_,i) => `<option value="${i+1}">${i+1}월</option>`).join('');
-        monthSel.value = 1;
-      }
-    }
-  }
-  if (desc) {
-    desc.textContent = view === 'year' ? '선택한 연도의 1월 1일~12월 31일을 침대 단위로 조회해.'
-      : view === 'quarter' ? '선택한 분기(3개월)의 배정 일정을 침대 단위로 조회해.'
-      : '선택한 월의 배정 일정을 침대 단위로 조회해.';
-  }
-  renderDormErpAnnualGantt();
-}
-
 function shiftDormErpGanttPeriod(delta) {
-  const view = document.getElementById('erp-gantt-view')?.value || 'month';
   const yearInput = document.getElementById('erp-gantt-year');
   const monthSel = document.getElementById('erp-gantt-month');
   if (!yearInput) return;
   let year = parseInt(yearInput.value, 10) || 2026;
-
-  if (view === 'year') {
-    year = Math.max(2020, Math.min(2035, year + delta));
-    yearInput.value = year;
-  } else if (view === 'quarter') {
-    let q = (parseInt(monthSel?.value, 10) || 1) + delta;
-    if (q < 1) { q = 4; year = Math.max(2020, year - 1); }
-    else if (q > 4) { q = 1; year = Math.min(2035, year + 1); }
-    yearInput.value = year;
-    if (monthSel) monthSel.value = q;
-  } else {
-    let m = (parseInt(monthSel?.value, 10) || 1) + delta;
-    if (m < 1) { m = 12; year = Math.max(2020, year - 1); }
-    else if (m > 12) { m = 1; year = Math.min(2035, year + 1); }
-    yearInput.value = year;
-    if (monthSel) monthSel.value = m;
-  }
+  let m = (parseInt(monthSel?.value, 10) || 1) + delta;
+  if (m < 1) { m = 12; year = Math.max(2020, year - 1); }
+  else if (m > 12) { m = 1; year = Math.min(2035, year + 1); }
+  yearInput.value = year;
+  if (monthSel) monthSel.value = m;
   renderDormErpAnnualGantt();
 }
 
@@ -1823,24 +1782,14 @@ function renderDormErpAnnualGantt() {
   const input = document.getElementById('erp-gantt-year');
   if (input) input.value = year;
 
-  const view = document.getElementById('erp-gantt-view')?.value || 'month';
   const monthVal = parseInt(document.getElementById('erp-gantt-month')?.value, 10) || 1;
 
-  let startVal, endVal;
-  if (view === 'year') {
-    startVal = `${year}-01-01`;
-    endVal = `${year}-12-31`;
-  } else if (view === 'quarter') {
-    const startMonth = (monthVal - 1) * 3 + 1;
-    const endMonth = startMonth + 2;
-    const lastDay = new Date(year, endMonth, 0).getDate();
-    startVal = `${year}-${String(startMonth).padStart(2,'0')}-01`;
-    endVal = `${year}-${String(endMonth).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  } else {
-    const lastDay = new Date(year, monthVal, 0).getDate();
-    startVal = `${year}-${String(monthVal).padStart(2,'0')}-01`;
-    endVal = `${year}-${String(monthVal).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  }
+  // 선택한 달의 전월 1일 ~ 익월 말일까지 3개월 고정 조회
+  const rangeStart = new Date(year, monthVal - 2, 1);
+  const rangeEnd = new Date(year, monthVal + 1, 0);
+  const pad = n => String(n).padStart(2, '0');
+  const startVal = `${rangeStart.getFullYear()}-${pad(rangeStart.getMonth() + 1)}-${pad(rangeStart.getDate())}`;
+  const endVal = `${rangeEnd.getFullYear()}-${pad(rangeEnd.getMonth() + 1)}-${pad(rangeEnd.getDate())}`;
 
   renderDormErpGantt(getDormErpAnnualFilteredRooms(), startVal, endVal);
 }
@@ -1859,7 +1808,14 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   const totalDays = Math.round((end - start) / dayMs) + 1;
   const dayWidth = totalDays > 300 ? 8 : totalDays > 100 ? 14 : totalDays > 62 ? 24 : 34;
   const trackWidth = Math.max(900, totalDays * dayWidth);
-  const dateFromMd = (md) => md ? new Date(`${start.getFullYear()}-${md}T00:00:00`) : null;
+  const dateFromMd = (md) => {
+    if (!md) return null;
+    let d = new Date(`${start.getFullYear()}-${md}T00:00:00`);
+    if (end.getFullYear() !== start.getFullYear() && d < start) {
+      d = new Date(`${end.getFullYear()}-${md}T00:00:00`);
+    }
+    return d;
+  };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const offset = date => Math.round((date - start) / dayMs);
   const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#5E5CE6' };
@@ -1876,15 +1832,22 @@ function renderDormErpGantt(rooms, startVal, endVal) {
     </div>`;
   }).join('');
 
-  const months = Array.from({ length: 12 }, (_, monthIdx) => {
-    const monthStart = new Date(start.getFullYear(), monthIdx, 1);
-    const monthEnd = new Date(start.getFullYear(), monthIdx + 1, 0);
-    const visibleStart = monthStart < start ? start : monthStart;
-    const visibleEnd = monthEnd > end ? end : monthEnd;
-    if (visibleEnd < start || visibleStart > end) return '';
-    const days = Math.round((visibleEnd - visibleStart) / dayMs) + 1;
-    return `<div style="width:${days * dayWidth}px;min-width:${days * dayWidth}px;padding:6px 0;text-align:center;background:${monthIdx % 2 ? '#F8FAFC' : '#EEF2FF'};border-right:1px solid #CBD5E1;font-size:10.5px;font-weight:800;color:#475569">${monthIdx + 1}월</div>`;
-  }).join('');
+  const monthCells = [];
+  {
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    let monthIdx = 0;
+    while (cursor <= end) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+      const visibleStart = monthStart < start ? start : monthStart;
+      const visibleEnd = monthEnd > end ? end : monthEnd;
+      const days = Math.round((visibleEnd - visibleStart) / dayMs) + 1;
+      monthCells.push(`<div style="width:${days * dayWidth}px;min-width:${days * dayWidth}px;padding:6px 0;text-align:center;background:${monthIdx % 2 ? '#F8FAFC' : '#EEF2FF'};border-right:1px solid #CBD5E1;font-size:10.5px;font-weight:800;color:#475569">${cursor.getFullYear()}년 ${cursor.getMonth() + 1}월</div>`);
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      monthIdx++;
+    }
+  }
+  const months = monthCells.join('');
 
   const today = new Date('2026-07-13T00:00:00');
   const todayLine = today >= start && today <= end
@@ -1917,7 +1880,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   wrap.innerHTML = `<div class="erp-gantt-shell">
     <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <strong style="font-size:13px;color:#111827">침대별 배정 일정</strong>
-      <span style="font-size:11px;color:#64748B">${start.getFullYear()}년 전체 · ${rooms.length}개 호실 · ${rows ? '침대별 일정' : '배정 없음'}</span>
+      <span style="font-size:11px;color:#64748B">${startVal} ~ ${endVal} · ${rooms.length}개 호실 · ${rows ? '침대별 일정' : '배정 없음'}</span>
       <div style="margin-left:auto;display:flex;gap:12px;font-size:10.5px;color:#64748B"><span>● 입실 중</span><span style="color:#8B5CF6">◆ 예약</span><span style="color:#EF4444">│ 오늘</span></div>
     </div>
     <div class="erp-gantt-scroll">
