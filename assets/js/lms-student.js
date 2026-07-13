@@ -142,15 +142,12 @@ function filterStudentList(filter) {
 
 function applyStudentFilters() {
   renderAdminStatusCards();
-  const today = new Date('2026-06-16');
   const g = id => (document.getElementById(id)?.value || '');
 
   const q           = g('student-search').toLowerCase();
   const sfCourse    = g('sf-course');
   const sfNationality = g('sf-nationality');
   const sfAgency    = g('sf-agency');
-  const sfVisa      = g('sf-visa');
-  const sfSsp       = g('sf-ssp');
   const sfDorm      = g('sf-dorm');
   const sfStartFrom = g('sf-start-from');
   const sfStartTo   = g('sf-start-to');
@@ -197,29 +194,6 @@ function applyStudentFilters() {
 
   // 에이전시
   if (sfAgency) list = list.filter(s => s.agency === sfAgency);
-
-  // 비자 만료
-  if (sfVisa) {
-    list = list.filter(s => {
-      if (!s.visaExpiry || s.visaExpiry === '면제') return sfVisa === 'exempt' ? true : false;
-      const exp  = new Date(s.visaExpiry.replace(/\./g, '-'));
-      const diff = Math.ceil((exp - today) / (1000*60*60*24));
-      if (sfVisa === 'expired') return diff < 0;
-      return diff >= 0 && diff <= parseInt(sfVisa);
-    });
-  }
-
-  // SSP 만료
-  if (sfSsp) {
-    list = list.filter(s => {
-      if (sfSsp === 'exempt') return s.sspExpiry === '면제';
-      if (!s.sspExpiry || s.sspExpiry === '면제') return false;
-      const exp  = new Date(s.sspExpiry.replace(/\./g, '-'));
-      const diff = Math.ceil((exp - today) / (1000*60*60*24));
-      if (sfSsp === 'expired') return diff < 0;
-      return diff >= 0 && diff <= parseInt(sfSsp);
-    });
-  }
 
   // 기숙사 배정
   if (sfDorm === 'assigned')   list = list.filter(s => s.dorm && s.dorm !== '미배정');
@@ -269,11 +243,6 @@ function navigateStudentsKpi(type) {
       document.getElementById('sf-arrival-from').value = todayStr;
       document.getElementById('sf-arrival-to').value = todayStr;
 
-    } else if (type === 'visa') {
-      setAdminStatusCard(null, 'all');
-      const visaSel = document.getElementById('sf-visa');
-      if (visaSel) visaSel.value = '30';
-
     } else if (type === 'newweek') {
       setAdminStatusCard(null, 'all');
       const monday = new Date(today);
@@ -290,7 +259,7 @@ function navigateStudentsKpi(type) {
 }
 
 function resetStudentFilters() {
-  ['sf-course','sf-nationality','sf-agency','sf-visa','sf-ssp','sf-dorm',
+  ['sf-course','sf-nationality','sf-agency','sf-dorm',
    'sf-start-from','sf-start-to','sf-arrival-from','sf-arrival-to','student-search'
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 

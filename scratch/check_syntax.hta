@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>JS Syntax Validator</title>
+  <script>
+    window.onerror = function(msg, url, line, col, err) {
+      try {
+        var fso = new ActiveXObject("Scripting.FileSystemObject");
+        // Use C:\Users\Public directory which is writable and has no Korean encoding issues
+        var file = fso.CreateTextFile("C:\\Users\\Public\\syntax_error_report.txt", true);
+        file.WriteLine("RUNTIME_ERROR_DETECTED");
+        file.WriteLine("Message: " + msg);
+        file.WriteLine("Line: " + line);
+        file.WriteLine("Column: " + col);
+        if (err && err.stack) {
+          file.WriteLine("Stack: " + err.stack);
+        }
+        file.Close();
+      } catch (e) {
+        // Fallback log
+      }
+      window.close();
+      return true;
+    };
+  </script>
+  <!-- Load the target JavaScript file. If there is syntax error, onerror will trigger immediately -->
+  <script src="../assets/js/lms-app.js"></script>
+  <script>
+    try {
+      var fso = new ActiveXObject("Scripting.FileSystemObject");
+      var file = fso.CreateTextFile("C:\\Users\\Public\\syntax_error_report.txt", true);
+      file.WriteLine("SUCCESS_NO_SYNTAX_ERROR");
+      file.Close();
+    } catch (e) {
+      // Fallback
+    }
+    window.close();
+  </script>
+</head>
+<body>
+  <h3>Validating JavaScript Syntax... Please wait.</h3>
+</body>
+</html>

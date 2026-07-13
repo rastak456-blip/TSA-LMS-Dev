@@ -1870,6 +1870,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
       const assignments = [];
       if (bed.student && bed.start && bed.end) assignments.push({ student: bed.student, start: bed.start, end: bed.end, status: 'occupied' });
       (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
+      (bed.history || []).forEach(h => assignments.push({ ...h, status: 'history' }));
 
       // 날짜 범위를 미리 계산 (막대 렌더링 + 겹침 탐지에 공용 사용)
       const resolved = assignments.map(item => {
@@ -1888,8 +1889,8 @@ function renderDormErpGantt(rooms, startVal, endVal) {
           const a = resolved[i], b = resolved[j];
           const overlapLeft = Math.max(a.leftDays, b.leftDays);
           const overlapRight = Math.min(a.rightDays, b.rightDays);
-          // 퇴실일 = 입실일인 당일 교차(청소 후 당일 재배정)는 정상 처리로 보고 제외, 2일 이상 겹칠 때만 표시
-          if (overlapLeft < overlapRight) overlapRanges.push({ leftDays: overlapLeft, rightDays: overlapRight });
+          // 하루만 겹쳐도 표시 (완전히 동일한 기간 중복은 발생하지 않는다고 가정)
+          if (overlapLeft <= overlapRight) overlapRanges.push({ leftDays: overlapLeft, rightDays: overlapRight });
         }
       }
       const overlapHighlights = overlapRanges.map(o => {
@@ -1901,9 +1902,15 @@ function renderDormErpGantt(rooms, startVal, endVal) {
       const bars = resolved.map(({ item, leftDays, rightDays }) => {
         const left = leftDays * dayWidth + 2;
         const width = Math.max(dayWidth - 4, (rightDays - leftDays + 1) * dayWidth - 4);
-        const color = item.status === 'reserved' ? '#8B5CF6' : (genderColor[room.genderRestriction] || '#5E5CE6');
+        const color = item.status === 'reserved' ? '#8B5CF6' : item.status === 'history' ? '#94A3B8' : (genderColor[room.genderRestriction] || '#5E5CE6');
         const label = String(item.student || '배정').split(' ')[0];
-        return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;' : ''}" title="${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}">
+        const extraStyle = item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;'
+          : item.status === 'history' ? 'background:#E2E8F0;color:#64748B;opacity:.85;'
+          : '';
+        const tooltip = item.status === 'history'
+          ? `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end} (퇴소: ${item.reason || '-'})`
+          : `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}`;
+        return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${extraStyle}" title="${tooltip}">
           <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
         </div>`;
       }).join('');

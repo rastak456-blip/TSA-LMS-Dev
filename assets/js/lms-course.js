@@ -143,12 +143,12 @@ function calculatePrices(s) {
   
   const grossTotal = tuitionFee + dormFee + regFee;
 
-  let commRate = 0.20; // Default 20%
-  if (s.agency === '서울 유학원') commRate = 0.15;
-  else if (s.agency === 'Tokyo Language') commRate = 0.20;
-  else if (s.agency === 'Beijing Partner') commRate = 0.25;
-
-  const commission = Math.round((tuitionFee + dormFee) * commRate);
+  const commission = calculateAgencyItemCommissionTotal(s, {
+    registration: regFee,
+    education: tuitionFee,
+    dorm: dormFee,
+    local: 0,
+  });
   const remitFee = 30; // Oversea transfer fee paid by agent
   const netTotal = grossTotal - commission + remitFee;
 
@@ -674,13 +674,13 @@ function selectRemitStudent(id) {
   const calcEl = document.getElementById('remit-modal-calc');
   if (calcEl) {
     calcEl.innerHTML = `
-      <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:10px">💰 B2B Net 학비 정산 내역</div>
+      <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:10px">💰 어학원 송금 금액 내역</div>
       <div style="display:flex;flex-direction:column;gap:5px;font-size:12px">
-        <div style="display:flex;justify-content:space-between"><span style="color:#6B7280">Gross 합계 (수강+기숙사+등록비)</span><span style="font-weight:600">$${prices.gross.toLocaleString()}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#6B7280">청구 금액 합계</span><span style="font-weight:600">$${prices.gross.toLocaleString()}</span></div>
         <div style="display:flex;justify-content:space-between"><span style="color:#4F46E5">에이전시 커미션 차감 (20%)</span><span style="font-weight:600;color:#4F46E5">- $${prices.commission.toLocaleString()}</span></div>
         <div style="display:flex;justify-content:space-between"><span style="color:#059669">해외 이체 수수료 (본인 부담)</span><span style="font-weight:600;color:#059669">+ $${prices.remitFee}</span></div>
         <div style="display:flex;justify-content:space-between;border-top:1.5px dashed #818CF8;padding-top:7px;margin-top:3px">
-          <span style="font-size:13px;font-weight:700;color:#1E1B4B">최종 순 송금액 (Net)</span>
+          <span style="font-size:13px;font-weight:700;color:#1E1B4B">어학원 송금액</span>
           <span style="font-size:15px;font-weight:800;color:#5E5CE6">$${prices.net.toLocaleString()}</span>
         </div>
       </div>
@@ -931,6 +931,8 @@ function initAgencyStudentList() {
     const rowNum = totalList - idx;
     const isChecked = agencySelectedStudentIds.includes(s.id) ? 'checked' : '';
     const prices = calculatePrices(s);
+    const billingBreakdown = getStudentBillingBreakdown(s);
+    const billingMap = Object.fromEntries(billingBreakdown.items.map(item => [item.key, item]));
 
     let state = '입학 대기';
     let badgeClass = 'tsa-badge-warning';
@@ -938,10 +940,6 @@ function initAgencyStudentList() {
     else if (s.status === 'resigned') { state = '퇴원'; badgeClass = 'tsa-badge-danger'; }
     else if (s.status === 'current') { state = '재학'; badgeClass = 'tsa-badge-success'; }
     else if (s.status === 'extended') { state = '연장'; badgeClass = 'tsa-badge-primary'; }
-
-    let paidLabel = '미납';
-    let paidClass = 'tsa-badge-danger';
-    if (s.remittanceStatus === 'paid') { paidLabel = '완납'; paidClass = 'tsa-badge-success'; }
 
     const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
 
@@ -963,35 +961,43 @@ function initAgencyStudentList() {
           </div>
         </td>
         <td>${s.nationality}</td>
-        <td>${s.course}</td>
-        <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
-        <td><span class="tsa-badge ${paidClass}">${paidLabel}</span></td>
-        <td class="col-commission">${s.remittanceStatus !== 'paid'
-          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.commission.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
-          : `$${prices.commission.toLocaleString()} (20%)`}</td>
-        <td>${s.remittanceStatus !== 'paid'
-          ? `<span style="color:#9CA3AF;font-size:11px">~$${prices.gross.toLocaleString()}</span><br><span style="font-size:9.5px;color:#D1D5DB;font-style:italic">정산 예정</span>`
-          : `$${prices.gross.toLocaleString()}`}</td>
-        <td style="font-size:11.5px;white-space:nowrap">
-          <div>${fmtDate(s.startDate) || '-'}</div>
-          <div style="color:#9CA3AF;font-size:10.5px">~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
+        <td style="font-size:11.5px;line-height:1.55;white-space:nowrap">
+          <div style="font-weight:700;color:#374151">${s.course}</div>
+          <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
         </td>
+        <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
+        <td>${renderAgencyBillingAmountCell(billingMap.registration)}</td>
+        <td>${renderAgencyCommissionItemCell(billingMap.registration)}</td>
+        <td>${renderAgencyBillingAmountCell(billingMap.education)}</td>
+        <td>${renderAgencyCommissionItemCell(billingMap.education)}</td>
+        <td>${renderAgencyBillingAmountCell(billingMap.dorm)}</td>
+        <td>${renderAgencyCommissionItemCell(billingMap.dorm)}</td>
+        <td>${renderAgencyBillingAmountCell(billingMap.local)}</td>
+        <td>${renderAgencyCommissionItemCell(billingMap.local)}</td>
+        <td style="text-align:right;font-weight:900;color:#111827">$${billingBreakdown.gross.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:900;color:#059669">$${billingBreakdown.net.toLocaleString()}</td>
         <td class="col-flight" style="font-size:11px;line-height:1.8">
           <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
           <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
         </td>
-        <td class="col-dorm">${(() => {
+        <td class="col-dorm" style="font-size:11.5px;line-height:1.55">${(() => {
           const req = MOCK_DORM_BOOK_REQUESTS.find(r => r.studentId === s.id || r.studentName === s.name || r.studentName === s.nick);
-          if (req) return `<span style="font-size:12px;font-weight:600;color:#374151">${req.roomType}</span>${req.genderPref && req.genderPref !== '전체' ? `<br><span style="font-size:10px;color:#9CA3AF">${req.genderPref} 희망</span>` : ''}`;
+          const dormIn = s.dormIn || s.startDate || '';
+          const dormOut = s.dormOut || s.endDate || '';
+          const periodHtml = dormIn || dormOut
+            ? `<div style="color:#6B7280;margin-top:3px">${fmtDate(dormIn) || '-'} ~ ${fmtDate(dormOut) || '-'}</div>`
+            : `<div style="color:#D1D5DB;margin-top:3px">기간 미정</div>`;
+          if (req) return `<div style="font-weight:700;color:#374151">${req.roomType}</div>${req.genderPref && req.genderPref !== '전체' ? `<div style="font-size:10.5px;color:#9CA3AF">${req.genderPref} 희망</div>` : ''}${periodHtml}`;
           if (s.dormAccomType || s.dormType) {
             const parts = [s.dormAccomType, s.dormType, s.dormGrade].filter(Boolean);
-            return `<span style="font-size:12px;font-weight:600;color:#374151">${parts.join(' · ')}</span>`;
+            return `<div style="font-weight:700;color:#374151">${parts.join(' · ')}</div>${periodHtml}`;
           }
-          return `<span style="color:#D1D5DB;font-size:12px">-</span>`;
+          return `<div style="color:#D1D5DB">-</div>${periodHtml}`;
         })()}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailModal(${s.id})">상세/수정</button>
+            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openStudentCourseRegistration(${s.id})">코스 등록</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailPage(${s.id})">상세 보기</button>
             ${s.status === 'waiting'
               ? `<button class="tsa-btn tsa-btn-xs" disabled style="background:#F3F4F6;color:#D1D5DB;border:1px solid #E5E7EB;cursor:not-allowed" title="입학 대기 상태에서는 서류 출력 불가">서류출력</button>`
               : `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openAgencyDocumentsInline(${s.id})">서류출력</button>`}
@@ -1012,6 +1018,400 @@ function initAgencyStudentList() {
   initAgencyKPIs();
   renderAgencyNotifications();
   if (typeof handleColumnToggle === 'function') handleColumnToggle();
+}
+
+const COURSE_REG_PERIODS = [4, 8, 12, 16, 20, 24];
+
+function formatCourseRegMoney(value) {
+  return `$${Number(value || 0).toLocaleString()}`;
+}
+
+function getCourseRegPeriodFee(baseAmount, policy, weeks) {
+  const base = Number(baseAmount || 0);
+  if (weeks === 4) return base;
+  const key = `fee${weeks}`;
+  return Number(policy?.[key] || Math.round(base * (weeks / 4)));
+}
+
+function getCourseRegSelectedCourse() {
+  const courseName = document.getElementById('course-reg-course')?.value || '';
+  return (typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : []).find(c => c.name === courseName) || null;
+}
+
+function getCourseRegSelectedDormTemplate() {
+  const raw = document.getElementById('course-reg-dorm-template')?.value;
+  const idx = parseInt(raw, 10);
+  const templates = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : [];
+  return Number.isInteger(idx) && templates[idx] ? { template: templates[idx], idx } : null;
+}
+
+function renderCourseRegFeeCompare(targetId, rows, selectedWeeks, activeColor) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">
+      ${rows.map(row => {
+        const active = row.weeks === selectedWeeks;
+        return `
+          <div style="padding:8px 6px;border-radius:9px;border:1px solid ${active ? activeColor.border : '#E5E7EB'};background:${active ? activeColor.bg : '#fff'};text-align:center">
+            <div style="font-size:10.5px;font-weight:800;color:${active ? activeColor.text : '#6B7280'}">${row.weeks}주</div>
+            <div style="font-size:12px;font-weight:900;color:#111827;margin-top:2px">${formatCourseRegMoney(row.amount)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function getCourseRegExtraItems() {
+  if (typeof getTuitionLocalFeeItems === 'function') {
+    return getTuitionLocalFeeItems().filter(item => item.visible !== false);
+  }
+  return [];
+}
+
+function renderCourseRegistrationExtras(selectedNames = []) {
+  const wrap = document.getElementById('course-reg-extra-items');
+  if (!wrap) return;
+  const items = getCourseRegExtraItems();
+  if (!items.length) {
+    wrap.innerHTML = `<div style="grid-column:span 2;color:#9CA3AF;font-size:12px">노출 중인 기타 항목이 없습니다.</div>`;
+    return;
+  }
+  wrap.innerHTML = items.map((item, idx) => {
+    const checked = selectedNames.includes(item.name) ? 'checked' : '';
+    return `
+      <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #E5E7EB;border-radius:10px;background:#fff;cursor:pointer">
+        <input class="course-reg-extra-checkbox" type="checkbox" data-extra-index="${idx}" ${checked} onchange="updateStudentCourseRegistrationPreview()" style="margin-top:2px"/>
+        <span style="flex:1">
+          <span style="display:flex;justify-content:space-between;gap:8px">
+            <b style="font-size:12.5px;color:#111827">${item.name}</b>
+            <b style="font-size:12.5px;color:#4F46E5">${formatCourseRegMoney(item.amount)}</b>
+          </span>
+          <span style="display:block;font-size:10.5px;color:#9CA3AF;margin-top:2px">${item.condition || '전체 학생'}</span>
+        </span>
+      </label>
+    `;
+  }).join('');
+}
+
+function getSelectedCourseRegExtras() {
+  const items = getCourseRegExtraItems();
+  return Array.from(document.querySelectorAll('.course-reg-extra-checkbox:checked')).map(cb => {
+    const item = items[parseInt(cb.dataset.extraIndex, 10)];
+    return item ? { name: item.name, amount: Number(item.amount || 0), condition: item.condition || '' } : null;
+  }).filter(Boolean);
+}
+
+function syncCourseRegDormDuration() {
+  const duration = document.getElementById('course-reg-duration')?.value || '4';
+  const dormDuration = document.getElementById('course-reg-dorm-duration');
+  if (dormDuration) dormDuration.value = duration;
+}
+
+function toggleCourseRegDormSection() {
+  const enabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
+  const section = document.getElementById('course-reg-dorm-section');
+  const note = document.getElementById('course-reg-dorm-disabled-note');
+  if (section) section.style.display = enabled ? 'grid' : 'none';
+  if (note) note.style.display = enabled ? 'none' : 'block';
+}
+
+function updateCourseRegDormDatesFromStart() {
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const dormIn = document.getElementById('course-reg-dorm-in');
+  const dormOut = document.getElementById('course-reg-dorm-out');
+  if (!startDate || !dormIn || !dormOut) return;
+  if (!dormIn.value) dormIn.value = startDate;
+  if (!dormOut.value) {
+    const out = new Date(startDate);
+    out.setDate(out.getDate() + duration * 7);
+    dormOut.value = out.toISOString().split('T')[0];
+  }
+}
+
+function updateStudentCourseRegistrationPreview() {
+  const course = getCourseRegSelectedCourse();
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
+  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
+  const dormSelection = getCourseRegSelectedDormTemplate();
+  const extras = getSelectedCourseRegExtras();
+
+  const courseRows = COURSE_REG_PERIODS.map(weeks => ({
+    weeks,
+    amount: course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks) : 0,
+  }));
+  renderCourseRegFeeCompare('course-reg-course-fee-compare', courseRows, duration, {
+    bg: '#EEF2FF',
+    border: '#C7D2FE',
+    text: '#4338CA',
+  });
+
+  const dormRows = COURSE_REG_PERIODS.map(weeks => ({
+    weeks,
+    amount: dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, weeks) : 0,
+  }));
+  renderCourseRegFeeCompare('course-reg-dorm-fee-compare', dormRows, dormDuration, {
+    bg: '#ECFDF5',
+    border: '#A7F3D0',
+    text: '#047857',
+  });
+
+  const tuitionAmount = course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, duration) : 0;
+  const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const extrasTotal = extras.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const total = tuitionAmount + dormAmount + extrasTotal;
+
+  const preview = document.getElementById('course-reg-fee-preview');
+  if (!preview) return;
+  const dormLabel = dormEnabled && dormSelection
+    ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
+    : '미사용';
+
+  preview.innerHTML = `
+    <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-size:11px;color:#6B7280;font-weight:700">수강료</div>
+          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${course?.name || '코스 미선택'} / ${duration}주</div>
+        </div>
+        <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(tuitionAmount)}</div>
+      </div>
+    </div>
+    <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-size:11px;color:#6B7280;font-weight:700">기숙사</div>
+          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${dormLabel}${dormEnabled ? ` / ${dormDuration}주` : ''}</div>
+        </div>
+        <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(dormAmount)}</div>
+      </div>
+    </div>
+    <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
+      <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:8px">기타 항목</div>
+      ${extras.length ? extras.map(item => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:5px">
+          <span style="color:#374151">${item.name}</span>
+          <b>${formatCourseRegMoney(item.amount)}</b>
+        </div>
+      `).join('') : `<div style="font-size:12px;color:#9CA3AF">선택된 기타 항목 없음</div>`}
+      <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px">
+        <b>소계</b><b>${formatCourseRegMoney(extrasTotal)}</b>
+      </div>
+    </div>
+    <div style="padding:14px;border-radius:12px;background:#4F46E5;color:#fff;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;font-weight:700;opacity:.85">최종 청구 금액</div>
+        <div style="font-size:12px;font-weight:700;opacity:.9">학생 Gross 기준</div>
+      </div>
+      <div style="font-size:24px;font-weight:900">${formatCourseRegMoney(total)}</div>
+    </div>
+  `;
+}
+
+function openStudentCourseRegistration(studentId) {
+  const student = MOCK_STUDENTS.find(s => s.id === studentId);
+  if (!student) return;
+  APP.currentCourseRegistrationStudent = student;
+
+  const activeCourses = (typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : []).filter(c => c.active !== false);
+  const courseEl = document.getElementById('course-reg-course');
+  if (courseEl) {
+    courseEl.innerHTML = activeCourses.map(c => `<option value="${c.name}" ${c.name === student.course ? 'selected' : ''}>${c.name}</option>`).join('');
+  }
+
+  const levelEl = document.getElementById('course-reg-level');
+  if (levelEl) {
+    const levels = typeof MOCK_MASTER_LEVELS !== 'undefined' ? MOCK_MASTER_LEVELS.filter(l => l.visible !== false) : [];
+    levelEl.innerHTML = levels.map(l => `<option value="${l.name}" ${l.name === student.level ? 'selected' : ''}>${l.name}</option>`).join('');
+  }
+
+  const title = document.getElementById('course-reg-title');
+  if (title) title.textContent = `${student.name} 코스 등록`;
+  const subtitle = document.getElementById('course-reg-subtitle');
+  if (subtitle) subtitle.textContent = '수강 과정, 기숙사, 기타 항목을 선택하고 최종 청구 금액을 확인합니다.';
+  const summary = document.getElementById('course-reg-student-summary');
+  if (summary) summary.textContent = `${student.name} (Nick: ${student.nick}) · ${student.nationality || '-'} · 현재 ${student.course || '미등록'}`;
+
+  const startEl = document.getElementById('course-reg-start');
+  if (startEl) startEl.value = student.startDate || '2026-09-01';
+  const durationEl = document.getElementById('course-reg-duration');
+  if (durationEl) durationEl.value = COURSE_REG_PERIODS.includes(Number(student.duration)) ? String(student.duration) : '4';
+  const statusEl = document.getElementById('course-reg-status');
+  if (statusEl) statusEl.value = student.status || 'waiting';
+  const paymentEl = document.getElementById('course-reg-payment');
+  if (paymentEl) paymentEl.value = student.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
+  const memoEl = document.getElementById('course-reg-memo');
+  if (memoEl) memoEl.value = '';
+
+  const dormEnabledEl = document.getElementById('course-reg-dorm-enabled');
+  if (dormEnabledEl) dormEnabledEl.checked = true;
+  const dormEl = document.getElementById('course-reg-dorm-template');
+  const templates = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : [];
+  if (dormEl) {
+    const visibleTemplates = templates
+      .map((template, idx) => ({ template, idx }))
+      .filter(row => row.template.active !== false);
+    dormEl.innerHTML = visibleTemplates.map(row => {
+      const t = row.template;
+      const label = `${t.accomType || '-'} · ${t.capacity || '-'}인실 · ${t.condition || '-'} · 4주 ${formatCourseRegMoney(t.cost)}`;
+      const selected = student.dormAccomType === t.accomType && Number(student.dormType) === Number(t.capacity) && student.dormGrade === t.condition;
+      return `<option value="${row.idx}" ${selected ? 'selected' : ''}>${label}</option>`;
+    }).join('');
+  }
+
+  const dormInEl = document.getElementById('course-reg-dorm-in');
+  if (dormInEl) dormInEl.value = student.dormIn || student.startDate || '2026-09-01';
+  const dormOutEl = document.getElementById('course-reg-dorm-out');
+  if (dormOutEl) dormOutEl.value = student.dormOut || '';
+  const dormDurationEl = document.getElementById('course-reg-dorm-duration');
+  if (dormDurationEl) dormDurationEl.value = durationEl?.value || '4';
+
+  renderCourseRegistrationExtras([]);
+  toggleCourseRegDormSection();
+  updateCourseRegDormDatesFromStart();
+  updateStudentCourseRegistrationPreview();
+
+  openModal('student-course-registration-modal');
+  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+function saveStudentCourseRegistration() {
+  const student = APP.currentCourseRegistrationStudent;
+  if (!student) return;
+
+  const course = document.getElementById('course-reg-course')?.value || '';
+  const level = document.getElementById('course-reg-level')?.value || student.level || '';
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const status = document.getElementById('course-reg-status')?.value || 'waiting';
+  const payment = document.getElementById('course-reg-payment')?.value || 'unpaid';
+  const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
+  const selectedCourse = getCourseRegSelectedCourse();
+  const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
+  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
+  const dormSelection = getCourseRegSelectedDormTemplate();
+  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
+  const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
+  const extraItems = getSelectedCourseRegExtras();
+
+  if (!course || !startDate) {
+    showToast('코스와 수강 시작일을 입력해줘.', 'warning');
+    return;
+  }
+
+  if (dormEnabled && !dormSelection) {
+    showToast('기숙사 사용 시 기숙사 요금 항목을 선택해줘.', 'warning');
+    return;
+  }
+
+  const start = new Date(startDate);
+  start.setDate(start.getDate() + duration * 7);
+  const endDate = start.toISOString().split('T')[0];
+  const tuitionAmount = selectedCourse ? getCourseRegPeriodFee(selectedCourse.fee, selectedCourse.tuitionPolicy, duration) : 0;
+  const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const extrasTotal = extraItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalGross = tuitionAmount + dormAmount + extrasTotal;
+  const dormLabel = dormEnabled && dormSelection
+    ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
+    : '미사용';
+
+  if (!student.enrollments) student.enrollments = [];
+  student.enrollments.unshift({
+    id: Date.now(),
+    course,
+    level,
+    startDate,
+    endDate,
+    duration,
+    tuitionAmount,
+    dorm: dormLabel,
+    dormEnabled,
+    dormDuration: dormEnabled ? dormDuration : 0,
+    dormIn: dormEnabled ? dormIn : '',
+    dormOut: dormEnabled ? dormOut : '',
+    dormAmount,
+    extraItems,
+    extrasTotal,
+    totalGross,
+    status,
+    paymentStatus: payment,
+    memo,
+    createdAt: new Date().toISOString().split('T')[0],
+  });
+
+  student.course = course;
+  student.level = level;
+  student.startDate = startDate;
+  student.duration = duration;
+  student.endDate = endDate;
+  student.status = status;
+  student.remittanceStatus = payment === 'paid' ? 'paid' : 'unpaid';
+  student.dorm = dormLabel;
+  if (dormEnabled && dormSelection) {
+    student.dormAccomType = dormSelection.template.accomType || null;
+    student.dormType = dormSelection.template.capacity || null;
+    student.dormGrade = dormSelection.template.condition || null;
+    student.dormIn = dormIn;
+    student.dormOut = dormOut;
+  } else {
+    student.dormAccomType = null;
+    student.dormType = null;
+    student.dormGrade = null;
+    student.dormIn = '';
+    student.dormOut = '';
+  }
+  student.totalGross = totalGross;
+  student.courseRegistrationFees = {
+    registration: 100,
+    tuition: tuitionAmount,
+    dorm: dormAmount,
+    extras: extrasTotal,
+    total: totalGross,
+    extraItems,
+  };
+  student.billingItemStatuses = {
+    registration: payment === 'paid' ? 'paid' : 'unpaid',
+    education: payment === 'paid' ? 'paid' : 'unpaid',
+    dorm: payment === 'paid' ? 'paid' : 'unpaid',
+    local: payment === 'paid' ? 'paid' : 'unpaid',
+  };
+
+  const agencyRow = typeof MOCK_AGENCY_STUDENTS !== 'undefined'
+    ? MOCK_AGENCY_STUDENTS.find(a => a.name.includes(student.name) || a.name.includes(student.nick))
+    : null;
+  const agencyPayload = {
+    name: `${student.name} (${student.nick})`,
+    course,
+    dorm: dormEnabled && dormSelection ? `${dormSelection.template.capacity || '-'}인실` : '미사용',
+    duration: `${duration}주`,
+    status,
+    total: formatCourseRegMoney(totalGross),
+    branch: agencyRow?.branch || (APP.user === 'agency_branch' ? '강남지사' : '본사'),
+    agencyStatus: status,
+  };
+  if (agencyRow) {
+    Object.assign(agencyRow, agencyPayload);
+  } else if (typeof MOCK_AGENCY_STUDENTS !== 'undefined') {
+    MOCK_AGENCY_STUDENTS.push(agencyPayload);
+  }
+
+  if (!student.changeRequests) student.changeRequests = [];
+  student.changeRequests.push({
+    id: Date.now() + 1,
+    field: '코스 등록',
+    from: '-',
+    to: `${course} · ${duration}주 · ${formatCourseRegMoney(totalGross)}`,
+    reason: memo || '학생 리스트에서 코스 등록 및 비용 확정',
+    changedBy: APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : '관리자',
+    requestDate: new Date().toISOString().split('T')[0],
+  });
+
+  closeModal('student-course-registration-modal');
+  initAgencyStudentList();
+  showToast(`${student.name} 학생의 코스가 등록되었습니다. 최종 금액: ${formatCourseRegMoney(totalGross)}`, 'success');
 }
 
 function resetAgencyFilters() {
@@ -1609,13 +2009,13 @@ function calculateAregExpectedFees() {
   container.innerHTML = `
     <div style="font-weight:700;margin-bottom:6px">💰 실시간 연수비 예상 정산서</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <div>학생 청구 Gross 학비: <strong>$${prices.tuition.toLocaleString()}</strong></div>
-      <div>학생 청구 Gross 기숙사비: <strong>$${prices.dorm.toLocaleString()}</strong></div>
+      <div>학생 청구 수강료: <strong>$${prices.tuition.toLocaleString()}</strong></div>
+      <div>학생 청구 기숙사비: <strong>$${prices.dorm.toLocaleString()}</strong></div>
       <div>입학금: <strong>$${prices.registration}</strong></div>
-      <div style="border-top:1px solid #C7D2FE;grid-column:span 2;padding-top:4px"><strong>학생용 Gross 총 인보이스액: $${prices.gross.toLocaleString()}</strong></div>
+      <div style="border-top:1px solid #C7D2FE;grid-column:span 2;padding-top:4px"><strong>청구 금액 합계: $${prices.gross.toLocaleString()}</strong></div>
       <div style="color:#4F46E5">에이전시 B2B 커미션 (20%): <strong>-$${prices.commission.toLocaleString()}</strong></div>
       <div style="color:#059669">송금수수료: <strong>+$${prices.remitFee}</strong></div>
-      <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:4px;font-size:12.5px;color:#1E1B4B"><strong>최종 어학원 Net 송금액: $${prices.net.toLocaleString()}</strong></div>
+      <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:4px;font-size:12.5px;color:#1E1B4B"><strong>어학원 송금액: $${prices.net.toLocaleString()}</strong></div>
     </div>
   `;
 }
@@ -1629,6 +2029,108 @@ function submitAgencyStudentRegistration() {
   const phone = document.getElementById('areg-phone').value.trim();
   const special = document.getElementById('areg-special').value.trim();
   const diet = document.getElementById('areg-diet')?.value || '일반식';
+  {
+  const basicEmail = document.getElementById('areg-email')?.value.trim() || '';
+  const basicEmergencyContact = document.getElementById('areg-emergency')?.value.trim() || '';
+  const basicWarningBanner = document.getElementById('register-warning-banner');
+  if (basicWarningBanner) {
+    basicWarningBanner.style.display = 'none';
+    basicWarningBanner.innerHTML = '';
+  }
+
+  if (!name || !nick || !gender || !nationality || !phone || !basicEmail || !basicEmergencyContact || !diet) {
+    showToast('⚠ 기본 인적 사항의 필수 항목을 모두 입력해 주세요.', 'danger');
+    return;
+  }
+
+  if (isNaN(age)) {
+    showToast('생년월일을 입력해 주세요.', 'danger');
+    return;
+  }
+
+  const newStudentId = Math.max(...MOCK_STUDENTS.map(s => s.id), 0) + 1;
+  const newStdObj = {
+    id: newStudentId,
+    name: name,
+    nick: nick,
+    email: basicEmail,
+    emergencyContact: basicEmergencyContact,
+    gender: gender,
+    age: age,
+    nationality: nationality,
+    flag: nationality === '한국' ? '🇰🇷' : nationality === '일본' ? '🇯🇵' : nationality === '중국' ? '🇨🇳' : nationality === '베트남' ? '🇻🇳' : '🇲🇳',
+    course: '미등록',
+    duration: 0,
+    level: '',
+    dorm: '미배정',
+    dormAccomType: null,
+    dormType: null,
+    dormGrade: null,
+    visaExpiry: '',
+    sspExpiry: '면제',
+    arrivalDate: '',
+    dormIn: '',
+    dormOut: '',
+    startDate: '',
+    endDate: '',
+    departureDate: '',
+    attendance: 0,
+    status: 'waiting',
+    enrollDate: '',
+    agency: '한국 영어마을',
+    warning: 0,
+    quiz: [],
+    passportNum: '',
+    passportExpiry: '',
+    passportStatus: '미등록',
+    flightInfo: '',
+    flightOutInfo: '',
+    dietType: diet,
+    healthNotes: special || '특이사항 없음',
+    grades: { speaking: [], listening: [], reading: [], writing: [] },
+    fees: [],
+    remittanceStatus: 'unpaid',
+    remittanceReceipt: null,
+    remittanceDate: null,
+    changeRequests: [],
+    requiredFiles: {
+      passport: null,
+      ticket: null,
+      photo: null,
+      insurance: null
+    }
+  };
+
+  MOCK_STUDENTS.push(newStdObj);
+
+  MOCK_AGENCY_STUDENTS.push({
+    name: `${name} (${nick})`,
+    course: '미등록',
+    dorm: '미배정',
+    duration: '-',
+    status: 'waiting',
+    total: '-',
+    branch: APP.user === 'agency_branch' ? '강남지사' : '본사',
+    agencyStatus: 'waiting'
+  });
+
+  MOCK_AGENCY_NOTIFICATIONS.unshift({
+    id: 'N-' + Date.now(),
+    text: `[기본정보 등록] 신입생 ${name} (${nick}) 학생의 기본 인적 사항이 등록되었습니다. 코스 등록을 진행해 주세요.`,
+    type: 'info',
+    date: new Date().toISOString().replace('T', ' ').substring(0, 16)
+  });
+
+  showToast(`✓ ${name} 학생 기본정보가 등록되었습니다. 학생 리스트에서 코스 등록을 진행해 주세요.`, 'success');
+  closeModal('agency-student-register-modal');
+  enhanceMockStudents();
+  updateAdminKPIs();
+  updateAgencyKPIs();
+  initAgencyStudentList();
+  if (typeof initAdminInbox === 'function') initAdminInbox();
+  return;
+  }
+
   const passportNum = document.getElementById('areg-passport-num').value.trim();
   const passportExpiry = document.getElementById('areg-passport-expiry').value;
   const visaExpiry = document.getElementById('areg-visa-expiry').value;
@@ -1839,15 +2341,15 @@ function updateAgencyRemittanceDetails() {
   fileGroup.style.display = 'block';
 
   calcBox.innerHTML = `
-    <div style="font-weight:700;margin-bottom:6px">💰 B2B Net 학비 정산 금액서</div>
+    <div style="font-weight:700;margin-bottom:6px">💰 어학원 송금 금액서</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
       <div>수강 과정: <strong>${s.course}</strong></div>
       <div>기숙사: <strong>${s.dorm}</strong></div>
       <div>수강 주차: <strong>${s.duration}주</strong></div>
-      <div>Gross 합계: <strong>$${prices.gross.toLocaleString()}</strong></div>
+      <div>청구 금액 합계: <strong>$${prices.gross.toLocaleString()}</strong></div>
       <div style="color:#4F46E5;border-top:1px solid #E9EDF4;grid-column:span 2;padding-top:4px">에이전시 마진 커미션 (20%): <strong>-$${prices.commission.toLocaleString()}</strong></div>
       <div style="color:#059669">해외 이체 수수료 (본인부담): <strong>+$${prices.remitFee}</strong></div>
-      <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:4px;font-size:12.5px;color:#1E1B4B"><strong>어학원 최종 순 송금액 (Net): $${prices.net.toLocaleString()}</strong></div>
+      <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:4px;font-size:12.5px;color:#1E1B4B"><strong>어학원 송금액: $${prices.net.toLocaleString()}</strong></div>
     </div>
   `;
 
@@ -1942,6 +2444,297 @@ function openAgencyStudentDetailModal(id) {
   }
 
   openModal('agency-student-detail-modal');
+}
+
+function openAgencyStudentDetailPage(id) {
+  currentAdetailStudentId = id;
+  currentAdetailTab = 'basic';
+  const s = MOCK_STUDENTS.find(std => std.id === id);
+  if (!s) return;
+
+  adetailUploadedFiles = {
+    passport: s.requiredFiles ? s.requiredFiles.passport : null,
+    ticket: s.requiredFiles ? s.requiredFiles.ticket : null,
+    photo: s.requiredFiles ? s.requiredFiles.photo : null,
+    insurance: s.requiredFiles ? s.requiredFiles.insurance : null
+  };
+
+  renderAgencyStudentDetailPageHeader(s);
+  navigate('agency-student-detail');
+  switchAgencyStudentDetailPageTab('basic');
+}
+
+function renderAgencyStudentDetailPageHeader(s) {
+  const nameEl = document.getElementById('adetail-page-title-name');
+  if (nameEl) nameEl.textContent = `${s.name} (Nick: ${s.nick})`;
+
+  let stateStr = '입학 대기 (Waiting)';
+  if (s.status === 'current') stateStr = '재학 (Current)';
+  else if (s.status === 'completed') stateStr = '졸업 (Completed)';
+  else if (s.status === 'resigned') stateStr = '퇴원 (Resigned)';
+  else if (s.status === 'extended') stateStr = '연장 (Extended)';
+
+  const subEl = document.getElementById('adetail-page-title-subtitle');
+  if (subEl) subEl.textContent = `등록 상태: ${stateStr} · ${s.agency || '한국 영어마을'} · 학생 상세 페이지`;
+
+  const avatar = document.getElementById('adetail-page-avatar');
+  if (avatar) avatar.src = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+
+  const saveBtn = document.getElementById('adetail-page-save-btn');
+  const isAgencyUser = APP.user === 'agency_head' || APP.user === 'agency_branch';
+  if (saveBtn) {
+    if (isAgencyUser && s.status !== 'waiting') {
+      saveBtn.disabled = true;
+      saveBtn.style.cssText = 'background:#E5E7EB;color:#9CA3AF;cursor:not-allowed;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600';
+      saveBtn.title = '재학 중인 학생 정보는 어드민만 수정할 수 있습니다.';
+    } else {
+      saveBtn.disabled = false;
+      saveBtn.style.cssText = '';
+      saveBtn.title = '';
+    }
+  }
+}
+
+function switchAgencyStudentDetailPageTab(tab) {
+  const basicTab = document.getElementById('adetail-page-tab-basic');
+  const enrollmentTab = document.getElementById('adetail-page-tab-enrollment');
+  if (basicTab) basicTab.classList.toggle('active', tab === 'basic');
+  if (enrollmentTab) enrollmentTab.classList.toggle('active', tab === 'enrollment');
+
+  if (tab === 'basic') {
+    switchAdetailTab('basic', 'adetail-page-tab-content', currentAdetailStudentId);
+  } else {
+    renderAgencyStudentEnrollmentHub();
+  }
+  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+function renderAgencyStudentEnrollmentHub() {
+  const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  const container = document.getElementById('adetail-page-tab-content');
+  if (!s || !container) return;
+
+  const enrollments = getStudentEnrollmentSnapshots(s);
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:18px">
+      <div style="border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;padding:14px">
+        <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">수강 목록</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${enrollments.map((e, idx) => `
+            <div style="padding:12px;border-radius:10px;border:1px solid ${idx === 0 ? '#C7D2FE' : '#E5E7EB'};background:${idx === 0 ? '#EEF2FF' : '#fff'}">
+              <div style="font-size:12.5px;font-weight:800;color:#111827">${e.course}</div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)}</div>
+              <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+                <span class="tsa-badge ${e.status === 'current' ? 'tsa-badge-success' : e.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(e.status)}</span>
+                ${idx === 0 ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:#6B7280;line-height:1.5">
+          코스 등록은 학생 리스트의 <b>코스 등록</b> 버튼에서 진행합니다.
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="changelog" onclick="switchAgencyEnrollmentHubTab('changelog')">변경 이력</button>
+        </div>
+        <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
+      </div>
+    </div>
+  `;
+
+  switchAgencyEnrollmentHubTab('class');
+}
+
+function getStudentEnrollmentSnapshots(s) {
+  const current = {
+    id: 'current',
+    course: s.course || '코스 미등록',
+    level: s.level || '-',
+    startDate: s.startDate || '',
+    endDate: s.endDate || '',
+    duration: s.duration || 4,
+    status: s.status || 'waiting',
+    paymentStatus: s.remittanceStatus || 'unpaid',
+  };
+  const saved = Array.isArray(s.enrollments) ? s.enrollments : [];
+  const history = saved.filter(e => !(e.course === current.course && e.startDate === current.startDate));
+  return [current, ...history].slice(0, 4);
+}
+
+function getEnrollmentStatusLabel(status) {
+  if (status === 'current') return '재학';
+  if (status === 'completed') return '졸업';
+  if (status === 'resigned') return '퇴원';
+  if (status === 'extended') return '연장';
+  return '입학 대기';
+}
+
+function switchAgencyEnrollmentHubTab(tab) {
+  document.querySelectorAll('.enrollment-hub-tab').forEach(btn => {
+    const isActive = btn.dataset.hubTab === tab;
+    btn.classList.toggle('tsa-btn-primary', isActive);
+    btn.classList.toggle('tsa-btn-outline', !isActive);
+  });
+
+  const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  const container = document.getElementById('adetail-page-enrollment-content');
+  if (!s || !container) return;
+
+  if (tab === 'flightdocs') {
+    renderAgencyEnrollmentFlightDocs(s, container);
+  } else {
+    switchAdetailTab(tab, 'adetail-page-enrollment-content', currentAdetailStudentId);
+  }
+  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+function renderAgencyEnrollmentFlightDocs(s, container) {
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#111827">항공편 & 서류 관리</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:3px">선택한 수강 건 기준으로 입출국 일정과 필수 서류를 관리합니다.</div>
+      </div>
+      <span class="tsa-badge tsa-badge-primary">수강별 관리 영역</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="border:1px solid #BBF7D0;background:#F0FDF4;border-radius:12px;padding:14px">
+        <div style="font-size:12.5px;font-weight:800;color:#047857;margin-bottom:10px">입국 항공편</div>
+        <div class="tsa-form-group"><label class="tsa-label">편명</label><input id="ad-flight-num" class="tsa-input" value="${s.flightNum || fmtFlightStr(s.flightInfo) || ''}" placeholder="KE631"/></div>
+        <div class="tsa-form-group"><label class="tsa-label">입국일</label><input id="ad-arrival-date" type="date" class="tsa-input" value="${s.arrivalDate || s.startDate || ''}"/></div>
+      </div>
+      <div style="border:1px solid #BFDBFE;background:#EFF6FF;border-radius:12px;padding:14px">
+        <div style="font-size:12.5px;font-weight:800;color:#1D4ED8;margin-bottom:10px">출국 항공편</div>
+        <div class="tsa-form-group"><label class="tsa-label">편명</label><input id="ad-flight-out-num" class="tsa-input" value="${s.flightOutNum || fmtFlightStr(s.flightOutInfo) || ''}" placeholder="KE632"/></div>
+        <div class="tsa-form-group"><label class="tsa-label">출국일</label><input id="ad-departure-date" type="date" class="tsa-input" value="${s.departureDate || s.endDate || ''}"/></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#F8FAFC">
+      <div style="font-size:12.5px;font-weight:800;color:#374151;margin-bottom:10px">필수 서류</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        ${['passport','ticket','photo','insurance'].map(type => {
+          const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서' };
+          const uploaded = adetailUploadedFiles[type];
+          const isPdf = uploaded && /\.pdf$/i.test(uploaded);
+          const previewLabel = isPdf ? 'PDF 미리보기' : '미리보기';
+          return `
+            <div style="background:#fff;border:1px dashed #D1D5DB;border-radius:10px;padding:12px;text-align:center;min-height:118px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+              <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:7px">${labels[type]}</div>
+              <span class="tsa-badge ${uploaded ? 'tsa-badge-success' : 'tsa-badge-gray'}">${uploaded ? '등록됨' : '없음'}</span>
+              <div style="font-size:10px;color:#9CA3AF;margin-top:6px">${uploaded || '수강 건별 업로드 예정'}</div>
+              </div>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-xs"
+                style="margin-top:10px;justify-content:center;${uploaded ? '' : 'opacity:.45;cursor:not-allowed'}"
+                ${uploaded ? `onclick="openAgencyRequiredFilePreview('${type}', '${encodeURIComponent(uploaded)}')"` : 'disabled'}>
+                <i data-lucide="${isPdf ? 'file-search' : 'image'}" style="width:12px;height:12px"></i> ${previewLabel}
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function openAgencyRequiredFilePreview(type, encodedFileName) {
+  const fileName = decodeURIComponent(encodedFileName || '');
+  if (!fileName) {
+    showToast('미리 볼 파일이 없습니다.', 'warning');
+    return;
+  }
+
+  const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서' };
+  const label = labels[type] || '서류';
+  const isPdf = /\.pdf$/i.test(fileName);
+  const isImage = /\.(png|jpe?g|gif|webp)$/i.test(fileName);
+  const modalId = 'agency-required-file-preview-modal';
+  let modal = document.getElementById(modalId);
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'tsa-modal-backdrop';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <div class="tsa-modal tsa-modal-lg" style="max-width:980px" onclick="event.stopPropagation()">
+        <div class="tsa-modal-header">
+          <div>
+            <h3 class="tsa-modal-title" id="agency-file-preview-title">서류 미리보기</h3>
+            <p class="tsa-modal-subtitle" id="agency-file-preview-subtitle"></p>
+          </div>
+          <button class="tsa-modal-close" onclick="closeAgencyRequiredFilePreview()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="tsa-modal-body" id="agency-file-preview-body" style="background:#F3F4F6;padding:18px;max-height:72vh;overflow:auto"></div>
+        <div class="tsa-modal-footer">
+          <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyRequiredFilePreview()">닫기</button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener('click', closeAgencyRequiredFilePreview);
+    document.body.appendChild(modal);
+  }
+
+  const titleEl = document.getElementById('agency-file-preview-title');
+  const subEl = document.getElementById('agency-file-preview-subtitle');
+  const bodyEl = document.getElementById('agency-file-preview-body');
+
+  if (titleEl) titleEl.innerHTML = `<i data-lucide="${isPdf ? 'file-text' : 'image'}"></i> ${label} 미리보기`;
+  if (subEl) subEl.textContent = fileName;
+  if (bodyEl) {
+    bodyEl.innerHTML = isImage ? `
+      <div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:24px;text-align:center;box-shadow:0 10px 30px rgba(15,23,42,.08)">
+        <div style="height:420px;border:1px dashed #CBD5E1;border-radius:12px;background:linear-gradient(135deg,#EFF6FF,#F8FAFC);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#64748B">
+          <i data-lucide="image" style="width:54px;height:54px;margin-bottom:12px"></i>
+          <div style="font-size:18px;font-weight:900;color:#334155">${label}</div>
+          <div style="font-size:12px;margin-top:8px">${fileName}</div>
+        </div>
+        <div style="font-size:11px;color:#94A3B8;margin-top:12px">실제 파일 URL이 연결되면 이 영역에 이미지가 직접 표시됩니다.</div>
+      </div>
+    ` : `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#111827;color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;max-width:760px;margin:0 auto">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800"><i data-lucide="file-text" style="width:16px;height:16px"></i> ${fileName}</div>
+        <div style="font-size:11px;color:#CBD5E1">PDF 미리보기 · 1 / 1</div>
+      </div>
+      <div style="max-width:760px;min-height:620px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;box-shadow:0 18px 40px rgba(15,23,42,.12);padding:42px 54px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:34px">
+          <div>
+            <div style="font-size:22px;font-weight:900;color:#111827">${label}</div>
+            <div style="font-size:12px;color:#64748B;margin-top:6px">Student Required Document Preview</div>
+          </div>
+          <div style="font-size:11px;color:#64748B;text-align:right">
+            TSA LMS<br/>${new Date().toISOString().slice(0, 10)}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:130px 1fr;gap:12px;font-size:13px;line-height:1.8">
+          <div style="font-weight:800;color:#475569">문서 유형</div><div>${label}</div>
+          <div style="font-weight:800;color:#475569">파일명</div><div>${fileName}</div>
+          <div style="font-weight:800;color:#475569">상태</div><div><span class="tsa-badge tsa-badge-success">등록됨</span></div>
+          <div style="font-weight:800;color:#475569">확인 메모</div><div>업로드된 PDF를 화면에서 바로 확인할 수 있는 영역입니다.</div>
+        </div>
+        <div style="height:280px;margin-top:38px;border:1px dashed #CBD5E1;border-radius:12px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#64748B">
+          <i data-lucide="file-search" style="width:58px;height:58px;margin-bottom:12px"></i>
+          <div style="font-size:15px;font-weight:900;color:#334155">PDF 페이지 미리보기</div>
+          <div style="font-size:11px;margin-top:7px">실제 파일 URL이 연결되면 이 영역은 PDF iframe으로 교체됩니다.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.style.display = 'flex';
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function closeAgencyRequiredFilePreview() {
+  const modal = document.getElementById('agency-required-file-preview-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = null) {
@@ -2088,57 +2881,6 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         })()}
       </div>
 
-      ${(() => {
-        const isAgency = APP.user === 'agency_head' || APP.user === 'agency_branch';
-        if (!isAgency) return '';
-        return `
-        <!-- ── 항공 & 입출국 ── -->
-        <div style="margin-top:16px;padding:0 10px">
-          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">✈️ 항공 & 입출국 일정</div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="background:#F8F9FC;border:1px solid #E9EDF4;border-radius:10px;padding:12px">
-              <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">🛂 여권 정보</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">여권 번호</label><input id="ad-passport-num" type="text" class="tsa-input" value="${s.passportNum||''}" placeholder="M12345678" ${lockAttr}/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">여권 만료일</label><input id="ad-passport-expiry" type="date" class="tsa-input" value="${s.passportExpiry||''}" ${lockAttr}/></div>
-              </div>
-            </div>
-            <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px">
-              <div style="font-size:11px;font-weight:700;color:#15803D;margin-bottom:8px">입국 항공편</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="ad-flight-num" type="text" class="tsa-input" value="${s.flightNum||''}" placeholder="KE631" ${lockAttr}/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">입국일</label><input id="ad-arrival-date" type="date" class="tsa-input" value="${s.arrivalDate||''}" ${lockAttr}/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">도착 시간</label><input id="ad-flight-time" type="time" class="tsa-input" value="${s.flightTime||''}"/></div>
-              </div>
-            </div>
-            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px">
-              <div style="font-size:11px;font-weight:700;color:#1D4ED8;margin-bottom:8px">출국 항공편</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">편명</label><input id="ad-flight-out-num" type="text" class="tsa-input" value="${s.flightOutNum||''}" placeholder="KE632" ${lockAttr}/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출국일</label><input id="ad-departure-date" type="date" class="tsa-input" value="${s.departureDate||''}" ${lockAttr}/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label" style="font-size:10.5px">출발 시간</label><input id="ad-flight-out-time" type="time" class="tsa-input" value="${s.flightOutTime||''}"/></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── 서류 관리 ── -->
-        <div style="margin-top:16px;padding:0 10px">
-          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">📄 서류 관리</div>
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-            ${renderFileCards(s, 'agency')}
-          </div>
-        </div>
-
-        <!-- ── 비자 & SSP ── -->
-        <div style="margin-top:16px;padding:0 10px">
-          <div style="font-size:12.5px;font-weight:700;color:#374151;margin-bottom:12px">🪪 비자 & SSP</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">비자 만료 예정일</label><input id="ad-visa-expiry" type="date" class="tsa-input" value="${s.visaExpiry!=='면제'?s.visaExpiry:''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">SSP 카드 만료 예정일 (또는 면제)</label><input id="ad-ssp-expiry" type="text" class="tsa-input" value="${s.sspExpiry||'면제'}"/></div>
-          </div>
-        </div>`;
-      })()}
     `;
   } else if (tab === 'flight') {
     html = `
@@ -2328,6 +3070,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
     `;
   } else if (tab === 'settle') {
     const prices = calculatePrices(s);
+    const billingBreakdown = getStudentBillingBreakdown(s);
 
     const crHistoryHtml = '';
 
@@ -2337,18 +3080,30 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       <div style="padding:10px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">B2B Net 정산 내역서 (에이전시 마진 차감)</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">항목별 청구 금액 · 납부 여부 · 커미션 지급 여부</div>
+            <div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:11.5px;margin-bottom:10px">
+              ${billingBreakdown.items.map(item => `
+                <div style="display:grid;grid-template-columns:96px 1fr 76px 150px 80px;gap:10px;align-items:center;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
+                  <div>
+                    <div style="font-weight:800;color:#374151">${item.label}</div>
+                    <div style="font-size:10px;color:#9CA3AF">${item.key === 'registration' ? '학생 등록 시 1회' : item.key === 'education' ? '수강 과정 기준' : item.key === 'dorm' ? '기숙사 배정 기준' : '기타 현지 비용'}</div>
+                  </div>
+                  <div style="text-align:right;font-weight:900;color:#111827">$${item.amount.toLocaleString()}</div>
+                  <div style="text-align:right">${renderAgencyPaidBadge(item.paymentStatus)}</div>
+                  <div style="text-align:right;color:${item.commission > 0 ? '#4F46E5' : '#9CA3AF'};font-weight:800">
+                    ${item.commissionType === 'none' ? '커미션 없음' : item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · ${item.commission > 0 ? '-' : ''}$${item.commission.toLocaleString()}
+                  </div>
+                  <div style="text-align:right">${item.commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : '<span style="font-size:10px;color:#9CA3AF">-</span>'}</div>
+                </div>
+              `).join('')}
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">
-              <div>학비 원가(Gross):</div><div style="text-align:right">$${prices.tuition.toLocaleString()}</div>
-              <div>기숙사(Gross):</div><div style="text-align:right">$${prices.dorm.toLocaleString()}</div>
-              <div>등록금(Registration):</div><div style="text-align:right">$${prices.registration}</div>
-              <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:4px"><strong>학생 Gross 청구 총액:</strong> <strong style="float:right">$${prices.gross.toLocaleString()}</strong></div>
-              <div style="color:#4F46E5">에이전시 커미션 마진 (20%):</div><div style="text-align:right;color:#4F46E5">-$${prices.commission.toLocaleString()}</div>
-              <div style="color:#059669">해외 이체 수수료 (가산):</div><div style="text-align:right;color:#059669">+$${prices.remitFee}</div>
-              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:4px;font-size:12px;color:#1E1B4B"><strong>최종 어학원 Net 송금액:</strong> <strong style="float:right">$${prices.net.toLocaleString()}</strong></div>
+              <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px"><strong>청구 금액 합계:</strong> <strong style="float:right">$${billingBreakdown.gross.toLocaleString()}</strong></div>
+              <div style="color:#4F46E5">에이전시 커미션 합계:</div><div style="text-align:right;color:#4F46E5">-$${billingBreakdown.commission.toLocaleString()}</div>
+              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
             </div>
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
-              ※ 송금 이체 후, 송금 제출 메뉴에서 은행 영수증을 업로드하여 승인을 획득해 주십시오.
+              ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
             </div>
           </div>
 
@@ -2356,7 +3111,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">📄 서류 출력 (자가 PDF 인쇄)</div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <button class="tsa-btn tsa-btn-outline" style="justify-content:center" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">
-                <i data-lucide="printer"></i> 학생용 Gross 인보이스 출력 (마진 비공개)
+                <i data-lucide="printer"></i> 학생용 청구서 출력 (커미션 비공개)
               </button>
               <button class="tsa-btn ${s.remittanceStatus === 'paid' ? 'tsa-btn-primary' : 'tsa-btn-outline'}" style="justify-content:center" ${s.remittanceStatus === 'paid' ? '' : 'disabled'} onclick="openAgencyDocumentsInline(${s.id}, 'loa')">
                 <i data-lucide="check-circle"></i> 입학 허가서 (LOA) 인쇄 ${s.remittanceStatus === 'paid' ? '✓' : '(🔒 완납 시 해제)'}
@@ -2371,7 +3126,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           <!-- 송금 명세서 제출 섹션 (어드민은 미표시, 에이전시만 노출) -->
           ${isAgency ? `
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 송금 명세서 제출</div>
+            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 납부 내역 등록</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
               <div class="tsa-form-group" style="margin:0">
                 <label class="tsa-label" style="font-size:11px">송금 일자</label>
@@ -2410,9 +3165,10 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ` : ''}
 
-          <!-- 송금 명세서 제출 이력 -->
+          <!-- 납부 내역 관리 -->
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 B2B 학비 송금 명세서 제출 이력 (B2B Net 정산)</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 납부 내역 관리</div>
+            ${renderAgencyPaymentSummary(s, billingBreakdown)}
             ${(() => {
               // MOCK_REMIT_REQUESTS(대시보드)와 s.remittanceHistory(직접 제출) 통합
               const fromDashboard = (typeof MOCK_REMIT_REQUESTS !== 'undefined'
@@ -2457,18 +3213,16 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                     <th>송금 은행</th>
                     <th>첨부 파일</th>
                     <th>메모</th>
-                    <th style="text-align:center">승인 상태</th>
-                    <th>승인자</th>
+                    <th style="text-align:center">납부 상태</th>
+                    <th>확인 담당자</th>
                     <th style="text-align:center">동작</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${history.map((r, i) => {
                     const badge = r.status === 'approved'
-                      ? `<span class="tsa-badge tsa-badge-success">✅ 승인</span>`
-                      : r.status === 'rejected'
-                      ? `<span class="tsa-badge tsa-badge-danger">❌ 반려</span>`
-                      : `<span class="tsa-badge tsa-badge-warning">⏳ 검토중</span>`;
+                      ? renderAgencyPaidBadge('paid')
+                      : renderAgencyPaidBadge('unpaid');
                     const isLocal = i >= fromDashboard.length;
                     const localIdx = i - fromDashboard.length;
 
@@ -3059,7 +3813,13 @@ function saveAgencyStudentDetails() {
   });
 
   showToast(`✓ 학생 정보가 저장되었습니다.`, 'success');
-  closeModal('agency-student-detail-modal');
+  const detailModal = document.getElementById('agency-student-detail-modal');
+  if (detailModal && detailModal.style.display !== 'none') {
+    closeModal('agency-student-detail-modal');
+  } else if (document.getElementById('view-agency-student-detail')?.classList.contains('active')) {
+    renderAgencyStudentDetailPageHeader(s);
+    switchAgencyStudentDetailPageTab(currentAdetailTab === 'basic' ? 'basic' : 'enrollment');
+  }
   initAgencyStudentList();
 }
 
@@ -3583,9 +4343,6 @@ function rejectAdminChangeRequest(studentId, reqId) {
   initAgencyStudentList();
 }
 
-/* =============================================
-   COURSE & PRICING
-   ============================================= */
 function initCoursePricing() {
   renderCourseList();
 }
@@ -3595,18 +4352,17 @@ function renderCourseList() {
   if (!tbody) return;
 
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
-    const subjectsByType = c.subjectsByType || {};
-
-    // 유형별 과목 + 시간 배분 (그룹 수업 유형 마스터 풀 순서 기준, 한 줄씩)
-    const subjectsBadge = [...MOCK_MASTER_CLASS_TYPES].sort((a, b) => a.order - b.order).map(t => {
-      const list = subjectsByType[t.code] || [];
-      if (list.length === 0) return '';
-      const names = list.map(sObj => {
-        const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === sObj.id);
-        return `${sub ? sub.name : sObj.id}(${sObj.hours}h)`;
-      }).join(', ');
-      return `<div style="margin-top:2px"><span class="tsa-badge tsa-badge-outline" style="font-size:10px">${t.code}</span> ${names}</div>`;
+    const subjectIds = getCourseSubjectIds(c);
+    const subjectsBadge = subjectIds.map(id => {
+      const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === id);
+      return `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin:1px">${sub ? sub.name : id}</span>`;
     }).join('') || '<span style="color:#D1D5DB">과목 미설정</span>';
+    const classHours = getCourseClassHours(c);
+    const classHoursBadge = [...MOCK_MASTER_CLASS_TYPES]
+      .filter(t => t.visible !== false)
+      .sort((a, b) => a.order - b.order)
+      .map(t => `<span style="white-space:nowrap">${t.code} ${classHours[t.code] || 0}시간</span>`)
+      .join(' · ');
 
     // 매핑 레벨 배지
     const levelsBadge = (c.levels || [])
@@ -3621,10 +4377,17 @@ function renderCourseList() {
           <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
           ${c.active === false ? '<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin-top:2px">비활성</span>' : ''}
         </td>
-        <td><span class="tsa-badge tsa-badge-primary" style="font-size:10px">${c.type}</span></td>
         <td>${levelsBadge}</td>
         <td style="font-size:11.5px">${subjectsBadge}</td>
-        <td style="font-weight:700;font-size:13px;color:#374151">$${c.fee.toLocaleString()}</td>
+        <td style="font-size:11.5px;color:#6B7280">${classHoursBadge}</td>
+        <td style="text-align:center">
+          <button type="button"
+            onclick="toggleCourseVisibility(${idx})"
+            aria-pressed="${c.active !== false}"
+            style="min-width:58px;padding:4px 10px;border:0;border-radius:999px;cursor:pointer;font-size:11px;font-weight:700;background:${c.active !== false ? '#D1FAE5' : '#F3F4F6'};color:${c.active !== false ? '#065F46' : '#6B7280'}">
+            ${c.active !== false ? '노출' : '숨김'}
+          </button>
+        </td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditCourseModal(${idx})">수정</button>
@@ -3642,12 +4405,9 @@ function openCourseModal() {
   _editingCourseIdx = null;
   document.getElementById('course-modal-title').textContent = '신규 과정 및 커리큘럼 추가';
   document.getElementById('add-course-name').value = '';
-  document.getElementById('add-course-type').value = '일반 영어';
-  document.getElementById('add-course-fee').value = '';
-  document.getElementById('add-course-active').value = 'true';
 
   renderCourseLevelCheckboxes([]);
-  renderCourseClassTypeSections({});
+  renderCourseClassTypeSections({ subjects: [], classHours: {} });
   openModal('course-add-modal');
 }
 
@@ -3658,18 +4418,9 @@ function openEditCourseModal(idx) {
 
   document.getElementById('course-modal-title').textContent = '과정 및 커리큘럼 정보 수정';
   document.getElementById('add-course-name').value = c.name;
-  document.getElementById('add-course-type').value = c.type;
-  document.getElementById('add-course-fee').value = c.fee;
-  document.getElementById('add-course-active').value = c.active === false ? 'false' : 'true';
-
-  // 구버전 데이터(subjectsByType 없이 flat subjects만 있는 경우) 1:1 유형으로 마이그레이션
-  let subjectsByType = c.subjectsByType;
-  if (!subjectsByType && c.subjects && c.subjects.length > 0) {
-    subjectsByType = { '1:1': c.subjects };
-  }
 
   renderCourseLevelCheckboxes(c.levels || []);
-  renderCourseClassTypeSections(subjectsByType || {});
+  renderCourseClassTypeSections(c);
   openModal('course-add-modal');
 }
 
@@ -3688,71 +4439,264 @@ function renderCourseLevelCheckboxes(selectedLevels) {
   }
 }
 
-function renderCourseClassTypeSections(subjectsByType) {
+function getCourseSubjectIds(course) {
+  const ids = new Set();
+  (course.subjects || []).forEach(subject => {
+    const id = typeof subject === 'string' ? subject : subject.id;
+    if (id) ids.add(id);
+  });
+  Object.values(course.subjectsByType || {}).flat().forEach(subject => {
+    if (subject && subject.id) ids.add(subject.id);
+  });
+  return [...ids];
+}
+
+function getCourseClassHours(course) {
+  return {
+    '1:1': Number(course.classHours?.['1:1'] ?? course.oneone) || 0,
+    '1:4': Number(course.classHours?.['1:4'] ?? course.group1on4) || 0,
+    '1:8': Number(course.classHours?.['1:8'] ?? course.group) || 0,
+  };
+}
+
+function getAgencyCommissionPolicyItems(s) {
+  const agencyName = s?.agency || '';
+  const agencies = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES : [];
+  const agency = agencies.find(a => a.name === agencyName);
+  const legacyRate = agencyName === '서울 유학원' ? 15 : agencyName === 'Beijing Partner' ? 25 : 20;
+  const legacyType = agency?.commissionType === 'fixed' ? 'fixed' : 'rate';
+  const legacyValue = agency
+    ? (legacyType === 'fixed' ? Number(agency.commissionAmount || 0) : Number(agency.commissionRate || legacyRate))
+    : legacyRate;
+  const source = agency?.commissionPolicies || {};
+  const makePolicy = (key, fallbackType, fallbackValue) => {
+    const saved = source[key] || {};
+    const type = ['none', 'rate', 'fixed'].includes(saved.type) ? saved.type : fallbackType;
+    const value = Number(saved.value ?? fallbackValue);
+    return {
+      type,
+      value: Number.isFinite(value) ? value : 0,
+      rate: type === 'rate' && Number.isFinite(value) ? value / 100 : 0,
+    };
+  };
+  return {
+    registration: makePolicy('registration', 'none', 0),
+    education: makePolicy('education', legacyType, legacyValue),
+    dorm: makePolicy('dorm', legacyType, legacyValue),
+    local: makePolicy('local', 'none', 0),
+  };
+}
+
+function calculateAgencyItemCommission(item, policy) {
+  const amount = Number(item?.amount || item || 0);
+  if (!policy || policy.type === 'none') return 0;
+  if (policy.type === 'fixed') return Math.min(Math.round(Number(policy.value || 0)), amount);
+  return Math.round(amount * Number(policy.rate || 0));
+}
+
+function calculateAgencyItemCommissionTotal(s, amounts) {
+  const policies = getAgencyCommissionPolicyItems(s);
+  return ['registration', 'education', 'dorm', 'local'].reduce((sum, key) => {
+    return sum + calculateAgencyItemCommission(Number(amounts?.[key] || 0), policies[key]);
+  }, 0);
+}
+
+function getAgencyCommissionRate(s) {
+  return getAgencyCommissionPolicyItems(s).education.rate;
+}
+
+function getStudentBillingBreakdown(s) {
+  const prices = calculatePrices(s);
+  const commissionPolicies = getAgencyCommissionPolicyItems(s);
+  const savedFees = s.courseRegistrationFees || {};
+  const registrationFromFees = Array.isArray(s.fees)
+    ? s.fees.filter(f => /등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0)
+    : 0;
+  const localFromFees = Array.isArray(s.fees)
+    ? s.fees.filter(f => !/등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0)
+    : 0;
+
+  const registration = Number(savedFees.registration || registrationFromFees || prices.registration || 0);
+  const education = Number(savedFees.tuition || prices.tuition || 0);
+  const dorm = Number(savedFees.dorm || prices.dorm || 0);
+  const local = Number(savedFees.extras || localFromFees || 0);
+
+  const itemStatuses = s.billingItemStatuses || {};
+  const defaultPaidStatus = s.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
+  const normalizePaidStatus = status => status === 'paid' ? 'paid' : 'unpaid';
+  const commissionStatuses = s.commissionItemStatuses || {};
+  const defaultCommissionStatus = s.commissionStatus === 'paid' || s.commissionPaid ? 'paid' : 'unpaid';
+  const items = [
+    { key: 'registration', label: '등록금', amount: registration },
+    { key: 'education', label: '수강료', amount: education },
+    { key: 'dorm', label: '기숙사비', amount: dorm },
+    { key: 'local', label: '기타 비용', amount: local },
+  ].map(baseItem => {
+    const policy = commissionPolicies[baseItem.key] || { type: 'none', value: 0, rate: 0 };
+    const commission = calculateAgencyItemCommission(baseItem.amount, policy);
+    return {
+    ...baseItem,
+    commissionRate: policy.rate || 0,
+    commission,
+    commissionType: policy.type,
+    commissionValue: policy.value || 0,
+    paymentStatus: normalizePaidStatus(itemStatuses[baseItem.key] || defaultPaidStatus),
+    commissionStatus: commission > 0
+      ? normalizePaidStatus(commissionStatuses[baseItem.key] || defaultCommissionStatus)
+      : 'none',
+    };
+  });
+  const gross = items.reduce((sum, item) => sum + item.amount, 0);
+  const commission = items.reduce((sum, item) => sum + item.commission, 0);
+  return {
+    items,
+    gross,
+    commission,
+    net: gross - commission,
+    rate: commissionPolicies.education?.rate || 0,
+    commissionPolicies,
+  };
+}
+
+function renderAgencyPaidBadge(status) {
+  const paid = status === 'paid';
+  return `<span class="tsa-badge ${paid ? 'tsa-badge-success' : 'tsa-badge-danger'}" style="font-size:10px">${paid ? '완납' : '미납'}</span>`;
+}
+
+function renderAgencyCommissionBadge(status) {
+  const paid = status === 'paid';
+  return `<span class="tsa-badge ${paid ? 'tsa-badge-success' : 'tsa-badge-danger'}" style="font-size:10px">${paid ? '지급' : '미지급'}</span>`;
+}
+
+function renderAgencyBillingAmountCell(item) {
+  return `
+    <div style="min-width:112px;text-align:right;line-height:1.5">
+      <div style="font-weight:900;color:#111827">$${Number(item.amount || 0).toLocaleString()}</div>
+      <div style="margin-top:3px">${renderAgencyPaidBadge(item.paymentStatus)}</div>
+    </div>
+  `;
+}
+
+function renderAgencyCommissionItemCell(item) {
+  const commission = Number(item.commission || 0);
+  if (commission <= 0) {
+    return `
+      <div style="min-width:112px;text-align:right;line-height:1.5;color:#9CA3AF">
+        <div style="font-weight:800">$0</div>
+        <div style="font-size:10.5px">커미션 없음</div>
+      </div>
+    `;
+  }
+  return `
+    <div style="min-width:112px;text-align:right;line-height:1.5">
+      <div style="font-weight:900;color:#4F46E5">-$${commission.toLocaleString()}</div>
+      <div style="font-size:10.5px;color:#6B7280">${item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`}</div>
+      <div style="margin-top:3px">${renderAgencyCommissionBadge(item.commissionStatus)}</div>
+    </div>
+  `;
+}
+
+function getAgencyPaymentHistoryRows(s) {
+  const fromDashboard = (typeof MOCK_REMIT_REQUESTS !== 'undefined'
+    ? MOCK_REMIT_REQUESTS.filter(r => r.studentId === s.id || r.studentName.includes(s.nick) || r.studentName.includes(s.name))
+    : []).map(r => ({
+      submittedAt: r.submittedAt || r.remitDate || '-',
+      remitDate: r.remitDate || '-',
+      amount: r.net || 0,
+      bank: '-',
+      fileName: r.receipt || null,
+      status: r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : 'pending',
+      note: r.note || '',
+      agency: r.agency || s.agency || '에이전시',
+      submittedBy: r.submittedBy || '에이전시 담당자',
+      approvedBy: r.approvedBy || (r.status === 'approved' ? '본사 슈퍼어드민' : '-'),
+      source: 'dashboard'
+    }));
+  const fromLocal = (s.remittanceHistory || []).map(r => ({
+    submittedAt: r.submittedAt || '-',
+    remitDate: r.remitDate || '-',
+    amount: r.amount || 0,
+    bank: r.bank || '-',
+    fileName: r.fileName || null,
+    status: r.status || 'pending',
+    note: r.memo || '',
+    agency: s.agency || '직접 등록',
+    submittedBy: r.submittedBy || '에이전시 담당자',
+    approvedBy: r.approvedBy || (r.status === 'approved' ? '본사 슈퍼어드민' : '-'),
+    source: 'local'
+  }));
+  return { fromDashboard, fromLocal, history: [...fromDashboard, ...fromLocal] };
+}
+
+function renderAgencyPaymentSummary(s, breakdown) {
+  const { history } = getAgencyPaymentHistoryRows(s);
+  const approvedPaid = history
+    .filter(r => r.status === 'approved')
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const pendingPaid = history
+    .filter(r => r.status === 'pending')
+    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const balance = Math.max(Number(breakdown.net || 0) - approvedPaid, 0);
+  const cards = [
+    { label: '청구 금액 합계', value: breakdown.gross, color: '#111827', bg: '#F8FAFC' },
+    { label: '에이전시 커미션', value: -breakdown.commission, color: '#4F46E5', bg: '#EEF2FF' },
+    { label: '어학원 송금액', value: breakdown.net, color: '#0F766E', bg: '#F0FDFA' },
+    { label: '납부 완료액', value: approvedPaid, color: '#059669', bg: '#ECFDF5' },
+  ];
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      ${cards.map(card => `
+        <div style="background:${card.bg};border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px">
+          <div style="font-size:10.5px;color:#6B7280;font-weight:800">${card.label}</div>
+          <div style="font-size:16px;font-weight:900;color:${card.color};margin-top:4px">${card.value < 0 ? '-' : ''}$${Math.abs(card.value).toLocaleString()}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="font-size:11px;color:${balance > 0 ? '#DC2626' : '#059669'};background:${balance > 0 ? '#FEF2F2' : '#ECFDF5'};border:1px solid ${balance > 0 ? '#FECACA' : '#BBF7D0'};border-radius:8px;padding:8px 10px;margin-bottom:10px">
+      현재 납부 상태: ${balance > 0 ? '미납' : '완납'} · 남은 어학원 송금액 $${balance.toLocaleString()}
+    </div>
+  `;
+}
+
+function renderCourseClassTypeSections(course) {
   const container = document.getElementById('course-classtype-sections');
   if (!container) return;
 
+  const selectedSubjectIds = getCourseSubjectIds(course);
+  const classHours = getCourseClassHours(course);
   const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
-
-  container.innerHTML = types.map(t => {
-    const selected = subjectsByType[t.code] || [];
-    const subjectRows = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => {
-      const sel = selected.find(x => x.id === s.id);
-      const checked = sel ? 'checked' : '';
-      const hours = sel ? sel.hours : 1;
-      const showHours = sel ? '' : 'display:none';
-      return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;flex:1;margin:0">
-            <input type="checkbox" class="ct-subject-cb" data-code="${t.code}" value="${s.id}" ${checked} onchange="onCourseSubjectToggle(this)"/>
-            <span>${s.name}</span>
-          </label>
-          <div class="ct-hours-wrap" id="ct-hours-wrap-${t.code}-${s.id}" style="${showHours};display:flex;align-items:center;gap:4px">
-            <input type="number" class="ct-hours-input" id="ct-hours-input-${t.code}-${s.id}" value="${hours}" min="1" max="8" style="width:50px;padding:2px 4px;border:1px solid #D1D5DB;border-radius:4px;font-size:12px;text-align:center" onchange="recalcClassTypeHours('${t.code}')"/>
-            <span style="font-size:11px;color:#6B7280">시간</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    return `
-      <div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px;background:#FAFAFA">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <label class="tsa-label" style="margin:0">${t.name} 시수/일</label>
-          <div style="font-size:15px;font-weight:800;color:#5E5CE6" id="ct-hours-total-${t.code}">0시간</div>
-        </div>
-        <div style="font-size:11px;color:#6B7280;margin-bottom:8px">과목 구성 (마스터 풀 연계)</div>
-        <div style="display:flex;flex-direction:column;gap:8px;max-height:140px;overflow-y:auto">
-          ${subjectRows || '<div style="color:#9CA3AF;font-size:12px">등록된 과목이 없습니다.</div>'}
-        </div>
+  const subjectCheckboxes = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => `
+    <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;margin:0">
+      <input type="checkbox" name="course-subjects-cb" value="${s.id}" ${selectedSubjectIds.includes(s.id) ? 'checked' : ''}/>
+      <span>${s.name}</span>
+    </label>
+  `).join('');
+  const classHourInputs = types.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #E5E7EB;border-radius:9px;background:#FAFAFA">
+      <label class="tsa-label" style="margin:0">${t.name}</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="number" class="tsa-input course-class-hours" data-code="${t.code}" value="${classHours[t.code] || 0}" min="0" max="12" step="1" style="width:82px;text-align:center"/>
+        <span style="font-size:12px;color:#6B7280">시간/일</span>
       </div>
-    `;
-  }).join('');
+    </div>
+  `).join('');
 
-  types.forEach(t => recalcClassTypeHours(t.code));
-}
-
-function onCourseSubjectToggle(checkbox) {
-  const code = checkbox.dataset.code;
-  const wrap = document.getElementById(`ct-hours-wrap-${code}-${checkbox.value}`);
-  if (wrap) wrap.style.display = checkbox.checked ? 'flex' : 'none';
-  recalcClassTypeHours(code);
-}
-
-function recalcClassTypeHours(code) {
-  let total = 0;
-  document.querySelectorAll(`.ct-subject-cb[data-code="${code}"]:checked`).forEach(cb => {
-    const input = document.getElementById(`ct-hours-input-${code}-${cb.value}`);
-    total += parseInt(input && input.value, 10) || 0;
-  });
-  const totalEl = document.getElementById(`ct-hours-total-${code}`);
-  if (totalEl) totalEl.textContent = `${total}시간`;
+  container.innerHTML = `
+    <div class="tsa-form-group">
+      <label class="tsa-label">과목 설정</label>
+      <div style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px;background:#F9FAFB;max-height:180px;overflow-y:auto">
+        ${subjectCheckboxes || '<div style="color:#9CA3AF;font-size:12px">등록된 과목이 없습니다.</div>'}
+      </div>
+    </div>
+    <div class="tsa-form-group">
+      <label class="tsa-label">수업별 일일 시수</label>
+      <div style="display:flex;flex-direction:column;gap:8px">${classHourInputs}</div>
+    </div>
+  `;
 }
 
 function saveCourse() {
   const name = document.getElementById('add-course-name').value.trim();
-  const type = document.getElementById('add-course-type').value;
-  const fee = parseInt(document.getElementById('add-course-fee').value, 10) || 0;
 
   if (!name) {
     showToast('과정명을 입력해주세요.', 'warning');
@@ -3764,27 +4708,24 @@ function saveCourse() {
     levels.push(cb.value);
   });
 
-  // 그룹 수업 유형별 과목 매핑 수집 + 시수 자동 계산
-  const subjectsByType = {};
-  MOCK_MASTER_CLASS_TYPES.forEach(t => {
-    const list = [];
-    document.querySelectorAll(`.ct-subject-cb[data-code="${t.code}"]:checked`).forEach(cb => {
-      const input = document.getElementById(`ct-hours-input-${t.code}-${cb.value}`);
-      const hours = parseInt(input && input.value, 10) || 1;
-      list.push({ id: cb.value, hours });
-    });
-    subjectsByType[t.code] = list;
+  const subjects = [...document.querySelectorAll('input[name="course-subjects-cb"]:checked')]
+    .map(cb => ({ id: cb.value }));
+  const classHours = {};
+  document.querySelectorAll('.course-class-hours').forEach(input => {
+    classHours[input.dataset.code] = Math.max(0, parseInt(input.value, 10) || 0);
   });
-  const subjects = Object.values(subjectsByType).flat();
 
-  const active = document.getElementById('add-course-active').value === 'true';
+  const existingCourse = _editingCourseIdx !== null ? MOCK_COURSES[_editingCourseIdx] : null;
+  const type = existingCourse ? existingCourse.type : '일반 영어';
+  const fee = existingCourse ? existingCourse.fee : 0;
+  const active = existingCourse ? existingCourse.active !== false : true;
 
   const courseData = {
     name, type, fee,
-    active, subjects, subjectsByType, levels,
-    oneone: (subjectsByType['1:1'] || []).reduce((s, x) => s + x.hours, 0),
-    group1on4: (subjectsByType['1:4'] || []).reduce((s, x) => s + x.hours, 0),
-    group: (subjectsByType['1:8'] || []).reduce((s, x) => s + x.hours, 0),
+    active, subjects, subjectsByType: null, classHours, levels,
+    oneone: classHours['1:1'] || 0,
+    group1on4: classHours['1:4'] || 0,
+    group: classHours['1:8'] || 0,
   };
 
   if (_editingCourseIdx !== null) {
@@ -3806,7 +4747,15 @@ function deleteCourse(idx) {
   renderCourseList();
 }
 
-// --- 과목 및 레벨 마스터 설정 CRUD 로직 ---
+function toggleCourseVisibility(idx) {
+  const course = MOCK_COURSES[idx];
+  if (!course) return;
+  course.active = course.active === false;
+  showToast(`${course.name} 과정이 ${course.active ? '노출' : '숨김'} 처리되었습니다.`, 'success');
+  renderCourseList();
+}
+
+// --- 과목 및 레벨 설정 CRUD 로직 ---
 function renderMasterSettings() {
   MOCK_MASTER_SUBJECTS.sort((a, b) => (a.order || 0) - (b.order || 0));
   const subBody = document.getElementById('master-subject-list-body');
@@ -4054,7 +5003,7 @@ let _editingLevelIdx = null;
 
 function openSubjectModal() {
   _editingSubjectIdx = null;
-  document.getElementById('subject-modal-title').textContent = '마스터 과목 추가';
+  document.getElementById('subject-modal-title').textContent = '과목 추가';
   document.getElementById('subject-modal-id').value = '';
   document.getElementById('subject-modal-name').value = '';
   openModal('subject-modal');
@@ -4065,7 +5014,7 @@ function openEditSubjectModal(idx) {
   const s = MOCK_MASTER_SUBJECTS[idx];
   if (!s) return;
 
-  document.getElementById('subject-modal-title').textContent = '마스터 과목 수정';
+  document.getElementById('subject-modal-title').textContent = '과목 수정';
   document.getElementById('subject-modal-id').value = s.id;
   document.getElementById('subject-modal-name').value = s.name;
   openModal('subject-modal');
@@ -4086,7 +5035,7 @@ function saveMasterSubject() {
   } else {
     const newId = 'SUB_' + String(MOCK_MASTER_SUBJECTS.length + 1).padStart(2, '0');
     MOCK_MASTER_SUBJECTS.push({ id: newId, name, order: MOCK_MASTER_SUBJECTS.length + 1, visible: true });
-    showToast('신규 마스터 과목이 추가되었습니다.', 'success');
+    showToast('신규 과목이 추가되었습니다.', 'success');
   }
 
   closeModal('subject-modal');
@@ -4095,7 +5044,7 @@ function saveMasterSubject() {
 
 function deleteMasterSubject(idx) {
   const s = MOCK_MASTER_SUBJECTS[idx];
-  if (!confirm(`과목 [${s.name}]을 마스터 풀에서 삭제하시겠습니까? 이 과목이 할당된 기존 과정에서도 해제될 수 있습니다.`)) return;
+  if (!confirm(`과목 [${s.name}]을 삭제하시겠습니까? 이 과목이 할당된 기존 과정에서도 해제될 수 있습니다.`)) return;
   MOCK_MASTER_SUBJECTS.splice(idx, 1);
   showToast('과목이 삭제되었습니다.', 'success');
   renderMasterSettings();
@@ -4103,7 +5052,7 @@ function deleteMasterSubject(idx) {
 
 function openLevelModal() {
   _editingLevelIdx = null;
-  document.getElementById('level-modal-title').textContent = '마스터 레벨 추가';
+  document.getElementById('level-modal-title').textContent = '레벨 추가';
   document.getElementById('level-modal-id').value = '';
   document.getElementById('level-modal-name').value = '';
   document.getElementById('level-modal-order').value = MOCK_MASTER_LEVELS.length + 1;
@@ -4115,7 +5064,7 @@ function openEditLevelModal(idx) {
   const l = MOCK_MASTER_LEVELS[idx];
   if (!l) return;
 
-  document.getElementById('level-modal-title').textContent = '마스터 레벨 수정';
+  document.getElementById('level-modal-title').textContent = '레벨 수정';
   document.getElementById('level-modal-id').value = l.id;
   document.getElementById('level-modal-name').value = l.name;
   document.getElementById('level-modal-order').value = l.order;
@@ -4139,7 +5088,7 @@ function saveMasterLevel() {
   } else {
     const newId = 'LV_' + String(MOCK_MASTER_LEVELS.length + 1).padStart(2, '0');
     MOCK_MASTER_LEVELS.push({ id: newId, name, order, visible: true });
-    showToast('신규 마스터 레벨이 추가되었습니다.', 'success');
+    showToast('신규 레벨이 추가되었습니다.', 'success');
   }
 
   closeModal('level-modal');
@@ -4148,7 +5097,7 @@ function saveMasterLevel() {
 
 function deleteMasterLevel(idx) {
   const l = MOCK_MASTER_LEVELS[idx];
-  if (!confirm(`레벨 [${l.name}]을 마스터 풀에서 삭제하시겠습니까?`)) return;
+  if (!confirm(`레벨 [${l.name}]을 삭제하시겠습니까?`)) return;
   MOCK_MASTER_LEVELS.splice(idx, 1);
   showToast('레벨이 삭제되었습니다.', 'success');
   renderMasterSettings();

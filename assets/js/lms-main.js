@@ -1757,8 +1757,6 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
         { type: 'departure', label: '현지 출발', color: '#6366F1' },
         { type: 'end',       label: '졸업 예정', color: '#6B7280' },
         { type: 'resigned',  label: '퇴원',      color: '#EF4444' },
-        { type: 'visa',      label: '비자만료',  color: '#F59E0B' },
-        { type: 'ssp',       label: 'SSP만료',   color: '#8B5CF6' },
       ];
       monthStatsEl.innerHTML = legendItems.map(item => {
         const count = stats[item.type] || 0;

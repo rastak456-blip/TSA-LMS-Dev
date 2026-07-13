@@ -57,6 +57,8 @@ function saveTeacherDetailInline() {
   const workStart = getVal('td-work-start', t.workHours ? t.workHours.start : '08:00');
   const workEnd   = getVal('td-work-end',   t.workHours ? t.workHours.end   : '17:00');
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
+  const capableSubjects = [...document.querySelectorAll('input[name="td-capable-subject"]:checked')].map(cb => cb.value);
+  const capableLevels = [...document.querySelectorAll('input[name="td-capable-level"]:checked')].map(cb => cb.value);
   const videoCapableEl = document.getElementById('td-video-capable');
 
   t.room      = room;
@@ -65,6 +67,8 @@ function saveTeacherDetailInline() {
   t.rating    = rating;
   t.workHours = { start: workStart, end: workEnd };
   if (classTypes.length > 0) t.classTypes = classTypes;
+  t.capableSubjects = capableSubjects;
+  t.capableLevels = capableLevels;
   if (videoCapableEl) t.videoCapable = videoCapableEl.checked;
 
   // 시간표 강의실 동기화
@@ -111,6 +115,10 @@ function renderTeacherList(list) {
     }
 
     const avatarSrc = t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png';
+    const capableSubjectIds = getTeacherCapableSubjectIds(t);
+    const capableLevelIds = getTeacherCapableLevelIds(t);
+    const capableSubjects = capableSubjectIds.map(id => MOCK_MASTER_SUBJECTS.find(s => s.id === id)).filter(Boolean);
+    const capableLevels = capableLevelIds.map(id => MOCK_MASTER_LEVELS.find(l => l.id === id)).filter(Boolean);
 
     return `
       <tr>
@@ -141,6 +149,14 @@ function renderTeacherList(list) {
             return `<span style="font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;background:${ctBg};color:${ctColor};display:inline-block;margin:1px">${ct}</span>`;
           }).join('') || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
+        <td>
+          ${capableSubjects.map(s => `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#E0F2FE;color:#0369A1;font-weight:600;display:inline-block;margin:1px">${s.name}</span>`).join('')
+            || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
+        </td>
+        <td>
+          ${capableLevels.map(l => `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#F3E8FF;color:#7E22CE;font-weight:600;display:inline-block;margin:1px">${l.name}</span>`).join('')
+            || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
+        </td>
         <td style="font-size:12px;font-weight:500">Room ${t.room}</td>
         <td><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
         <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
@@ -163,6 +179,43 @@ function renderTeacherList(list) {
       </tr>
     `;
   }).join('');
+}
+
+function getTeacherCapableSubjectIds(teacher) {
+  if ((teacher.capableSubjects || []).length) return teacher.capableSubjects;
+  const tags = teacher.preferredCourses || [];
+  return MOCK_MASTER_SUBJECTS
+    .filter(subject => tags.some(tag => tag.includes(subject.name)))
+    .map(subject => subject.id);
+}
+
+function getTeacherCapableLevelIds(teacher) {
+  if ((teacher.capableLevels || []).length) return teacher.capableLevels;
+  const maxLevelCount = teacher.exp >= 5 ? 5 : teacher.exp >= 3 ? 4 : 3;
+  return [...MOCK_MASTER_LEVELS]
+    .filter(level => level.visible !== false)
+    .sort((a, b) => a.order - b.order)
+    .slice(0, maxLevelCount)
+    .map(level => level.id);
+}
+
+function renderTeacherCapabilityCheckboxes(selectedSubjects = [], selectedLevels = []) {
+  const subjectWrap = document.getElementById('tf-capable-subjects');
+  const levelWrap = document.getElementById('tf-capable-levels');
+  if (subjectWrap) {
+    subjectWrap.innerHTML = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => `
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" name="tf-capable-subject" value="${s.id}" ${selectedSubjects.includes(s.id) ? 'checked' : ''}/> ${s.name}
+      </label>
+    `).join('');
+  }
+  if (levelWrap) {
+    levelWrap.innerHTML = MOCK_MASTER_LEVELS.filter(l => l.visible !== false).sort((a, b) => a.order - b.order).map(l => `
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" name="tf-capable-level" value="${l.id}" ${selectedLevels.includes(l.id) ? 'checked' : ''}/> ${l.name}
+      </label>
+    `).join('');
+  }
 }
 
 function toggleTeacherVideoCapable(id) {
@@ -321,6 +374,7 @@ function openTeacherRegisterModal() {
 
   // 수업 유형 체크 해제
   document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => { cb.checked = false; });
+  renderTeacherCapabilityCheckboxes([], []);
 
   // 톡스 미리보기 숨김, 수기 입력 폼 표시 (기본값)
   const preview = document.getElementById('tf-talk-preview');
@@ -362,6 +416,7 @@ function openTeacherEditModal(id) {
   document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => {
     cb.checked = (t.classTypes||[]).includes(cb.value);
   });
+  renderTeacherCapabilityCheckboxes(getTeacherCapableSubjectIds(t), getTeacherCapableLevelIds(t));
 
   const matchingGroup = document.getElementById('tf-talk-matching-group');
   if (matchingGroup) matchingGroup.style.display = 'none';
@@ -461,6 +516,8 @@ function saveTeacherForm() {
   const status     = statusMap[talkStatus] || 'active';
   const contract   = '정규직';
   const classTypes = [...document.querySelectorAll('input[name="tf-classtype"]:checked')].map(cb => cb.value);
+  const capableSubjects = [...document.querySelectorAll('input[name="tf-capable-subject"]:checked')].map(cb => cb.value);
+  const capableLevels = [...document.querySelectorAll('input[name="tf-capable-level"]:checked')].map(cb => cb.value);
   const email    = document.getElementById('tf-email')?.value || '';
   const phone    = document.getElementById('tf-phone')?.value || '';
   const birthday = document.getElementById('tf-birthday')?.value || '';
@@ -478,15 +535,21 @@ function saveTeacherForm() {
       t.name = name;
       t.nick = nick;
       t.gender = gender;
-      t.exp = exp;
       t.room = room;
-      t.type = type;
       t.contract = contract;
       t.status = status;
       t.available = available;
-      t.preferredCourses = preferredCourses;
-      t.excludedCourses  = excludedCourses;
+      t.rating = rating;
+      t.email = email;
+      t.phone = phone;
+      t.birthday = birthday;
+      t.joinDate = joinDate;
+      t.jobGrade = jobGrade;
+      t.talkStatus = talkStatus;
+      t.experience = experience;
       t.classTypes       = classTypes;
+      t.capableSubjects  = capableSubjects;
+      t.capableLevels    = capableLevels;
 
       // Update nickname and room in MOCK_TIMETABLE too!
       const ttRow = MOCK_TIMETABLE.find(row => row.teacher === oldNick);
@@ -507,7 +570,7 @@ function saveTeacherForm() {
       todaySlots: 0, rating, exp: 0, status,
       email, phone, birthday, joinDate, jobGrade, talkStatus, experience,
       preferredCourses: [], excludedCourses: [],
-      classTypes,
+      classTypes, capableSubjects, capableLevels,
       availability: {
         '월': [true, true, true, true, true, true, true, true],
         '화': [true, true, true, true, true, true, true, true],
@@ -683,6 +746,8 @@ function switchTeacherTab(tab, el) {
 
     case 'school': {
       const ctColors = {'1:1':['#EEF2FF','#3730A3'], '1:4':['#FEF3C7','#92400E'], '1:8':['#D1FAE5','#065F46']};
+      const selectedSubjects = getTeacherCapableSubjectIds(t);
+      const selectedLevels = getTeacherCapableLevelIds(t);
       container.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -710,6 +775,26 @@ function switchTeacherTab(tab, el) {
                   <input type="checkbox" name="td-classtype" value="${ct}" ${chk} style="accent-color:${c}"/> ${ct} 수업
                 </label>`;
               }).join('')}
+            </div>
+          </div>
+          <div>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">담당 가능 과목</label>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F9FAFB">
+              ${MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => `
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" name="td-capable-subject" value="${s.id}" ${selectedSubjects.includes(s.id) ? 'checked' : ''}/> ${s.name}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <div>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">담당 가능 레벨</label>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F9FAFB">
+              ${MOCK_MASTER_LEVELS.filter(l => l.visible !== false).sort((a, b) => a.order - b.order).map(l => `
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" name="td-capable-level" value="${l.id}" ${selectedLevels.includes(l.id) ? 'checked' : ''}/> ${l.name}
+                </label>
+              `).join('')}
             </div>
           </div>
           <div>
