@@ -1872,32 +1872,25 @@ function renderDormErpGantt(rooms, startVal, endVal) {
       (bed.reservations || []).forEach(rv => assignments.push({ ...rv, status: 'reserved' }));
       (bed.history || []).forEach(h => assignments.push({ ...h, status: 'history' }));
 
-      // 날짜 범위를 미리 계산 (막대 렌더링 + 겹침 탐지에 공용 사용)
-      const resolved = assignments.map(item => {
+      // 같은 침대에서 기간이 겹치면 확정 배정/이력 우선, 중복 예약은 간트에서 제외한다.
+      const priority = { occupied: 0, history: 1, reserved: 2 };
+      const candidates = assignments.map(item => {
         const itemStart = dateFromMd(item.start);
         const itemEnd = dateFromMd(item.end);
         if (!itemStart || !itemEnd || itemEnd < start || itemStart > end) return null;
         const leftDays = clamp(offset(itemStart), 0, totalDays - 1);
         const rightDays = clamp(offset(itemEnd), 0, totalDays - 1);
         return { item, leftDays, rightDays };
-      }).filter(Boolean);
+      }).filter(Boolean).sort((a, b) => (priority[a.item.status] ?? 9) - (priority[b.item.status] ?? 9));
 
-      // 같은 침대에 배정 기간이 겹치는 구간을 찾아 배경에 표시할 겹침 구간 목록 생성
-      const overlapRanges = [];
-      for (let i = 0; i < resolved.length; i++) {
-        for (let j = i + 1; j < resolved.length; j++) {
-          const a = resolved[i], b = resolved[j];
-          const overlapLeft = Math.max(a.leftDays, b.leftDays);
-          const overlapRight = Math.min(a.rightDays, b.rightDays);
-          // 하루만 겹쳐도 표시 (완전히 동일한 기간 중복은 발생하지 않는다고 가정)
-          if (overlapLeft <= overlapRight) overlapRanges.push({ leftDays: overlapLeft, rightDays: overlapRight });
-        }
-      }
-      const overlapHighlights = overlapRanges.map(o => {
-        const left = o.leftDays * dayWidth;
-        const width = (o.rightDays - o.leftDays + 1) * dayWidth;
-        return `<div style="position:absolute;top:0;bottom:0;left:${left}px;width:${width}px;border:2px solid #EF4444;background:rgba(239,68,68,0.08);z-index:0;pointer-events:none" title="배정 기간 겹침 — 확인 필요"></div>`;
-      }).join('');
+      const resolved = [];
+      candidates.forEach(candidate => {
+        const overlapsAccepted = resolved.some(accepted =>
+          candidate.leftDays <= accepted.rightDays && candidate.rightDays >= accepted.leftDays
+        );
+        if (!overlapsAccepted) resolved.push(candidate);
+      });
+      resolved.sort((a, b) => a.leftDays - b.leftDays);
 
       const bars = resolved.map(({ item, leftDays, rightDays }) => {
         const left = leftDays * dayWidth + 2;
@@ -1919,7 +1912,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
           <div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div>
           <div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div>
         </div>
-        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${overlapHighlights}${bars}</div>
+        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
       </div>`;
     }).join('');
 

@@ -1491,6 +1491,10 @@
         학생 정보 관리
         <span class="tsa-nav-badge" id="badge-students">128</span>
       </a>
+      <a class="tsa-nav-item admin-only" id="menu-pickup-managers" onclick="navigate('pickup-managers')">
+        <i data-lucide="car-front"></i>
+        픽업 담당자 관리
+      </a>
       <a class="tsa-nav-item admin-only" id="menu-teachers" onclick="navigate('teachers')">
         <i data-lucide="graduation-cap"></i>
         강사 정보 관리
@@ -1919,6 +1923,34 @@
           <!-- Teacher Week Cards Grid -->
           <div id="weekly-timetable-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
             <!-- renderWeeklyTimetable() 에 의해 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: PICKUP MANAGERS                            -->
+        <!-- ================================================ -->
+        <div id="view-pickup-managers" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">🚐 픽업 담당자 관리</h2>
+              <p class="tsa-page-subtitle">공항 픽업 담당자 프로필과 학생별 배정을 관리합니다.</p>
+            </div>
+            <button class="tsa-btn tsa-btn-primary" onclick="openPickupManagerModal()"><i data-lucide="user-plus"></i> 담당자 등록</button>
+          </div>
+          <div id="pickup-manager-cards" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px"></div>
+          <div class="tsa-card">
+            <div class="tsa-card-header">
+              <div>
+                <h3 class="tsa-card-title"><i data-lucide="plane-landing" style="color:#5E5CE6"></i> 학생별 픽업 담당자 배정</h3>
+                <div style="font-size:10.5px;color:#6B7280;margin-top:3px">배정된 담당자 프로필은 학생 공항 픽업 확인서에 표시됩니다.</div>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tsa-table" style="min-width:980px">
+                <thead><tr><th>학생 정보</th><th>입국 항공편</th><th>입국 예정일</th><th>픽업 담당자</th><th>픽업 확인서 노출</th></tr></thead>
+                <tbody id="pickup-student-assignment-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -2463,22 +2495,23 @@
               <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 소속 등록 학생 목록 · 학비 및 납부 관리</h3>
             </div>
             <div style="overflow-x:auto">
-              <table class="tsa-table agency-student-table" style="min-width:1760px;font-size:11.2px">
+              <table class="tsa-table agency-student-table" style="min-width:1860px;font-size:11.2px">
                 <thead>
                   <tr>
                     <th style="width:36px;text-align:center">#</th>
                     <th>학생 정보</th>
                     <th>국적</th>
                     <th>코스 / 수강 기간</th>
-                    <th>등록 상태</th>
+                    <th class="col-dorm">희망 기숙사 정보</th>
                     <th>등록금</th>
                     <th>수강료</th>
                     <th>기숙사비</th>
                     <th>기타 비용</th>
                     <th>청구 금액 합계</th>
+                    <th>커미션 금액 합계</th>
                     <th>어학원 송금액</th>
                     <th class="col-flight">항공편 (입/출국)</th>
-                    <th class="col-dorm">희망 기숙사 정보</th>
+                    <th>등록 상태</th>
                     <th>상세 액션</th>
                   </tr>
                 </thead>
@@ -2493,16 +2526,18 @@
         <!-- ================================================ -->
         <div id="view-agency-student-detail" class="tsa-view">
           <div class="tsa-section-header" style="align-items:flex-start;gap:14px">
-            <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:9px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="navigate('agency-students')">
                 <i data-lucide="arrow-left"></i> 학생 리스트
               </button>
-              <div id="adetail-page-avatar-wrapper" style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:1.5px solid #E5E7EB;background:#F3F4F6">
-                <img id="adetail-page-avatar" src="" style="width:100%;height:100%;object-fit:cover" alt=""/>
-              </div>
-              <div>
-                <h2 class="tsa-page-title" id="adetail-page-title-name">학생 상세</h2>
-                <p class="tsa-page-subtitle" id="adetail-page-title-subtitle">기본 정보와 수강 현황을 분리해서 관리합니다.</p>
+              <div style="display:flex;align-items:center;gap:12px">
+                <div id="adetail-page-avatar-wrapper" style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:1.5px solid #E5E7EB;background:#F3F4F6">
+                  <img id="adetail-page-avatar" src="" style="width:100%;height:100%;object-fit:cover" alt=""/>
+                </div>
+                <div>
+                  <h2 class="tsa-page-title" id="adetail-page-title-name">학생 상세</h2>
+                  <p class="tsa-page-subtitle" id="adetail-page-title-subtitle">기본 정보와 수강 현황을 분리해서 관리합니다.</p>
+                </div>
               </div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
@@ -4917,6 +4952,40 @@
   </div>
 </div>
 
+<!-- Pickup Manager Modal -->
+<div id="pickup-manager-modal" style="display:none">
+  <div class="tsa-modal-backdrop" onclick="closeModal('pickup-manager-modal')">
+    <div class="tsa-modal" style="max-width:720px" onclick="event.stopPropagation()">
+      <div class="tsa-modal-header">
+        <div>
+          <h3 class="tsa-modal-title" id="pickup-manager-modal-title">픽업 담당자 등록</h3>
+          <p class="tsa-modal-subtitle">학생 공항 픽업 확인서에 표시할 담당자 프로필을 등록합니다.</p>
+        </div>
+        <button class="tsa-modal-close" onclick="closeModal('pickup-manager-modal')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="tsa-modal-body">
+        <input id="pickup-manager-id" type="hidden"/>
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:start">
+          <div>
+            <div id="pickup-manager-photo-preview" style="width:130px;height:150px;border:1px solid #DDE3EC;border-radius:12px;overflow:hidden;background:#F8FAFC;margin-bottom:8px"><img src="assets/images/teacher_male.png" style="width:100%;height:100%;object-fit:cover" alt=""/></div>
+            <input id="pickup-manager-photo" type="file" accept="image/*" style="font-size:10px;width:130px" onchange="previewPickupManagerPhoto(this)"/>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="tsa-form-group"><label class="tsa-label">담당자 이름 <span style="color:#EF4444">*</span></label><input id="pickup-manager-name" class="tsa-input" placeholder="예: Juan Dela Cruz"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">연락처 <span style="color:#EF4444">*</span></label><input id="pickup-manager-phone" class="tsa-input" placeholder="예: +63 917 123 4567"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">차량번호</label><input id="pickup-manager-vehicle" class="tsa-input" placeholder="예: ABC 1234"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">차량 정보</label><input id="pickup-manager-car" class="tsa-input" placeholder="예: Toyota Hiace · White"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">메신저 ID</label><input id="pickup-manager-messenger" class="tsa-input" placeholder="예: WhatsApp / KakaoTalk"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">픽업 확인서 프로필 노출</label><select id="pickup-manager-visible" class="tsa-input"><option value="true">노출</option><option value="false">미노출</option></select></div>
+            <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">안내 메모</label><textarea id="pickup-manager-memo" class="tsa-input" rows="2" placeholder="예: 공항 도착 게이트 앞 TSA 피켓 소지"></textarea></div>
+          </div>
+        </div>
+      </div>
+      <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeModal('pickup-manager-modal')">취소</button><button class="tsa-btn tsa-btn-primary" onclick="savePickupManager()"><i data-lucide="check"></i> 담당자 저장</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- Agency Invoice & Document Modal -->
 <div id="agency-invoice-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('agency-invoice-modal')">
@@ -6067,22 +6136,23 @@
               </div>
               <div class="tsa-card-body" style="padding:14px">
                 <select id="course-reg-course" style="display:none" onchange="updateStudentCourseRegistrationPreview()"></select>
-                <select id="course-reg-duration" style="display:none" onchange="syncCourseRegDormDuration(); updateCourseRegDormDatesFromStart(); updateStudentCourseRegistrationPreview()">
-                  <option value="4">4주</option>
-                  <option value="8">8주</option>
-                  <option value="12">12주</option>
-                  <option value="16">16주</option>
-                  <option value="20">20주</option>
-                  <option value="24">24주</option>
-                </select>
                 <div id="course-reg-course-compare-table" style="overflow-x:auto"></div>
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB">
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB">
                 <div class="tsa-form-group">
-                  <label class="tsa-label">레벨</label>
-                  <select id="course-reg-level" class="tsa-input"></select>
+                  <label class="tsa-label">추천 레벨</label>
+                  <div id="course-reg-recommended-levels" style="min-height:42px;padding:8px 10px;border:1px solid #DDE3EC;border-radius:8px;background:#F8FAFC;display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
+                  <div style="font-size:10px;color:#9CA3AF;margin-top:4px">선택한 과정에 연결된 추천 레벨입니다.</div>
                 </div>
                 <div class="tsa-form-group">
-                  <label class="tsa-label">수강 시작일 <span style="color:#EF4444">*</span></label>
+                  <label class="tsa-label">구간 기간 <span style="color:#EF4444">*</span></label>
+                  <div style="position:relative">
+                    <input id="course-reg-duration" type="number" min="1" max="24" value="4" class="tsa-input" style="padding-right:34px" onchange="updateStudentCourseRegistrationPreview()"/>
+                    <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#6B7280">주</span>
+                  </div>
+                  <div style="font-size:10px;color:#9CA3AF;margin-top:4px">1~24주까지 직접 입력할 수 있습니다.</div>
+                </div>
+                <div class="tsa-form-group">
+                  <label class="tsa-label">구간 시작일 <span style="color:#EF4444">*</span></label>
                   <input id="course-reg-start" type="date" class="tsa-input" onchange="updateCourseRegDormDatesFromStart(); updateStudentCourseRegistrationPreview()"/>
                 </div>
                 <div class="tsa-form-group">
@@ -6093,22 +6163,35 @@
                   </select>
                 </div>
                 </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px">
+                  <button type="button" class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="addCourseRegSegment()"><i data-lucide="plus"></i> 수강 구간 추가</button>
+                </div>
+                <div style="margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <b style="font-size:12.5px;color:#111827">등록할 수강 구간</b>
+                    <span id="course-reg-segment-total" style="font-size:11px;color:#6B7280">0개 구간</span>
+                  </div>
+                  <div id="course-reg-segment-list" style="display:flex;flex-direction:column;gap:8px"></div>
+                </div>
               </div>
             </div>
 
             <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
               <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC;display:flex;justify-content:space-between;align-items:center">
-                <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">2. 기숙사 등록</h4>
+                <div>
+                  <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">2. 희망 기숙사 등록</h4>
+                  <div style="font-size:11px;color:#6B7280;margin-top:3px">금액 칸을 누르면 희망 기숙사와 이용 기간이 함께 선택됩니다.</div>
+                </div>
                 <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151">
                   <input id="course-reg-dorm-enabled" type="checkbox" checked onchange="toggleCourseRegDormSection(); updateStudentCourseRegistrationPreview()"/>
-                  기숙사 사용
+                  희망 기숙사 등록
                 </label>
               </div>
               <div id="course-reg-dorm-section" class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
-                <div class="tsa-form-group" style="grid-column:span 2">
-                  <label class="tsa-label">기숙사 요금 선택</label>
-                  <select id="course-reg-dorm-template" class="tsa-input" onchange="updateStudentCourseRegistrationPreview()"></select>
-                </div>
+                <select id="course-reg-dorm-template" style="display:none" onchange="updateStudentCourseRegistrationPreview()"></select>
+                <input id="course-reg-dorm-duration" type="hidden" value="4"/>
+                <div id="course-reg-dorm-selection-summary" style="grid-column:span 2;font-size:11.5px;font-weight:800;color:#047857;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:999px;padding:6px 10px;width:max-content;max-width:100%">선택 필요</div>
+                <div id="course-reg-dorm-compare-table" style="grid-column:span 2;overflow-x:auto"></div>
                 <div class="tsa-form-group">
                   <label class="tsa-label">입실일</label>
                   <input id="course-reg-dorm-in" type="date" class="tsa-input" onchange="updateStudentCourseRegistrationPreview()"/>
@@ -6117,20 +6200,8 @@
                   <label class="tsa-label">퇴실일</label>
                   <input id="course-reg-dorm-out" type="date" class="tsa-input" onchange="updateStudentCourseRegistrationPreview()"/>
                 </div>
-                <div class="tsa-form-group" style="grid-column:span 2">
-                  <label class="tsa-label">기숙사 기간</label>
-                  <select id="course-reg-dorm-duration" class="tsa-input" onchange="updateStudentCourseRegistrationPreview()">
-                    <option value="4">4주</option>
-                    <option value="8">8주</option>
-                    <option value="12">12주</option>
-                    <option value="16">16주</option>
-                    <option value="20">20주</option>
-                    <option value="24">24주</option>
-                  </select>
-                </div>
-                <div id="course-reg-dorm-fee-compare" style="grid-column:span 2"></div>
               </div>
-              <div id="course-reg-dorm-disabled-note" style="display:none;padding:14px;color:#6B7280;font-size:12px">기숙사 미사용으로 등록합니다.</div>
+              <div id="course-reg-dorm-disabled-note" style="display:none;padding:14px;color:#6B7280;font-size:12px">희망 기숙사를 등록하지 않습니다.</div>
             </div>
 
             <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
@@ -6153,7 +6224,7 @@
               <div style="font-size:15px;font-weight:900;color:#3730A3;margin-bottom:12px">금액 미리보기</div>
               <div id="course-reg-fee-preview" style="display:flex;flex-direction:column;gap:10px"></div>
               <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:#EEF2FF;color:#4B5563;font-size:11.5px;line-height:1.6">
-                이 금액은 학생 청구 금액 기준입니다. 에이전시 커미션은 에이전시 관리 메뉴에서 별도 적용됩니다.
+                학생에게 청구되는 최종 금액입니다. 에이전시 커미션은 포함하지 않으며 에이전시 관리 메뉴에서 별도로 적용됩니다.
               </div>
             </div>
           </div>
@@ -6492,8 +6563,8 @@
 <script src="assets/js/lms-student.js?v=0.5.1"></script>
 <script src="assets/js/lms-course.js?v=0.5.1"></script>
 <script src="assets/js/lms-tuition.js?v=0.5.1"></script>
-  <script src="assets/js/lms-classroom.js?v=0.5.3"></script>
-<script src="assets/js/lms-main.js?v=0.5.1"></script>
+  <script src="assets/js/lms-classroom.js?v=0.5.4"></script>
+  <script src="assets/js/lms-main.js?v=0.5.2"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>
   // 정적 아이콘 초기화

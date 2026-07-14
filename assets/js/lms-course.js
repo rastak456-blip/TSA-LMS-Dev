@@ -965,17 +965,6 @@ function initAgencyStudentList() {
           <div style="font-weight:700;color:#374151">${s.course}</div>
           <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
         </td>
-        <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
-        <td>${renderAgencyBillingCompactCell(billingMap.registration)}</td>
-        <td>${renderAgencyBillingCompactCell(billingMap.education)}</td>
-        <td>${renderAgencyBillingCompactCell(billingMap.dorm)}</td>
-        <td>${renderAgencyBillingCompactCell(billingMap.local)}</td>
-        <td style="text-align:right;font-weight:900;color:#111827">$${billingBreakdown.gross.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:900;color:#059669">$${billingBreakdown.net.toLocaleString()}</td>
-        <td class="col-flight" style="font-size:11px;line-height:1.8">
-          <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
-          <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
-        </td>
         <td class="col-dorm" style="font-size:11.5px;line-height:1.55">${(() => {
           const req = MOCK_DORM_BOOK_REQUESTS.find(r => r.studentId === s.id || r.studentName === s.name || r.studentName === s.nick);
           const dormIn = s.dormIn || s.startDate || '';
@@ -990,6 +979,18 @@ function initAgencyStudentList() {
           }
           return `<div style="color:#D1D5DB">-</div>${periodHtml}`;
         })()}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.registration)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.education)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.dorm)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.local)}</td>
+        <td style="text-align:right;font-weight:900;color:#111827">$${billingBreakdown.gross.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:900;color:#4F46E5">-$${billingBreakdown.commission.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:900;color:#059669">$${billingBreakdown.net.toLocaleString()}</td>
+        <td class="col-flight" style="font-size:11px;line-height:1.8">
+          <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
+          <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
+        </td>
+        <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
         <td style="text-align:center">
           <div class="agency-student-actions">
             <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openStudentCourseRegistration(${s.id})">등록</button>
@@ -1039,6 +1040,119 @@ function getCourseRegActiveCourses() {
   return courses
     .map((course, index) => ({ course, index }))
     .filter(row => row.course.active !== false);
+}
+
+function getCourseRegRecommendedLevels(course) {
+  if (!course || typeof MOCK_MASTER_LEVELS === 'undefined') return [];
+  return (course.levels || [])
+    .map(levelId => MOCK_MASTER_LEVELS.find(level => level.id === levelId && level.visible !== false))
+    .filter(Boolean);
+}
+
+function renderCourseRegRecommendedLevels(course) {
+  const target = document.getElementById('course-reg-recommended-levels');
+  if (!target) return;
+  const levels = getCourseRegRecommendedLevels(course);
+  target.innerHTML = levels.length
+    ? levels.map(level => `<span class="tsa-badge tsa-badge-gray" style="font-size:11px;padding:5px 8px">${level.name}</span>`).join('')
+    : `<span style="font-size:11.5px;color:#9CA3AF">추천 레벨이 설정되지 않았습니다.</span>`;
+}
+
+function calculateCourseRegSegmentEndDate(startDate, weeks) {
+  if (!startDate) return '';
+  const date = new Date(`${startDate}T00:00:00`);
+  date.setDate(date.getDate() + Number(weeks || 0) * 7 - 1);
+  return date.toISOString().split('T')[0];
+}
+
+function getNextCourseRegSegmentStart(endDate) {
+  if (!endDate) return '';
+  const date = new Date(`${endDate}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split('T')[0];
+}
+
+function getCourseRegSegments() {
+  return Array.isArray(APP.courseRegSegments) ? APP.courseRegSegments : [];
+}
+
+function renderCourseRegSegments() {
+  const target = document.getElementById('course-reg-segment-list');
+  const totalEl = document.getElementById('course-reg-segment-total');
+  if (!target) return;
+  const segments = getCourseRegSegments();
+  const totalWeeks = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+  const totalAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
+  if (totalEl) totalEl.textContent = `${segments.length}개 구간 · 총 ${totalWeeks}주 · ${formatCourseRegMoney(totalAmount)}`;
+  if (!segments.length) {
+    target.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:11.5px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">과정과 기간을 선택한 뒤 수강 구간을 추가해줘.</div>`;
+    return;
+  }
+  target.innerHTML = segments.map((segment, index) => `
+    <div style="display:grid;grid-template-columns:34px minmax(0,1fr) 110px 150px 88px;gap:10px;align-items:center;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
+      <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
+      <div>
+        <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course}</div>
+        <div style="font-size:10px;color:#6B7280;margin-top:3px">추천 레벨: ${segment.recommendedLevels.length ? segment.recommendedLevels.join(', ') : '-'}</div>
+      </div>
+      <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration}주</div>
+      <div style="font-size:10.5px;color:#6B7280">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
+      <div style="text-align:right">
+        <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.tuitionAmount)}</div>
+        <button type="button" onclick="removeCourseRegSegment(${index})" style="margin-top:3px;border:0;background:none;color:#EF4444;font-size:10px;cursor:pointer">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addCourseRegSegment() {
+  const course = getCourseRegSelectedCourse();
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  if (!course || !startDate || duration < 1 || duration > 24) {
+    showToast('과정, 구간 시작일, 1~24주 기간을 확인해줘.', 'warning');
+    return;
+  }
+  const existingSegments = getCourseRegSegments();
+  const previousSegment = existingSegments[existingSegments.length - 1];
+  if (previousSegment && startDate <= previousSegment.endDate) {
+    showToast('다음 수강 구간은 이전 구간 종료일 이후에 시작해야 해.', 'warning');
+    return;
+  }
+  const recommendedLevels = getCourseRegRecommendedLevels(course).map(level => level.name);
+  const endDate = calculateCourseRegSegmentEndDate(startDate, duration);
+  if (!Array.isArray(APP.courseRegSegments)) APP.courseRegSegments = [];
+  APP.courseRegSegments.push({
+    id: Date.now(),
+    order: APP.courseRegSegments.length + 1,
+    course: course.name,
+    courseType: course.type || '',
+    recommendedLevels,
+    duration,
+    startDate,
+    endDate,
+    tuitionAmount: getCourseRegPeriodFee(course.fee, course.tuitionPolicy, duration),
+  });
+  const nextStart = getNextCourseRegSegmentStart(endDate);
+  const startEl = document.getElementById('course-reg-start');
+  if (startEl) startEl.value = nextStart;
+  const totalWeeks = APP.courseRegSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+  const dormDurationEl = document.getElementById('course-reg-dorm-duration');
+  if (dormDurationEl) dormDurationEl.value = String(totalWeeks);
+  updateCourseRegDormDatesFromStart(true);
+  renderCourseRegSegments();
+  updateStudentCourseRegistrationPreview();
+}
+
+function removeCourseRegSegment(index) {
+  if (!Array.isArray(APP.courseRegSegments)) return;
+  APP.courseRegSegments.splice(index, 1);
+  APP.courseRegSegments.forEach((segment, segmentIndex) => { segment.order = segmentIndex + 1; });
+  const totalWeeks = APP.courseRegSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+  const dormDurationEl = document.getElementById('course-reg-dorm-duration');
+  if (dormDurationEl && totalWeeks) dormDurationEl.value = String(totalWeeks);
+  renderCourseRegSegments();
+  updateStudentCourseRegistrationPreview();
 }
 
 function selectCourseRegOption(courseIndex, weeks) {
@@ -1116,6 +1230,80 @@ function getCourseRegSelectedDormTemplate() {
   return Number.isInteger(idx) && templates[idx] ? { template: templates[idx], idx } : null;
 }
 
+function getCourseRegActiveDormTemplates() {
+  const templates = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : [];
+  const activeRows = templates
+    .map((template, index) => ({ template, index }))
+    .filter(row => row.template.active !== false);
+  const typeOrder = new Map();
+  activeRows.forEach(row => {
+    const type = row.template.accomType || '';
+    if (!typeOrder.has(type)) typeOrder.set(type, typeOrder.size);
+  });
+  return activeRows.sort((a, b) => {
+    const typeDiff = (typeOrder.get(a.template.accomType || '') || 0) - (typeOrder.get(b.template.accomType || '') || 0);
+    if (typeDiff !== 0) return typeDiff;
+    const capacityDiff = Number(a.template.capacity || 0) - Number(b.template.capacity || 0);
+    if (capacityDiff !== 0) return capacityDiff;
+    return String(a.template.condition || '').localeCompare(String(b.template.condition || ''), 'ko');
+  });
+}
+
+function selectCourseRegDormOption(templateIndex, weeks) {
+  const template = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES[templateIndex] : null;
+  if (!template || template.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
+  const templateEl = document.getElementById('course-reg-dorm-template');
+  const durationEl = document.getElementById('course-reg-dorm-duration');
+  if (templateEl) templateEl.value = String(templateIndex);
+  if (durationEl) durationEl.value = String(weeks);
+  updateCourseRegDormDatesFromStart(true);
+  updateStudentCourseRegistrationPreview();
+}
+
+function renderCourseRegDormComparison() {
+  const target = document.getElementById('course-reg-dorm-compare-table');
+  if (!target) return;
+  const rows = getCourseRegActiveDormTemplates();
+  const selected = getCourseRegSelectedDormTemplate();
+  const selectedWeeks = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 4;
+  const summary = document.getElementById('course-reg-dorm-selection-summary');
+
+  if (!rows.length) {
+    target.innerHTML = `<div style="padding:18px;text-align:center;color:#9CA3AF;font-size:12px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">현재 등록 가능한 기숙사 요금이 없습니다.</div>`;
+    if (summary) summary.textContent = '등록 가능 기숙사 없음';
+    return;
+  }
+
+  if (summary) {
+    const t = selected?.template;
+    const amount = t ? getCourseRegPeriodFee(t.cost, t.tuitionPolicy, selectedWeeks) : 0;
+    summary.textContent = t
+      ? `${t.accomType || '-'} · ${t.capacity || '-'}인실 · ${t.condition || '-'} · ${selectedWeeks}주 · ${formatCourseRegMoney(amount)}`
+      : '희망 기숙사와 기간을 선택해줘';
+  }
+
+  target.innerHTML = `
+    <div style="min-width:790px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:220px repeat(6,minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+        <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">숙소 유형 · 인실 · 등급</div>
+        ${COURSE_REG_PERIODS.map(weeks => `<div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${weeks === selectedWeeks ? '#047857' : '#4B5563'};background:${weeks === selectedWeeks ? '#ECFDF5' : 'transparent'}">${weeks}주</div>`).join('')}
+      </div>
+      ${rows.map(({ template, index }, rowIndex) => `
+        <div style="display:grid;grid-template-columns:220px repeat(6,minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+          <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selected?.idx === index ? '#F0FDFA' : '#fff'}">
+            <b style="font-size:12px;color:#111827">${template.accomType || '-'}</b>
+            <span style="font-size:10px;color:#6B7280;margin-top:2px">${template.capacity || '-'}인실 · ${template.condition || '-'}</span>
+          </div>
+          ${COURSE_REG_PERIODS.map(weeks => {
+            const active = selected?.idx === index && weeks === selectedWeeks;
+            const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
+            return `<button type="button" onclick="selectCourseRegDormOption(${index}, ${weeks})" aria-pressed="${active}" style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#059669' : '#fff'};color:${active ? '#fff' : '#111827'};cursor:pointer;font-family:inherit"><span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span><span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#D1FAE5' : '#9CA3AF'}">${active ? '선택됨' : '선택'}</span></button>`;
+          }).join('')}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 function renderCourseRegFeeCompare(targetId, rows, selectedWeeks, activeColor) {
   const target = document.getElementById(targetId);
   if (!target) return;
@@ -1175,7 +1363,9 @@ function getSelectedCourseRegExtras() {
 }
 
 function syncCourseRegDormDuration() {
-  const duration = document.getElementById('course-reg-duration')?.value || '4';
+  const segments = getCourseRegSegments();
+  const segmentWeeks = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+  const duration = segmentWeeks || document.getElementById('course-reg-duration')?.value || '4';
   const dormDuration = document.getElementById('course-reg-dorm-duration');
   if (dormDuration) dormDuration.value = duration;
 }
@@ -1189,8 +1379,11 @@ function toggleCourseRegDormSection() {
 }
 
 function updateCourseRegDormDatesFromStart(forceUpdate = false) {
-  const startDate = document.getElementById('course-reg-start')?.value || '';
-  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const segments = getCourseRegSegments();
+  const startDate = segments[0]?.startDate || document.getElementById('course-reg-start')?.value || '';
+  const duration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10)
+    || parseInt(document.getElementById('course-reg-duration')?.value, 10)
+    || 4;
   const dormIn = document.getElementById('course-reg-dorm-in');
   const dormOut = document.getElementById('course-reg-dorm-out');
   if (!startDate || !dormIn || !dormOut) return;
@@ -1205,24 +1398,18 @@ function updateCourseRegDormDatesFromStart(forceUpdate = false) {
 function updateStudentCourseRegistrationPreview() {
   const course = getCourseRegSelectedCourse();
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const segments = getCourseRegSegments();
   const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
   const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
   const dormSelection = getCourseRegSelectedDormTemplate();
   const extras = getSelectedCourseRegExtras();
 
   renderCourseRegCourseComparison();
+  renderCourseRegRecommendedLevels(course);
+  renderCourseRegDormComparison();
+  renderCourseRegSegments();
 
-  const dormRows = COURSE_REG_PERIODS.map(weeks => ({
-    weeks,
-    amount: dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, weeks) : 0,
-  }));
-  renderCourseRegFeeCompare('course-reg-dorm-fee-compare', dormRows, dormDuration, {
-    bg: '#ECFDF5',
-    border: '#A7F3D0',
-    text: '#047857',
-  });
-
-  const tuitionAmount = course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, duration) : 0;
+  const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
   const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
   const extrasTotal = extras.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const total = tuitionAmount + dormAmount + extrasTotal;
@@ -1235,18 +1422,19 @@ function updateStudentCourseRegistrationPreview() {
 
   preview.innerHTML = `
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
-      <div style="display:flex;justify-content:space-between;gap:10px">
-        <div>
-          <div style="font-size:11px;color:#6B7280;font-weight:700">수강료</div>
-          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${course?.name || '코스 미선택'} / ${duration}주</div>
+      <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:7px">수강료</div>
+      ${segments.length ? segments.map((segment, index) => `
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:${index ? '6px' : '0'}">
+          <div style="font-size:11.5px;color:#111827;font-weight:800">${index + 1}. ${segment.course} / ${segment.duration}주</div>
+          <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.tuitionAmount)}</div>
         </div>
-        <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(tuitionAmount)}</div>
-      </div>
+      `).join('') : `<div style="font-size:12px;color:#9CA3AF">추가된 수강 구간 없음</div>`}
+      <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px"><b>수강료 소계</b><b>${formatCourseRegMoney(tuitionAmount)}</b></div>
     </div>
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
       <div style="display:flex;justify-content:space-between;gap:10px">
         <div>
-          <div style="font-size:11px;color:#6B7280;font-weight:700">기숙사</div>
+          <div style="font-size:11px;color:#6B7280;font-weight:700">희망 기숙사</div>
           <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${dormLabel}${dormEnabled ? ` / ${dormDuration}주` : ''}</div>
         </div>
         <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(dormAmount)}</div>
@@ -1266,8 +1454,8 @@ function updateStudentCourseRegistrationPreview() {
     </div>
     <div style="padding:14px;border-radius:12px;background:#4F46E5;color:#fff;display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="font-size:11px;font-weight:700;opacity:.85">최종 청구 금액</div>
-        <div style="font-size:12px;font-weight:700;opacity:.9">학생 Gross 기준</div>
+        <div style="font-size:11px;font-weight:700;opacity:.85">학생 최종 청구 금액</div>
+        <div style="font-size:12px;font-weight:700;opacity:.9">학생 납부 기준</div>
       </div>
       <div style="font-size:24px;font-weight:900">${formatCourseRegMoney(total)}</div>
     </div>
@@ -1278,6 +1466,7 @@ function openStudentCourseRegistration(studentId) {
   const student = MOCK_STUDENTS.find(s => s.id === studentId);
   if (!student) return;
   APP.currentCourseRegistrationStudent = student;
+  APP.courseRegSegments = [];
 
   const activeCourses = getCourseRegActiveCourses().map(row => row.course);
   const courseEl = document.getElementById('course-reg-course');
@@ -1285,12 +1474,6 @@ function openStudentCourseRegistration(studentId) {
     courseEl.innerHTML = activeCourses.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     const defaultCourse = activeCourses.find(c => c.name === student.course) || activeCourses[0];
     courseEl.value = defaultCourse?.name || '';
-  }
-
-  const levelEl = document.getElementById('course-reg-level');
-  if (levelEl) {
-    const levels = typeof MOCK_MASTER_LEVELS !== 'undefined' ? MOCK_MASTER_LEVELS.filter(l => l.visible !== false) : [];
-    levelEl.innerHTML = levels.map(l => `<option value="${l.name}" ${l.name === student.level ? 'selected' : ''}>${l.name}</option>`).join('');
   }
 
   const title = document.getElementById('course-reg-title');
@@ -1333,6 +1516,7 @@ function openStudentCourseRegistration(studentId) {
   if (dormDurationEl) dormDurationEl.value = durationEl?.value || '4';
 
   renderCourseRegistrationExtras([]);
+  renderCourseRegSegments();
   toggleCourseRegDormSection();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
@@ -1345,14 +1529,16 @@ function saveStudentCourseRegistration() {
   const student = APP.currentCourseRegistrationStudent;
   if (!student) return;
 
-  const course = document.getElementById('course-reg-course')?.value || '';
-  const level = document.getElementById('course-reg-level')?.value || student.level || '';
-  const startDate = document.getElementById('course-reg-start')?.value || '';
-  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const segments = getCourseRegSegments().map((segment, index) => ({ ...segment, order: index + 1 }));
+  const course = segments.map(segment => segment.course).join(' → ');
+  const recommendedLevels = [...new Set(segments.flatMap(segment => segment.recommendedLevels || []))];
+  const level = student.level || '';
+  const startDate = segments[0]?.startDate || '';
+  const duration = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+  const endDate = segments[segments.length - 1]?.endDate || '';
   const status = student.status || 'waiting';
   const payment = document.getElementById('course-reg-payment')?.value || 'unpaid';
   const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
-  const selectedCourse = getCourseRegSelectedCourse();
   const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
   const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
   const dormSelection = getCourseRegSelectedDormTemplate();
@@ -1360,20 +1546,17 @@ function saveStudentCourseRegistration() {
   const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
   const extraItems = getSelectedCourseRegExtras();
 
-  if (!course || !startDate) {
-    showToast('코스와 수강 시작일을 입력해줘.', 'warning');
+  if (!segments.length || !course || !startDate) {
+    showToast('등록할 수강 구간을 1개 이상 추가해줘.', 'warning');
     return;
   }
 
   if (dormEnabled && !dormSelection) {
-    showToast('기숙사 사용 시 기숙사 요금 항목을 선택해줘.', 'warning');
+    showToast('희망 기숙사와 이용 기간을 선택해줘.', 'warning');
     return;
   }
 
-  const start = new Date(startDate);
-  start.setDate(start.getDate() + duration * 7);
-  const endDate = start.toISOString().split('T')[0];
-  const tuitionAmount = selectedCourse ? getCourseRegPeriodFee(selectedCourse.fee, selectedCourse.tuitionPolicy, duration) : 0;
+  const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
   const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
   const extrasTotal = extraItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const totalGross = tuitionAmount + dormAmount + extrasTotal;
@@ -1386,6 +1569,8 @@ function saveStudentCourseRegistration() {
     id: Date.now(),
     course,
     level,
+    recommendedLevels,
+    segments,
     startDate,
     endDate,
     duration,
@@ -1406,7 +1591,7 @@ function saveStudentCourseRegistration() {
   });
 
   student.course = course;
-  student.level = level;
+  student.courseSegments = segments;
   student.startDate = startDate;
   student.duration = duration;
   student.endDate = endDate;
@@ -3903,6 +4088,119 @@ function openAgencyDocumentsInline(id, tab = 'invoice') {
   openModal('agency-invoice-modal');
 }
 
+const MOCK_PICKUP_MANAGERS = [
+  { id: 1, name: 'Juan Dela Cruz', phone: '+63 917 123 4567', vehicle: 'ABC 1234', car: 'Toyota Hiace · White', messenger: 'WhatsApp: +63 917 123 4567', memo: '공항 도착 게이트 앞 TSA 피켓 소지', photo: 'assets/images/teacher_male.png', visible: true },
+  { id: 2, name: 'Maria Santos', phone: '+63 922 456 7890', vehicle: 'XYZ 9087', car: 'Toyota Innova · Silver', messenger: 'KakaoTalk: tsa_pickup02', memo: '야간 항공편 픽업 담당', photo: 'assets/images/teacher_female.png', visible: true },
+];
+
+function getPickupManagerForStudent(student) {
+  if (!student) return null;
+  return MOCK_PICKUP_MANAGERS.find(manager => manager.id === Number(student.pickupManagerId) && manager.visible !== false) || null;
+}
+
+function initPickupManagerView() {
+  renderPickupManagerCards();
+  renderPickupStudentAssignments();
+}
+
+function renderPickupManagerCards() {
+  const target = document.getElementById('pickup-manager-cards');
+  if (!target) return;
+  target.innerHTML = MOCK_PICKUP_MANAGERS.map(manager => `
+    <div class="tsa-card" style="padding:16px;display:flex;gap:14px;align-items:center">
+      <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:66px;height:76px;border-radius:10px;object-fit:cover;border:1px solid #E5E7EB" alt=""/>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px"><b style="font-size:14px;color:#111827">${manager.name}</b><span class="tsa-badge ${manager.visible !== false ? 'tsa-badge-success' : 'tsa-badge-gray'}" style="font-size:9.5px">${manager.visible !== false ? '픽업 확인서 노출' : '미노출'}</span></div>
+        <div style="font-size:11px;color:#4B5563;margin-top:6px">${manager.phone}</div>
+        <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${manager.car || '-'} · ${manager.vehicle || '-'}</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:3px">${manager.messenger || '-'}</div>
+      </div>
+      <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
+    </div>
+  `).join('');
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function renderPickupStudentAssignments() {
+  const tbody = document.getElementById('pickup-student-assignment-body');
+  if (!tbody) return;
+  const students = MOCK_STUDENTS.filter(student => student.status === 'waiting' || student.status === 'current' || student.status === 'extended');
+  tbody.innerHTML = students.map(student => {
+    const manager = getPickupManagerForStudent(student);
+    const avatar = student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><img src="${avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover" alt=""/><div><b style="font-size:12px">${student.name}</b><div style="font-size:10px;color:#9CA3AF">Nick: ${student.nick} · ${student.nationality}</div></div></div></td>
+      <td style="font-size:11px">${student.flightInfo || '-'}</td>
+      <td style="font-size:11px">${fmtDate(student.arrivalDate || student.startDate) || '-'}</td>
+      <td><select class="tsa-input" style="height:34px;font-size:11px;min-width:190px" onchange="assignPickupManager(${student.id}, this.value)"><option value="">미배정</option>${MOCK_PICKUP_MANAGERS.map(item => `<option value="${item.id}" ${Number(student.pickupManagerId) === item.id ? 'selected' : ''}>${item.name} · ${item.vehicle || '차량 미정'}</option>`).join('')}</select></td>
+      <td>${manager ? `<span class="tsa-badge tsa-badge-success">노출</span>` : `<span class="tsa-badge tsa-badge-gray">미노출</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function assignPickupManager(studentId, managerId) {
+  const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
+  if (!student) return;
+  student.pickupManagerId = managerId ? Number(managerId) : null;
+  renderPickupStudentAssignments();
+  showToast(managerId ? '픽업 담당자가 배정되었습니다.' : '픽업 담당자 배정이 해제되었습니다.', 'success');
+}
+
+function openPickupManagerModal(managerId = null) {
+  const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(managerId));
+  APP.pickupManagerPhotoData = manager?.photo || 'assets/images/teacher_male.png';
+  document.getElementById('pickup-manager-modal-title').textContent = manager ? '픽업 담당자 수정' : '픽업 담당자 등록';
+  document.getElementById('pickup-manager-id').value = manager?.id || '';
+  document.getElementById('pickup-manager-name').value = manager?.name || '';
+  document.getElementById('pickup-manager-phone').value = manager?.phone || '';
+  document.getElementById('pickup-manager-vehicle').value = manager?.vehicle || '';
+  document.getElementById('pickup-manager-car').value = manager?.car || '';
+  document.getElementById('pickup-manager-messenger').value = manager?.messenger || '';
+  document.getElementById('pickup-manager-visible').value = manager?.visible === false ? 'false' : 'true';
+  document.getElementById('pickup-manager-memo').value = manager?.memo || '';
+  document.getElementById('pickup-manager-photo').value = '';
+  document.getElementById('pickup-manager-photo-preview').innerHTML = `<img src="${APP.pickupManagerPhotoData}" style="width:100%;height:100%;object-fit:cover" alt=""/>`;
+  openModal('pickup-manager-modal');
+}
+
+function previewPickupManagerPhoto(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    APP.pickupManagerPhotoData = event.target.result;
+    document.getElementById('pickup-manager-photo-preview').innerHTML = `<img src="${APP.pickupManagerPhotoData}" style="width:100%;height:100%;object-fit:cover" alt=""/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function savePickupManager() {
+  const id = Number(document.getElementById('pickup-manager-id').value) || null;
+  const name = document.getElementById('pickup-manager-name').value.trim();
+  const phone = document.getElementById('pickup-manager-phone').value.trim();
+  if (!name || !phone) {
+    showToast('담당자 이름과 연락처를 입력해줘.', 'warning');
+    return;
+  }
+  const payload = {
+    id: id || Math.max(0, ...MOCK_PICKUP_MANAGERS.map(item => item.id)) + 1,
+    name,
+    phone,
+    vehicle: document.getElementById('pickup-manager-vehicle').value.trim(),
+    car: document.getElementById('pickup-manager-car').value.trim(),
+    messenger: document.getElementById('pickup-manager-messenger').value.trim(),
+    memo: document.getElementById('pickup-manager-memo').value.trim(),
+    photo: APP.pickupManagerPhotoData || 'assets/images/teacher_male.png',
+    visible: document.getElementById('pickup-manager-visible').value === 'true',
+  };
+  const existing = MOCK_PICKUP_MANAGERS.find(item => item.id === id);
+  if (existing) Object.assign(existing, payload);
+  else MOCK_PICKUP_MANAGERS.push(payload);
+  closeModal('pickup-manager-modal');
+  initPickupManagerView();
+  showToast('픽업 담당자 프로필이 저장되었습니다.', 'success');
+}
+
 function switchInvoiceTab(tab) {
   APP.selectedInvoiceTab = tab;
   
@@ -4054,6 +4352,8 @@ function switchInvoiceTab(tab) {
       return;
     }
 
+    const pickupManager = getPickupManagerForStudent(std);
+
     content.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #0284C7;padding-bottom:10px">
         <h2 style="font-size:20px;font-weight:800;color:#0284C7;margin:0">AIRPORT PICKUP & ARRIVAL GUIDE</h2>
@@ -4072,6 +4372,19 @@ function switchInvoiceTab(tab) {
             <div><strong>Beds Assign:</strong> Room ${std.dorm.includes('/') ? std.dorm.split('/')[0].trim() : std.dorm}</div>
           </div>
         </div>
+
+        ${pickupManager ? `
+          <div style="margin:0 0 16px;padding:14px;border:1px solid #7DD3FC;background:#F0F9FF;border-radius:10px;display:flex;align-items:center;gap:14px">
+            <img src="${pickupManager.photo || 'assets/images/teacher_male.png'}" style="width:64px;height:76px;border-radius:8px;object-fit:cover;border:1px solid #38BDF8" alt=""/>
+            <div style="flex:1">
+              <div style="font-size:10.5px;font-weight:800;color:#0369A1;margin-bottom:4px">YOUR AIRPORT PICKUP MANAGER · 픽업 담당자</div>
+              <div style="font-size:14px;font-weight:900;color:#111827">${pickupManager.name}</div>
+              <div style="font-size:11px;color:#374151;margin-top:3px"><strong>Contact:</strong> ${pickupManager.phone} · <strong>Vehicle No:</strong> ${pickupManager.vehicle || 'TBD'}</div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:2px">${pickupManager.car || ''}${pickupManager.messenger ? ` · ${pickupManager.messenger}` : ''}</div>
+              ${pickupManager.memo ? `<div style="font-size:10px;color:#0369A1;margin-top:4px">${pickupManager.memo}</div>` : ''}
+            </div>
+          </div>
+        ` : `<div style="margin:0 0 16px;padding:12px;border:1px dashed #CBD5E1;background:#F8FAFC;border-radius:10px;font-size:11px;color:#64748B">픽업 담당자가 아직 배정되지 않았습니다.</div>`}
 
         <h4 style="font-size:13px;font-weight:700;margin:0 0 6px 0;color:#0369A1">📢 막탄 세부 국제공항 도착 후 미팅 안내</h4>
         <p style="margin:0 0 12px 0">1. 세부 공항 입국 심사(Immigration) 및 세관을 무사히 통과합니다.<br>

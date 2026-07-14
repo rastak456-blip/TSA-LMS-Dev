@@ -1545,8 +1545,13 @@ function confirmBedAssign() {
 
   if (_assignTarget.isPrebook) {
     if (!bed.reservations) bed.reservations = [];
-    const overlap = bed.reservations.some(rv => !(checkoutMD <= rv.start || checkinMD >= rv.end));
-    if (overlap) { showToast('선택한 기간에 이미 사전 예약이 있습니다.', 'warning'); return; }
+    const occupiedOverlap = bed.student && bed.start && bed.end
+      && !(checkoutMD <= bed.start || checkinMD >= bed.end);
+    const historyOverlap = (bed.history || []).some(h => h.start && h.end
+      && !(checkoutMD <= h.start || checkinMD >= h.end));
+    const reservationOverlap = bed.reservations.some(rv => !(checkoutMD <= rv.start || checkinMD >= rv.end));
+    const overlap = occupiedOverlap || historyOverlap || reservationOverlap;
+    if (overlap) { showToast('선택한 기간에 기존 배정 또는 예약이 있습니다.', 'warning'); return; }
     bed.reservations.push({ student: `${s.nick} (${s.name})`, studentId: s.id, start: checkinMD, end: checkoutMD });
     showToast(`✓ Room ${displayNo} Bed ${_assignTarget.bedId}에 ${s.nick} 사전 예약 완료`, 'success');
   } else {

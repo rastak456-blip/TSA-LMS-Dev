@@ -7,6 +7,7 @@ const VIEW_MAP = {
   'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '수업 배정 관리', sec: '학사 관리' },
   'weekly-timetable': { el: 'view-weekly-timetable', menu: 'menu-weekly-timetable', label: '주간 시간표', sec: '학사 관리' },
   students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
+  'pickup-managers': { el: 'view-pickup-managers', menu: 'menu-pickup-managers', label: '픽업 담당자 관리', sec: '학사 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 관리', sec: '학사 관리' },
   'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
@@ -105,6 +106,8 @@ function navigate(view) {
     initClassSchedule();
   } else if (view === 'students') {
     applyStudentFilters();
+  } else if (view === 'pickup-managers') {
+    if (typeof initPickupManagerView === 'function') initPickupManagerView();
   } else if (view === 'teachers') {
     if (typeof initTeacherList === 'function') initTeacherList();
   } else if (view === 'dorm-erp') {

@@ -1,4 +1,4 @@
-﻿/* =============================================
+/* =============================================
    LOGIN
    ============================================= */
 function switchLoginTab(tab) {
@@ -62,8 +62,7 @@ function handleLogin(type) {
   initAgencyStudentList();
   initCoursePricing();
   initDormGantt();
-  initCalculators();
-  updateFeeEstimate();
+  if (typeof initCalculators === 'function') initCalculators();
 }
 
 function applyRoleUI() {
