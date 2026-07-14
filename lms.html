@@ -485,6 +485,32 @@
       border-radius: 6px;
     }
 
+    .agency-student-table th,
+    .agency-student-table td {
+      padding: 8px 8px;
+      vertical-align: middle;
+    }
+
+    .agency-student-table .tsa-badge {
+      padding: 2px 7px;
+      font-size: 10px;
+      line-height: 1.1;
+    }
+
+    .agency-student-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      flex-wrap: nowrap;
+    }
+
+    .agency-student-actions .tsa-btn {
+      padding: 4px 7px;
+      font-size: 10.5px;
+      border-radius: 6px;
+      gap: 3px;
+    }
+
     .tsa-btn-icon {
       width: 32px; height: 32px;
       padding: 0;
@@ -2437,7 +2463,7 @@
               <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 소속 등록 학생 목록 · 학비 및 납부 관리</h3>
             </div>
             <div style="overflow-x:auto">
-              <table class="tsa-table" style="min-width:2520px;font-size:12px">
+              <table class="tsa-table agency-student-table" style="min-width:1760px;font-size:11.2px">
                 <thead>
                   <tr>
                     <th style="width:36px;text-align:center">#</th>
@@ -2446,13 +2472,9 @@
                     <th>코스 / 수강 기간</th>
                     <th>등록 상태</th>
                     <th>등록금</th>
-                    <th>등록금 커미션</th>
                     <th>수강료</th>
-                    <th>수강료 커미션</th>
                     <th>기숙사비</th>
-                    <th>기숙사비 커미션</th>
                     <th>기타 비용</th>
-                    <th>기타 비용 커미션</th>
                     <th>청구 금액 합계</th>
                     <th>어학원 송금액</th>
                     <th class="col-flight">항공편 (입/출국)</th>

@@ -951,8 +951,8 @@ function initAgencyStudentList() {
       <tr>
         <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${rowNum}</td>
         <td>
-          <div style="display:flex;align-items:center;gap:10px">
-            <img src="${avatarSrc}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;" alt=""/>
+          <div style="display:flex;align-items:center;gap:7px">
+            <img src="${avatarSrc}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;" alt=""/>
             <div>
               <div style="font-weight:600;font-size:13px">${s.name}</div>
               <div style="font-size:10.5px;color:#6B7280">Nick: ${s.nick} &nbsp;·&nbsp; ${s.gender}성 ${s.age}세</div>
@@ -966,14 +966,10 @@ function initAgencyStudentList() {
           <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
         </td>
         <td><span class="tsa-badge ${badgeClass}">${state}</span></td>
-        <td>${renderAgencyBillingAmountCell(billingMap.registration)}</td>
-        <td>${renderAgencyCommissionItemCell(billingMap.registration)}</td>
-        <td>${renderAgencyBillingAmountCell(billingMap.education)}</td>
-        <td>${renderAgencyCommissionItemCell(billingMap.education)}</td>
-        <td>${renderAgencyBillingAmountCell(billingMap.dorm)}</td>
-        <td>${renderAgencyCommissionItemCell(billingMap.dorm)}</td>
-        <td>${renderAgencyBillingAmountCell(billingMap.local)}</td>
-        <td>${renderAgencyCommissionItemCell(billingMap.local)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.registration)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.education)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.dorm)}</td>
+        <td>${renderAgencyBillingCompactCell(billingMap.local)}</td>
         <td style="text-align:right;font-weight:900;color:#111827">$${billingBreakdown.gross.toLocaleString()}</td>
         <td style="text-align:right;font-weight:900;color:#059669">$${billingBreakdown.net.toLocaleString()}</td>
         <td class="col-flight" style="font-size:11px;line-height:1.8">
@@ -995,12 +991,12 @@ function initAgencyStudentList() {
           return `<div style="color:#D1D5DB">-</div>${periodHtml}`;
         })()}</td>
         <td style="text-align:center">
-          <div style="display:flex;gap:6px;justify-content:center">
-            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openStudentCourseRegistration(${s.id})">코스 등록</button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailPage(${s.id})">상세 보기</button>
+          <div class="agency-student-actions">
+            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openStudentCourseRegistration(${s.id})">등록</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailPage(${s.id})">상세</button>
             ${s.status === 'waiting'
-              ? `<button class="tsa-btn tsa-btn-xs" disabled style="background:#F3F4F6;color:#D1D5DB;border:1px solid #E5E7EB;cursor:not-allowed" title="입학 대기 상태에서는 서류 출력 불가">서류출력</button>`
-              : `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openAgencyDocumentsInline(${s.id})">서류출력</button>`}
+              ? `<button class="tsa-btn tsa-btn-xs" disabled style="background:#F3F4F6;color:#D1D5DB;border:1px solid #E5E7EB;cursor:not-allowed" title="입학 대기 상태에서는 서류 출력 불가">서류</button>`
+              : `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openAgencyDocumentsInline(${s.id})">서류</button>`}
           </div>
         </td>
       </tr>
@@ -4566,6 +4562,30 @@ function renderAgencyPaidBadge(status) {
 function renderAgencyCommissionBadge(status) {
   const paid = status === 'paid';
   return `<span class="tsa-badge ${paid ? 'tsa-badge-success' : 'tsa-badge-danger'}" style="font-size:10px">${paid ? '지급' : '미지급'}</span>`;
+}
+
+function renderAgencyBillingCompactCell(item) {
+  const amount = Number(item.amount || 0);
+  const commission = Number(item.commission || 0);
+  const commissionText = commission > 0
+    ? `-$${commission.toLocaleString()}`
+    : '$0';
+  const commissionMeta = commission > 0
+    ? (item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`)
+    : '커미션 없음';
+  return `
+    <div style="min-width:96px;text-align:right;line-height:1.35">
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;white-space:nowrap">
+        <strong style="font-size:12px;color:#111827">$${amount.toLocaleString()}</strong>
+        ${renderAgencyPaidBadge(item.paymentStatus)}
+      </div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;white-space:nowrap;margin-top:3px">
+        <span style="font-size:10.5px;font-weight:800;color:${commission > 0 ? '#4F46E5' : '#9CA3AF'}">${commissionText}</span>
+        <span style="font-size:10px;color:#9CA3AF">${commissionMeta}</span>
+        ${commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : ''}
+      </div>
+    </div>
+  `;
 }
 
 function renderAgencyBillingAmountCell(item) {
