@@ -955,12 +955,11 @@ function initAgencyStudentList() {
             <img src="${avatarSrc}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;" alt=""/>
             <div>
               <div style="font-weight:600;font-size:13px">${s.name}</div>
-              <div style="font-size:10.5px;color:#6B7280">Nick: ${s.nick} &nbsp;·&nbsp; ${s.gender}성 ${s.age}세</div>
+              <div style="font-size:10.5px;color:#6B7280">Nick: ${s.nick} &nbsp;·&nbsp; ${s.gender}성 ${s.age}세 &nbsp;·&nbsp; ${s.nationality || '-'}</div>
               <div style="font-size:10.5px;color:#9CA3AF">${s.passportNum || '-'}</div>
             </div>
           </div>
         </td>
-        <td>${s.nationality}</td>
         <td style="font-size:11.5px;line-height:1.55;white-space:nowrap">
           <div style="font-weight:700;color:#374151">${s.course}</div>
           <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
@@ -2645,6 +2644,7 @@ function submitAgencyRemittance() {
 
 let currentAdetailStudentId = null;
 let currentAdetailTab = 'basic';
+let currentAdetailPortal = 'agency';
 let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null };
 
 function openAgencyStudentDetailModal(id) {
@@ -2693,9 +2693,10 @@ function openAgencyStudentDetailModal(id) {
   openModal('agency-student-detail-modal');
 }
 
-function openAgencyStudentDetailPage(id) {
+function openAgencyStudentDetailPage(id, portal) {
   currentAdetailStudentId = id;
   currentAdetailTab = 'basic';
+  currentAdetailPortal = portal === 'admin' ? 'admin' : 'agency';
   const s = MOCK_STUDENTS.find(std => std.id === id);
   if (!s) return;
 
@@ -2707,8 +2708,12 @@ function openAgencyStudentDetailPage(id) {
   };
 
   renderAgencyStudentDetailPageHeader(s);
-  navigate('agency-student-detail');
+  navigate(currentAdetailPortal === 'admin' ? 'admin-student-detail' : 'agency-student-detail');
   switchAgencyStudentDetailPageTab('basic');
+}
+
+function closeStudentDetailPage() {
+  navigate(currentAdetailPortal === 'admin' ? 'students' : 'agency-students');
 }
 
 function renderAgencyStudentDetailPageHeader(s) {
@@ -2722,7 +2727,7 @@ function renderAgencyStudentDetailPageHeader(s) {
   else if (s.status === 'extended') stateStr = '연장 (Extended)';
 
   const subEl = document.getElementById('adetail-page-title-subtitle');
-  if (subEl) subEl.textContent = `등록 상태: ${stateStr} · ${s.agency || '한국 영어마을'} · 학생 상세 페이지`;
+  if (subEl) subEl.textContent = `등록 상태: ${stateStr} · ${s.agency || '한국 영어마을'} · ${currentAdetailPortal === 'admin' ? '어드민 학생 상세 정보' : '학생 상세 페이지'}`;
 
   const avatar = document.getElementById('adetail-page-avatar');
   if (avatar) avatar.src = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
@@ -2745,12 +2750,14 @@ function renderAgencyStudentDetailPageHeader(s) {
 function switchAgencyStudentDetailPageTab(tab) {
   const basicTab = document.getElementById('adetail-page-tab-basic');
   const enrollmentTab = document.getElementById('adetail-page-tab-enrollment');
+  const saveBtn = document.getElementById('adetail-page-save-btn');
   if (basicTab) basicTab.classList.toggle('active', tab === 'basic');
   if (enrollmentTab) enrollmentTab.classList.toggle('active', tab === 'enrollment');
+  if (saveBtn) saveBtn.style.display = tab === 'basic' ? '' : 'none';
 
   if (tab === 'basic') {
     switchAdetailTab('basic', 'adetail-page-tab-content', currentAdetailStudentId);
-  } else {
+  } else if (tab === 'enrollment') {
     renderAgencyStudentEnrollmentHub();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
@@ -2786,6 +2793,7 @@ function renderAgencyStudentEnrollmentHub() {
       <div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
+          ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
@@ -2834,7 +2842,12 @@ function switchAgencyEnrollmentHubTab(tab) {
   const container = document.getElementById('adetail-page-enrollment-content');
   if (!s || !container) return;
 
-  if (tab === 'flightdocs') {
+  if (tab === 'classlog' && currentAdetailPortal === 'admin') {
+    APP.currentStudent = s;
+    APP._classLogContainerId = 'adetail-page-enrollment-content';
+    APP._classLogDate = APP._classLogDate || '2026-06-16';
+    renderStudentClassLogTab();
+  } else if (tab === 'flightdocs') {
     renderAgencyEnrollmentFlightDocs(s, container);
   } else {
     switchAdetailTab(tab, 'adetail-page-enrollment-content', currentAdetailStudentId);
@@ -4100,7 +4113,12 @@ function getPickupManagerForStudent(student) {
 
 function initPickupManagerView() {
   renderPickupManagerCards();
-  renderPickupStudentAssignments();
+  if (!APP.pickupCalendarMonth) {
+    const today = new Date();
+    APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    APP.pickupSelectedDate = toPickupDateKey(today);
+  }
+  renderPickupCalendar();
 }
 
 function renderPickupManagerCards() {
@@ -4121,28 +4139,125 @@ function renderPickupManagerCards() {
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-function renderPickupStudentAssignments() {
-  const tbody = document.getElementById('pickup-student-assignment-body');
-  if (!tbody) return;
-  const students = MOCK_STUDENTS.filter(student => student.status === 'waiting' || student.status === 'current' || student.status === 'extended');
-  tbody.innerHTML = students.map(student => {
+function toPickupDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getPickupStudents() {
+  return MOCK_STUDENTS.filter(student =>
+    ['waiting', 'current', 'extended'].includes(student.status) && (student.arrivalDate || student.startDate)
+  );
+}
+
+function renderPickupCalendar() {
+  const grid = document.getElementById('pickup-calendar-grid');
+  const weekdays = document.getElementById('pickup-calendar-weekdays');
+  const title = document.getElementById('pickup-calendar-title');
+  if (!grid || !weekdays || !title) return;
+  const month = APP.pickupCalendarMonth;
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  title.textContent = `${year}년 ${monthIndex + 1}월`;
+  weekdays.innerHTML = ['일', '월', '화', '수', '목', '금', '토'].map((day, index) =>
+    `<div style="padding:10px;text-align:center;font-size:10.5px;font-weight:800;color:${index === 0 ? '#EF4444' : index === 6 ? '#3B82F6' : '#6B7280'}">${day}</div>`
+  ).join('');
+
+  const firstDay = new Date(year, monthIndex, 1).getDay();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const previousMonthDays = new Date(year, monthIndex, 0).getDate();
+  const totalCells = 42;
+  const students = getPickupStudents();
+  const todayKey = toPickupDateKey(new Date());
+  const cells = [];
+  for (let cell = 0; cell < totalCells; cell += 1) {
+    const dayOffset = cell - firstDay + 1;
+    let cellDate;
+    let muted = false;
+    if (dayOffset < 1) {
+      cellDate = new Date(year, monthIndex - 1, previousMonthDays + dayOffset);
+      muted = true;
+    } else if (dayOffset > daysInMonth) {
+      cellDate = new Date(year, monthIndex + 1, dayOffset - daysInMonth);
+      muted = true;
+    } else {
+      cellDate = new Date(year, monthIndex, dayOffset);
+    }
+    const key = toPickupDateKey(cellDate);
+    const arrivals = students.filter(student => (student.arrivalDate || student.startDate) === key);
+    const unassigned = arrivals.filter(student => !student.pickupManagerId).length;
+    const selected = APP.pickupSelectedDate === key;
+    const isToday = todayKey === key;
+    cells.push(`
+      <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:82px;padding:8px;border:0;border-right:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.42' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
+        <span style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800;background:${isToday ? '#5E5CE6' : 'transparent'};color:${isToday ? '#fff' : '#374151'}">${cellDate.getDate()}</span>
+        ${arrivals.length ? `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned ? '#FFF7ED' : '#ECFDF5'};color:${unassigned ? '#C2410C' : '#047857'};font-size:9.5px;font-weight:800">입국 ${arrivals.length}명${unassigned ? ` · 미배정 ${unassigned}` : ' · 배정 완료'}</div>` : ''}
+      </button>`);
+  }
+  grid.innerHTML = cells.join('');
+  renderPickupDateAssignments();
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function renderPickupDateAssignments() {
+  const panel = document.getElementById('pickup-date-assignment-panel');
+  if (!panel) return;
+  const selectedDate = APP.pickupSelectedDate;
+  const students = getPickupStudents().filter(student => (student.arrivalDate || student.startDate) === selectedDate);
+  const dateLabel = selectedDate ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 선택';
+  panel.innerHTML = `
+    <div style="padding:15px 16px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+      <div><b style="font-size:13px;color:#111827">${dateLabel}</b><div style="font-size:10px;color:#9CA3AF;margin-top:3px">입국 예정 ${students.length}명 · 미배정 ${students.filter(student => !student.pickupManagerId).length}명</div></div>
+      ${students.length ? `<span class="tsa-badge ${students.some(student => !student.pickupManagerId) ? 'tsa-badge-warning' : 'tsa-badge-success'}">${students.some(student => !student.pickupManagerId) ? '배정 필요' : '배정 완료'}</span>` : ''}
+    </div>
+    <div style="padding:12px">
+      ${students.length ? students.map(student => renderPickupStudentAssignmentCard(student)).join('') : `<div style="padding:90px 20px;text-align:center;color:#9CA3AF"><i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i><div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div><div style="font-size:10.5px;margin-top:5px">입국 일정이 있는 날짜를 선택해줘.</div></div>`}
+    </div>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function renderPickupStudentAssignmentCard(student) {
     const manager = getPickupManagerForStudent(student);
     const avatar = student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:8px"><img src="${avatar}" style="width:30px;height:30px;border-radius:50%;object-fit:cover" alt=""/><div><b style="font-size:12px">${student.name}</b><div style="font-size:10px;color:#9CA3AF">Nick: ${student.nick} · ${student.nationality}</div></div></div></td>
-      <td style="font-size:11px">${student.flightInfo || '-'}</td>
-      <td style="font-size:11px">${fmtDate(student.arrivalDate || student.startDate) || '-'}</td>
-      <td><select class="tsa-input" style="height:34px;font-size:11px;min-width:190px" onchange="assignPickupManager(${student.id}, this.value)"><option value="">미배정</option>${MOCK_PICKUP_MANAGERS.map(item => `<option value="${item.id}" ${Number(student.pickupManagerId) === item.id ? 'selected' : ''}>${item.name} · ${item.vehicle || '차량 미정'}</option>`).join('')}</select></td>
-      <td>${manager ? `<span class="tsa-badge tsa-badge-success">노출</span>` : `<span class="tsa-badge tsa-badge-gray">미노출</span>`}</td>
-    </tr>`;
-  }).join('');
+    const flightTimeMatch = student.flightInfo?.match(/(?:^|\s|\|)((?:[01]\d|2[0-3]):[0-5]\d)(?=\s|$|\|)/);
+    const flightTime = student.flightTime || flightTimeMatch?.[1] || '시간 미정';
+    return `<div style="padding:12px;border:1px solid ${manager ? '#DDE3EC' : '#FED7AA'};border-radius:10px;margin-bottom:10px;background:${manager ? '#fff' : '#FFFBEB'}">
+      <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px"><img src="${avatar}" style="width:34px;height:34px;border-radius:50%;object-fit:cover" alt=""/><div style="flex:1"><b style="font-size:12px;color:#111827">${student.name}</b><div style="font-size:10px;color:#9CA3AF">Nick: ${student.nick} · ${student.nationality}</div></div>${manager ? '<span class="tsa-badge tsa-badge-success">확인서 노출</span>' : '<span class="tsa-badge tsa-badge-warning">미배정</span>'}</div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10.5px;color:#4B5563;padding:7px 8px;background:#F8FAFC;border-radius:6px;margin-bottom:9px"><span><i data-lucide="plane" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>${student.flightInfo || '항공편 정보 없음'}</span><span style="color:#D1D5DB">|</span><b style="color:#5E5CE6;white-space:nowrap"><i data-lucide="clock-3" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px"></i>입국 ${flightTime}</b></div>
+      <select class="tsa-input" style="height:36px;font-size:11px;width:100%" onchange="assignPickupManager(${student.id}, this.value)"><option value="">담당자 미배정</option>${MOCK_PICKUP_MANAGERS.map(item => `<option value="${item.id}" ${Number(student.pickupManagerId) === item.id ? 'selected' : ''}>${item.name} · ${item.vehicle || '차량 미정'}</option>`).join('')}</select>
+    </div>`;
+}
+
+function selectPickupCalendarDate(dateKey) {
+  APP.pickupSelectedDate = dateKey;
+  const selected = new Date(`${dateKey}T00:00:00`);
+  if (selected.getFullYear() !== APP.pickupCalendarMonth.getFullYear() || selected.getMonth() !== APP.pickupCalendarMonth.getMonth()) {
+    APP.pickupCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+  }
+  renderPickupCalendar();
+}
+
+function changePickupCalendarMonth(offset) {
+  const month = APP.pickupCalendarMonth;
+  APP.pickupCalendarMonth = new Date(month.getFullYear(), month.getMonth() + offset, 1);
+  APP.pickupSelectedDate = toPickupDateKey(APP.pickupCalendarMonth);
+  renderPickupCalendar();
+}
+
+function goPickupCalendarToday() {
+  const today = new Date();
+  APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  APP.pickupSelectedDate = toPickupDateKey(today);
+  renderPickupCalendar();
 }
 
 function assignPickupManager(studentId, managerId) {
   const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
   if (!student) return;
   student.pickupManagerId = managerId ? Number(managerId) : null;
-  renderPickupStudentAssignments();
+  renderPickupCalendar();
   showToast(managerId ? '픽업 담당자가 배정되었습니다.' : '픽업 담당자 배정이 해제되었습니다.', 'success');
 }
 

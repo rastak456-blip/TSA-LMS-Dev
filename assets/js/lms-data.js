@@ -407,7 +407,7 @@ const MOCK_STUDENTS = [
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [],
     passportStatus: '보관 중',
-    flightInfo: 'CZ388 | 07-20 입국 예정',
+    flightInfo: 'CZ388 | 07-20 입국 예정', flightTime: '14:30',
     dietType: '일반식',
     healthNotes: '신규 등록 — 입학 전.',
     grades: { speaking: [], listening: [], reading: [], writing: [] },
@@ -473,7 +473,7 @@ const MOCK_STUDENTS = [
     course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: '미배정', dormAccomType: '기숙사', dormType: '4인실', dormGrade: '스탠다드', visaExpiry: '2026-08-20', sspExpiry: '미취득',
     departureDate: '2026-08-20', startDate: '2026-07-20', arrivalDate: '2026-07-20',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
-    passportNum: 'G10000028', passportStatus: '미보관', flightInfo: 'CZ302 | 07-20 입국 예정', dietType: '일반식', healthNotes: '',
+    passportNum: 'G10000028', passportStatus: '미보관', flightInfo: 'CZ302 | 07-20 입국 예정', flightTime: '18:10', dietType: '일반식', healthNotes: '',
     fees: [
       { id: 2801, item: '입학금 (Registration Fee)', amount: 100, paid: true },
       { id: 2802, item: '수강료 (Tuition)', amount: 1800, paid: true },

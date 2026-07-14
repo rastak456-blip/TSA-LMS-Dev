@@ -1916,12 +1916,11 @@ function renderDormErpGantt(rooms, startVal, endVal) {
       </div>`;
     }).join('');
 
-    return `<div style="display:flex;border-top:2px solid #E2E8F0">
-      <div style="position:sticky;left:0;z-index:3;width:${roomColWidth}px;min-width:${roomColWidth}px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 4px">
-        <div>
+    return `<div style="display:flex;border-top:2px solid #E2E8F0;min-height:${Math.max(1, beds.length) * 38}px">
+      <div style="position:sticky;left:0;z-index:3;width:${roomColWidth}px;min-width:${roomColWidth}px;max-width:${roomColWidth}px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden">
+        <div style="width:100%;min-width:0;overflow:hidden" title="${room.roomNo}호 · ${room.accomType} · ${room.genderRestriction || '무관'}">
           <div style="font-size:12px;font-weight:800;color:#111827">${room.roomNo}호</div>
-          <div style="font-size:9px;color:#64748B;margin-top:2px">${room.accomType}</div>
-          <div style="font-size:9px;color:#94A3B8">${room.genderRestriction || '무관'}</div>
+          <div style="font-size:8.5px;color:#64748B;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${room.accomType} · ${room.genderRestriction || '무관'}</div>
         </div>
       </div>
       <div style="flex:1;display:flex;flex-direction:column">
@@ -2158,6 +2157,7 @@ function renderErpAssignStudentList(list) {
   }
   listEl.innerHTML = list.map(s => {
     const avatarSrc = (s.gender === '남' || s.gender === '남성') ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+    const preferredDormIn = s.dormIn || s.startDate || '';
     return `
     <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#5E5CE6'" onmouseout="this.style.borderColor='#E5E7EB'">
       <input type="radio" name="erp-assign-student" value="${s.id}" style="accent-color:#5E5CE6" onchange="onErpAssignStudentSelected(${s.id})"/>
@@ -2165,6 +2165,7 @@ function renderErpAssignStudentList(list) {
       <div style="flex:1">
         <div style="font-size:12.5px;font-weight:600;color:#111827">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
         <div style="font-size:11px;color:#6B7280">${s.flag||''} ${s.nationality} · ${s.gender==='남'?'남성':'여성'} · ${[s.dormType, s.dormGrade].filter(Boolean).join(' ')}</div>
+        <div style="font-size:10.5px;color:#5E5CE6;margin-top:3px;font-weight:600">📅 희망 입실일 ${preferredDormIn || '미입력'}</div>
       </div>
       <span style="font-size:11px;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:8px">대기</span>
     </label>`;
@@ -2184,8 +2185,8 @@ function onErpAssignStudentSelected(studentId) {
   if (!s) return;
   const dateIn  = document.getElementById('erp-assign-date-in');
   const dateOut = document.getElementById('erp-assign-date-out');
-  if (dateIn  && s.startDate) dateIn.value  = s.startDate;
-  if (dateOut && s.endDate)   dateOut.value = s.endDate;
+  if (dateIn  && (s.dormIn || s.startDate)) dateIn.value  = s.dormIn || s.startDate;
+  if (dateOut && (s.dormOut || s.endDate))  dateOut.value = s.dormOut || s.endDate;
 }
 
 function openErpAssignModalForStudent(studentId) {
@@ -2215,7 +2216,10 @@ function openErpAssignModalForStudent(studentId) {
   // 해당 학생 자동 선택
   setTimeout(() => {
     const radio = document.querySelector(`input[name="erp-assign-student"][value="${studentId}"]`);
-    if (radio) radio.checked = true;
+    if (radio) {
+      radio.checked = true;
+      onErpAssignStudentSelected(studentId);
+    }
   }, 50);
 }
 

@@ -47,6 +47,32 @@ function populateStudentFilterOptions() {
   }
 }
 
+function getStudentPaymentSummary(s) {
+  const latestEnrollment = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
+  const savedFees = s.courseRegistrationFees || {};
+  const fallbackTotal = typeof calculatePrices === 'function' ? calculatePrices(s).gross : 0;
+  const total = Number(savedFees.total || s.totalGross || latestEnrollment?.totalGross || fallbackTotal || 0);
+  const itemStatuses = s.billingItemStatuses || {};
+
+  let paid = 0;
+  if (s.remittanceStatus === 'paid' || latestEnrollment?.paymentStatus === 'paid') {
+    paid = total;
+  } else if (Object.keys(itemStatuses).length && Object.keys(savedFees).length) {
+    const feeByStatusKey = {
+      registration: Number(savedFees.registration || 0),
+      education: Number(savedFees.tuition || 0),
+      dorm: Number(savedFees.dorm || 0),
+      local: Number(savedFees.extras || 0),
+    };
+    paid = Object.entries(feeByStatusKey).reduce((sum, [key, amount]) => {
+      return sum + (itemStatuses[key] === 'paid' ? amount : 0);
+    }, 0);
+  }
+
+  const status = total > 0 && paid >= total ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+  return { total, paid, status };
+}
+
 function renderStudentList(list) {
   const tbody = document.getElementById('student-list-body');
   if (!tbody) return;
@@ -79,6 +105,12 @@ function renderStudentList(list) {
     const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
 
     const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
+    const payment = getStudentPaymentSummary(s);
+    const paymentMeta = payment.status === 'paid'
+      ? { label: '완납', color: '#047857', bg: '#D1FAE5' }
+      : payment.status === 'partial'
+        ? { label: '부분납', color: '#B45309', bg: '#FEF3C7' }
+        : { label: '미납', color: '#DC2626', bg: '#FEE2E2' };
 
     let mentorName = '미배정';
     const mentorMatch = (typeof MOCK_TIMETABLE !== 'undefined') ? MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick)) : null;
@@ -116,6 +148,13 @@ function renderStudentList(list) {
           <div class="tsa-progress-bar" style="width:${s.attendance}%;background:${attColor}"></div>
         </div>
         ${s.warning > 0 ? `<div style="font-size:10px;color:#EF4444;margin-top:2px">경고 ${s.warning}회</div>` : ''}
+      </td>
+      <td style="white-space:nowrap">
+        <div style="font-size:12px;font-weight:800;color:#111827">$${payment.paid.toLocaleString()}</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px">등록 $${payment.total.toLocaleString()}</div>
+      </td>
+      <td style="white-space:nowrap">
+        <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;color:${paymentMeta.color};background:${paymentMeta.bg}">${paymentMeta.label}</span>
       </td>
       <td>
         ${statusPill}
@@ -299,19 +338,7 @@ function renderAdminStatusCards() {
 function openStudentDetail(id) {
   APP.currentStudent = MOCK_STUDENTS.find(s => s.id === id);
   if (!APP.currentStudent) return;
-  const s = APP.currentStudent;
-  document.getElementById('modal-student-name').textContent = `${s.nick} (${s.name})`;
-  document.getElementById('modal-student-meta').textContent = `${s.flag} ${s.nationality} · ${s.gender}성 ${s.age}세 · ${s.course}`;
-  const avatarEl = document.getElementById('modal-student-avatar');
-  if (avatarEl) avatarEl.src = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
-
-  // Activate basic tab
-  document.querySelectorAll('#student-detail-modal .tsa-tab').forEach((t, idx) => {
-    t.classList.toggle('active', idx === 0);
-  });
-
-  switchStudentTab('basic', null);
-  openModal('student-detail-modal');
+  openAgencyStudentDetailPage(id, 'admin');
 }
 
 function switchStudentTab(tab, el) {
@@ -462,6 +489,7 @@ function switchStudentTab(tab, el) {
       break;
 
     case 'classlog':
+      APP._classLogContainerId = 'student-modal-tab-content';
       APP._classLogDate = APP._classLogDate || '2026-06-16';
       renderStudentClassLogTab();
       break;
@@ -719,7 +747,7 @@ let _classLogEditTarget = null; // { studentId, date, period }
 
 function renderStudentClassLogTab() {
   const s = APP.currentStudent;
-  const container = document.getElementById('student-modal-tab-content');
+  const container = document.getElementById(APP._classLogContainerId || 'student-modal-tab-content');
   if (!s || !container) return;
 
   const allLogs  = MOCK_CLASS_LOG.filter(l => l.studentId === s.id);
@@ -754,11 +782,11 @@ function renderStudentClassLogTab() {
   const penalty    = s.penaltyActive || attRate < 80;
 
   // ── 월간 캘린더 생성
-  const dayHeaders = ['월','화','수','목','금','토','일'];
+  const dayHeaders = ['일','월','화','수','목','금','토'];
   const firstDay = new Date(calYear, calMonth - 1, 1);
   const lastDay  = new Date(calYear, calMonth, 0);
-  // 첫째날 요일 (0=일→6, 1=월→0 ... )
-  const startDow = (firstDay.getDay() + 6) % 7; // 월=0
+  // 일요일을 왼쪽, 토요일을 오른쪽에 배치 (0=일 ... 6=토)
+  const startDow = firstDay.getDay();
   const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7;
 
   const calCells = [];
@@ -785,7 +813,7 @@ function renderStudentClassLogTab() {
       </div>
       <!-- 요일 헤더 -->
       <div style="display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #F3F4F6">
-        ${dayHeaders.map((d,i) => `<div style="text-align:center;padding:6px 0;font-size:10px;font-weight:700;color:${i===6?'#EF4444':i===5?'#3B82F6':'#6B7280'}">${d}</div>`).join('')}
+        ${dayHeaders.map((d,i) => `<div style="text-align:center;padding:6px 0;font-size:10px;font-weight:700;color:${i===0?'#EF4444':i===6?'#3B82F6':'#6B7280'}">${d}</div>`).join('')}
       </div>
       <!-- 날짜 셀 -->
       ${calRows.map(row => `
