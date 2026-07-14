@@ -6041,31 +6041,42 @@
 <!-- Student Course Registration Modal -->
 <div id="student-course-registration-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('student-course-registration-modal')">
-    <div class="tsa-modal" style="max-width:1120px" onclick="event.stopPropagation()">
+    <div class="tsa-modal" style="max-width:1320px" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
-          <h3 class="tsa-modal-title" id="course-reg-title">코스 등록</h3>
-          <p class="tsa-modal-subtitle" id="course-reg-subtitle">수강 과정, 기숙사, 기타 항목을 선택하고 최종 청구 금액을 확인합니다.</p>
+          <h3 class="tsa-modal-title" id="course-reg-title">수강 등록</h3>
+          <p class="tsa-modal-subtitle" id="course-reg-subtitle">과정별 수강료를 비교한 뒤 기숙사와 기타 비용을 포함한 최종 금액을 확인합니다.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('student-course-registration-modal')"><i data-lucide="x"></i></button>
       </div>
-      <div class="tsa-modal-body" style="max-height:70vh;overflow-y:auto">
+      <div class="tsa-modal-body" style="max-height:78vh;overflow-y:auto">
         <div style="padding:12px 14px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:16px">
           <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:4px">선택 학생</div>
           <div id="course-reg-student-summary" style="font-size:14px;font-weight:800;color:#111827">-</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start">
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
-              <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC">
-                <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">1. 수강 등록</h4>
-              </div>
-              <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
-                <div class="tsa-form-group">
-                  <label class="tsa-label">등록 코스 <span style="color:#EF4444">*</span></label>
-                  <select id="course-reg-course" class="tsa-input" onchange="updateStudentCourseRegistrationPreview()"></select>
+              <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC;display:flex;justify-content:space-between;gap:12px;align-items:center">
+                <div>
+                  <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">1. 과정 및 수강 기간 선택</h4>
+                  <div style="font-size:11px;color:#6B7280;margin-top:3px">금액 칸을 누르면 과정과 기간이 함께 선택됩니다.</div>
                 </div>
+                <div id="course-reg-selection-summary" style="font-size:11.5px;font-weight:800;color:#4338CA;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:999px;padding:6px 10px;white-space:nowrap">선택 필요</div>
+              </div>
+              <div class="tsa-card-body" style="padding:14px">
+                <select id="course-reg-course" style="display:none" onchange="updateStudentCourseRegistrationPreview()"></select>
+                <select id="course-reg-duration" style="display:none" onchange="syncCourseRegDormDuration(); updateCourseRegDormDatesFromStart(); updateStudentCourseRegistrationPreview()">
+                  <option value="4">4주</option>
+                  <option value="8">8주</option>
+                  <option value="12">12주</option>
+                  <option value="16">16주</option>
+                  <option value="20">20주</option>
+                  <option value="24">24주</option>
+                </select>
+                <div id="course-reg-course-compare-table" style="overflow-x:auto"></div>
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB">
                 <div class="tsa-form-group">
                   <label class="tsa-label">레벨</label>
                   <select id="course-reg-level" class="tsa-input"></select>
@@ -6075,32 +6086,13 @@
                   <input id="course-reg-start" type="date" class="tsa-input" onchange="updateCourseRegDormDatesFromStart(); updateStudentCourseRegistrationPreview()"/>
                 </div>
                 <div class="tsa-form-group">
-                  <label class="tsa-label">수강 기간</label>
-                  <select id="course-reg-duration" class="tsa-input" onchange="syncCourseRegDormDuration(); updateCourseRegDormDatesFromStart(); updateStudentCourseRegistrationPreview()">
-                    <option value="4">4주</option>
-                    <option value="8">8주</option>
-                    <option value="12">12주</option>
-                    <option value="16">16주</option>
-                    <option value="20">20주</option>
-                    <option value="24">24주</option>
-                  </select>
-                </div>
-                <div class="tsa-form-group">
-                  <label class="tsa-label">입학 상태</label>
-                  <select id="course-reg-status" class="tsa-input">
-                    <option value="waiting">입학 대기</option>
-                    <option value="current">재학</option>
-                    <option value="completed">졸업</option>
-                  </select>
-                </div>
-                <div class="tsa-form-group">
                   <label class="tsa-label">정산 상태</label>
                   <select id="course-reg-payment" class="tsa-input">
                     <option value="unpaid">미납</option>
                     <option value="paid">완납</option>
                   </select>
                 </div>
-                <div id="course-reg-course-fee-compare" style="grid-column:span 2"></div>
+                </div>
               </div>
             </div>
 
@@ -6170,7 +6162,7 @@
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('student-course-registration-modal')">취소</button>
         <button class="tsa-btn tsa-btn-primary" onclick="saveStudentCourseRegistration()">
-          <i data-lucide="check"></i> 코스 등록
+          <i data-lucide="check"></i> 수강 등록
         </button>
       </div>
     </div>

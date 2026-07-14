@@ -1034,6 +1034,81 @@ function getCourseRegSelectedCourse() {
   return (typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : []).find(c => c.name === courseName) || null;
 }
 
+function getCourseRegActiveCourses() {
+  const courses = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : [];
+  return courses
+    .map((course, index) => ({ course, index }))
+    .filter(row => row.course.active !== false);
+}
+
+function selectCourseRegOption(courseIndex, weeks) {
+  const course = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES[courseIndex] : null;
+  if (!course || course.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
+
+  const courseEl = document.getElementById('course-reg-course');
+  const durationEl = document.getElementById('course-reg-duration');
+  if (courseEl) courseEl.value = course.name;
+  if (durationEl) durationEl.value = String(weeks);
+
+  syncCourseRegDormDuration();
+  updateCourseRegDormDatesFromStart(true);
+  updateStudentCourseRegistrationPreview();
+}
+
+function renderCourseRegCourseComparison() {
+  const target = document.getElementById('course-reg-course-compare-table');
+  if (!target) return;
+
+  const rows = getCourseRegActiveCourses();
+  const selectedCourse = getCourseRegSelectedCourse();
+  const selectedWeeks = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const summary = document.getElementById('course-reg-selection-summary');
+
+  if (!rows.length) {
+    target.innerHTML = `<div style="padding:18px;text-align:center;color:#9CA3AF;font-size:12px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">현재 등록 가능한 과정이 없습니다.</div>`;
+    if (summary) summary.textContent = '등록 가능 과정 없음';
+    return;
+  }
+
+  const selectedAmount = selectedCourse
+    ? getCourseRegPeriodFee(selectedCourse.fee, selectedCourse.tuitionPolicy, selectedWeeks)
+    : 0;
+  if (summary) {
+    summary.textContent = selectedCourse
+      ? `${selectedCourse.name} · ${selectedWeeks}주 · ${formatCourseRegMoney(selectedAmount)}`
+      : '과정과 기간을 선택해줘';
+  }
+
+  target.innerHTML = `
+    <div style="min-width:790px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:180px repeat(6,minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+        <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">과정명</div>
+        ${COURSE_REG_PERIODS.map(weeks => `
+          <div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
+        `).join('')}
+      </div>
+      ${rows.map(({ course, index }, rowIndex) => `
+        <div style="display:grid;grid-template-columns:180px repeat(6,minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+          <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourse?.name === course.name ? '#F8FAFF' : '#fff'}">
+            <b style="font-size:12px;color:#111827">${course.name}</b>
+            <span style="font-size:10px;color:#9CA3AF;margin-top:2px">${course.type || '과정'}</span>
+          </div>
+          ${COURSE_REG_PERIODS.map(weeks => {
+            const active = selectedCourse?.name === course.name && weeks === selectedWeeks;
+            const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
+            return `
+              <button type="button" onclick="selectCourseRegOption(${index}, ${weeks})" aria-pressed="${active}" style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : '#fff'};color:${active ? '#fff' : '#111827'};cursor:pointer;font-family:inherit">
+                <span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span>
+                <span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#E0E7FF' : '#9CA3AF'}">${active ? '선택됨' : '선택'}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function getCourseRegSelectedDormTemplate() {
   const raw = document.getElementById('course-reg-dorm-template')?.value;
   const idx = parseInt(raw, 10);
@@ -1113,14 +1188,14 @@ function toggleCourseRegDormSection() {
   if (note) note.style.display = enabled ? 'none' : 'block';
 }
 
-function updateCourseRegDormDatesFromStart() {
+function updateCourseRegDormDatesFromStart(forceUpdate = false) {
   const startDate = document.getElementById('course-reg-start')?.value || '';
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
   const dormIn = document.getElementById('course-reg-dorm-in');
   const dormOut = document.getElementById('course-reg-dorm-out');
   if (!startDate || !dormIn || !dormOut) return;
-  if (!dormIn.value) dormIn.value = startDate;
-  if (!dormOut.value) {
+  if (!dormIn.value || forceUpdate) dormIn.value = startDate;
+  if (!dormOut.value || forceUpdate) {
     const out = new Date(startDate);
     out.setDate(out.getDate() + duration * 7);
     dormOut.value = out.toISOString().split('T')[0];
@@ -1135,15 +1210,7 @@ function updateStudentCourseRegistrationPreview() {
   const dormSelection = getCourseRegSelectedDormTemplate();
   const extras = getSelectedCourseRegExtras();
 
-  const courseRows = COURSE_REG_PERIODS.map(weeks => ({
-    weeks,
-    amount: course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks) : 0,
-  }));
-  renderCourseRegFeeCompare('course-reg-course-fee-compare', courseRows, duration, {
-    bg: '#EEF2FF',
-    border: '#C7D2FE',
-    text: '#4338CA',
-  });
+  renderCourseRegCourseComparison();
 
   const dormRows = COURSE_REG_PERIODS.map(weeks => ({
     weeks,
@@ -1212,10 +1279,12 @@ function openStudentCourseRegistration(studentId) {
   if (!student) return;
   APP.currentCourseRegistrationStudent = student;
 
-  const activeCourses = (typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : []).filter(c => c.active !== false);
+  const activeCourses = getCourseRegActiveCourses().map(row => row.course);
   const courseEl = document.getElementById('course-reg-course');
   if (courseEl) {
-    courseEl.innerHTML = activeCourses.map(c => `<option value="${c.name}" ${c.name === student.course ? 'selected' : ''}>${c.name}</option>`).join('');
+    courseEl.innerHTML = activeCourses.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    const defaultCourse = activeCourses.find(c => c.name === student.course) || activeCourses[0];
+    courseEl.value = defaultCourse?.name || '';
   }
 
   const levelEl = document.getElementById('course-reg-level');
@@ -1225,9 +1294,9 @@ function openStudentCourseRegistration(studentId) {
   }
 
   const title = document.getElementById('course-reg-title');
-  if (title) title.textContent = `${student.name} 코스 등록`;
+  if (title) title.textContent = `${student.name} 수강 등록`;
   const subtitle = document.getElementById('course-reg-subtitle');
-  if (subtitle) subtitle.textContent = '수강 과정, 기숙사, 기타 항목을 선택하고 최종 청구 금액을 확인합니다.';
+  if (subtitle) subtitle.textContent = '과정별 수강료를 비교한 뒤 기숙사와 기타 비용을 포함한 최종 금액을 확인합니다.';
   const summary = document.getElementById('course-reg-student-summary');
   if (summary) summary.textContent = `${student.name} (Nick: ${student.nick}) · ${student.nationality || '-'} · 현재 ${student.course || '미등록'}`;
 
@@ -1235,8 +1304,6 @@ function openStudentCourseRegistration(studentId) {
   if (startEl) startEl.value = student.startDate || '2026-09-01';
   const durationEl = document.getElementById('course-reg-duration');
   if (durationEl) durationEl.value = COURSE_REG_PERIODS.includes(Number(student.duration)) ? String(student.duration) : '4';
-  const statusEl = document.getElementById('course-reg-status');
-  if (statusEl) statusEl.value = student.status || 'waiting';
   const paymentEl = document.getElementById('course-reg-payment');
   if (paymentEl) paymentEl.value = student.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
   const memoEl = document.getElementById('course-reg-memo');
@@ -1282,7 +1349,7 @@ function saveStudentCourseRegistration() {
   const level = document.getElementById('course-reg-level')?.value || student.level || '';
   const startDate = document.getElementById('course-reg-start')?.value || '';
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
-  const status = document.getElementById('course-reg-status')?.value || 'waiting';
+  const status = student.status || 'waiting';
   const payment = document.getElementById('course-reg-payment')?.value || 'unpaid';
   const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
   const selectedCourse = getCourseRegSelectedCourse();
@@ -1343,7 +1410,6 @@ function saveStudentCourseRegistration() {
   student.startDate = startDate;
   student.duration = duration;
   student.endDate = endDate;
-  student.status = status;
   student.remittanceStatus = payment === 'paid' ? 'paid' : 'unpaid';
   student.dorm = dormLabel;
   if (dormEnabled && dormSelection) {
