@@ -1108,8 +1108,8 @@ function addCourseRegSegment() {
   const course = getCourseRegSelectedCourse();
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const startDate = document.getElementById('course-reg-start')?.value || '';
-  if (!course || !startDate || duration < 1 || duration > 24) {
-    showToast('과정, 구간 시작일, 1~24주 기간을 확인해줘.', 'warning');
+  if (!course || !startDate || !COURSE_REG_PERIODS.includes(duration)) {
+    showToast('위 금액표에서 과정과 수강 기간을 선택하고 구간 시작일을 확인해줘.', 'warning');
     return;
   }
   const existingSegments = getCourseRegSegments();
@@ -1579,6 +1579,9 @@ function saveStudentCourseRegistration() {
     dormDuration: dormEnabled ? dormDuration : 0,
     dormIn: dormEnabled ? dormIn : '',
     dormOut: dormEnabled ? dormOut : '',
+    dormAccomType: dormEnabled && dormSelection ? dormSelection.template.accomType || null : null,
+    dormType: dormEnabled && dormSelection ? dormSelection.template.capacity || null : null,
+    dormGrade: dormEnabled && dormSelection ? dormSelection.template.condition || null : null,
     dormAmount,
     extraItems,
     extrasTotal,
@@ -2645,11 +2648,13 @@ function submitAgencyRemittance() {
 let currentAdetailStudentId = null;
 let currentAdetailTab = 'basic';
 let currentAdetailPortal = 'agency';
+let currentAdetailEnrollmentId = 'current';
 let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null };
 
 function openAgencyStudentDetailModal(id) {
   currentAdetailStudentId = id;
   currentAdetailTab = 'basic';
+  currentAdetailEnrollmentId = 'current';
   const s = MOCK_STUDENTS.find(std => std.id === id);
   if (!s) return;
 
@@ -2696,6 +2701,7 @@ function openAgencyStudentDetailModal(id) {
 function openAgencyStudentDetailPage(id, portal) {
   currentAdetailStudentId = id;
   currentAdetailTab = 'basic';
+  currentAdetailEnrollmentId = 'current';
   currentAdetailPortal = portal === 'admin' ? 'admin' : 'agency';
   const s = MOCK_STUDENTS.find(std => std.id === id);
   if (!s) return;
@@ -2774,16 +2780,18 @@ function renderAgencyStudentEnrollmentHub() {
       <div style="border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;padding:14px">
         <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">수강 목록</div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${enrollments.map((e, idx) => `
-            <div style="padding:12px;border-radius:10px;border:1px solid ${idx === 0 ? '#C7D2FE' : '#E5E7EB'};background:${idx === 0 ? '#EEF2FF' : '#fff'}">
+          ${enrollments.map((e, idx) => {
+            const selected = String(e.id) === String(currentAdetailEnrollmentId);
+            return `
+            <button type="button" onclick="selectAgencyStudentEnrollment('${e.id}')" style="width:100%;padding:12px;border-radius:10px;border:1px solid ${selected ? '#C7D2FE' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};text-align:left;cursor:pointer;font-family:inherit">
               <div style="font-size:12.5px;font-weight:800;color:#111827">${e.course}</div>
-              <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)}</div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)} · ${e.duration}주</div>
               <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
                 <span class="tsa-badge ${e.status === 'current' ? 'tsa-badge-success' : e.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(e.status)}</span>
-                ${idx === 0 ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
+                ${selected ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
               </div>
-            </div>
-          `).join('')}
+            </button>`;
+          }).join('')}
         </div>
         <div style="margin-top:12px;font-size:11px;color:#6B7280;line-height:1.5">
           코스 등록은 학생 리스트의 <b>코스 등록</b> 버튼에서 진행합니다.
@@ -2804,7 +2812,8 @@ function renderAgencyStudentEnrollmentHub() {
     </div>
   `;
 
-  switchAgencyEnrollmentHubTab('class');
+  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle', 'changelog'];
+  switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
 }
 
 function getStudentEnrollmentSnapshots(s) {
@@ -2817,10 +2826,38 @@ function getStudentEnrollmentSnapshots(s) {
     duration: s.duration || 4,
     status: s.status || 'waiting',
     paymentStatus: s.remittanceStatus || 'unpaid',
+    segments: Array.isArray(s.courseSegments) ? s.courseSegments : [],
+    dorm: s.dorm,
+    dormEnabled: Boolean(s.dorm && s.dorm !== '미사용' && s.dorm !== '미배정'),
+    dormDuration: s.dormDuration || s.duration || 0,
+    dormIn: s.dormIn || '',
+    dormOut: s.dormOut || '',
+    dormAccomType: s.dormAccomType,
+    dormType: s.dormType,
+    dormGrade: s.dormGrade,
   };
-  const saved = Array.isArray(s.enrollments) ? s.enrollments : [];
+  const saved = Array.isArray(s.enrollments) ? s.enrollments.map(enrollment => {
+    const dormParts = String(enrollment.dorm || '').split(' · ');
+    return {
+      ...enrollment,
+      segments: Array.isArray(enrollment.segments) ? enrollment.segments : [],
+      dormAccomType: enrollment.dormAccomType || dormParts[0] || '',
+      dormType: enrollment.dormType || parseInt(dormParts[1], 10) || null,
+      dormGrade: enrollment.dormGrade || dormParts[2] || '',
+    };
+  }) : [];
   const history = saved.filter(e => !(e.course === current.course && e.startDate === current.startDate));
   return [current, ...history].slice(0, 4);
+}
+
+function getSelectedStudentEnrollment(s) {
+  const enrollments = getStudentEnrollmentSnapshots(s);
+  return enrollments.find(e => String(e.id) === String(currentAdetailEnrollmentId)) || enrollments[0];
+}
+
+function selectAgencyStudentEnrollment(enrollmentId) {
+  currentAdetailEnrollmentId = String(enrollmentId);
+  renderAgencyStudentEnrollmentHub();
 }
 
 function getEnrollmentStatusLabel(status) {
@@ -2832,6 +2869,7 @@ function getEnrollmentStatusLabel(status) {
 }
 
 function switchAgencyEnrollmentHubTab(tab) {
+  currentAdetailTab = tab;
   document.querySelectorAll('.enrollment-hub-tab').forEach(btn => {
     const isActive = btn.dataset.hubTab === tab;
     btn.classList.toggle('tsa-btn-primary', isActive);
@@ -3013,9 +3051,15 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   });
 
   const targetId = studentId || currentAdetailStudentId;
-  const s = MOCK_STUDENTS.find(std => std.id === targetId);
+  const baseStudent = MOCK_STUDENTS.find(std => std.id === targetId);
   const container = document.getElementById(containerId);
-  if (!s || !container) return;
+  if (!baseStudent || !container) return;
+  const selectedEnrollment = containerId === 'adetail-page-enrollment-content'
+    ? getSelectedStudentEnrollment(baseStudent)
+    : null;
+  const s = selectedEnrollment
+    ? { ...baseStudent, ...selectedEnrollment, id: baseStudent.id }
+    : baseStudent;
 
   const isAgency = (APP.user === 'agency_head' || APP.user === 'agency_branch') && !isAdminModal;
   // 재학생(current/extended/completed/resigned)이면 에이전시 포탈에서 수정 불가
@@ -3257,29 +3301,57 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
     let teacherName = '미배정';
     const tMatch = MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick));
     if (tMatch) teacherName = tMatch.teacher;
+    const courseSegments = Array.isArray(s.segments) && s.segments.length
+      ? s.segments
+      : [{
+          course: s.course || '코스 미등록',
+          duration: Number(s.duration || 0),
+          startDate: s.startDate || '',
+          endDate: s.endDate || '',
+          recommendedLevels: s.level && s.level !== '-' ? [s.level] : [],
+          tuitionAmount: Number(s.tuitionAmount || 0),
+        }];
+    const totalWeeks = courseSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
+    const totalTuition = courseSegments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
 
     html = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:10px">
-        <div class="tsa-form-group">
-          <label class="tsa-label">수강 코스 ${changeBtn('course', '수강 코스')}</label>
-          <select id="ad-course" class="tsa-input" ${lockAttr}>
-            <option value="일반 코스" ${s.course.includes('일반 코스') ? 'selected' : ''}>일반 코스</option>
-            <option value="IELTS 전문 코스" ${s.course.includes('IELTS 전문 코스') ? 'selected' : ''}>IELTS 전문 코스</option>
-            <option value="주니어 패키지" ${s.course.includes('주니어 패키지') ? 'selected' : ''}>주니어 패키지</option>
-            <option value="가디언 코스" ${s.course.includes('가디언 코스') ? 'selected' : ''}>가디언 코스</option>
-          </select>
+        <div style="grid-column:span 2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">전체 수강 기간</div>
+            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">${fmtDate(s.startDate)} ~ ${fmtDate(s.endDate)}</div>
+          </div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">수강 구성</div>
+            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">총 ${totalWeeks}주 · ${courseSegments.length}개 구간</div>
+          </div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">등록 상태</div>
+            <div style="margin-top:5px"><span class="tsa-badge ${s.status === 'current' ? 'tsa-badge-success' : s.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(s.status)}</span></div>
+          </div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">수강료</div>
+            <div style="font-size:12px;color:#111827;font-weight:900;margin-top:5px">${totalTuition ? formatCourseRegMoney(totalTuition) : '-'}</div>
+          </div>
         </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">수강 기간 (주차) ${changeBtn('duration', '수강 기간')}</label>
-          <input id="ad-duration" type="number" class="tsa-input" value="${s.duration}" ${lockAttr}/>
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">수강 시작일 ${changeBtn('startDate', '수강 시작일')}</label>
-          <input id="ad-start-date" type="date" class="tsa-input" value="${s.startDate || '2026-06-01'}" ${lockAttr}/>
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">수강 종료일</label>
-          <input class="tsa-input" type="date" value="${s.endDate || ''}" style="background:#F9FAFB" readonly/>
+        <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:800;color:#111827">수강 구간</div>
+            <span style="font-size:10.5px;color:#6B7280">등록 당시 선택한 과정과 기간</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${courseSegments.map((segment, index) => `
+              <div style="display:grid;grid-template-columns:32px minmax(0,1fr) 90px 120px;gap:10px;align-items:center;padding:10px 12px;border-top:${index ? '1px solid #EEF0F4' : '0'}">
+                <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
+                <div>
+                  <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course || '-'}</div>
+                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)} · 추천 레벨 ${(segment.recommendedLevels || []).join(', ') || '-'}</div>
+                </div>
+                <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration || 0}주</div>
+                <div style="text-align:right;font-size:12px;font-weight:900;color:#111827">${segment.tuitionAmount ? formatCourseRegMoney(segment.tuitionAmount) : '-'}</div>
+              </div>
+            `).join('')}
+          </div>
         </div>
         <div class="tsa-form-group">
           <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원 기입)</span></label>
@@ -3633,12 +3705,15 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   } else if (tab === 'dorm') {
     // 현재 배정 침대 찾기
     let assignedRoom = null, assignedBed = null;
-    MOCK_DORM_ROOMS.forEach(r => {
-      if (r.beds) r.beds.forEach(b => {
-        if (b.studentId === s.id) { assignedRoom = r; assignedBed = b; }
+    const isCurrentEnrollment = !selectedEnrollment || String(selectedEnrollment.id) === 'current';
+    if (isCurrentEnrollment) {
+      MOCK_DORM_ROOMS.forEach(r => {
+        if (r.beds) r.beds.forEach(b => {
+          if (b.studentId === s.id) { assignedRoom = r; assignedBed = b; }
+        });
       });
-    });
-    if (!assignedRoom && s.dorm && s.dorm !== '미배정') {
+    }
+    if (isCurrentEnrollment && !assignedRoom && s.dorm && s.dorm !== '미배정') {
       const m = s.dorm.match(/Room\s+(\S+)\s*\/\s*Bed\s+(\S+)/i);
       if (m) {
         MOCK_DORM_ROOMS.forEach(r => {
@@ -3684,6 +3759,25 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
 
     html = `
       <div style="display:flex;flex-direction:column;gap:16px;padding:8px 0">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">기숙사 이용</div>
+            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">${s.dormEnabled === false ? '미사용' : '사용'}</div>
+          </div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">이용 기간</div>
+            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">${s.dormEnabled === false ? '-' : `${fmtDate(s.dormIn)} ~ ${fmtDate(s.dormOut)}`}</div>
+          </div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <div style="font-size:10.5px;color:#6B7280;font-weight:700">기숙사 비용</div>
+            <div style="font-size:12px;color:#111827;font-weight:900;margin-top:5px">${s.dormEnabled === false || !s.dormAmount ? '-' : formatCourseRegMoney(s.dormAmount)}</div>
+          </div>
+        </div>
+        ${s.dormEnabled === false ? `
+          <div style="padding:28px;background:#F9FAFB;border-radius:10px;border:1px dashed #D1D5DB;text-align:center;color:#6B7280;font-size:12px">
+            이 수강 등록 건에는 기숙사 이용이 포함되지 않았습니다.
+          </div>
+        ` : `
         <div>
           <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px">희망 숙소 <span style="color:#EF4444">*</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
@@ -3698,7 +3792,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               <label class="tsa-label">인실 기준</label>
               <select id="ad-dorm-cap" class="tsa-input" ${lockAttr} onchange="onDormCapChange(this.value)">
                 <option value="">— 유형 먼저 —</option>
-                ${s.dormAccomType ? [...new Set(MOCK_DORM_TEMPLATES.filter(t=>t.accomType===s.dormAccomType).map(t=>t.capacity+'인실'))].map(v=>`<option value="${v}" ${s.dormType===v?'selected':''}>${v}</option>`).join('') : ''}
+                ${s.dormAccomType ? [...new Set(MOCK_DORM_TEMPLATES.filter(t=>t.accomType===s.dormAccomType).map(t=>t.capacity+'인실'))].map(v=>`<option value="${v}" ${parseInt(s.dormType, 10)===parseInt(v, 10)?'selected':''}>${v}</option>`).join('') : ''}
               </select>
             </div>
             <div class="tsa-form-group">
@@ -3728,6 +3822,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           <div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.04em;margin-bottom:8px">배정 이력</div>
           <div style="display:flex;flex-direction:column;gap:6px">${historyRows}</div>
         </div>
+        `}
       </div>`;
   }
 
