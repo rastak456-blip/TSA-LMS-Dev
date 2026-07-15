@@ -591,7 +591,7 @@ function renderAdminDormAssign() {
                 <span style="font-size:11px;color:#D1D5DB">·</span>
                 <span style="font-size:11px;color:#6B7280">${s.age ? s.age + '세' : '-'}</span>
                 <span style="font-size:11px;color:#D1D5DB">·</span>
-                <span style="font-size:11px;color:#6B7280">여권 ${s.passportNum || '-'}</span>
+                <span style="font-size:11px;color:#6B7280">여권 ${maskPassportNumber(s.passportNum)}</span>
                 <span style="font-size:11px;color:#D1D5DB">·</span>
                 <span style="font-size:11px;color:#9CA3AF">${s.startDate || '-'} ~ ${s.departureDate || '-'}</span>
               </div>
@@ -1507,7 +1507,7 @@ function searchBamStudents() {
       <div style="width:30px;height:30px;border-radius:50%;background:${alreadyAssigned ? '#E5E7EB' : '#EEF2FF'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${alreadyAssigned ? '#9CA3AF' : '#5E5CE6'};flex-shrink:0">${s.nick[0] || '?'}</div>
       <div style="flex:1">
         <div style="font-size:12px;font-weight:600;color:${alreadyAssigned ? '#9CA3AF' : '#1A1D23'}">${s.nick} (${s.name})</div>
-        <div style="font-size:10px;color:#9CA3AF">${s.gender}성 · ${s.passportNum || '여권번호 없음'}${assignedInfo ? ' · <span style="color:#F59E0B">' + assignedInfo + '</span>' : ''}</div>
+        <div style="font-size:10px;color:#9CA3AF">${s.gender}성 · ${maskPassportNumber(s.passportNum, '여권번호 없음')}${assignedInfo ? ' · <span style="color:#F59E0B">' + assignedInfo + '</span>' : ''}</div>
       </div>
       ${alreadyAssigned ? '' : '<span style="font-size:10px;color:#5E5CE6;font-weight:600">선택</span>'}
     </div>`;
@@ -1762,6 +1762,10 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
         { type: 'departure', label: '현지 출발', color: '#6366F1' },
         { type: 'end',       label: '졸업 예정', color: '#6B7280' },
         { type: 'resigned',  label: '퇴원',      color: '#EF4444' },
+        ...(!agencyFilter ? [
+          { type: 'visa',    label: '비자 만료', color: '#F59E0B' },
+          { type: 'ssp',     label: 'SSP 만료',  color: '#8B5CF6' }
+        ] : []),
       ];
       monthStatsEl.innerHTML = legendItems.map(item => {
         const count = stats[item.type] || 0;
@@ -1956,10 +1960,11 @@ function getEventsForDate(dateStr, agencyFilter = null) {
     if (s.status === 'resigned' && (s.resignedDate === dateStr || s.departureDate === dateStr)) {
       events.push({ type: 'resigned', typeLabel: '퇴원일', studentId: s.id, studentName: s.name, studentNick: s.nick });
     }
-    if (s.visaExpiry && s.visaExpiry === dateStr && s.visaExpiry !== '면제') {
+    // 비자/SSP 일정은 내부 행정 정보이므로 어드민 달력에만 노출한다.
+    if (!agencyFilter && s.visaExpiry && s.visaExpiry === dateStr && s.visaExpiry !== '면제') {
       events.push({ type: 'visa', typeLabel: '비자 만료일', studentId: s.id, studentName: s.name, studentNick: s.nick });
     }
-    if (s.sspExpiry && s.sspExpiry === dateStr && s.sspExpiry !== '면제') {
+    if (!agencyFilter && s.sspExpiry && s.sspExpiry === dateStr && s.sspExpiry !== '면제') {
       events.push({ type: 'ssp', typeLabel: 'SSP 만료일', studentId: s.id, studentName: s.name, studentNick: s.nick });
     }
   });
@@ -2535,13 +2540,25 @@ function renderMonthlyInvoiceStats() {
     const dateStr = s.remittanceSubmittedDate || s.arrivalDate || s.startDate;
     return dateStr && dateStr.startsWith(selectedMonth);
   });
-  let paidNet = 0, unpaidNet = 0, totalComm = 0;
+  const getMonthlyBilling = (student) => {
+    const breakdown = getStudentBillingBreakdown(student);
+    const byKey = Object.fromEntries(breakdown.items.map(item => [item.key, item]));
+    const remitFee = Number(calculatePrices(student).remitFee || 0);
+    return {
+      ...breakdown,
+      byKey,
+      remitFee,
+      schoolRemit: breakdown.net + remitFee,
+    };
+  };
+  let paidNet = 0, unpaidNet = 0, totalComm = 0, totalSchoolRemit = 0;
   let paidCnt = 0, unpaidCnt = 0;
   allMonthStudents.forEach(s => {
-    const p = calculatePrices(s);
-    totalComm += p.commission;
-    if (s.remittanceStatus === 'paid') { paidNet += p.net; paidCnt++; }
-    else { unpaidNet += p.net; unpaidCnt++; }
+    const billing = getMonthlyBilling(s);
+    totalComm += billing.commission;
+    totalSchoolRemit += billing.schoolRemit;
+    if (s.remittanceStatus === 'paid') { paidNet += billing.schoolRemit; paidCnt++; }
+    else { unpaidNet += billing.schoolRemit; unpaidCnt++; }
   });
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setEl('month-stat-new-count',         `${allMonthStudents.length}건`);
@@ -2550,6 +2567,7 @@ function renderMonthlyInvoiceStats() {
   setEl('month-stat-unpaid-amount',     `$${unpaidNet.toLocaleString()}`);
   setEl('month-stat-unpaid-count',      `${unpaidCnt}`);
   setEl('month-stat-commission-amount', `$${totalComm.toLocaleString()}`);
+  setEl('month-stat-school-remit-amount', `$${totalSchoolRemit.toLocaleString()}`);
 
   const tbody = document.getElementById('month-stats-tbody');
   const tfoot = document.getElementById('month-stats-tfoot');
@@ -2569,7 +2587,7 @@ function renderMonthlyInvoiceStats() {
     }
   }
 
-  const colCount = isAgency ? 12 : 14;
+  const colCount = isAgency ? 18 : 20;
   if (monthStudents.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;color:#9CA3AF">해당 월에 등록된 학생이 없습니다.</td></tr>`;
     if (tfoot) tfoot.innerHTML = '';
@@ -2597,22 +2615,43 @@ function renderMonthlyInvoiceStats() {
 
 
   // 합계 집계
-  let sumTuition = 0, sumDorm = 0, sumReg = 0, sumGross = 0, sumComm = 0, sumNet = 0;
+  const sums = {
+    registration: 0, registrationCommission: 0,
+    education: 0, educationCommission: 0,
+    dorm: 0, dormCommission: 0,
+    local: 0, localCommission: 0,
+    gross: 0, commission: 0, schoolRemit: 0,
+  };
   let paidCount = 0, unpaidCount = 0;
 
   const totalRows = monthStudents.length;
   tbody.innerHTML = monthStudents.map((s, idx) => {
     const rowNum = totalRows - idx;
-    const p = calculatePrices(s);
-    sumTuition += p.tuition;
-    sumDorm    += p.dorm;
-    sumReg     += p.registration;
-    sumGross   += p.gross;
-    sumComm    += p.commission;
-    sumNet     += p.net;
+    const billing = getMonthlyBilling(s);
+    const registration = billing.byKey.registration || { amount: 0, commission: 0, commissionRate: 0, commissionType: 'none' };
+    const education = billing.byKey.education || { amount: 0, commission: 0, commissionRate: 0, commissionType: 'none' };
+    const dorm = billing.byKey.dorm || { amount: 0, commission: 0, commissionRate: 0, commissionType: 'none' };
+    const local = billing.byKey.local || { amount: 0, commission: 0, commissionRate: 0, commissionType: 'none' };
+    sums.registration += registration.amount;
+    sums.registrationCommission += registration.commission;
+    sums.education += education.amount;
+    sums.educationCommission += education.commission;
+    sums.dorm += dorm.amount;
+    sums.dormCommission += dorm.commission;
+    sums.local += local.amount;
+    sums.localCommission += local.commission;
+    sums.gross += billing.gross;
+    sums.commission += billing.commission;
+    sums.schoolRemit += billing.schoolRemit;
     if (s.remittanceStatus === 'paid') paidCount++; else unpaidCount++;
 
-    const commRate = Math.round(p.commission / (p.tuition + p.dorm) * 100) || 20;
+    const commissionCell = item => {
+      if (!item.commission) return '<span style="color:#9CA3AF">$0</span>';
+      const policyLabel = item.commissionType === 'fixed'
+        ? '정액'
+        : `${Math.round(Number(item.commissionRate || 0) * 100)}%`;
+      return `-$${item.commission.toLocaleString()} <span style="font-size:9.5px;opacity:.8">(${policyLabel})</span>`;
+    };
 
     const avatarSrc = (s.gender === '남' || s.gender === '남성')
       ? 'assets/images/student_male.png'
@@ -2627,7 +2666,7 @@ function renderMonthlyInvoiceStats() {
           <div>
             <div style="font-weight:700;font-size:12.5px">${s.name}</div>
             <div style="font-size:10.5px;color:#6B7280">Nick: ${s.nick}</div>
-            <div style="font-size:10.5px;color:#9CA3AF">${s.passportNum || '-'}</div>
+            <div style="font-size:10.5px;color:#9CA3AF">${maskPassportNumber(s.passportNum)}</div>
           </div>
         </div>
       </td>
@@ -2635,12 +2674,17 @@ function renderMonthlyInvoiceStats() {
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
         <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
       </td>
-      <td style="text-align:right;font-weight:600">$${p.tuition.toLocaleString()}</td>
-      <td style="text-align:right;font-weight:600">$${p.dorm.toLocaleString()}</td>
-      <td style="text-align:right;font-weight:600">$${p.registration.toLocaleString()}</td>
-      <td style="text-align:right;font-weight:800;color:#5E5CE6">$${p.gross.toLocaleString()}</td>
-      <td style="text-align:right;color:#D97706;font-weight:700">-$${p.commission.toLocaleString()} <span style="font-size:10px;opacity:0.8">(${commRate}%)</span></td>
-      <td style="text-align:right;font-weight:800;color:#059669">$${p.net.toLocaleString()}</td>
+      <td style="text-align:right;font-weight:600">$${registration.amount.toLocaleString()}</td>
+      <td style="text-align:right;color:#D97706;font-weight:700">${commissionCell(registration)}</td>
+      <td style="text-align:right;font-weight:600">$${education.amount.toLocaleString()}</td>
+      <td style="text-align:right;color:#D97706;font-weight:700">${commissionCell(education)}</td>
+      <td style="text-align:right;font-weight:600">$${dorm.amount.toLocaleString()}</td>
+      <td style="text-align:right;color:#D97706;font-weight:700">${commissionCell(dorm)}</td>
+      <td style="text-align:right;font-weight:600">$${local.amount.toLocaleString()}</td>
+      <td style="text-align:right;color:#D97706;font-weight:700">${commissionCell(local)}</td>
+      <td style="text-align:right;font-weight:800;color:#5E5CE6">$${billing.gross.toLocaleString()}</td>
+      <td style="text-align:right;color:#7C3AED;font-weight:800">-$${billing.commission.toLocaleString()}</td>
+      <td style="text-align:right;font-weight:800;color:#059669">$${billing.schoolRemit.toLocaleString()}</td>
       <td style="text-align:center">${statusBadge(s)}</td>
       <td style="text-align:center">${remitBadge(s)}</td>
       <td style="text-align:center;font-size:11px;color:#6B7280">
@@ -2668,12 +2712,17 @@ function renderMonthlyInvoiceStats() {
           <span style="font-size:10.5px;font-weight:600;color:#059669;margin-left:6px">완납 ${paidCount}명</span>
           <span style="font-size:10.5px;font-weight:600;color:#EF4444;margin-left:4px">미납 ${unpaidCount}명</span>
         </td>
-        <td style="text-align:right;color:#374151;padding:10px 8px">$${sumTuition.toLocaleString()}</td>
-        <td style="text-align:right;color:#374151;padding:10px 8px">$${sumDorm.toLocaleString()}</td>
-        <td style="text-align:right;color:#374151;padding:10px 8px">$${sumReg.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:900;color:#5E5CE6;padding:10px 8px">$${sumGross.toLocaleString()}</td>
-        <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sumComm.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:900;color:#059669;padding:10px 8px">$${sumNet.toLocaleString()}</td>
+        <td style="text-align:right;color:#374151;padding:10px 8px">$${sums.registration.toLocaleString()}</td>
+        <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sums.registrationCommission.toLocaleString()}</td>
+        <td style="text-align:right;color:#374151;padding:10px 8px">$${sums.education.toLocaleString()}</td>
+        <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sums.educationCommission.toLocaleString()}</td>
+        <td style="text-align:right;color:#374151;padding:10px 8px">$${sums.dorm.toLocaleString()}</td>
+        <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sums.dormCommission.toLocaleString()}</td>
+        <td style="text-align:right;color:#374151;padding:10px 8px">$${sums.local.toLocaleString()}</td>
+        <td style="text-align:right;color:#D97706;padding:10px 8px">-$${sums.localCommission.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:900;color:#5E5CE6;padding:10px 8px">$${sums.gross.toLocaleString()}</td>
+        <td style="text-align:right;color:#7C3AED;padding:10px 8px">-$${sums.commission.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:900;color:#059669;padding:10px 8px">$${sums.schoolRemit.toLocaleString()}</td>
         <td colspan="${isAgency ? 4 : 5}" style="padding:10px 8px"></td>
       </tr>`;
   }

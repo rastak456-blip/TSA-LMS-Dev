@@ -61,13 +61,16 @@ let MOCK_AGENCIES = [
 let _agencyNextId = 10;
 
 const AGENCY_COMMISSION_ITEMS = [
-  { key: 'registration', label: '등록금', defaultType: 'none', defaultValue: 0 },
+  { key: 'registration', label: '등록금', defaultType: 'rate', defaultValue: 10 },
   { key: 'education', label: '수강료', defaultType: 'rate', defaultValue: 10 },
   { key: 'dorm', label: '기숙사비', defaultType: 'rate', defaultValue: 10 },
-  { key: 'local', label: '기타 비용', defaultType: 'none', defaultValue: 0 },
+  { key: 'local', label: '기타 비용', defaultType: 'rate', defaultValue: 10 },
 ];
 
 function normalizeAgencyCommissionPolicies(a) {
+  if (a?.name === '직접 등록') {
+    return Object.fromEntries(AGENCY_COMMISSION_ITEMS.map(item => [item.key, { type: 'none', value: 0 }]));
+  }
   const legacyType = a?.commissionType === 'fixed' ? 'fixed' : 'rate';
   const legacyValue = legacyType === 'fixed'
     ? Number(a?.commissionAmount ?? a?.commissionRate ?? 0)
@@ -1587,6 +1590,7 @@ function switchDormErpTab(tab) {
   } else if (tab === 'settings') {
     renderAdminDormTemplates();
     renderAdminDormRoomsTable();
+    if (typeof renderDormAgencyVisibilitySettings === 'function') renderDormAgencyVisibilitySettings();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
   } else if (tab === 'master') {
     renderDormMasterLists();

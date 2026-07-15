@@ -256,6 +256,19 @@ function fmtDate(str) {
   return str;
 }
 
+// 여권번호는 조회 화면에서 앞 2자리와 뒤 2자리만 노출한다.
+// 실제 값은 중복 검사와 수정 저장을 위해 데이터에 그대로 유지한다.
+function maskPassportNumber(value, emptyText = '-') {
+  if (!value) return emptyText;
+
+  const passportNumber = String(value);
+  if (passportNumber.length <= 4) return '*'.repeat(passportNumber.length);
+
+  return passportNumber.slice(0, 2)
+    + '*'.repeat(passportNumber.length - 4)
+    + passportNumber.slice(-2);
+}
+
 // 항공편 문자열 안의 날짜를 YY.MM.DD 로 변환 (예: "KE631 | 06-01 입국" → "KE631 | 26.06.01 입국")
 function fmtFlightStr(str) {
   if (!str || str === '-') return str;

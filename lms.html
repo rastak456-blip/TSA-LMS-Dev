@@ -2390,11 +2390,6 @@
             </div>
           </div>
 
-          <!-- SSP 안내 배너 -->
-          <div style="padding:10px 14px;background:#EEF2FF;border-radius:8px;font-size:11.5px;color:#374151;margin-bottom:16px;border:1px solid #C7D2FE">
-            <strong style="color:#5E5CE6">SSP 안내:</strong> 한국·일본 국적은 자동 면제, 중국·베트남·몽골은 필리핀 SSP 카드 취득 필수 (처리기간 약 3주)
-          </div>
-
           <!-- 검색 필터 카드 -->
           <div class="tsa-card" style="margin-bottom:20px">
             <div class="tsa-card-body" style="padding:18px">
@@ -2576,7 +2571,7 @@
           <div class="tsa-section-header" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
             <div>
               <h2 class="tsa-page-title">🏢 기숙사 공실 조회</h2>
-              <p class="tsa-page-subtitle">입실 희망일을 입력하면 룸 타입별 잔여 공실 수를 확인할 수 있습니다. 배정 확정은 어드민이 처리합니다.</p>
+              <p class="tsa-page-subtitle">입실 희망일을 입력하면 룸 타입별 예약 가능 여부를 확인할 수 있습니다. 실제 호실과 배정 확정은 어드민이 관리합니다.</p>
             </div>
           </div>
 
@@ -2863,6 +2858,22 @@
                     <tbody id="admin-dorm-template-tbody"></tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+
+            <div class="tsa-card" style="margin-top:20px">
+              <div class="tsa-card-body" style="padding:0">
+                <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#111827">에이전시 공실 노출 정책</div>
+                    <div style="font-size:11px;color:#6B7280;margin-top:3px">실제 재고는 숨기고, 타입별 가능 여부 또는 마케팅용 잔여 수만 노출해.</div>
+                  </div>
+                  <span style="font-size:10.5px;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;padding:4px 9px;border-radius:8px">실제 재고와 분리</span>
+                </div>
+                <table class="tsa-table" style="font-size:12px">
+                  <thead><tr><th>숙소 유형</th><th>룸 타입</th><th>에이전시 노출 방식</th><th>마케팅 잔여 수</th><th>미리보기</th></tr></thead>
+                  <tbody id="dorm-agency-visibility-tbody"></tbody>
+                </table>
               </div>
             </div>
 
@@ -3626,6 +3637,7 @@
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('paid')"><div><div class="tsa-stat-label">당월 수납 완료 금액</div><div class="tsa-stat-value" id="month-stat-paid-amount" style="font-size:24px;color:#10B981">$0</div><div class="tsa-stat-change" style="color:#10B981">완납 Net 총액 · <span id="month-stat-paid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#D1FAE5;color:#10B981"><i data-lucide="check-circle"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px;cursor:pointer" onclick="setMonthStatsFilter('unpaid')"><div><div class="tsa-stat-label">미납 금액</div><div class="tsa-stat-value" id="month-stat-unpaid-amount" style="font-size:24px;color:#EF4444">$0</div><div class="tsa-stat-change" style="color:#EF4444">미송금 Net 총액 · <span id="month-stat-unpaid-count">0</span>명</div></div><div class="tsa-stat-icon" style="background:#FEE2E2;color:#EF4444"><i data-lucide="alert-circle"></i></div></div>
             <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">총 커미션 금액</div><div class="tsa-stat-value" id="month-stat-commission-amount" style="font-size:24px;color:#7C3AED">$0</div><div class="tsa-stat-change" style="color:#7C3AED">해당 월 전체 커미션 합계</div></div><div class="tsa-stat-icon" style="background:#F5F3FF;color:#7C3AED"><i data-lucide="percent"></i></div></div>
+            <div class="tsa-stat-card" style="padding:20px"><div><div class="tsa-stat-label">총 어학원 송금액</div><div class="tsa-stat-value" id="month-stat-school-remit-amount" style="font-size:24px;color:#059669">$0</div><div class="tsa-stat-change" style="color:#059669">Gross - 커미션 + 송금 수수료</div></div><div class="tsa-stat-icon" style="background:#ECFDF5;color:#059669"><i data-lucide="landmark"></i></div></div>
           </div>
           <div class="tsa-card">
             <div class="tsa-card-header" style="background:#F8F9FC;flex-wrap:wrap;gap:10px">
@@ -3647,9 +3659,12 @@
                 <thead>
                   <tr id="month-stats-thead-row">
                     <th>#</th><th>학생 정보</th><th>코스 / 수강 기간</th>
-                    <th style="text-align:right">수강료</th><th style="text-align:right">기숙사비</th>
-                    <th style="text-align:right">등록금</th><th style="text-align:right;color:#5E5CE6">GROSS</th>
-                    <th style="text-align:right;color:#D97706">커미션</th><th style="text-align:right;color:#059669">NET</th>
+                    <th style="text-align:right">등록금</th><th style="text-align:right;color:#D97706">등록금<br/>커미션</th>
+                    <th style="text-align:right">수강료</th><th style="text-align:right;color:#D97706">수강료<br/>커미션</th>
+                    <th style="text-align:right">기숙사비</th><th style="text-align:right;color:#D97706">기숙사<br/>커미션</th>
+                    <th style="text-align:right">기타 비용</th><th style="text-align:right;color:#D97706">기타 비용<br/>커미션</th>
+                    <th style="text-align:right;color:#5E5CE6">청구 금액 합계</th>
+                    <th style="text-align:right;color:#7C3AED">커미션 합계</th><th style="text-align:right;color:#059669">어학원 송금액</th>
                     <th>등록 상태</th><th>납부 상태</th>
                     <th>송금 명세서 제출일</th><th>어학원 납부 확인일</th>
                     <th class="admin-only" style="display:none">관리</th>
@@ -3804,16 +3819,16 @@
                 <div style="font-size:12px;font-weight:800;color:#374151">등록금</div>
                 <select id="agm-commission-type-registration" class="tsa-input" onchange="updateAgencyCommissionInputLabels()" style="width:100%">
                   <option value="none">커미션 없음</option>
-                  <option value="rate">정률 조정 (%)</option>
+                  <option value="rate" selected>정률 조정 (%)</option>
                   <option value="fixed">정액 조정 ($)</option>
                 </select>
-                <input id="agm-commission-registration" class="tsa-input" type="number" min="0" value="0" style="width:100%"/>
+                <input id="agm-commission-registration" class="tsa-input" type="number" min="0" value="10" style="width:100%"/>
               </div>
               <div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:center">
                 <div style="font-size:12px;font-weight:800;color:#374151">수강료</div>
                 <select id="agm-commission-type-education" class="tsa-input" onchange="updateAgencyCommissionInputLabels()" style="width:100%">
                   <option value="none">커미션 없음</option>
-                  <option value="rate">정률 조정 (%)</option>
+                  <option value="rate" selected>정률 조정 (%)</option>
                   <option value="fixed">정액 조정 ($)</option>
                 </select>
                 <input id="agm-commission-education" class="tsa-input" type="number" min="0" value="10" style="width:100%"/>
@@ -3822,7 +3837,7 @@
                 <div style="font-size:12px;font-weight:800;color:#374151">기숙사비</div>
                 <select id="agm-commission-type-dorm" class="tsa-input" onchange="updateAgencyCommissionInputLabels()" style="width:100%">
                   <option value="none">커미션 없음</option>
-                  <option value="rate">정률 조정 (%)</option>
+                  <option value="rate" selected>정률 조정 (%)</option>
                   <option value="fixed">정액 조정 ($)</option>
                 </select>
                 <input id="agm-commission-dorm" class="tsa-input" type="number" min="0" value="10" style="width:100%"/>
@@ -3831,10 +3846,10 @@
                 <div style="font-size:12px;font-weight:800;color:#374151">기타 비용</div>
                 <select id="agm-commission-type-local" class="tsa-input" onchange="updateAgencyCommissionInputLabels()" style="width:100%">
                   <option value="none">커미션 없음</option>
-                  <option value="rate">정률 조정 (%)</option>
+                  <option value="rate" selected>정률 조정 (%)</option>
                   <option value="fixed">정액 조정 ($)</option>
                 </select>
-                <input id="agm-commission-local" class="tsa-input" type="number" min="0" value="0" style="width:100%"/>
+                <input id="agm-commission-local" class="tsa-input" type="number" min="0" value="10" style="width:100%"/>
               </div>
               <div id="agm-commission-help" style="font-size:10.5px;color:#6B7280;line-height:1.5">
                 정률은 해당 항목 금액의 비율로, 정액은 해당 항목에서 고정 금액으로 커미션을 계산합니다.
@@ -5575,6 +5590,18 @@
             <div class="tsa-card">
               <div class="tsa-card-header" style="padding:10px 14px; background:#F8F9FC"><h4 style="font-size:13px; font-weight:700; color:#4F46E5">기본 인적 사항</h4></div>
               <div class="tsa-card-body" style="padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px">
+                <div style="grid-column:span 2;display:flex;align-items:center;gap:14px;padding:12px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px">
+                  <div id="areg-profile-photo-preview" style="width:76px;height:88px;border-radius:10px;overflow:hidden;border:1px solid #DDE3EC;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <img src="assets/images/student_male.png" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>
+                  </div>
+                  <div style="flex:1">
+                    <div style="font-size:11.5px;font-weight:800;color:#374151;margin-bottom:4px">학생 증명사진</div>
+                    <div id="areg-profile-photo-name" style="font-size:10px;color:#9CA3AF;margin-bottom:8px">등록된 사진 없음</div>
+                    <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="document.getElementById('areg-profile-photo').click()"><i data-lucide="image-plus"></i> 사진 선택</button>
+                    <input id="areg-profile-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewAgencyStudentProfilePhoto(this)"/>
+                    <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
+                  </div>
+                </div>
                 <div class="tsa-form-group">
                   <label class="tsa-label">영문 성명 (여권명 필수) <span style="color:#EF4444">*</span></label>
                   <input id="areg-name" type="text" class="tsa-input" placeholder="HONG GILDONG" required/>
@@ -6214,6 +6241,30 @@
               </div>
             </div>
 
+            <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
+              <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <div><h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">4. 항공편 및 필수 서류</h4><div style="font-size:11px;color:#6B7280;margin-top:3px">아직 정보가 없으면 비워두고 수강 등록을 완료해도 됩니다.</div></div>
+                <span class="tsa-badge tsa-badge-gray">선택 입력</span>
+              </div>
+              <div class="tsa-card-body" style="padding:14px">
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px">
+                  <div class="tsa-form-group"><label class="tsa-label">입국 편명</label><input id="course-reg-flight-num" class="tsa-input" placeholder="예: KE631"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">입국일</label><input id="course-reg-arrival-date" type="date" class="tsa-input"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">도착 시간</label><input id="course-reg-flight-time" type="time" class="tsa-input"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">출국 편명</label><input id="course-reg-flight-out-num" class="tsa-input" placeholder="예: KE632"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">출국일</label><input id="course-reg-departure-date" type="date" class="tsa-input"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">출발 시간</label><input id="course-reg-flight-out-time" type="time" class="tsa-input"/></div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>여권 사본</b><span id="course-reg-file-passport" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('passport',this)"/></label>
+                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>E-티켓</b><span id="course-reg-file-ticket" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('ticket',this)"/></label>
+                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>증명사진</b><span id="course-reg-file-photo" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept="image/*" hidden onchange="handleCourseRegFileUpload('photo',this)"/></label>
+                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>보험 증서</b><span id="course-reg-file-insurance" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('insurance',this)"/></label>
+                </div>
+                <div style="margin-top:10px;padding:9px 11px;border-radius:8px;background:#EEF2FF;color:#4338CA;font-size:10.5px;line-height:1.5">미등록 정보는 수강 등록 후 학생 상세 정보 → 수강 현황 → 항공편 &amp; 서류 관리에서 추가할 수 있습니다.</div>
+              </div>
+            </div>
+
             <div class="tsa-form-group">
               <label class="tsa-label">등록 메모</label>
               <textarea id="course-reg-memo" class="tsa-input" rows="3" placeholder="예: 재등록, 이전 학기 수강 이력 있음, 기숙사 추후 확정 등"></textarea>
@@ -6562,9 +6613,9 @@
 <script src="assets/js/lms-auth.js?v=0.6.0"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.0"></script>
 <script src="assets/js/lms-student.js?v=0.6.0"></script>
-<script src="assets/js/lms-course.js?v=0.6.0"></script>
+<script src="assets/js/lms-course.js?v=0.6.1"></script>
 <script src="assets/js/lms-tuition.js?v=0.6.0"></script>
-  <script src="assets/js/lms-classroom.js?v=0.6.2"></script>
+  <script src="assets/js/lms-classroom.js?v=0.6.3"></script>
   <script src="assets/js/lms-main.js?v=0.6.0"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>

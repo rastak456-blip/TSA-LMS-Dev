@@ -102,7 +102,7 @@ function renderStudentList(list) {
     const statusPill = `<span class="tsa-badge ${statusBadgeClass}" style="font-size:10.5px;margin-top:4px;display:inline-block">${statusLabel}</span>`;
 
     const attColor = s.attendance >= 90 ? '#16A34A' : s.attendance >= 85 ? '#D97706' : '#EF4444';
-    const avatarSrc = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+    const avatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
 
     const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
     const payment = getStudentPaymentSummary(s);
@@ -124,7 +124,7 @@ function renderStudentList(list) {
           <div>
             <div style="font-weight:700;font-size:13px;color:#1A1D23">${s.nick} (${s.name})</div>
             <div style="font-size:11px;color:#6B7280">${s.flag} ${s.nationality} · ${s.gender}성 ${s.age}세</div>
-            <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">여권: ${s.passportNum || '-'}</div>
+            <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">여권: ${maskPassportNumber(s.passportNum)}</div>
           </div>
         </div>
       </td>
