@@ -1706,8 +1706,8 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
       { type: 'arrival',   label: '입국(도착)', color: '#10B981' },
       { type: 'end',       label: '졸업 예정', color: '#6B7280' },
       { type: 'resigned',  label: '퇴원 예정', color: '#EF4444' },
-      { type: 'visa',      label: '비자 만료', color: '#F59E0B' },
-      { type: 'ssp',       label: 'SSP 만료',  color: '#8B5CF6' }
+      { type: 'visa',      label: '비자 갱신 필요', color: '#F59E0B' },
+      { type: 'ssp',       label: 'SSP 갱신 필요',  color: '#8B5CF6' }
     ];
 
     legendEl.innerHTML = legendItems.map(item => {
@@ -1763,8 +1763,8 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
         { type: 'end',       label: '졸업 예정', color: '#6B7280' },
         { type: 'resigned',  label: '퇴원',      color: '#EF4444' },
         ...(!agencyFilter ? [
-          { type: 'visa',    label: '비자 만료', color: '#F59E0B' },
-          { type: 'ssp',     label: 'SSP 만료',  color: '#8B5CF6' }
+          { type: 'visa',    label: '비자 갱신 필요', color: '#F59E0B' },
+          { type: 'ssp',     label: 'SSP 갱신 필요',  color: '#8B5CF6' }
         ] : []),
       ];
       monthStatsEl.innerHTML = legendItems.map(item => {
@@ -1910,33 +1910,121 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
     return;
   }
 
-  events.forEach(evt => {
+  const typeOrder = ['arrival', 'departure', 'end', 'visa', 'ssp', 'start', 'resigned'];
+  const groupedEvents = events.reduce((groups, event) => {
+    if (!groups[event.type]) groups[event.type] = [];
+    groups[event.type].push(event);
+    return groups;
+  }, {});
+
+  const orderedTypes = Object.keys(groupedEvents)
+    .sort((a, b) => {
+      const aIndex = typeOrder.indexOf(a);
+      const bIndex = typeOrder.indexOf(b);
+      return (aIndex < 0 ? 99 : aIndex) - (bIndex < 0 ? 99 : bIndex);
+    });
+
+  // 어드민 상세에서는 일정 유형과 인원수를 목록 상단에서 먼저 확인한다.
+  if (listId === 'admin-calendar-events-list' && !agencyFilter) {
+    const groupSummary = document.createElement('div');
+    groupSummary.style.display = 'flex';
+    groupSummary.style.alignItems = 'center';
+    groupSummary.style.gap = '6px';
+    groupSummary.style.flexWrap = 'wrap';
+    groupSummary.style.padding = '0 0 4px';
+    groupSummary.innerHTML = orderedTypes.map(type => {
+      const groupEvents = groupedEvents[type];
+      const groupColor = getEventColor(type);
+      const groupId = `${listId}-${dateStr}-${type}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+      return `
+        <button type="button" onclick="focusCalendarEventGroup('${groupId}')"
+          style="display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid ${groupColor}33;border-radius:14px;background:${groupColor}12;color:${groupColor};font-size:10px;font-weight:800;cursor:pointer">
+          <span style="width:6px;height:6px;border-radius:50%;background:${groupColor}"></span>
+          ${groupEvents[0].typeLabel} ${groupEvents.length}명
+        </button>`;
+    }).join('');
+    listEl.appendChild(groupSummary);
+  }
+
+  orderedTypes.forEach(type => {
+    const groupEvents = groupedEvents[type];
+    const groupColor = getEventColor(type);
+    const groupId = `${listId}-${dateStr}-${type}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+    const section = document.createElement('section');
+    section.style.border = '1px solid #E5E7EB';
+    section.style.borderRadius = '10px';
+    section.style.overflow = 'hidden';
+    section.style.background = '#fff';
+    section.style.marginBottom = '8px';
+    section.innerHTML = `
+      <button type="button" onclick="toggleCalendarEventGroup('${groupId}', this)" aria-expanded="true" style="width:100%;border:0;background:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">
+        <span style="display:flex;align-items:center;gap:8px;min-width:0">
+          <span style="width:8px;height:8px;border-radius:50%;background:${groupColor};flex-shrink:0"></span>
+          <b style="font-size:11.5px;color:#374151">${groupEvents[0].typeLabel}</b>
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:19px;padding:0 6px;border-radius:10px;background:${groupColor}18;color:${groupColor};font-size:9.5px;font-weight:800">${groupEvents.length}명</span>
+        </span>
+        <i data-lucide="chevron-up" style="width:15px;height:15px;color:#9CA3AF;transition:transform .2s"></i>
+      </button>
+      <div id="${groupId}" style="padding:0 8px 8px;display:flex;flex-direction:column;gap:6px;border-top:1px solid #F3F4F6"></div>`;
+    const groupBody = section.querySelector(`#${groupId}`);
+
+    groupEvents.forEach(evt => {
     const card = document.createElement('div');
-    card.style.display = 'flex';
-    card.style.alignItems = 'center';
-    card.style.justifyContent = 'space-between';
+    card.style.display = 'block';
     card.style.padding = '10px 12px';
     card.style.background = '#F8F9FC';
     card.style.border = '1px solid #E9EDF4';
     card.style.borderRadius = '8px';
 
     const color = getEventColor(evt.type);
-    const detailFn = listId === 'agency-calendar-events-list' ? 'openAgencyStudentDetailModal' : 'openStudentDetail';
+    const detailFn = listId === 'agency-calendar-events-list' ? 'openStudentDetailPopup' : 'openStudentDetail';
+    const isAdminVisaRenewal = listId === 'admin-calendar-events-list' && !agencyFilter && evt.type === 'visa';
+    if (isAdminVisaRenewal) {
+      card.style.background = '#FFFBEB';
+      card.style.borderColor = '#FDE68A';
+    }
 
     card.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
-        <div>
-          <div style="font-weight:700;font-size:12px;color:#374151">${evt.studentNick} (${evt.studentName})</div>
-          <div style="font-size:10.5px;color:#6B7280">${evt.typeLabel}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:12px;color:#374151">${evt.studentNick} (${evt.studentName})</div>
+            <div style="font-size:10.5px;color:#6B7280">${evt.typeLabel} · ${dateStr}</div>
+          </div>
         </div>
+        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="${detailFn}(${evt.studentId})">보기</button>
       </div>
-      <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="${detailFn}(${evt.studentId})">
-        보기
-      </button>
     `;
-    listEl.appendChild(card);
+    groupBody.appendChild(card);
+    });
+    listEl.appendChild(section);
   });
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function toggleCalendarEventGroup(groupId, button) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const collapsed = group.style.display === 'none';
+  group.style.display = collapsed ? 'flex' : 'none';
+  button?.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+  const icon = button?.querySelector('svg, [data-lucide]');
+  if (icon) icon.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function focusCalendarEventGroup(groupId) {
+  const group = document.getElementById(groupId);
+  const section = group?.closest('section');
+  if (!group || !section) return;
+
+  if (group.style.display === 'none') {
+    const button = section.querySelector('button[aria-expanded]');
+    toggleCalendarEventGroup(groupId, button);
+  }
+  section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  section.style.boxShadow = '0 0 0 2px rgba(94, 92, 230, .22)';
+  window.setTimeout(() => { section.style.boxShadow = 'none'; }, 900);
 }
 
 function getEventsForDate(dateStr, agencyFilter = null) {
@@ -1962,10 +2050,10 @@ function getEventsForDate(dateStr, agencyFilter = null) {
     }
     // 비자/SSP 일정은 내부 행정 정보이므로 어드민 달력에만 노출한다.
     if (!agencyFilter && s.visaExpiry && s.visaExpiry === dateStr && s.visaExpiry !== '면제') {
-      events.push({ type: 'visa', typeLabel: '비자 만료일', studentId: s.id, studentName: s.name, studentNick: s.nick });
+      events.push({ type: 'visa', typeLabel: '비자 갱신 필요', studentId: s.id, studentName: s.name, studentNick: s.nick });
     }
     if (!agencyFilter && s.sspExpiry && s.sspExpiry === dateStr && s.sspExpiry !== '면제') {
-      events.push({ type: 'ssp', typeLabel: 'SSP 만료일', studentId: s.id, studentName: s.name, studentNick: s.nick });
+      events.push({ type: 'ssp', typeLabel: 'SSP 갱신 필요', studentId: s.id, studentName: s.name, studentNick: s.nick });
     }
   });
 
@@ -2587,7 +2675,7 @@ function renderMonthlyInvoiceStats() {
     }
   }
 
-  const colCount = isAgency ? 18 : 20;
+  const colCount = isAgency ? 19 : 21;
   if (monthStudents.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;color:#9CA3AF">해당 월에 등록된 학생이 없습니다.</td></tr>`;
     if (tfoot) tfoot.innerHTML = '';
@@ -2657,7 +2745,7 @@ function renderMonthlyInvoiceStats() {
       ? 'assets/images/student_male.png'
       : 'assets/images/student_female.png';
 
-    return `<tr>
+    return `<tr onclick="openMonthlyStudentSettlement(${s.id})" style="cursor:pointer" title="클릭하여 학생 정산 상세 보기">
       <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${rowNum}</td>
       ${!isAgency ? `<td style="font-size:12px;color:#374151">${s.agency || '-'}</td>` : ''}
       <td>
@@ -2673,6 +2761,11 @@ function renderMonthlyInvoiceStats() {
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
         <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
+      </td>
+      <td style="min-width:120px">
+        <select class="tsa-input" style="min-width:110px;padding:6px 8px;font-size:11px" onclick="event.stopPropagation()" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '월별 정산')">
+          ${renderRemittanceRouteOptions(s.remittanceRoute)}
+        </select>
       </td>
       <td style="text-align:right;font-weight:600">$${registration.amount.toLocaleString()}</td>
       <td style="text-align:right;color:#D97706;font-weight:700">${commissionCell(registration)}</td>
@@ -2695,7 +2788,7 @@ function renderMonthlyInvoiceStats() {
       </td>
       ${!isAgency ? `<td style="text-align:center">
         ${(s.remittanceStatus !== 'paid' && (s.remittanceReceipt || s.remittanceMemo))
-          ? `<button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-color:#5E5CE6;color:#5E5CE6" onclick="openRemitReviewModal(${s.id})">보기</button>`
+          ? `<button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-color:#5E5CE6;color:#5E5CE6" onclick="event.stopPropagation();openRemitReviewModal(${s.id})">보기</button>`
           : `<span style="color:#D1D5DB;font-size:11px">-</span>`}
       </td>` : ''}
     </tr>`;
@@ -2707,7 +2800,7 @@ function renderMonthlyInvoiceStats() {
       <tr style="background:#F0F4FF;font-weight:800;border-top:2px solid #C7D2FE">
         <td style="padding:10px 8px;text-align:center;color:#9CA3AF;font-size:11px"></td>
         ${!isAgency ? '<td></td>' : ''}
-        <td colspan="2" style="padding:10px 12px;font-size:12px;color:#1E3A8A">
+        <td colspan="3" style="padding:10px 12px;font-size:12px;color:#1E3A8A">
           합계 · 총 ${monthStudents.length}명
           <span style="font-size:10.5px;font-weight:600;color:#059669;margin-left:6px">완납 ${paidCount}명</span>
           <span style="font-size:10.5px;font-weight:600;color:#EF4444;margin-left:4px">미납 ${unpaidCount}명</span>
@@ -2727,6 +2820,60 @@ function renderMonthlyInvoiceStats() {
       </tr>`;
   }
 
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function openMonthlyStudentSettlement(studentId) {
+  const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
+  if (!student) return;
+  const breakdown = getStudentBillingBreakdown(student);
+  const remitFee = Number(calculatePrices(student).remitFee || 0);
+  const schoolRemit = breakdown.net + remitFee;
+  const itemLabels = { registration: '등록금', education: '수강료', dorm: '기숙사비', local: '기타 비용' };
+  const routeLabels = { agency: '에이전시', direct: '직접 송금', onsite: '현장 결제' };
+  const avatarSrc = student.profilePhoto || ((student.gender === '남' || student.gender === '남성') ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+  let modal = document.getElementById('monthly-student-settlement-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'monthly-student-settlement-modal';
+    modal.style.display = 'none';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `<div class="tsa-modal-backdrop" onclick="closeModal('monthly-student-settlement-modal')">
+    <div class="tsa-modal" style="max-width:940px" onclick="event.stopPropagation()">
+      <div class="tsa-modal-header">
+        <div><h3 class="tsa-modal-title">학생 정산 상세</h3><p class="tsa-modal-subtitle">학생별 청구 금액, 커미션 및 어학원 송금 정보를 확인합니다.</p></div>
+        <button class="tsa-modal-close" onclick="closeModal('monthly-student-settlement-modal')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="tsa-modal-body">
+        <div style="display:flex;align-items:center;gap:13px;padding:14px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:16px">
+          <img src="${avatarSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #E5E7EB" alt=""/>
+          <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#111827">${student.name} <span style="font-size:12px;color:#6B7280">(Nick: ${student.nick || '-'})</span></div><div style="font-size:11px;color:#6B7280;margin-top:4px">${student.agency || '-'} · ${student.course || '-'} · ${student.startDate || '-'} ~ ${student.endDate || '-'}</div></div>
+          <div style="text-align:right"><span class="tsa-badge ${student.remittanceStatus === 'paid' ? 'tsa-badge-success' : 'tsa-badge-danger'}">${student.remittanceStatus === 'paid' ? '완납' : '미납'}</span><div style="font-size:10.5px;color:#6B7280;margin-top:5px">송금 경로: ${routeLabels[student.remittanceRoute] || student.remittanceRoute || '에이전시'}</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+          <div style="padding:13px;border:1px solid #E5E7EB;border-radius:10px"><div style="font-size:10.5px;color:#6B7280">청구 금액 합계</div><div style="font-size:20px;font-weight:900;color:#111827;margin-top:5px">$${breakdown.gross.toLocaleString()}</div></div>
+          <div style="padding:13px;border:1px solid #DDD6FE;background:#F5F3FF;border-radius:10px"><div style="font-size:10.5px;color:#6D28D9">커미션 합계</div><div style="font-size:20px;font-weight:900;color:#6D28D9;margin-top:5px">$${breakdown.commission.toLocaleString()}</div></div>
+          <div style="padding:13px;border:1px solid #A7F3D0;background:#ECFDF5;border-radius:10px"><div style="font-size:10.5px;color:#047857">어학원 송금액 합계</div><div style="font-size:20px;font-weight:900;color:#047857;margin-top:5px">$${schoolRemit.toLocaleString()}</div></div>
+        </div>
+        <div style="border:1px solid #E5E7EB;border-radius:11px;overflow:auto;margin-bottom:16px">
+          <table class="tsa-table" style="min-width:680px"><thead><tr><th>정산 항목</th><th style="text-align:right">청구 금액</th><th style="text-align:right">커미션 기준</th><th style="text-align:right">커미션 금액</th><th style="text-align:right">어학원 송금액</th></tr></thead><tbody>
+            ${breakdown.items.map(item => {
+              const policy = item.commissionType === 'fixed' ? '정액' : item.commissionType === 'none' ? '없음' : `${Math.round(Number(item.commissionRate || 0) * 100)}%`;
+              return `<tr><td style="font-weight:700">${itemLabels[item.key] || item.label || item.key}</td><td style="text-align:right">$${item.amount.toLocaleString()}</td><td style="text-align:right;color:#6B7280">${policy}</td><td style="text-align:right;color:#7C3AED;font-weight:700">$${item.commission.toLocaleString()}</td><td style="text-align:right;color:#059669;font-weight:800">$${(item.amount - item.commission).toLocaleString()}</td></tr>`;
+            }).join('')}
+            ${remitFee ? `<tr><td style="font-weight:700">송금 수수료</td><td style="text-align:right">$${remitFee.toLocaleString()}</td><td style="text-align:right;color:#6B7280">별도</td><td style="text-align:right;color:#9CA3AF">$0</td><td style="text-align:right;color:#059669;font-weight:800">$${remitFee.toLocaleString()}</td></tr>` : ''}
+          </tbody></table>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px"><div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">송금 명세서 제출</div><div style="font-size:11px;color:#6B7280">${student.remittanceSubmittedDate ? `${student.remittanceSubmittedDate.substring(0, 10)} · ${student.remittanceSubmittedBy || '-'}` : '미제출'}</div></div>
+          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px"><div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">어학원 납부 확인</div><div style="font-size:11px;color:#6B7280">${student.remittanceStatus === 'paid' && student.remittanceDate ? `${student.remittanceDate.substring(0, 10)} · ${student.remittanceApprovedBy || '-'}` : '미확인'}</div></div>
+        </div>
+      </div>
+      <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeModal('monthly-student-settlement-modal')">닫기</button></div>
+    </div>
+  </div>`;
+  openModal('monthly-student-settlement-modal');
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
@@ -3013,7 +3160,7 @@ function openStudentSettleDetail(studentId) {
       switchStudentTab('settle', null);
     }, 150);
   } else {
-    openAgencyStudentDetailModal(studentId);
+    openStudentDetailPopup(studentId, 'agency');
     setTimeout(() => {
       switchAdetailTab('settle');
     }, 150);
@@ -3025,4 +3172,30 @@ function openStudentSettleDetail(studentId) {
    ============================================= */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TSA LMS v2.5 ready — 로그인 화면에서 시작');
+  initializeStudentPopupMode();
 });
+
+function initializeStudentPopupMode() {
+  const params = new URLSearchParams(window.location.search);
+  const studentId = parseInt(params.get('studentPopup'), 10);
+  if (!studentId) return;
+  const portal = params.get('portal') === 'agency' ? 'agency' : 'admin';
+  APP.user = portal === 'agency' ? 'agency_head' : 'super_admin';
+  if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
+  if (typeof enhanceMockTeachers === 'function') enhanceMockTeachers();
+  if (typeof applyRoleUI === 'function') applyRoleUI();
+  document.body.classList.add('student-popup-mode');
+  const login = document.getElementById('login-screen');
+  const app = document.getElementById('app-layout');
+  if (login) login.style.display = 'none';
+  if (app) app.style.display = 'block';
+  openAgencyStudentDetailPage(studentId, portal);
+  const closeButtons = document.querySelectorAll('[onclick="closeStudentDetailPage()"]');
+  closeButtons.forEach((button, index) => {
+    if (index === 0) button.style.display = 'none';
+    else button.innerHTML = '<i data-lucide="x"></i> 창 닫기';
+  });
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  if (student) document.title = `${student.name} 학생 정보`;
+  setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
+}

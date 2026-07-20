@@ -407,7 +407,7 @@ const MOCK_STUDENTS = [
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [],
     passportStatus: '보관 중',
-    flightInfo: 'CZ388 | 07-20 입국 예정', flightTime: '14:30',
+    flightInfo: 'CZ388 | 07-20 입국 예정', flightTime: '14:30', pickupRequired: true,
     dietType: '일반식',
     healthNotes: '신규 등록 — 입학 전.',
     grades: { speaking: [], listening: [], reading: [], writing: [] },
@@ -473,7 +473,7 @@ const MOCK_STUDENTS = [
     course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: '미배정', dormAccomType: '기숙사', dormType: '4인실', dormGrade: '스탠다드', visaExpiry: '2026-08-20', sspExpiry: '미취득',
     departureDate: '2026-08-20', startDate: '2026-07-20', arrivalDate: '2026-07-20',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
-    passportNum: 'G10000028', passportStatus: '미보관', flightInfo: 'CZ302 | 07-20 입국 예정', flightTime: '18:10', dietType: '일반식', healthNotes: '',
+    passportNum: 'G10000028', passportStatus: '미보관', flightInfo: 'CZ302 | 07-20 입국 예정', flightTime: '18:10', pickupRequired: false, dietType: '일반식', healthNotes: '',
     fees: [
       { id: 2801, item: '입학금 (Registration Fee)', amount: 100, paid: true },
       { id: 2802, item: '수강료 (Tuition)', amount: 1800, paid: true },
@@ -534,31 +534,31 @@ const MOCK_TALK_LMS_TEACHERS = [
     id: 'talk_t1', name: 'John Doe', nick: 'John', gender: '남',
     birthday: '1991-04-12', email: 'john.doe@talkstation.co', phone: '+63-917-111-2222',
     joinDate: '2024-05-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed',
-    experience: 'Experienced', photoUrl: 'assets/images/teacher_male.png'
+    experience: 'Experienced', education: 'Bachelor of Secondary Education, Major in English', photoUrl: 'assets/images/teacher_male.png'
   },
   {
     id: 'talk_t2', name: 'Mary Smith', nick: 'Mary', gender: '여',
     birthday: '1994-08-25', email: 'mary.smith@talkstation.co', phone: '+63-917-333-4444',
     joinDate: '2025-02-15', jobGrade: 'Probationary Tutor', talkStatus: 'Training',
-    experience: 'Now', photoUrl: 'assets/images/teacher_female.png'
+    experience: 'Now', education: 'Bachelor of Arts in English Language', photoUrl: 'assets/images/teacher_female.png'
   },
   {
     id: 'talk_t3', name: 'Robert Lee', nick: 'Bob', gender: '남',
     birthday: '1989-11-30', email: 'robert.lee@talkstation.co', phone: '+63-917-555-6666',
     joinDate: '2023-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed',
-    experience: 'Experienced', photoUrl: 'assets/images/teacher_male.png'
+    experience: 'Experienced', education: 'Master of Arts in English Language Teaching', photoUrl: 'assets/images/teacher_male.png'
   },
   {
     id: 'talk_t4', name: 'Patricia Clark', nick: 'Patty', gender: '여',
     birthday: '1992-02-14', email: 'patricia.c@talkstation.co', phone: '+63-917-777-8888',
     joinDate: '2022-10-20', jobGrade: 'Regular Tutor', talkStatus: 'Employed',
-    experience: 'Experienced', photoUrl: 'assets/images/teacher_female.png'
+    experience: 'Experienced', education: 'Bachelor of Elementary Education', photoUrl: 'assets/images/teacher_female.png'
   },
   {
     id: 'talk_t5', name: 'William Wright', nick: 'Will', gender: '남',
     birthday: '1995-07-07', email: 'william.w@talkstation.co', phone: '+63-917-999-0000',
     joinDate: '2025-04-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training',
-    experience: 'Now', photoUrl: 'assets/images/teacher_male.png'
+    experience: 'Now', education: 'Bachelor of Secondary Education, Major in English', photoUrl: 'assets/images/teacher_male.png'
   }
 ];
 
@@ -678,6 +678,15 @@ const MOCK_TIMETABLE = [
 
 // Convert databases for Day of the Week availability & timetable slots
 MOCK_TEACHERS.forEach(t => {
+  // 기존 화상 수업 가능 여부를 수업 가능 방식 구조로 확장한다.
+  if (!t.teachingModes) {
+    t.teachingModes = {
+      academy: true,
+      online: t.videoCapable !== false
+    };
+  }
+  // 기존 화면과의 호환을 위해 화상 가능 필드도 함께 유지한다.
+  t.videoCapable = t.teachingModes.online === true;
   if (Array.isArray(t.availability)) {
     const defaultAvail = [...t.availability];
     t.availability = {
@@ -783,9 +792,9 @@ let MOCK_MASTER_LEVELS = [
 ];
 
 let MOCK_MASTER_CLASS_TYPES = [
-  { id: 'CT_01', code: '1:1', name: '1:1 개인 수업',     maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
-  { id: 'CT_02', code: '1:4', name: '1:4 그룹 수업',     maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
-  { id: 'CT_03', code: '1:8', name: '1:8 스페셜 클래스', maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대형 그룹 수업', visible: true },
+  { id: 'CT_01', code: '1:1', name: '개인 수업', classMode: 'individual', minStudents: 1, maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
+  { id: 'CT_02', code: '1:4', name: '소그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
+  { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대그룹 수업', visible: true },
 ];
 
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑

@@ -781,6 +781,9 @@ function initAgencyInvoice() {
     else if (s.status === 'extended') { statusLabel = '연장'; statusClass = 'tsa-badge-primary'; }
 
     const avatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+    const latestEnrollment = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
+    const remittanceRoute = s.remittanceRoute || latestEnrollment?.remittanceRoute || 'agency';
+    const remittanceRouteLabel = getRemittanceRouteLabel(remittanceRoute);
 
     return `
       <tr>
@@ -808,7 +811,7 @@ function initAgencyInvoice() {
           <span class="tsa-badge ${paidClass}" style="font-size:10px">${paidLabel}</span>
         </td>
         <td style="text-align:center">
-          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openAgencyStudentDetailModal(${s.id});setTimeout(()=>switchAdetailTab('settle'),300)">
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentDetailPopup(${s.id},'agency')">
             <i data-lucide="file-text"></i> 보기
           </button>
         </td>
@@ -838,6 +841,54 @@ function initAgencyInvoice() {
   setEl('inv-kpi-paid',       `$${paidAll.toLocaleString()}`);
   setEl('inv-kpi-unpaid',     `$${unpaidAll.toLocaleString()}`);
   setEl('inv-kpi-commission', `$${commAll.toLocaleString()}`);
+}
+
+function getRemittanceRouteLabel(route) {
+  return {
+    agency: '에이전시',
+    direct: '직접 송금',
+    onsite: '현장 결제',
+  }[route] || '에이전시';
+}
+
+function renderRemittanceRouteOptions(route = 'agency') {
+  const current = route || 'agency';
+  return [
+    ['agency', '에이전시'],
+    ['direct', '직접 송금'],
+    ['onsite', '현장 결제'],
+  ].map(([value, label]) => `<option value="${value}" ${current === value ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function updateStudentRemittanceRoute(studentId, route, source = '상세') {
+  const student = MOCK_STUDENTS.find(row => row.id === Number(studentId));
+  if (!student || !['agency', 'direct', 'onsite'].includes(route)) return;
+
+  const previousRoute = student.remittanceRoute || student.enrollments?.[0]?.remittanceRoute || 'agency';
+  student.remittanceRoute = route;
+
+  if (source === '상세' && typeof getSelectedStudentEnrollment === 'function') {
+    const enrollment = getSelectedStudentEnrollment(student);
+    if (enrollment) enrollment.remittanceRoute = route;
+  } else if (Array.isArray(student.enrollments) && student.enrollments[0]) {
+    student.enrollments[0].remittanceRoute = route;
+  }
+
+  if (previousRoute !== route) {
+    if (!student.changeRequests) student.changeRequests = [];
+    student.changeRequests.push({
+      id: Date.now() + Math.random(),
+      field: '송금 경로',
+      from: getRemittanceRouteLabel(previousRoute),
+      to: getRemittanceRouteLabel(route),
+      reason: `${source}에서 직접 변경`,
+      changedBy: APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : '관리자',
+      requestDate: new Date().toISOString().substring(0, 10),
+    });
+    showToast(`송금 경로가 '${getRemittanceRouteLabel(route)}'(으)로 변경되었습니다.`, 'success');
+  }
+
+  initAgencyStudentList();
 }
 
 function initAgencyStudentList() {
@@ -937,6 +988,8 @@ function initAgencyStudentList() {
     else if (s.status === 'extended') { state = '연장'; badgeClass = 'tsa-badge-primary'; }
 
     const avatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+    const latestEnrollment = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
+    const remittanceRoute = s.remittanceRoute || latestEnrollment?.remittanceRoute || 'agency';
 
     let teacherName = '미배정';
     const tMatch = MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick));
@@ -959,6 +1012,11 @@ function initAgencyStudentList() {
           <div style="font-weight:700;color:#374151">${s.course}</div>
           <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
         </td>
+        <td style="font-size:11px;white-space:nowrap;min-width:112px">
+          <select class="tsa-input" aria-label="${s.name} 송금 경로" style="height:32px;min-width:100px;padding:4px 28px 4px 9px;background:#fff;font-size:11px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
+            ${renderRemittanceRouteOptions(remittanceRoute)}
+          </select>
+        </td>
         <td class="col-dorm" style="font-size:11.5px;line-height:1.55">${(() => {
           const req = MOCK_DORM_BOOK_REQUESTS.find(r => r.studentId === s.id || r.studentName === s.name || r.studentName === s.nick);
           const dormIn = s.dormIn || s.startDate || '';
@@ -977,9 +1035,11 @@ function initAgencyStudentList() {
         <td>${renderAgencyBillingCompactCell(billingMap.education)}</td>
         <td>${renderAgencyBillingCompactCell(billingMap.dorm)}</td>
         <td>${renderAgencyBillingCompactCell(billingMap.local)}</td>
-        <td style="text-align:right;font-weight:900;color:#111827">$${billingBreakdown.gross.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:900;color:#4F46E5">-$${billingBreakdown.commission.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:900;color:#059669">$${billingBreakdown.net.toLocaleString()}</td>
+        <td style="min-width:160px;padding:8px 12px">
+          <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;color:#6B7280"><span>어학원 송금</span><strong style="color:#059669">$${billingBreakdown.net.toLocaleString()}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;color:#6B7280;margin-top:4px"><span>커미션</span><strong style="color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #E5E7EB;margin-top:5px;padding-top:5px;font-size:11px"><span style="font-weight:700;color:#374151">합산 청구액</span><strong style="font-size:12px;color:#111827">$${billingBreakdown.gross.toLocaleString()}</strong></div>
+        </td>
         <td class="col-flight" style="font-size:11px;line-height:1.8">
           <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
           <div><span style="color:#6B7280;font-size:10px">출국</span> ${fmtFlightStr(s.flightOutInfo) || fmtDate(s.departureDate) || '-'}</div>
@@ -988,7 +1048,7 @@ function initAgencyStudentList() {
         <td style="text-align:center">
           <div class="agency-student-actions">
             <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openStudentCourseRegistration(${s.id})">등록</button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openAgencyStudentDetailPage(${s.id})">상세</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#5E5CE6;border-color:#5E5CE6" onclick="openStudentDetailPopup(${s.id},'agency')">상세</button>
             ${s.status === 'waiting'
               ? `<button class="tsa-btn tsa-btn-xs" disabled style="background:#F3F4F6;color:#D1D5DB;border:1px solid #E5E7EB;cursor:not-allowed" title="입학 대기 상태에서는 서류 출력 불가">서류</button>`
               : `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openAgencyDocumentsInline(${s.id})">서류</button>`}
@@ -1011,7 +1071,7 @@ function initAgencyStudentList() {
   if (typeof handleColumnToggle === 'function') handleColumnToggle();
 }
 
-const COURSE_REG_PERIODS = [4, 8, 12, 16, 20, 24];
+const COURSE_REG_PERIODS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
 
 function formatCourseRegMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
@@ -1019,9 +1079,10 @@ function formatCourseRegMoney(value) {
 
 function getCourseRegPeriodFee(baseAmount, policy, weeks) {
   const base = Number(baseAmount || 0);
-  if (weeks === 4) return base;
+  if (typeof calculateManagedTuitionFee === 'function') return calculateManagedTuitionFee(base, weeks);
+  if (weeks === 4) return Math.round(base / 10) * 10;
   const key = `fee${weeks}`;
-  return Number(policy?.[key] || Math.round(base * (weeks / 4)));
+  return Number(policy?.[key] || Math.round((base * (weeks / 4)) / 10) * 10);
 }
 
 function getCourseRegSelectedCourse() {
@@ -1054,15 +1115,113 @@ function renderCourseRegRecommendedLevels(course) {
 
 function calculateCourseRegSegmentEndDate(startDate, weeks) {
   if (!startDate) return '';
-  const date = new Date(`${startDate}T00:00:00`);
-  date.setDate(date.getDate() + Number(weeks || 0) * 7 - 1);
+  const date = new Date(`${startDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(weeks || 0) * 7 - 1);
   return date.toISOString().split('T')[0];
+}
+
+function updateCourseRegSegmentEndPreview() {
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
+  const endEl = document.getElementById('course-reg-end');
+  if (!endEl) return;
+  endEl.value = startDate && COURSE_REG_PERIODS.includes(duration)
+    ? calculateCourseRegSegmentEndDate(startDate, duration)
+    : '';
+}
+
+function getCourseRegMode() {
+  return document.getElementById('course-reg-mode')?.value || '';
+}
+
+function updateCourseRegModeUI() {
+  const mode = getCourseRegMode();
+  const flow = document.getElementById('course-reg-flow-content');
+  const action = document.getElementById('course-reg-segment-action');
+  const help = document.getElementById('course-reg-mode-help');
+  if (flow) flow.style.display = mode ? 'grid' : 'none';
+  if (action) action.style.display = mode === 'multi' ? 'flex' : 'none';
+  if (help) help.textContent = mode === 'single'
+    ? '요금표에서 과정과 기간을 선택하면 단일 수강 구간으로 즉시 적용돼.'
+    : mode === 'multi'
+    ? '요금표에서 과정과 기간을 선택한 뒤 구간을 추가해 여러 코스를 연속 등록해.'
+    : '수강 형태를 먼저 선택해줘.';
+
+  ['single', 'multi'].forEach(value => {
+    const button = document.getElementById(`course-reg-mode-${value}`);
+    if (!button) return;
+    const active = mode === value;
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.style.borderColor = active ? '#4F46E5' : '#DDE3EC';
+    button.style.background = active ? '#EEF2FF' : '#fff';
+    button.style.boxShadow = active ? '0 0 0 2px rgba(79,70,229,.12)' : 'none';
+  });
+}
+
+function resetCourseRegCourseSelection() {
+  APP.courseRegSegments = [];
+  const courseEl = document.getElementById('course-reg-course');
+  const durationEl = document.getElementById('course-reg-duration');
+  const startEl = document.getElementById('course-reg-start');
+  const endEl = document.getElementById('course-reg-end');
+  if (courseEl) courseEl.value = '';
+  if (durationEl) durationEl.value = '';
+  if (startEl) startEl.value = '';
+  if (endEl) endEl.value = '';
+  renderCourseRegSegments();
+}
+
+function setCourseRegMode(mode) {
+  if (!['single', 'multi'].includes(mode)) return;
+  const modeEl = document.getElementById('course-reg-mode');
+  const currentMode = modeEl?.value || '';
+  const hasSelection = getCourseRegSegments().length > 0
+    || Boolean(document.getElementById('course-reg-course')?.value)
+    || Boolean(document.getElementById('course-reg-start')?.value);
+  if (currentMode && currentMode !== mode && hasSelection
+    && !window.confirm('수강 형태를 변경하면 현재 선택한 수강 구간이 초기화돼. 변경할까?')) return;
+  if (currentMode !== mode) resetCourseRegCourseSelection();
+  if (modeEl) modeEl.value = mode;
+  updateCourseRegModeUI();
+  updateStudentCourseRegistrationPreview();
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function applySingleCourseRegSegment() {
+  if (getCourseRegMode() !== 'single') return;
+  const course = getCourseRegSelectedCourse();
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  if (!course || !startDate || !COURSE_REG_PERIODS.includes(duration)) {
+    APP.courseRegSegments = [];
+    renderCourseRegSegments();
+    return;
+  }
+  APP.courseRegSegments = [{
+    id: Date.now(),
+    order: 1,
+    course: course.name,
+    courseType: course.type || '',
+    recommendedLevels: getCourseRegRecommendedLevels(course).map(level => level.name),
+    duration,
+    startDate,
+    endDate: calculateCourseRegSegmentEndDate(startDate, duration),
+    tuitionAmount: getCourseRegPeriodFee(course.fee, course.tuitionPolicy, duration),
+  }];
+  renderCourseRegSegments();
+}
+
+function handleCourseRegStartChange() {
+  updateCourseRegSegmentEndPreview();
+  applySingleCourseRegSegment();
+  updateCourseRegDormDatesFromStart();
+  updateStudentCourseRegistrationPreview();
 }
 
 function getNextCourseRegSegmentStart(endDate) {
   if (!endDate) return '';
-  const date = new Date(`${endDate}T00:00:00`);
-  date.setDate(date.getDate() + 1);
+  const date = new Date(`${endDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().split('T')[0];
 }
 
@@ -1073,11 +1232,11 @@ function getCourseRegSegments() {
 function renderCourseRegSegments() {
   const target = document.getElementById('course-reg-segment-list');
   const totalEl = document.getElementById('course-reg-segment-total');
-  if (!target) return;
   const segments = getCourseRegSegments();
   const totalWeeks = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const totalAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
   if (totalEl) totalEl.textContent = `${segments.length}개 구간 · 총 ${totalWeeks}주 · ${formatCourseRegMoney(totalAmount)}`;
+  if (!target) return;
   if (!segments.length) {
     target.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:11.5px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">과정과 기간을 선택한 뒤 수강 구간을 추가해줘.</div>`;
     return;
@@ -1100,6 +1259,10 @@ function renderCourseRegSegments() {
 }
 
 function addCourseRegSegment() {
+  if (getCourseRegMode() !== 'multi') {
+    showToast('멀티 코스 진행에서만 수강 구간을 추가할 수 있어.', 'warning');
+    return;
+  }
   const course = getCourseRegSelectedCourse();
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const startDate = document.getElementById('course-reg-start')?.value || '';
@@ -1130,26 +1293,53 @@ function addCourseRegSegment() {
   const nextStart = getNextCourseRegSegmentStart(endDate);
   const startEl = document.getElementById('course-reg-start');
   if (startEl) startEl.value = nextStart;
+  const courseEl = document.getElementById('course-reg-course');
+  const durationEl = document.getElementById('course-reg-duration');
+  if (courseEl) courseEl.value = '';
+  if (durationEl) durationEl.value = '';
+  updateCourseRegSegmentEndPreview();
   const totalWeeks = APP.courseRegSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const dormDurationEl = document.getElementById('course-reg-dorm-duration');
   if (dormDurationEl) dormDurationEl.value = String(totalWeeks);
   updateCourseRegDormDatesFromStart(true);
   renderCourseRegSegments();
   updateStudentCourseRegistrationPreview();
+  showToast('수강 구간을 추가했어. 다음 시작일 기준으로 다른 과정과 기간을 비교해 선택할 수 있어.', 'success');
 }
 
 function removeCourseRegSegment(index) {
   if (!Array.isArray(APP.courseRegSegments)) return;
   APP.courseRegSegments.splice(index, 1);
+  if (getCourseRegMode() === 'single') {
+    const courseEl = document.getElementById('course-reg-course');
+    const durationEl = document.getElementById('course-reg-duration');
+    const endEl = document.getElementById('course-reg-end');
+    if (courseEl) courseEl.value = '';
+    if (durationEl) durationEl.value = '';
+    if (endEl) endEl.value = '';
+    renderCourseRegSegments();
+    updateStudentCourseRegistrationPreview();
+    return;
+  }
   APP.courseRegSegments.forEach((segment, segmentIndex) => { segment.order = segmentIndex + 1; });
   const totalWeeks = APP.courseRegSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const dormDurationEl = document.getElementById('course-reg-dorm-duration');
   if (dormDurationEl && totalWeeks) dormDurationEl.value = String(totalWeeks);
+  const lastSegment = APP.courseRegSegments[APP.courseRegSegments.length - 1];
+  const startEl = document.getElementById('course-reg-start');
+  if (startEl && lastSegment) startEl.value = getNextCourseRegSegmentStart(lastSegment.endDate);
+  updateCourseRegSegmentEndPreview();
   renderCourseRegSegments();
   updateStudentCourseRegistrationPreview();
 }
 
 function selectCourseRegOption(courseIndex, weeks) {
+  const startDate = document.getElementById('course-reg-start')?.value || '';
+  if (!startDate) {
+    showToast('수강 시작일을 먼저 선택해줘.', 'warning');
+    document.getElementById('course-reg-start')?.focus();
+    return;
+  }
   const course = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES[courseIndex] : null;
   if (!course || course.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
 
@@ -1158,6 +1348,8 @@ function selectCourseRegOption(courseIndex, weeks) {
   if (courseEl) courseEl.value = course.name;
   if (durationEl) durationEl.value = String(weeks);
 
+  updateCourseRegSegmentEndPreview();
+  applySingleCourseRegSegment();
   syncCourseRegDormDuration();
   updateCourseRegDormDatesFromStart(true);
   updateStudentCourseRegistrationPreview();
@@ -1169,7 +1361,8 @@ function renderCourseRegCourseComparison() {
 
   const rows = getCourseRegActiveCourses();
   const selectedCourse = getCourseRegSelectedCourse();
-  const selectedWeeks = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const selectedWeeks = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
+  const hasStartDate = Boolean(document.getElementById('course-reg-start')?.value);
   const summary = document.getElementById('course-reg-selection-summary');
 
   if (!rows.length) {
@@ -1178,36 +1371,38 @@ function renderCourseRegCourseComparison() {
     return;
   }
 
-  const selectedAmount = selectedCourse
+  const selectedAmount = selectedCourse && selectedWeeks
     ? getCourseRegPeriodFee(selectedCourse.fee, selectedCourse.tuitionPolicy, selectedWeeks)
     : 0;
   if (summary) {
-    summary.textContent = selectedCourse
+    summary.textContent = !hasStartDate
+      ? '시작일 먼저 선택'
+      : selectedCourse && selectedWeeks
       ? `${selectedCourse.name} · ${selectedWeeks}주 · ${formatCourseRegMoney(selectedAmount)}`
       : '과정과 기간을 선택해줘';
   }
 
   target.innerHTML = `
-    <div style="min-width:790px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:180px repeat(6,minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+    <div style="min-width:1080px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:180px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">과정명</div>
         ${COURSE_REG_PERIODS.map(weeks => `
-          <div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
+          <div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
         `).join('')}
       </div>
       ${rows.map(({ course, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:180px repeat(6,minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:180px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourse?.name === course.name ? '#F8FAFF' : '#fff'}">
             <b style="font-size:12px;color:#111827">${course.name}</b>
             <span style="font-size:10px;color:#9CA3AF;margin-top:2px">${course.type || '과정'}</span>
           </div>
           ${COURSE_REG_PERIODS.map(weeks => {
-            const active = selectedCourse?.name === course.name && weeks === selectedWeeks;
+            const active = hasStartDate && selectedCourse?.name === course.name && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
             return `
-              <button type="button" onclick="selectCourseRegOption(${index}, ${weeks})" aria-pressed="${active}" style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : '#fff'};color:${active ? '#fff' : '#111827'};cursor:pointer;font-family:inherit">
+              <button type="button" onclick="selectCourseRegOption(${index}, ${weeks})" aria-pressed="${active}" ${hasStartDate ? '' : 'disabled'} style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : hasStartDate ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasStartDate ? '#111827' : '#9CA3AF'};cursor:${hasStartDate ? 'pointer' : 'not-allowed'};font-family:inherit;opacity:${hasStartDate ? '1' : '.72'}">
                 <span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span>
-                <span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#E0E7FF' : '#9CA3AF'}">${active ? '선택됨' : '선택'}</span>
+                <span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#E0E7FF' : '#9CA3AF'}">${active ? '선택됨' : hasStartDate ? '선택' : '시작일 먼저'}</span>
               </button>
             `;
           }).join('')}
@@ -1244,13 +1439,19 @@ function getCourseRegActiveDormTemplates() {
 }
 
 function selectCourseRegDormOption(templateIndex, weeks) {
+  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
+  if (!dormIn) {
+    showToast('기숙사 입실일을 먼저 선택해줘.', 'warning');
+    document.getElementById('course-reg-dorm-in')?.focus();
+    return;
+  }
   const template = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES[templateIndex] : null;
   if (!template || template.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
   const templateEl = document.getElementById('course-reg-dorm-template');
   const durationEl = document.getElementById('course-reg-dorm-duration');
   if (templateEl) templateEl.value = String(templateIndex);
   if (durationEl) durationEl.value = String(weeks);
-  updateCourseRegDormDatesFromStart(true);
+  updateCourseRegDormCheckout();
   updateStudentCourseRegistrationPreview();
 }
 
@@ -1259,7 +1460,8 @@ function renderCourseRegDormComparison() {
   if (!target) return;
   const rows = getCourseRegActiveDormTemplates();
   const selected = getCourseRegSelectedDormTemplate();
-  const selectedWeeks = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 4;
+  const selectedWeeks = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 0;
+  const hasDormIn = Boolean(document.getElementById('course-reg-dorm-in')?.value);
   const summary = document.getElementById('course-reg-dorm-selection-summary');
 
   if (!rows.length) {
@@ -1271,27 +1473,29 @@ function renderCourseRegDormComparison() {
   if (summary) {
     const t = selected?.template;
     const amount = t ? getCourseRegPeriodFee(t.cost, t.tuitionPolicy, selectedWeeks) : 0;
-    summary.textContent = t
+    summary.textContent = !hasDormIn
+      ? '입실일을 먼저 선택해줘'
+      : t && selectedWeeks
       ? `${t.accomType || '-'} · ${t.capacity || '-'}인실 · ${t.condition || '-'} · ${selectedWeeks}주 · ${formatCourseRegMoney(amount)}`
       : '희망 기숙사와 기간을 선택해줘';
   }
 
   target.innerHTML = `
-    <div style="min-width:790px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:220px repeat(6,minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+    <div style="min-width:1120px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:220px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">숙소 유형 · 인실 · 등급</div>
-        ${COURSE_REG_PERIODS.map(weeks => `<div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${weeks === selectedWeeks ? '#047857' : '#4B5563'};background:${weeks === selectedWeeks ? '#ECFDF5' : 'transparent'}">${weeks}주</div>`).join('')}
+        ${COURSE_REG_PERIODS.map(weeks => `<div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${hasDormIn && selected && weeks === selectedWeeks ? '#047857' : '#4B5563'};background:${hasDormIn && selected && weeks === selectedWeeks ? '#ECFDF5' : 'transparent'}">${weeks}주</div>`).join('')}
       </div>
       ${rows.map(({ template, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:220px repeat(6,minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:220px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selected?.idx === index ? '#F0FDFA' : '#fff'}">
             <b style="font-size:12px;color:#111827">${template.accomType || '-'}</b>
             <span style="font-size:10px;color:#6B7280;margin-top:2px">${template.capacity || '-'}인실 · ${template.condition || '-'}</span>
           </div>
           ${COURSE_REG_PERIODS.map(weeks => {
-            const active = selected?.idx === index && weeks === selectedWeeks;
+            const active = hasDormIn && selected?.idx === index && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
-            return `<button type="button" onclick="selectCourseRegDormOption(${index}, ${weeks})" aria-pressed="${active}" style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#059669' : '#fff'};color:${active ? '#fff' : '#111827'};cursor:pointer;font-family:inherit"><span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span><span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#D1FAE5' : '#9CA3AF'}">${active ? '선택됨' : '선택'}</span></button>`;
+            return `<button type="button" onclick="selectCourseRegDormOption(${index}, ${weeks})" aria-pressed="${active}" ${hasDormIn ? '' : 'disabled'} style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#059669' : hasDormIn ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasDormIn ? '#111827' : '#9CA3AF'};cursor:${hasDormIn ? 'pointer' : 'not-allowed'};font-family:inherit;opacity:${hasDormIn ? '1' : '.72'}"><span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span><span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#D1FAE5' : '#9CA3AF'}">${active ? '선택됨' : hasDormIn ? '선택' : '입실일 먼저'}</span></button>`;
           }).join('')}
         </div>
       `).join('')}
@@ -1318,42 +1522,62 @@ function renderCourseRegFeeCompare(targetId, rows, selectedWeeks, activeColor) {
 
 function getCourseRegExtraItems() {
   if (typeof getTuitionLocalFeeItems === 'function') {
-    return getTuitionLocalFeeItems().filter(item => item.visible !== false);
+    return getTuitionLocalFeeItems();
   }
   return [];
 }
 
 function renderCourseRegistrationExtras(selectedNames = []) {
   const wrap = document.getElementById('course-reg-extra-items');
-  if (!wrap) return;
+  const registrationWrap = document.getElementById('course-reg-registration-fee');
+  if (!wrap || !registrationWrap) return;
   const items = getCourseRegExtraItems();
   if (!items.length) {
-    wrap.innerHTML = `<div style="grid-column:span 2;color:#9CA3AF;font-size:12px">노출 중인 기타 항목이 없습니다.</div>`;
+    registrationWrap.innerHTML = `<div style="color:#9CA3AF;font-size:12px">등록금 설정 정보가 없습니다.</div>`;
+    wrap.innerHTML = `<div style="grid-column:span 2;color:#9CA3AF;font-size:12px">등록된 기타 항목이 없습니다.</div>`;
     return;
   }
-  wrap.innerHTML = items.map((item, idx) => {
-    const checked = selectedNames.includes(item.name) ? 'checked' : '';
+  const indexedItems = items.map((item, idx) => ({ item, idx }));
+  const registrationItems = indexedItems.filter(({ item }) => /등록금|Registration/i.test(item.name || ''));
+  const otherItems = indexedItems.filter(({ item }) => !/등록금|Registration/i.test(item.name || ''));
+  registrationWrap.innerHTML = registrationItems.length ? registrationItems.map(({ item }) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8FAFF">
+      <span>
+        <span style="display:flex;align-items:center;gap:6px"><b style="font-size:13px;color:#111827">${item.name}</b><span class="tsa-badge tsa-badge-primary" style="font-size:9px">고정 필수</span></span>
+        <span style="display:block;font-size:10.5px;color:#6366F1;margin-top:3px">체크 없이 모든 수강 등록에 자동 포함됩니다.</span>
+      </span>
+      <b style="font-size:14px;color:#4338CA">${formatCourseRegMoney(item.amount)}</b>
+    </div>
+  `).join('') : `<div style="color:#9CA3AF;font-size:12px">등록금 설정 정보가 없습니다.</div>`;
+  const otherItemsHtml = otherItems.map(({ item, idx }) => {
+    const isRequired = item.type === 'required';
+    const checked = isRequired || selectedNames.includes(item.name) ? 'checked' : '';
     return `
-      <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #E5E7EB;border-radius:10px;background:#fff;cursor:pointer">
-        <input class="course-reg-extra-checkbox" type="checkbox" data-extra-index="${idx}" ${checked} onchange="updateStudentCourseRegistrationPreview()" style="margin-top:2px"/>
+      <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid ${isRequired ? '#FCA5A5' : '#E5E7EB'};border-radius:10px;background:${isRequired ? '#FFF7F7' : '#fff'};cursor:${isRequired ? 'default' : 'pointer'}">
+        <input class="course-reg-extra-checkbox" type="checkbox" data-extra-index="${idx}" ${checked} ${isRequired ? 'disabled' : ''} onchange="updateStudentCourseRegistrationPreview()" style="margin-top:2px"/>
         <span style="flex:1">
           <span style="display:flex;justify-content:space-between;gap:8px">
-            <b style="font-size:12.5px;color:#111827">${item.name}</b>
+            <b style="font-size:12.5px;color:#111827">${item.name} <span class="tsa-badge ${isRequired ? 'tsa-badge-danger' : 'tsa-badge-gray'}" style="font-size:9px;margin-left:4px">${isRequired ? '필수' : '옵션'}</span></b>
             <b style="font-size:12.5px;color:#4F46E5">${formatCourseRegMoney(item.amount)}</b>
           </span>
-          <span style="display:block;font-size:10.5px;color:#9CA3AF;margin-top:2px">${item.condition || '전체 학생'}</span>
+          <span style="display:block;font-size:10.5px;color:#9CA3AF;margin-top:2px">${item.applicationMemo || item.condition || '적용 메모 없음'}</span>
         </span>
       </label>
     `;
   }).join('');
+  wrap.innerHTML = otherItemsHtml || `<div style="grid-column:span 2;color:#9CA3AF;font-size:12px">선택 가능한 기타 항목이 없습니다.</div>`;
 }
 
 function getSelectedCourseRegExtras() {
   const items = getCourseRegExtraItems();
-  return Array.from(document.querySelectorAll('.course-reg-extra-checkbox:checked')).map(cb => {
+  const fixedRegistrationItems = items
+    .filter(item => /등록금|Registration/i.test(item.name || ''))
+    .map(item => ({ name: item.name, amount: Number(item.amount || 0), type: 'required', commissionEnabled: item.commissionEnabled !== false, applicationMemo: item.applicationMemo || item.condition || '' }));
+  const selectedOptionalItems = Array.from(document.querySelectorAll('.course-reg-extra-checkbox:checked')).map(cb => {
     const item = items[parseInt(cb.dataset.extraIndex, 10)];
-    return item ? { name: item.name, amount: Number(item.amount || 0), condition: item.condition || '' } : null;
+    return item ? { name: item.name, amount: Number(item.amount || 0), type: item.type || 'optional', commissionEnabled: item.commissionEnabled !== false, applicationMemo: item.applicationMemo || item.condition || '' } : null;
   }).filter(Boolean);
+  return [...fixedRegistrationItems, ...selectedOptionalItems];
 }
 
 function syncCourseRegDormDuration() {
@@ -1365,37 +1589,54 @@ function syncCourseRegDormDuration() {
 }
 
 function toggleCourseRegDormSection() {
-  const enabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
+  const enabled = !document.getElementById('course-reg-dorm-enabled')?.checked;
   const section = document.getElementById('course-reg-dorm-section');
   const note = document.getElementById('course-reg-dorm-disabled-note');
   if (section) section.style.display = enabled ? 'grid' : 'none';
   if (note) note.style.display = enabled ? 'none' : 'block';
 }
 
-function updateCourseRegDormDatesFromStart(forceUpdate = false) {
-  const segments = getCourseRegSegments();
-  const startDate = segments[0]?.startDate || document.getElementById('course-reg-start')?.value || '';
-  const duration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10)
-    || parseInt(document.getElementById('course-reg-duration')?.value, 10)
-    || 4;
+function updateCourseRegDormCheckout() {
   const dormIn = document.getElementById('course-reg-dorm-in');
   const dormOut = document.getElementById('course-reg-dorm-out');
-  if (!startDate || !dormIn || !dormOut) return;
-  if (!dormIn.value || forceUpdate) dormIn.value = startDate;
-  if (!dormOut.value || forceUpdate) {
-    const out = new Date(startDate);
-    out.setDate(out.getDate() + duration * 7);
-    dormOut.value = out.toISOString().split('T')[0];
+  const duration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 0;
+  const dormSelection = getCourseRegSelectedDormTemplate();
+  if (!dormIn || !dormOut) return;
+  const startDate = dormIn.value || '';
+  if (!startDate || !duration || !dormSelection) {
+    dormOut.value = '';
+    return;
   }
+  const out = new Date(`${startDate}T00:00:00Z`);
+  out.setUTCDate(out.getUTCDate() + duration * 7);
+  dormOut.value = out.toISOString().split('T')[0];
+}
+
+function handleCourseRegDormInChange() {
+  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
+  if (!dormIn) {
+    const templateEl = document.getElementById('course-reg-dorm-template');
+    const durationEl = document.getElementById('course-reg-dorm-duration');
+    if (templateEl) templateEl.value = '';
+    if (durationEl) durationEl.value = '';
+  }
+  updateCourseRegDormCheckout();
+  updateStudentCourseRegistrationPreview();
+}
+
+function updateCourseRegDormDatesFromStart() {
+  updateCourseRegDormCheckout();
 }
 
 function updateStudentCourseRegistrationPreview() {
   const course = getCourseRegSelectedCourse();
-  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 4;
+  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const segments = getCourseRegSegments();
-  const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
-  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
+  const dormEnabled = !document.getElementById('course-reg-dorm-enabled')?.checked;
+  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 0;
   const dormSelection = getCourseRegSelectedDormTemplate();
+  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
+  const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
   const extras = getSelectedCourseRegExtras();
 
   renderCourseRegCourseComparison();
@@ -1404,23 +1645,29 @@ function updateStudentCourseRegistrationPreview() {
   renderCourseRegSegments();
 
   const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
-  const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const dormAmount = dormEnabled && dormIn && dormSelection && dormDuration ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
   const extrasTotal = extras.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const total = tuitionAmount + dormAmount + extrasTotal;
 
   const preview = document.getElementById('course-reg-fee-preview');
   if (!preview) return;
-  const dormLabel = dormEnabled && dormSelection
+  const dormLabel = dormEnabled && dormIn && dormSelection
     ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
-    : '미사용';
+    : dormEnabled ? '미선택' : '미사용';
 
   preview.innerHTML = `
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
       <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:7px">수강료</div>
       ${segments.length ? segments.map((segment, index) => `
-        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:${index ? '6px' : '0'}">
-          <div style="font-size:11.5px;color:#111827;font-weight:800">${index + 1}. ${segment.course} / ${segment.duration}주</div>
-          <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.tuitionAmount)}</div>
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:${index ? '8px' : '0'};padding:${index ? '8px 0 0' : '0'};border-top:${index ? '1px solid #EEF0F4' : '0'}">
+          <div style="min-width:0">
+            <div style="font-size:11.5px;color:#111827;font-weight:800">${index + 1}. ${segment.course} / ${segment.duration}주</div>
+            <div style="font-size:10px;color:#6B7280;margin-top:3px">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.tuitionAmount)}</div>
+            <button type="button" onclick="removeCourseRegSegment(${index})" style="margin-top:3px;border:0;background:none;color:#EF4444;font-size:10px;cursor:pointer">삭제</button>
+          </div>
         </div>
       `).join('') : `<div style="font-size:12px;color:#9CA3AF">추가된 수강 구간 없음</div>`}
       <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px"><b>수강료 소계</b><b>${formatCourseRegMoney(tuitionAmount)}</b></div>
@@ -1429,7 +1676,8 @@ function updateStudentCourseRegistrationPreview() {
       <div style="display:flex;justify-content:space-between;gap:10px">
         <div>
           <div style="font-size:11px;color:#6B7280;font-weight:700">희망 기숙사</div>
-          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${dormLabel}${dormEnabled ? ` / ${dormDuration}주` : ''}</div>
+          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${dormLabel}${dormEnabled && dormIn && dormSelection && dormDuration ? ` / ${dormDuration}주` : ''}</div>
+          ${dormEnabled ? `<div style="font-size:10.5px;color:${dormIn && dormOut ? '#6B7280' : '#DC2626'};margin-top:4px">${dormIn && dormOut ? `입실 ${fmtDate(dormIn)} · 퇴실 ${fmtDate(dormOut)}` : '입실일을 선택해줘'}</div>` : ''}
         </div>
         <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(dormAmount)}</div>
       </div>
@@ -1473,13 +1721,14 @@ function openStudentCourseRegistration(studentId) {
   APP.currentCourseRegistrationStudent = student;
   APP.courseRegSegments = [];
   APP.courseRegUploadedFiles = { ...(student.requiredFiles || {}) };
+  const modeEl = document.getElementById('course-reg-mode');
+  if (modeEl) modeEl.value = '';
 
   const activeCourses = getCourseRegActiveCourses().map(row => row.course);
   const courseEl = document.getElementById('course-reg-course');
   if (courseEl) {
-    courseEl.innerHTML = activeCourses.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-    const defaultCourse = activeCourses.find(c => c.name === student.course) || activeCourses[0];
-    courseEl.value = defaultCourse?.name || '';
+    courseEl.innerHTML = `<option value="">과정 미선택</option>${activeCourses.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}`;
+    courseEl.value = '';
   }
 
   const title = document.getElementById('course-reg-title');
@@ -1490,11 +1739,13 @@ function openStudentCourseRegistration(studentId) {
   if (summary) summary.textContent = `${student.name} (Nick: ${student.nick}) · ${student.nationality || '-'} · 현재 ${student.course || '미등록'}`;
 
   const startEl = document.getElementById('course-reg-start');
-  if (startEl) startEl.value = student.startDate || '2026-09-01';
+  if (startEl) startEl.value = '';
+  const endEl = document.getElementById('course-reg-end');
+  if (endEl) endEl.value = '';
   const durationEl = document.getElementById('course-reg-duration');
-  if (durationEl) durationEl.value = COURSE_REG_PERIODS.includes(Number(student.duration)) ? String(student.duration) : '4';
-  const paymentEl = document.getElementById('course-reg-payment');
-  if (paymentEl) paymentEl.value = student.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
+  if (durationEl) durationEl.value = '';
+  const remittanceRouteEl = document.getElementById('course-reg-remittance-route');
+  if (remittanceRouteEl) remittanceRouteEl.value = student.remittanceRoute || 'agency';
   const memoEl = document.getElementById('course-reg-memo');
   if (memoEl) memoEl.value = '';
 
@@ -1520,30 +1771,31 @@ function openStudentCourseRegistration(studentId) {
   });
 
   const dormEnabledEl = document.getElementById('course-reg-dorm-enabled');
-  if (dormEnabledEl) dormEnabledEl.checked = true;
+  if (dormEnabledEl) dormEnabledEl.checked = false;
   const dormEl = document.getElementById('course-reg-dorm-template');
   const templates = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : [];
   if (dormEl) {
     const visibleTemplates = templates
       .map((template, idx) => ({ template, idx }))
       .filter(row => row.template.active !== false);
-    dormEl.innerHTML = visibleTemplates.map(row => {
+    dormEl.innerHTML = `<option value="">기숙사 미선택</option>${visibleTemplates.map(row => {
       const t = row.template;
       const label = `${t.accomType || '-'} · ${t.capacity || '-'}인실 · ${t.condition || '-'} · 4주 ${formatCourseRegMoney(t.cost)}`;
-      const selected = student.dormAccomType === t.accomType && Number(student.dormType) === Number(t.capacity) && student.dormGrade === t.condition;
-      return `<option value="${row.idx}" ${selected ? 'selected' : ''}>${label}</option>`;
-    }).join('');
+      return `<option value="${row.idx}">${label}</option>`;
+    }).join('')}`;
+    dormEl.value = '';
   }
 
   const dormInEl = document.getElementById('course-reg-dorm-in');
-  if (dormInEl) dormInEl.value = student.dormIn || student.startDate || '2026-09-01';
+  if (dormInEl) dormInEl.value = '';
   const dormOutEl = document.getElementById('course-reg-dorm-out');
-  if (dormOutEl) dormOutEl.value = student.dormOut || '';
+  if (dormOutEl) dormOutEl.value = '';
   const dormDurationEl = document.getElementById('course-reg-dorm-duration');
-  if (dormDurationEl) dormDurationEl.value = durationEl?.value || '4';
+  if (dormDurationEl) dormDurationEl.value = '';
 
   renderCourseRegistrationExtras([]);
   renderCourseRegSegments();
+  updateCourseRegModeUI();
   toggleCourseRegDormSection();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
@@ -1564,15 +1816,22 @@ function saveStudentCourseRegistration() {
   const duration = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const endDate = segments[segments.length - 1]?.endDate || '';
   const status = student.status || 'waiting';
-  const payment = document.getElementById('course-reg-payment')?.value || 'unpaid';
+  const payment = 'unpaid';
+  const remittanceRoute = document.getElementById('course-reg-remittance-route')?.value || 'agency';
   const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
-  const dormEnabled = document.getElementById('course-reg-dorm-enabled')?.checked !== false;
+  const dormEnabled = !document.getElementById('course-reg-dorm-enabled')?.checked;
   const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
   const dormSelection = getCourseRegSelectedDormTemplate();
   const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
   const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
   const extraItems = getSelectedCourseRegExtras();
   const getOptionalValue = id => document.getElementById(id)?.value.trim() || '';
+
+  const courseMode = getCourseRegMode();
+  if (!courseMode) {
+    showToast('단일 코스 진행 또는 멀티 코스 진행을 먼저 선택해줘.', 'warning');
+    return;
+  }
 
   if (!segments.length || !course || !startDate) {
     showToast('등록할 수강 구간을 1개 이상 추가해줘.', 'warning');
@@ -1584,13 +1843,23 @@ function saveStudentCourseRegistration() {
     return;
   }
 
+  if (dormEnabled && (!dormIn || !dormOut)) {
+    showToast('기숙사 입실일을 선택해줘. 퇴실일은 이용 기간에 맞춰 자동 계산돼.', 'warning');
+    document.getElementById('course-reg-dorm-in')?.focus();
+    return;
+  }
+
   const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
-  const dormAmount = dormEnabled && dormSelection ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const dormAmount = dormEnabled && dormIn && dormSelection && dormDuration ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
   const extrasTotal = extraItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const registrationAmount = extraItems
+    .filter(item => /등록금|Registration/i.test(item.name || ''))
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const otherExtrasTotal = Math.max(0, extrasTotal - registrationAmount);
   const totalGross = tuitionAmount + dormAmount + extrasTotal;
-  const dormLabel = dormEnabled && dormSelection
+  const dormLabel = dormEnabled && dormIn && dormSelection
     ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
-    : '미사용';
+    : dormEnabled ? '미선택' : '미사용';
 
   if (!student.enrollments) student.enrollments = [];
   student.enrollments.unshift({
@@ -1617,6 +1886,8 @@ function saveStudentCourseRegistration() {
     totalGross,
     status,
     paymentStatus: payment,
+    courseMode,
+    remittanceRoute,
     memo,
     flightInfo: {
       arrivalFlight: getOptionalValue('course-reg-flight-num'),
@@ -1631,11 +1902,13 @@ function saveStudentCourseRegistration() {
   });
 
   student.course = course;
+  student.courseMode = courseMode;
   student.courseSegments = segments;
   student.startDate = startDate;
   student.duration = duration;
   student.endDate = endDate;
-  student.remittanceStatus = payment === 'paid' ? 'paid' : 'unpaid';
+  student.remittanceStatus = 'unpaid';
+  student.remittanceRoute = remittanceRoute;
   student.dorm = dormLabel;
   if (dormEnabled && dormSelection) {
     student.dormAccomType = dormSelection.template.accomType || null;
@@ -1658,11 +1931,13 @@ function saveStudentCourseRegistration() {
   student.departureDate = getOptionalValue('course-reg-departure-date');
   student.flightOutTime = getOptionalValue('course-reg-flight-out-time');
   student.requiredFiles = { ...(student.requiredFiles || {}), ...(APP.courseRegUploadedFiles || {}) };
+  student.extraItems = extraItems;
+  student.pickupRequired = extraItems.some(item => /공항\s*픽업|Airport\s*Pickup/i.test(item.name || ''));
   student.courseRegistrationFees = {
-    registration: 100,
+    registration: registrationAmount,
     tuition: tuitionAmount,
     dorm: dormAmount,
-    extras: extrasTotal,
+    extras: otherExtrasTotal,
     total: totalGross,
     extraItems,
   };
@@ -1981,12 +2256,10 @@ function renderAgencyDormRoomGrid() {
       : actualVacant <= 2 ? '마감 임박' : '예약 가능';
     const statusColor = policy.mode === 'hidden' ? '#64748B' : available ? (statusText === '마감 임박' ? '#D97706' : '#059669') : '#DC2626';
     const statusBg = policy.mode === 'hidden' ? '#F1F5F9' : available ? (statusText === '마감 임박' ? '#FFFBEB' : '#ECFDF5') : '#FEF2F2';
-    const cost = tpl.cost || 0;
     return `<div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;padding:18px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="width:42px;height:42px;border-radius:11px;background:#EEF2FF;color:#5E5CE6;display:flex;align-items:center;justify-content:center;font-size:20px">🏢</div>
       <div style="flex:1;min-width:190px"><div style="font-size:11px;color:#7C3AED;font-weight:700">${tpl.accomType}</div><div style="font-size:14px;font-weight:800;color:#111827;margin-top:3px">${type}</div><div style="font-size:10.5px;color:#94A3B8;margin-top:3px">실제 호실 및 침대 정보는 배정 확정 후 안내</div></div>
       <span style="font-size:12px;font-weight:800;color:${statusColor};background:${statusBg};padding:7px 13px;border-radius:10px">${statusText}</span>
-      ${available ? `<button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openDormRequestDrawer('${tpl.accomType}','${type}','${cost}')">배정 요청</button>` : `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" disabled>신청 불가</button>`}
     </div>`;
   }).join('') || `<div style="text-align:center;padding:60px;color:#9CA3AF;font-size:13px">조건에 맞는 룸 타입이 없습니다.</div>`;
 
@@ -2800,7 +3073,7 @@ let currentAdetailStudentId = null;
 let currentAdetailTab = 'basic';
 let currentAdetailPortal = 'agency';
 let currentAdetailEnrollmentId = 'current';
-let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null };
+let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null, visa: null, ssp: null };
 
 function openAgencyStudentDetailModal(id) {
   currentAdetailStudentId = id;
@@ -2813,7 +3086,9 @@ function openAgencyStudentDetailModal(id) {
     passport: s.requiredFiles ? s.requiredFiles.passport : null, 
     ticket: s.requiredFiles ? s.requiredFiles.ticket : null, 
     photo: s.requiredFiles ? s.requiredFiles.photo : null, 
-    insurance: s.requiredFiles ? s.requiredFiles.insurance : null 
+    insurance: s.requiredFiles ? s.requiredFiles.insurance : null,
+    visa: s.requiredFiles ? s.requiredFiles.visa : null,
+    ssp: s.requiredFiles ? s.requiredFiles.ssp : null
   };
 
   document.getElementById('adetail-title-name').textContent = `${s.name} (Nick: ${s.nick})`;
@@ -2861,7 +3136,9 @@ function openAgencyStudentDetailPage(id, portal) {
     passport: s.requiredFiles ? s.requiredFiles.passport : null,
     ticket: s.requiredFiles ? s.requiredFiles.ticket : null,
     photo: s.requiredFiles ? s.requiredFiles.photo : null,
-    insurance: s.requiredFiles ? s.requiredFiles.insurance : null
+    insurance: s.requiredFiles ? s.requiredFiles.insurance : null,
+    visa: s.requiredFiles ? s.requiredFiles.visa : null,
+    ssp: s.requiredFiles ? s.requiredFiles.ssp : null
   };
 
   renderAgencyStudentDetailPageHeader(s);
@@ -2870,6 +3147,10 @@ function openAgencyStudentDetailPage(id, portal) {
 }
 
 function closeStudentDetailPage() {
+  if (new URLSearchParams(window.location.search).has('studentPopup')) {
+    window.close();
+    return;
+  }
   navigate(currentAdetailPortal === 'admin' ? 'students' : 'agency-students');
 }
 
@@ -2956,14 +3237,14 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="changelog" onclick="switchAgencyEnrollmentHubTab('changelog')">변경 이력</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="consultation" onclick="switchAgencyEnrollmentHubTab('consultation')">학생 활동 히스토리</button>
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
       </div>
     </div>
   `;
 
-  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle', 'changelog'];
+  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle', 'consultation'];
   switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
 }
 
@@ -2974,12 +3255,12 @@ function getStudentEnrollmentSnapshots(s) {
     level: s.level || '-',
     startDate: s.startDate || '',
     endDate: s.endDate || '',
-    duration: s.duration || 4,
+    duration: getStudentPopupWeeks(s),
     status: s.status || 'waiting',
     paymentStatus: s.remittanceStatus || 'unpaid',
     segments: Array.isArray(s.courseSegments) ? s.courseSegments : [],
     dorm: s.dorm,
-    dormEnabled: Boolean(s.dorm && s.dorm !== '미사용' && s.dorm !== '미배정'),
+    dormEnabled: !isStudentWalkIn(s),
     dormDuration: s.dormDuration || s.duration || 0,
     dormIn: s.dormIn || '',
     dormOut: s.dormOut || '',
@@ -2991,6 +3272,7 @@ function getStudentEnrollmentSnapshots(s) {
     const dormParts = String(enrollment.dorm || '').split(' · ');
     return {
       ...enrollment,
+      duration: getStudentPopupWeeks(enrollment),
       segments: Array.isArray(enrollment.segments) ? enrollment.segments : [],
       dormAccomType: enrollment.dormAccomType || dormParts[0] || '',
       dormType: enrollment.dormType || parseInt(dormParts[1], 10) || null,
@@ -3038,6 +3320,8 @@ function switchAgencyEnrollmentHubTab(tab) {
     renderStudentClassLogTab();
   } else if (tab === 'flightdocs') {
     renderAgencyEnrollmentFlightDocs(s, container);
+  } else if (tab === 'consultation') {
+    renderStudentConsultationTab(s, container);
   } else {
     switchAdetailTab(tab, 'adetail-page-enrollment-content', currentAdetailStudentId);
   }
@@ -3045,6 +3329,18 @@ function switchAgencyEnrollmentHubTab(tab) {
 }
 
 function renderAgencyEnrollmentFlightDocs(s, container) {
+  const visaStatus = s.visaStatus || (s.visaExpiry === '면제' ? 'exempt' : (s.visaExpiry && s.visaExpiry !== '미설정' ? 'issued' : 'not_started'));
+  const sspStatus = s.sspStatus || (s.sspExpiry === '면제' ? 'exempt' : (s.sspExpiry && s.sspExpiry !== '미취득' ? 'issued' : 'not_started'));
+  const documentStatusOptions = [
+    ['not_started', '미신청'],
+    ['preparing', '서류 준비'],
+    ['applied', '신청 완료'],
+    ['issued', '발급 완료'],
+    ['exempt', '면제']
+  ];
+  const renderStatusOptions = selected => documentStatusOptions
+    .map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`)
+    .join('');
   container.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div>
@@ -3069,6 +3365,17 @@ function renderAgencyEnrollmentFlightDocs(s, container) {
     </div>
     <div style="margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#F8FAFC">
       <div style="font-size:12.5px;font-weight:800;color:#374151;margin-bottom:10px">필수 서류</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:12px;background:#fff;border:1px solid #E5E7EB;border-radius:10px">
+        <div class="tsa-form-group" style="margin:0">
+          <label class="tsa-label">등록된 여권번호</label>
+          <input id="ad-passport-number-masked" class="tsa-input" value="${maskPassportNumber(s.passportNum, '미등록')}" readonly style="background:#F9FAFB;color:#6B7280"/>
+        </div>
+        <div class="tsa-form-group" style="margin:0">
+          <label class="tsa-label">여권번호 입력/변경</label>
+          <input id="ad-passport-number-new" class="tsa-input" type="password" autocomplete="new-password" placeholder="새 여권번호를 입력하세요"/>
+          <div style="font-size:10px;color:#6B7280;margin-top:5px">저장 후에는 보안을 위해 마스킹되어 표시됩니다.</div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
         ${['passport','ticket','photo','insurance'].map(type => {
           const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서' };
@@ -3098,8 +3405,57 @@ function renderAgencyEnrollmentFlightDocs(s, container) {
         }).join('')}
       </div>
     </div>
+    <div style="margin-top:14px;border:1px solid #DDD6FE;border-radius:12px;padding:14px;background:#FAF5FF">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:#5B21B6">비자 · SSP 서류 관리</div>
+          <div style="font-size:10.5px;color:#7C3AED;margin-top:3px">신청 진행 상태와 발급 정보를 기록하고 증빙 서류를 관리합니다.</div>
+        </div>
+        <span class="tsa-badge tsa-badge-primary">학생별 진행 관리</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${[
+          {
+            type: 'visa', title: '비자 서류', color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE',
+            status: visaStatus, appliedDate: s.visaAppliedDate || '', number: s.visaNumber || '',
+            expiry: s.visaExpiry !== '면제' && s.visaExpiry !== '미설정' ? s.visaExpiry || '' : '',
+            numberLabel: '비자 번호', numberPlaceholder: '예: VISA-2026-001'
+          },
+          {
+            type: 'ssp', title: 'SSP 서류', color: '#047857', bg: '#ECFDF5', border: '#A7F3D0',
+            status: sspStatus, appliedDate: s.sspAppliedDate || '', number: s.sspNumber || '',
+            expiry: s.sspExpiry !== '면제' && s.sspExpiry !== '미취득' ? s.sspExpiry || '' : '',
+            numberLabel: 'SSP 번호', numberPlaceholder: '예: SSP-2026-001'
+          }
+        ].map(doc => {
+          const uploaded = adetailUploadedFiles[doc.type];
+          const isPdf = uploaded && /\.pdf$/i.test(uploaded);
+          return `
+            <div style="border:1px solid ${doc.border};background:${doc.bg};border-radius:11px;padding:13px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+                <div style="font-size:12.5px;font-weight:800;color:${doc.color}">${doc.title}</div>
+                <span class="tsa-badge ${uploaded ? 'tsa-badge-success' : 'tsa-badge-gray'}">${uploaded ? '서류 등록됨' : '서류 없음'}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">진행 상태</label><select id="ad-${doc.type}-status" class="tsa-input">${renderStatusOptions(doc.status)}</select></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">신청일</label><input id="ad-${doc.type}-applied-date" type="date" class="tsa-input" value="${doc.appliedDate}"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">${doc.numberLabel}</label><input id="ad-${doc.type}-number" class="tsa-input" value="${doc.number}" placeholder="${doc.numberPlaceholder}"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">만료 예정일</label><input id="ad-${doc.type}-expiry" type="date" class="tsa-input" value="${doc.expiry}"/></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid ${doc.border}">
+                <div style="font-size:10px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${uploaded || 'PDF 또는 이미지 파일을 등록하세요.'}</div>
+                <div style="display:flex;gap:5px;flex-shrink:0">
+                  <label class="tsa-btn tsa-btn-primary tsa-btn-xs" style="cursor:pointer"><i data-lucide="upload" style="width:12px;height:12px"></i> ${uploaded ? '교체' : '등록'}<input type="file" accept=".pdf,image/*" hidden onchange="handleAdetailRequiredFileUpload('${doc.type}',this)"/></label>
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" ${uploaded ? `onclick="openAgencyRequiredFilePreview('${doc.type}', '${encodeURIComponent(uploaded)}')"` : 'disabled'} style="${uploaded ? '' : 'opacity:.45;cursor:not-allowed'}"><i data-lucide="${isPdf ? 'file-search' : 'image'}" style="width:12px;height:12px"></i> 미리보기</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
     <div style="display:flex;justify-content:flex-end;margin-top:14px">
-      <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyEnrollmentFlightDocs()"><i data-lucide="check"></i> 항공편·서류 저장</button>
+      <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyEnrollmentFlightDocs()"><i data-lucide="check"></i> 항공편·서류 전체 저장</button>
     </div>
   `;
 }
@@ -3115,12 +3471,37 @@ function handleAdetailRequiredFileUpload(type, input) {
   s.flightOutNum = document.getElementById('ad-flight-out-num')?.value.trim() || s.flightOutNum || '';
   s.departureDate = document.getElementById('ad-departure-date')?.value || s.departureDate || '';
   s.flightOutTime = document.getElementById('ad-flight-out-time')?.value || s.flightOutTime || '';
+  captureAgencyPassportNumber(s);
+  captureAgencyVisaSspFields(s);
   adetailUploadedFiles[type] = fileName;
   renderAgencyEnrollmentFlightDocs(
     s,
     document.getElementById('adetail-page-enrollment-content')
   );
   showToast(`${fileName} 파일이 선택되었습니다. 저장 버튼을 눌러주세요.`, 'success');
+}
+
+function captureAgencyPassportNumber(s) {
+  if (!s) return false;
+  const input = document.getElementById('ad-passport-number-new');
+  const passportNumber = input?.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') || '';
+  if (!passportNumber) return false;
+
+  s.passportNum = passportNumber;
+  return true;
+}
+
+function captureAgencyVisaSspFields(s) {
+  if (!s) return;
+  const getValue = id => document.getElementById(id)?.value.trim() || '';
+  s.visaStatus = getValue('ad-visa-status') || s.visaStatus || 'not_started';
+  s.visaAppliedDate = getValue('ad-visa-applied-date');
+  s.visaNumber = getValue('ad-visa-number');
+  s.visaExpiry = s.visaStatus === 'exempt' ? '면제' : getValue('ad-visa-expiry');
+  s.sspStatus = getValue('ad-ssp-status') || s.sspStatus || 'not_started';
+  s.sspAppliedDate = getValue('ad-ssp-applied-date');
+  s.sspNumber = getValue('ad-ssp-number');
+  s.sspExpiry = s.sspStatus === 'exempt' ? '면제' : getValue('ad-ssp-expiry');
 }
 
 function saveAgencyEnrollmentFlightDocs() {
@@ -3133,8 +3514,15 @@ function saveAgencyEnrollmentFlightDocs() {
   s.flightOutNum = getVal('ad-flight-out-num', s.flightOutNum);
   s.departureDate = getVal('ad-departure-date', s.departureDate);
   s.flightOutTime = getVal('ad-flight-out-time', s.flightOutTime);
+  captureAgencyPassportNumber(s);
+  captureAgencyVisaSspFields(s);
   s.requiredFiles = { ...(s.requiredFiles || {}), ...adetailUploadedFiles };
-  showToast('항공편과 필수 서류 정보가 저장되었습니다.', 'success');
+  renderAgencyEnrollmentFlightDocs(
+    s,
+    document.getElementById('adetail-page-enrollment-content')
+  );
+  if (typeof refreshIcons === 'function') refreshIcons();
+  showToast('여권번호와 항공편, 비자·SSP를 포함한 서류 정보가 저장되었습니다.', 'success');
 }
 
 function openAgencyRequiredFilePreview(type, encodedFileName) {
@@ -3144,7 +3532,7 @@ function openAgencyRequiredFilePreview(type, encodedFileName) {
     return;
   }
 
-  const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서' };
+  const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서', visa: '비자 서류', ssp: 'SSP 서류' };
   const label = labels[type] || '서류';
   const isPdf = /\.pdf$/i.test(fileName);
   const isImage = /\.(png|jpe?g|gif|webp)$/i.test(fileName);
@@ -3493,9 +3881,6 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       </div>
     `;
   } else if (tab === 'class') {
-    let teacherName = '미배정';
-    const tMatch = MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick));
-    if (tMatch) teacherName = tMatch.teacher;
     const courseSegments = Array.isArray(s.segments) && s.segments.length
       ? s.segments
       : [{
@@ -3528,6 +3913,13 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <div style="font-size:10.5px;color:#6B7280;font-weight:700">수강료</div>
             <div style="font-size:12px;color:#111827;font-weight:900;margin-top:5px">${totalTuition ? formatCourseRegMoney(totalTuition) : '-'}</div>
           </div>
+        </div>
+        <div class="tsa-form-group" style="grid-column:span 2;padding:12px 14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8F9FF">
+          <label class="tsa-label" style="color:#3730A3">송금 경로</label>
+          <select id="ad-remittance-route" class="tsa-input" style="max-width:260px;background:#fff" onchange="updateStudentRemittanceRoute(${baseStudent.id}, this.value, '상세')">
+            ${renderRemittanceRouteOptions(s.remittanceRoute || baseStudent.remittanceRoute)}
+          </select>
+          <div style="font-size:10.5px;color:#6B7280;margin-top:5px">에이전시 / 직접 송금 / 현장 결제를 구분해 커미션 및 정산 오류를 방지합니다.</div>
         </div>
         <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -3562,37 +3954,6 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           <input id="ad-enroll-date" type="date" class="tsa-input" value="${s.enrollDate || ''}" ${lockAttr}/>
           <div style="font-size:10.5px;color:#6B7280;margin-top:3px">등록일 + 어학원 어드민 승인 시 → <strong style="color:#059669">재학생</strong> 전환</div>
         </div>
-        ${!isAgency ? `
-        <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
-          <div>담당 메인 강사: <strong>${teacherName} 강사</strong></div>
-          <div>누적 출석률: <strong style="color:#5E5CE6">${s.attendance || 100}%</strong> ${s.attendance && s.attendance < 80 ? '<span class="tsa-badge tsa-badge-danger" style="margin-left:8px">⚠️ 차주 1:1 수업 1교시 강제 감축 대상</span>' : ''}</div>
-        </div>
-        <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:12px;">
-          <h4 style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">📝 학습 평가 및 모의고사 성적 (Grades)</h4>
-          <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:10px;margin-bottom:8px">
-            <div class="tsa-form-group">
-              <label class="tsa-label" style="font-size:10.5px">Speaking</label>
-              <input type="number" id="ad-grade-speaking" class="tsa-input" style="padding:4px;font-size:11.5px" value="${s.grades && s.grades.speaking ? s.grades.speaking[s.grades.speaking.length-1] : 80}"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label" style="font-size:10.5px">Listening</label>
-              <input type="number" id="ad-grade-listening" class="tsa-input" style="padding:4px;font-size:11.5px" value="${s.grades && s.grades.listening ? s.grades.listening[s.grades.listening.length-1] : 80}"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label" style="font-size:10.5px">Reading</label>
-              <input type="number" id="ad-grade-reading" class="tsa-input" style="padding:4px;font-size:11.5px" value="${s.grades && s.grades.reading ? s.grades.reading[s.grades.reading.length-1] : 80}"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label" style="font-size:10.5px">Writing</label>
-              <input type="number" id="ad-grade-writing" class="tsa-input" style="padding:4px;font-size:11.5px" value="${s.grades && s.grades.writing ? s.grades.writing[s.grades.writing.length-1] : 80}"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label" style="font-size:10.5px">단어 퀴즈</label>
-              <input type="number" id="ad-grade-quiz" class="tsa-input" style="padding:4px;font-size:11.5px" value="${s.quiz ? s.quiz[s.quiz.length-1] : 90}"/>
-            </div>
-          </div>
-          <small style="color:#6B7280;font-size:10.5px">※ 성적 입력은 어드민 권한에서 저장 시 성적 히스토리와 꺾은선 차트에 연동 반영됩니다.</small>
-        </div>` : ''}
       </div>
     `;
   } else if (tab === 'settle') {
@@ -3618,7 +3979,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                   <div style="text-align:right;font-weight:900;color:#111827">$${item.amount.toLocaleString()}</div>
                   <div style="text-align:right">${renderAgencyPaidBadge(item.paymentStatus)}</div>
                   <div style="text-align:right;color:${item.commission > 0 ? '#4F46E5' : '#9CA3AF'};font-weight:800">
-                    ${item.commissionType === 'none' ? '커미션 없음' : item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · ${item.commission > 0 ? '-' : ''}$${item.commission.toLocaleString()}
+                    ${item.commissionType === 'none' ? '커미션 없음' : item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · $${item.commission.toLocaleString()}
                   </div>
                   <div style="text-align:right">${item.commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : '<span style="font-size:10px;color:#9CA3AF">-</span>'}</div>
                 </div>
@@ -3626,26 +3987,27 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">
               <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px"><strong>청구 금액 합계:</strong> <strong style="float:right">$${billingBreakdown.gross.toLocaleString()}</strong></div>
-              <div style="color:#4F46E5">에이전시 커미션 합계:</div><div style="text-align:right;color:#4F46E5">-$${billingBreakdown.commission.toLocaleString()}</div>
-              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
+              <div style="color:#4F46E5">커미션 합계:</div><div style="text-align:right;color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</div>
+              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액 합계:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
             </div>
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
               ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
             </div>
           </div>
 
-          <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">📄 서류 출력 (자가 PDF 인쇄)</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="tsa-btn tsa-btn-outline" style="justify-content:center" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">
-                <i data-lucide="printer"></i> 학생용 청구서 출력 (커미션 비공개)
-              </button>
-              <button class="tsa-btn ${s.remittanceStatus === 'paid' ? 'tsa-btn-primary' : 'tsa-btn-outline'}" style="justify-content:center" ${s.remittanceStatus === 'paid' ? '' : 'disabled'} onclick="openAgencyDocumentsInline(${s.id}, 'loa')">
-                <i data-lucide="check-circle"></i> 입학 허가서 (LOA) 인쇄 ${s.remittanceStatus === 'paid' ? '✓' : '(🔒 완납 시 해제)'}
-              </button>
-              <button class="tsa-btn ${s.remittanceStatus === 'paid' ? 'tsa-btn-success' : 'tsa-btn-outline'}" style="justify-content:center;background:${s.remittanceStatus === 'paid' ? '#10B981':''};border:none" ${s.remittanceStatus === 'paid' ? '' : 'disabled'} onclick="openAgencyDocumentsInline(${s.id}, 'pickup')">
-                <i data-lucide="plane"></i> 공항 픽업 확인서 인쇄 ${s.remittanceStatus === 'paid' ? '✓' : '(🔒 완납 시 해제)'}
-              </button>
+          <div style="border-left:1px solid #CBD5E1;padding:0 0 0 18px;min-width:0">
+            <div style="display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin-bottom:12px;overflow-x:auto" id="agency-inline-doc-tabs">
+              <button type="button" data-inline-doc-tab="invoice" onclick="renderAgencyInlineDocument(${s.id}, 'invoice')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공식 인보이스 (Invoice)</button>
+              <button type="button" data-inline-doc-tab="loa" onclick="renderAgencyInlineDocument(${s.id}, 'loa')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">입학 허가서 (LOA)</button>
+              <button type="button" data-inline-doc-tab="invitation" onclick="renderAgencyInlineDocument(${s.id}, 'invitation')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">초청장 (Invitation)</button>
+              <button type="button" data-inline-doc-tab="pickup" onclick="renderAgencyInlineDocument(${s.id}, 'pickup')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공항 픽업 확인서</button>
+            </div>
+            <div style="height:520px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
+              <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, APP.selectedInvoiceTab || 'invoice')">크게 보기</button>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
             </div>
           </div>
           ${localFeesHtml}
@@ -3959,7 +4321,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
           <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
             <div style="font-size:10.5px;color:#6B7280;font-weight:700">배정 상태</div>
-            <div style="font-size:12px;font-weight:800;margin-top:5px;color:${s.dormEnabled === false ? '#6B7280' : assignedRoom ? '#047857' : '#D97706'}">${s.dormEnabled === false ? '기숙사 미신청' : assignedRoom ? '배정 완료' : '배정 대기'}</div>
+            <div style="font-size:12px;font-weight:800;margin-top:5px;color:${s.dormEnabled === false ? '#D97706' : assignedRoom ? '#047857' : '#D97706'}">${s.dormEnabled === false ? 'Walk-in' : assignedRoom ? '배정 완료' : '배정 대기'}</div>
           </div>
           <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
             <div style="font-size:10.5px;color:#6B7280;font-weight:700">신청 기간</div>
@@ -3972,7 +4334,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         </div>
         ${s.dormEnabled === false ? `
           <div style="padding:28px;background:#F9FAFB;border-radius:10px;border:1px dashed #D1D5DB;text-align:center;color:#6B7280;font-size:12px">
-            이 수강 등록 건에는 기숙사 이용이 포함되지 않았습니다.
+            <strong style="color:#D97706">Walk-in</strong><br/><span style="font-size:10.5px">이 수강 등록 건에는 기숙사 이용이 포함되지 않았습니다.</span>
           </div>
         ` : `
         <div style="padding:14px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
@@ -4037,6 +4399,9 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   }
 
   container.innerHTML = html;
+  if (tab === 'settle') {
+    setTimeout(() => renderAgencyInlineDocument(s.id, 'invoice'), 0);
+  }
 }
 
 function submitRemittanceReceipt(studentId, editIdx) {
@@ -4406,12 +4771,72 @@ function openAgencyDocumentsInline(id, tab = 'invoice') {
   openModal('agency-invoice-modal');
 }
 
+function setSelectedInvoiceStudent(id) {
+  const s = MOCK_STUDENTS.find(std => std.id === id);
+  if (!s) return null;
+  APP.selectedInvoiceStudent = {
+    name: `${s.name} (${s.nick})`,
+    course: s.course.split(' ')[0],
+    dorm: s.dorm.split(' ')[0],
+    duration: `${s.duration}주`,
+    status: s.status,
+    total: s.fees.reduce((sum, fee) => sum + fee.amount, 0),
+    branch: s.branch || '강남지사'
+  };
+  return s;
+}
+
+function renderAgencyInlineDocument(id, tab = 'invoice') {
+  if (!setSelectedInvoiceStudent(id)) return;
+  switchInvoiceTab(tab);
+
+  const source = document.getElementById('invoice-modal-content');
+  const target = document.getElementById('agency-inline-doc-content');
+  if (!source || !target) return;
+
+  target.innerHTML = source.innerHTML;
+  target.style.position = 'relative';
+  target.style.overflow = 'hidden';
+  document.querySelectorAll('[data-inline-doc-tab]').forEach(button => {
+    const active = button.dataset.inlineDocTab === tab;
+    button.style.color = active ? '#4F46E5' : '#6B7280';
+    button.style.borderBottom = active ? '2px solid #5E5CE6' : '2px solid transparent';
+  });
+  APP.selectedInvoiceTab = tab;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function printAgencyInlineDocument() {
+  const content = document.getElementById('agency-inline-doc-content');
+  if (!content) return;
+  const printWindow = window.open('', '_blank', 'width=960,height=900');
+  if (!printWindow) {
+    showToast('인쇄 창을 열 수 없어. 브라우저 팝업 허용을 확인해줘.', 'warning');
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TalkStation Academy Document</title><style>body{margin:0;padding:24px;font-family:Pretendard,Arial,sans-serif;color:#111827;background:#fff}*{box-sizing:border-box}@media print{body{padding:0}}</style></head><body>${content.innerHTML}</body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 200);
+}
+
 const MOCK_PICKUP_MANAGERS = [
-  { id: 1, name: 'Juan Dela Cruz', phone: '+63 917 123 4567', vehicle: 'ABC 1234', car: 'Toyota Hiace · White', messenger: 'WhatsApp: +63 917 123 4567', memo: '공항 도착 게이트 앞 TSA 피켓 소지', photo: 'assets/images/teacher_male.png', visible: true },
-  { id: 2, name: 'Maria Santos', phone: '+63 922 456 7890', vehicle: 'XYZ 9087', car: 'Toyota Innova · Silver', messenger: 'KakaoTalk: tsa_pickup02', memo: '야간 항공편 픽업 담당', photo: 'assets/images/teacher_female.png', visible: true },
+  { id: 1, name: 'Juan Dela Cruz', phone: '+63 917 123 4567', gender: '남', age: 38, messenger: 'WhatsApp: +63 917 123 4567', photo: 'assets/images/teacher_male.png', visible: true },
+  { id: 2, name: 'Maria Santos', phone: '+63 922 456 7890', gender: '여', age: 34, messenger: 'KakaoTalk: tsa_pickup02', photo: 'assets/images/teacher_female.png', visible: true },
+];
+
+const MOCK_PICKUP_VEHICLES = [
+  { id: 1, model: 'Toyota Innova', plate: 'ABC 1234', capacity: 6, memo: 'Silver', active: true },
+  { id: 2, model: 'Hyundai Staria', plate: 'XYZ 9087', capacity: 9, memo: 'White', active: true },
 ];
 
 const PICKUP_DATE_ASSIGNMENTS = {};
+const PICKUP_DISPATCH_GROUPS = {};
+let pickupSelectedStudentIds = [];
+
+function getPickupDispatchGroups(dateKey) {
+  return PICKUP_DISPATCH_GROUPS[dateKey] || [];
+}
 
 function getPickupManagerIdsForDate(dateKey) {
   return [...new Set((PICKUP_DATE_ASSIGNMENTS[dateKey] || []).map(Number).filter(Boolean))];
@@ -4424,6 +4849,12 @@ function getPickupManagersForDate(dateKey) {
 
 function getPickupManagersForStudent(student) {
   if (!student) return [];
+  const dateKey = student.arrivalDate || student.startDate;
+  const dispatchManagers = getPickupDispatchGroups(dateKey)
+    .filter(group => group.studentIds.includes(student.id) && group.managerId)
+    .map(group => MOCK_PICKUP_MANAGERS.find(manager => manager.id === Number(group.managerId)))
+    .filter(Boolean);
+  if (dispatchManagers.length) return [...new Map(dispatchManagers.map(manager => [manager.id, manager])).values()];
   return getPickupManagersForDate(student.arrivalDate || student.startDate);
 }
 
@@ -4454,9 +4885,9 @@ function renderPickupManagerCards() {
     <div class="tsa-card" style="padding:16px;display:flex;gap:14px;align-items:center">
       <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:66px;height:76px;border-radius:10px;object-fit:cover;border:1px solid #E5E7EB" alt=""/>
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:7px"><b style="font-size:14px;color:#111827">${manager.name}</b><span class="tsa-badge ${manager.visible !== false ? 'tsa-badge-success' : 'tsa-badge-gray'}" style="font-size:9.5px">${manager.visible !== false ? '픽업 확인서 노출' : '미노출'}</span></div>
+        <div style="display:flex;align-items:center;gap:7px"><b style="font-size:14px;color:#111827">${manager.name}</b><span class="tsa-badge tsa-badge-success" style="font-size:9.5px">확인서 자동 노출</span></div>
         <div style="font-size:11px;color:#4B5563;margin-top:6px">${manager.phone}</div>
-        <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${manager.car || '-'} · ${manager.vehicle || '-'}</div>
+        <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${manager.gender || '-'}성 · ${manager.age ? manager.age + '세' : '나이 미등록'}</div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:3px">${manager.messenger || '-'}</div>
       </div>
       <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
@@ -4513,14 +4944,19 @@ function renderPickupCalendar() {
     }
     const key = toPickupDateKey(cellDate);
     const arrivals = students.filter(student => (student.arrivalDate || student.startDate) === key);
-    const managerCount = getPickupManagerIdsForDate(key).length;
-    const unassigned = arrivals.length && !managerCount ? arrivals.length : 0;
+    const groups = getPickupDispatchGroups(key);
+    const assignedStudentIds = new Set(groups.flatMap(group => group.studentIds));
+    const managerCount = groups.filter(group => group.managerId).length;
+    const pickupArrivals = arrivals.filter(isPickupRequired);
+    const noPickupArrivals = arrivals.filter(student => !isPickupRequired(student));
+    const unassigned = pickupArrivals.filter(student => !assignedStudentIds.has(student.id)).length;
+    const pendingDispatches = groups.filter(group => group.status !== 'dispatched').length;
     const selected = APP.pickupSelectedDate === key;
     const isToday = todayKey === key;
     cells.push(`
       <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:82px;padding:8px;border:0;border-right:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.42' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
         <span style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800;background:${isToday ? '#5E5CE6' : 'transparent'};color:${isToday ? '#fff' : '#374151'}">${cellDate.getDate()}</span>
-        ${arrivals.length ? `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned ? '#FFF7ED' : '#ECFDF5'};color:${unassigned ? '#C2410C' : '#047857'};font-size:9.5px;font-weight:800">입국 ${arrivals.length}명${unassigned ? ' · 담당자 미배정' : ` · 담당자 ${managerCount}명`}</div>` : ''}
+        ${arrivals.length ? `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned || pendingDispatches ? '#FFF7ED' : '#ECFDF5'};color:${unassigned || pendingDispatches ? '#C2410C' : '#047857'};font-size:9.5px;font-weight:800">입국 ${arrivals.length}명 · 픽업 ${pickupArrivals.length}명${noPickupArrivals.length ? ` · 불필요 ${noPickupArrivals.length}` : ''}${unassigned ? ` · 미편성 ${unassigned}` : pendingDispatches ? ` · 배차 확인 ${pendingDispatches}` : pickupArrivals.length ? ' · 배차 완료' : ''}</div>` : ''}
       </button>`);
   }
   grid.innerHTML = cells.join('');
@@ -4534,81 +4970,287 @@ function renderPickupDateAssignments() {
   const selectedDate = APP.pickupSelectedDate;
   const students = getPickupStudents().filter(student => (student.arrivalDate || student.startDate) === selectedDate);
   const dateLabel = selectedDate ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 선택';
-  const assignedManagerIds = getPickupManagerIdsForDate(selectedDate);
-  const hasManagers = assignedManagerIds.length > 0;
+  const groups = getPickupDispatchGroups(selectedDate);
+  const assignedIds = new Set(groups.flatMap(group => group.studentIds));
+  const pickupStudents = students.filter(isPickupRequired);
+  const noPickupStudents = students.filter(student => !isPickupRequired(student));
+  pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => pickupStudents.some(student => student.id === id) && !assignedIds.has(id));
+  const unassigned = pickupStudents.filter(student => !assignedIds.has(student.id));
+  const pendingGroups = groups.filter(group => group.status !== 'dispatched');
   panel.innerHTML = `
     <div style="padding:15px 16px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <div><b style="font-size:13px;color:#111827">${dateLabel}</b><div style="font-size:10px;color:#9CA3AF;margin-top:3px">입국 예정 ${students.length}명 · 픽업 담당자 ${assignedManagerIds.length}명</div></div>
-      ${students.length ? `<span class="tsa-badge ${hasManagers ? 'tsa-badge-success' : 'tsa-badge-warning'}">${hasManagers ? '배정 완료' : '배정 필요'}</span>` : ''}
+      <div><b style="font-size:13px;color:#111827">${dateLabel}</b><div style="font-size:10px;color:#9CA3AF;margin-top:3px">입국 ${students.length}명 · 픽업 필요 ${pickupStudents.length}명 · 픽업 불필요 ${noPickupStudents.length}명 · 미편성 ${unassigned.length}명</div></div>
+      ${students.length ? `<span class="tsa-badge ${unassigned.length || pendingGroups.length ? 'tsa-badge-warning' : 'tsa-badge-success'}">${unassigned.length ? '편성 필요' : pendingGroups.length ? '배차 정보 필요' : pickupStudents.length ? '배차 완료' : '픽업 불필요'}</span>` : ''}
     </div>
     ${students.length ? `<div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><label style="display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:#374151"><i data-lucide="users-round" style="width:13px;height:13px;color:#5E5CE6"></i> 일자별 픽업 담당자</label><button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addPickupDateManager('${selectedDate}')"><i data-lucide="plus"></i> 담당자 추가</button></div>
-      <div style="display:flex;flex-direction:column;gap:7px">
-        ${(assignedManagerIds.length ? assignedManagerIds : ['']).map((managerId, index) => renderPickupDateManagerSelect(selectedDate, managerId, index)).join('')}
-      </div>
-      <div style="font-size:9.5px;color:#9CA3AF;margin-top:7px">이 날짜에 입국하는 ${students.length}명 모두에게 동일한 담당자 목록이 적용됩니다.</div>
-    </div>` : ''}
-    <div style="padding:12px">
-      ${students.length ? students.map(student => renderPickupStudentAssignmentCard(student)).join('') : `<div style="padding:90px 20px;text-align:center;color:#9CA3AF"><i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i><div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div><div style="font-size:10.5px;margin-top:5px">입국 일정이 있는 날짜를 선택해줘.</div></div>`}
-    </div>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:11px;color:#374151">픽업 인원 선택</b><button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openPickupDispatchModal('${selectedDate}')" ${pickupSelectedStudentIds.length ? '' : 'disabled'}><i data-lucide="car-front"></i> 선택 인원 배차</button></div>
+      <div style="display:flex;flex-direction:column;gap:6px">${unassigned.length ? unassigned.map(student => renderPickupPassengerOption(student)).join('') : '<div style="padding:12px;text-align:center;font-size:10.5px;color:#9CA3AF">픽업이 필요한 모든 학생이 배차 그룹에 편성되었습니다.</div>'}</div>
+      ${noPickupStudents.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #D1D5DB"><div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><b style="font-size:11px;color:#6B7280">픽업 불필요</b><span class="tsa-badge" style="background:#F3F4F6;color:#6B7280">옵션 미선택 ${noPickupStudents.length}명</span></div><div style="display:flex;flex-direction:column;gap:6px">${noPickupStudents.map(student => renderPickupPassengerOption(student, false)).join('')}</div></div>` : ''}
+    </div>
+    ${groups.length ? `<div style="padding:12px 16px"><div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:8px">배차 현황</div><div style="display:grid;gap:7px">${groups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div></div>` : ''}` : `<div style="padding:90px 20px;text-align:center;color:#9CA3AF"><i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i><div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div></div>`}`;
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-function renderPickupDateManagerSelect(dateKey, managerId, index) {
-  return `<div style="display:flex;align-items:center;gap:7px">
-    <span style="width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#5E5CE6;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:900;flex-shrink:0">${index + 1}</span>
-    <select class="tsa-input" style="height:38px;font-size:11px;flex:1;border-color:#C7D2FE;background:#fff" onchange="setPickupDateManager('${dateKey}', ${index}, this.value)">
-      <option value="">담당자 선택</option>
-      ${MOCK_PICKUP_MANAGERS.map(manager => `<option value="${manager.id}" ${Number(managerId) === manager.id ? 'selected' : ''}>${manager.name} · ${manager.vehicle || '차량 미정'}</option>`).join('')}
-    </select>
-    ${managerId ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444;border-color:#FECACA" onclick="removePickupDateManager('${dateKey}', ${index})" aria-label="담당자 제거"><i data-lucide="trash-2"></i></button>` : ''}
+function isPickupRequired(student) {
+  if (!student) return false;
+  if (typeof student.pickupRequired === 'boolean') return student.pickupRequired;
+  const enrollmentExtras = Array.isArray(student.enrollments) && student.enrollments.length
+    ? student.enrollments[0]?.extraItems
+    : null;
+  const extraItems = Array.isArray(student.extraItems) ? student.extraItems : enrollmentExtras;
+  if (Array.isArray(extraItems)) {
+    return extraItems.some(item => /공항\s*픽업|Airport\s*Pickup/i.test(typeof item === 'string' ? item : item?.name || ''));
+  }
+  return true;
+}
+
+function renderPickupPassengerOption(student, selectable = true) {
+  const checked = pickupSelectedStudentIds.includes(student.id);
+  const time = student.flightTime || '시간 미정';
+  const avatar = student.profilePhoto || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+  const agency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(item => item.name === student.agency) : null;
+  return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:${selectable ? (checked ? '#F5F3FF' : '#fff') : '#F9FAFB'};border:1px solid ${selectable && checked ? '#818CF8' : '#E5E7EB'};border-radius:9px;cursor:${selectable ? 'pointer' : 'default'};opacity:${selectable ? '1' : '.82'}">
+    ${selectable ? `<input type="checkbox" style="margin-top:13px" ${checked ? 'checked' : ''} onchange="togglePickupPassenger(${student.id}, this.checked)"/>` : '<span style="margin-top:8px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#E5E7EB;color:#6B7280;font-size:11px;font-weight:900;flex-shrink:0">−</span>'}
+    <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="display:flex;align-items:center;gap:6px"><b style="font-size:11px;color:#111827">${student.name}</b>${selectable ? '' : '<span class="tsa-badge" style="background:#F3F4F6;color:#6B7280;font-size:8.5px">픽업 불필요</span>'}</div><span style="font-size:9px;color:#6B7280">${student.nationality || '-'} · ${student.gender || '-'}성 · ${student.age || '-'}세</span></div>
+      <div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">Nick: ${student.nick || '-'} · ${student.phone || '연락처 미등록'} · ${student.email || '이메일 미등록'}</div>
+      <div style="margin-top:6px;padding:6px 7px;background:#F8FAFC;border-radius:6px;display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:9.2px;color:#6B7280">
+        <div><b style="color:#4B5563">에이전시</b> ${student.agency || '-'}</div>
+        <div><b style="color:#4B5563">담당자</b> ${agency?.contact || '-'}</div>
+        <div><b style="color:#4B5563">컨택</b> ${agency?.phone || '-'}</div>
+        <div><b style="color:#4B5563">이메일</b> ${agency?.email || '-'}</div>
+      </div>
+      <div style="font-size:9.5px;color:#4F46E5;margin-top:6px"><i data-lucide="plane" style="width:11px;height:11px;vertical-align:-2px;margin-right:3px"></i>${student.flightInfo || '항공편 미등록'} · 입국 ${time}</div>
+    </div>
+  </label>`;
+}
+
+function togglePickupPassenger(studentId, checked) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  if (!isPickupRequired(student)) return;
+  if (checked) pickupSelectedStudentIds = [...new Set([...pickupSelectedStudentIds, studentId])];
+  else pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => id !== studentId);
+  renderPickupDateAssignments();
+}
+
+function renderPickupDispatchSummary(dateKey, group, index) {
+  const students = group.studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
+  const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(group.managerId));
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === Number(group.vehicleId));
+  return `<div style="display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid ${group.status === 'dispatched' ? '#A7F3D0' : '#FDE68A'};background:${group.status === 'dispatched' ? '#F0FDF4' : '#FFFBEB'};border-radius:9px">
+    <div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:800;color:#111827">배차 ${index + 1} · 탑승 ${students.length}명</div><div style="font-size:9.5px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${students.map(student => student.name).join(', ')} · ${manager?.name || '담당자 미지정'} · ${vehicle ? `${vehicle.model} / ${vehicle.plate}` : '차량 미지정'}</div></div>
+    <span class="tsa-badge ${group.status === 'dispatched' ? 'tsa-badge-success' : 'tsa-badge-warning'}">${group.status === 'dispatched' ? '배차 완료' : '배차 필요'}</span>
+    <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupDispatchModal('${dateKey}', ${group.id})">보기/수정</button>
   </div>`;
 }
 
-function setPickupDateManager(dateKey, index, managerId) {
-  const ids = getPickupManagerIdsForDate(dateKey);
-  const nextId = Number(managerId);
-  if (!nextId) return;
-  if (ids.includes(nextId) && ids[index] !== nextId) {
-    showToast('이미 이 날짜에 배정된 담당자입니다.', 'warning');
-    renderPickupCalendar();
+function openPickupDispatchModal(dateKey, groupId) {
+  const group = groupId ? getPickupDispatchGroups(dateKey).find(item => item.id === Number(groupId)) : null;
+  const studentIds = group ? [...group.studentIds] : [...pickupSelectedStudentIds];
+  if (!studentIds.length) return;
+  const students = studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
+  document.getElementById('pickup-dispatch-date').value = dateKey;
+  document.getElementById('pickup-dispatch-group-id').value = group?.id || '';
+  document.getElementById('pickup-dispatch-student-ids').value = studentIds.join(',');
+  document.getElementById('pickup-dispatch-modal-title').textContent = group ? `배차 ${getPickupDispatchGroups(dateKey).indexOf(group) + 1} 정보 수정` : `선택 인원 배차 · ${students.length}명`;
+  document.getElementById('pickup-dispatch-selected-students').innerHTML = students.map(student => renderPickupDispatchStudentInfo(student)).join('');
+  document.getElementById('pickup-dispatch-modal-manager').innerHTML = `<option value="">담당자 선택</option>${MOCK_PICKUP_MANAGERS.map(manager => `<option value="${manager.id}" ${Number(group?.managerId) === manager.id ? 'selected' : ''}>${manager.name} · ${manager.phone}</option>`).join('')}`;
+  document.getElementById('pickup-dispatch-modal-vehicle').innerHTML = `<option value="">등록 차량 선택</option>${MOCK_PICKUP_VEHICLES.filter(vehicle => vehicle.active !== false).map(vehicle => `<option value="${vehicle.id}" ${Number(group?.vehicleId) === vehicle.id ? 'selected' : ''} ${Number(vehicle.capacity) < students.length ? 'disabled' : ''}>${vehicle.model} · ${vehicle.plate} · ${vehicle.capacity}인승${Number(vehicle.capacity) < students.length ? ' (정원 부족)' : ''}</option>`).join('')}`;
+  document.getElementById('pickup-dispatch-delete-btn').style.display = group ? '' : 'none';
+  updatePickupDispatchModalVehicleInfo();
+  openModal('pickup-dispatch-modal');
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function updatePickupDispatchModalVehicleInfo() {
+  const vehicleId = Number(document.getElementById('pickup-dispatch-modal-vehicle')?.value || 0);
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId);
+  const info = document.getElementById('pickup-dispatch-modal-vehicle-info');
+  if (info) info.innerHTML = vehicle ? `<b>${vehicle.model}</b> · ${vehicle.plate} · ${vehicle.capacity}인승${vehicle.memo ? ` · ${vehicle.memo}` : ''}` : '차량 관리에서 사전 등록한 차량을 선택해줘.';
+}
+
+function savePickupDispatchModal() {
+  const dateKey = document.getElementById('pickup-dispatch-date').value;
+  const groupId = Number(document.getElementById('pickup-dispatch-group-id').value || 0);
+  const studentIds = document.getElementById('pickup-dispatch-student-ids').value.split(',').map(Number).filter(Boolean);
+  const managerId = Number(document.getElementById('pickup-dispatch-modal-manager').value || 0);
+  const vehicleId = Number(document.getElementById('pickup-dispatch-modal-vehicle').value || 0);
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId && item.active !== false);
+  if (!managerId || !vehicle) return showToast('픽업 담당자와 등록 차량을 선택해줘.', 'warning');
+  if (Number(vehicle.capacity) < studentIds.length) return showToast(`탑승 ${studentIds.length}명보다 큰 정원의 차량을 선택해줘.`, 'warning');
+  const groups = getPickupDispatchGroups(dateKey);
+  let group = groupId ? groups.find(item => item.id === groupId) : null;
+  if (!group) {
+    group = { id: Date.now(), studentIds };
+    groups.push(group);
+    PICKUP_DISPATCH_GROUPS[dateKey] = groups;
+  }
+  Object.assign(group, { studentIds, managerId, vehicleId, vehicleCapacity: Number(vehicle.capacity), vehicleModel: vehicle.model, vehiclePlate: vehicle.plate, status: 'dispatched' });
+  pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => !studentIds.includes(id));
+  closeModal('pickup-dispatch-modal');
+  renderPickupCalendar();
+  showToast(groupId ? '배차 정보가 수정되었습니다.' : `${studentIds.length}명 차량 배차가 등록되었습니다.`, 'success');
+}
+
+function deletePickupDispatchFromModal() {
+  const dateKey = document.getElementById('pickup-dispatch-date').value;
+  const groupId = Number(document.getElementById('pickup-dispatch-group-id').value || 0);
+  if (!groupId) return;
+  closeModal('pickup-dispatch-modal');
+  removePickupDispatchGroup(dateKey, groupId);
+}
+
+function renderPickupDispatchCard(dateKey, group, index) {
+  const students = group.studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
+  const capacityWarning = Number(group.vehicleCapacity) < students.length;
+  const selectedVehicle = MOCK_PICKUP_VEHICLES.find(vehicle => vehicle.id === Number(group.vehicleId))
+    || MOCK_PICKUP_VEHICLES.find(vehicle => group.vehiclePlate && vehicle.plate.toLowerCase() === String(group.vehiclePlate).toLowerCase());
+  if (selectedVehicle && !group.vehicleId) group.vehicleId = selectedVehicle.id;
+  const vehicleOptions = MOCK_PICKUP_VEHICLES.filter(vehicle => vehicle.active !== false).map(vehicle => {
+    const insufficient = Number(vehicle.capacity) < students.length;
+    return `<option value="${vehicle.id}" ${Number(group.vehicleId) === vehicle.id ? 'selected' : ''} ${insufficient ? 'disabled' : ''}>${vehicle.model} · ${vehicle.plate} · ${vehicle.capacity}인승${insufficient ? ' (정원 부족)' : ''}</option>`;
+  }).join('');
+  return `<div style="border:1px solid ${capacityWarning ? '#FCA5A5' : group.status === 'dispatched' ? '#86EFAC' : '#DDE3EC'};border-radius:10px;padding:12px;margin-bottom:10px;background:#fff">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><b style="font-size:11px;color:#111827">배차 ${index + 1} · 탑승 ${students.length}명</b>${group.status === 'dispatched' ? '<span class="tsa-badge tsa-badge-success" style="margin-left:6px">등록 완료</span>' : ''}</div><button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444" onclick="removePickupDispatchGroup('${dateKey}', ${group.id})"><i data-lucide="trash-2"></i></button></div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:11px">${students.map(student => renderPickupDispatchStudentInfo(student)).join('')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1.35fr;gap:8px;margin-bottom:8px">
+      <div><label class="tsa-label" style="font-size:9.5px">픽업 담당자</label><select id="pickup-dispatch-manager-${group.id}" class="tsa-input" style="height:36px;font-size:10.5px"><option value="">담당자 선택</option>${MOCK_PICKUP_MANAGERS.map(manager => `<option value="${manager.id}" ${Number(group.managerId) === manager.id ? 'selected' : ''}>${manager.name}</option>`).join('')}</select></div>
+      <div><label class="tsa-label" style="font-size:9.5px">등록 차량 선택</label><select id="pickup-dispatch-vehicle-${group.id}" class="tsa-input" style="height:36px;font-size:10.5px"><option value="">차량 선택</option>${vehicleOptions}</select></div>
+    </div>
+    <div style="padding:8px 10px;margin-bottom:9px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:7px;font-size:9.5px;color:#6B7280">${selectedVehicle ? `<b style="color:#374151">${selectedVehicle.model}</b> · ${selectedVehicle.plate} · ${selectedVehicle.capacity}인승${selectedVehicle.memo ? ` · ${selectedVehicle.memo}` : ''}` : '차량 관리에서 사전 등록한 차량을 선택해줘.'}</div>
+    ${capacityWarning ? '<div style="font-size:9.5px;color:#DC2626;margin-bottom:7px">탑승 인원보다 큰 차량을 선택해줘.</div>' : ''}
+    <div style="display:flex;justify-content:flex-end"><button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="savePickupDispatch('${dateKey}', ${group.id})"><i data-lucide="car-front"></i> ${group.status === 'dispatched' ? '배차 정보 수정' : '차량 배차 등록'}</button></div>
+  </div>`;
+}
+
+function renderPickupDispatchStudentInfo(student) {
+  const avatar = student.profilePhoto || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+  const agency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(item => item.name === student.agency) : null;
+  const time = student.flightTime || '시간 미정';
+  return `<div style="display:flex;align-items:flex-start;gap:9px;padding:9px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px">
+    <img src="${avatar}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:10.5px;color:#111827">${student.name}</b><span style="font-size:9px;color:#6B7280">${student.nationality || '-'} · ${student.gender || '-'}성 · ${student.age || '-'}세</span></div>
+      <div style="font-size:9.2px;color:#9CA3AF;margin-top:2px">Nick: ${student.nick || '-'} · ${student.phone || '연락처 미등록'} · ${student.email || '이메일 미등록'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:5px;font-size:9px;color:#6B7280">
+        <div><b style="color:#4B5563">에이전시</b> ${student.agency || '-'}</div><div><b style="color:#4B5563">담당자</b> ${agency?.contact || '-'}</div>
+        <div><b style="color:#4B5563">컨택</b> ${agency?.phone || '-'}</div><div><b style="color:#4B5563">이메일</b> ${agency?.email || '-'}</div>
+      </div>
+      <div style="font-size:9.2px;color:#4F46E5;margin-top:5px"><i data-lucide="plane" style="width:10px;height:10px;vertical-align:-2px;margin-right:3px"></i>${student.flightInfo || '항공편 미등록'} · 입국 ${time}</div>
+    </div>
+  </div>`;
+}
+
+function savePickupDispatch(dateKey, groupId) {
+  const group = getPickupDispatchGroups(dateKey).find(item => item.id === groupId);
+  if (!group) return;
+  const managerId = Number(document.getElementById(`pickup-dispatch-manager-${groupId}`)?.value || 0);
+  const vehicleId = Number(document.getElementById(`pickup-dispatch-vehicle-${groupId}`)?.value || 0);
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId && item.active !== false);
+  if (!managerId || !vehicle) {
+    showToast('픽업 담당자와 등록 차량을 선택해줘.', 'warning');
     return;
   }
-  ids[index] = nextId;
-  PICKUP_DATE_ASSIGNMENTS[dateKey] = ids;
-  renderPickupCalendar();
-  showToast('일자별 픽업 담당자가 저장되었습니다.', 'success');
-}
-
-function addPickupDateManager(dateKey) {
-  const ids = getPickupManagerIdsForDate(dateKey);
-  if (ids.length >= MOCK_PICKUP_MANAGERS.length) {
-    showToast('등록된 픽업 담당자가 모두 배정되어 있습니다.', 'warning');
+  if (Number(vehicle.capacity) < group.studentIds.length) {
+    showToast(`탑승 ${group.studentIds.length}명보다 큰 정원의 차량을 선택해줘.`, 'warning');
     return;
   }
-  const availableManager = MOCK_PICKUP_MANAGERS.find(manager => !ids.includes(manager.id));
-  PICKUP_DATE_ASSIGNMENTS[dateKey] = [...ids, availableManager.id];
+  Object.assign(group, { managerId, vehicleId, vehicleCapacity: Number(vehicle.capacity), vehicleModel: vehicle.model, vehiclePlate: vehicle.plate, status: 'dispatched' });
   renderPickupCalendar();
-  showToast('픽업 담당자가 추가되었습니다.', 'success');
+  showToast('차량 배차가 등록되었습니다.', 'success');
 }
 
-function removePickupDateManager(dateKey, index) {
-  const ids = getPickupManagerIdsForDate(dateKey);
-  ids.splice(index, 1);
-  PICKUP_DATE_ASSIGNMENTS[dateKey] = ids;
-  renderPickupCalendar();
-  showToast('일자별 픽업 담당자가 제외되었습니다.', 'success');
+function openPickupVehicleModal() {
+  document.getElementById('pickup-vehicle-id').value = '';
+  document.getElementById('pickup-vehicle-model').value = '';
+  document.getElementById('pickup-vehicle-plate').value = '';
+  document.getElementById('pickup-vehicle-capacity').value = '5';
+  document.getElementById('pickup-vehicle-memo').value = '';
+  renderPickupVehicleList();
+  openModal('pickup-vehicle-modal');
+  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
 
-function renderPickupStudentAssignmentCard(student) {
-    const managers = getPickupManagersForStudent(student);
-    const avatar = student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
-    const flightTimeMatch = student.flightInfo?.match(/(?:^|\s|\|)((?:[01]\d|2[0-3]):[0-5]\d)(?=\s|$|\|)/);
-    const flightTime = student.flightTime || flightTimeMatch?.[1] || '시간 미정';
-    return `<div style="padding:12px;border:1px solid ${managers.length ? '#DDE3EC' : '#FED7AA'};border-radius:10px;margin-bottom:10px;background:${managers.length ? '#fff' : '#FFFBEB'}">
-      <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px"><img src="${avatar}" style="width:34px;height:34px;border-radius:50%;object-fit:cover" alt=""/><div style="flex:1"><b style="font-size:12px;color:#111827">${student.name}</b><div style="font-size:10px;color:#9CA3AF">Nick: ${student.nick} · ${student.nationality}</div></div>${managers.length ? `<span class="tsa-badge tsa-badge-success">담당자 ${managers.length}명</span>` : '<span class="tsa-badge tsa-badge-warning">미배정</span>'}</div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:10.5px;color:#4B5563;padding:7px 8px;background:#F8FAFC;border-radius:6px;margin-bottom:9px"><span><i data-lucide="plane" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>${student.flightInfo || '항공편 정보 없음'}</span><span style="color:#D1D5DB">|</span><b style="color:#5E5CE6;white-space:nowrap"><i data-lucide="clock-3" style="width:12px;height:12px;vertical-align:-2px;margin-right:3px"></i>입국 ${flightTime}</b></div>
-    </div>`;
+function renderPickupVehicleList() {
+  const target = document.getElementById('pickup-vehicle-list');
+  if (!target) return;
+  target.innerHTML = MOCK_PICKUP_VEHICLES.length ? MOCK_PICKUP_VEHICLES.map(vehicle => `
+    <div style="display:grid;grid-template-columns:1fr 100px 76px 38px;gap:8px;align-items:center;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#fff">
+      <div><b style="font-size:11px;color:#111827">${vehicle.model}</b><div style="font-size:9.5px;color:#6B7280;margin-top:2px">${vehicle.plate}${vehicle.memo ? ` · ${vehicle.memo}` : ''}</div></div>
+      <span style="font-size:10.5px;color:#374151">${vehicle.capacity}인승</span>
+      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="editPickupVehicle(${vehicle.id})">수정</button>
+      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444" onclick="removePickupVehicle(${vehicle.id})"><i data-lucide="trash-2"></i></button>
+    </div>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:8px;color:#9CA3AF;font-size:10.5px">등록된 차량이 없습니다.</div>';
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function editPickupVehicle(vehicleId) {
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId);
+  if (!vehicle) return;
+  document.getElementById('pickup-vehicle-id').value = String(vehicle.id);
+  document.getElementById('pickup-vehicle-model').value = vehicle.model;
+  document.getElementById('pickup-vehicle-plate').value = vehicle.plate;
+  document.getElementById('pickup-vehicle-capacity').value = String(vehicle.capacity);
+  document.getElementById('pickup-vehicle-memo').value = vehicle.memo || '';
+}
+
+function savePickupVehicle() {
+  const id = Number(document.getElementById('pickup-vehicle-id')?.value || 0);
+  const model = document.getElementById('pickup-vehicle-model')?.value.trim() || '';
+  const plate = document.getElementById('pickup-vehicle-plate')?.value.trim() || '';
+  const capacity = Number(document.getElementById('pickup-vehicle-capacity')?.value || 0);
+  const memo = document.getElementById('pickup-vehicle-memo')?.value.trim() || '';
+  if (!model || !plate || capacity < 1) {
+    showToast('차량 모델, 차량번호, 정원을 모두 입력해줘.', 'warning');
+    return;
+  }
+  const duplicate = MOCK_PICKUP_VEHICLES.some(vehicle => vehicle.plate.toLowerCase() === plate.toLowerCase() && vehicle.id !== id);
+  if (duplicate) {
+    showToast('이미 등록된 차량번호야.', 'warning');
+    return;
+  }
+  if (id) {
+    const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === id);
+    if (vehicle) Object.assign(vehicle, { model, plate, capacity, memo });
+  } else {
+    MOCK_PICKUP_VEHICLES.push({ id: Date.now(), model, plate, capacity, memo, active: true });
+  }
+  document.getElementById('pickup-vehicle-id').value = '';
+  document.getElementById('pickup-vehicle-model').value = '';
+  document.getElementById('pickup-vehicle-plate').value = '';
+  document.getElementById('pickup-vehicle-capacity').value = '5';
+  document.getElementById('pickup-vehicle-memo').value = '';
+  renderPickupVehicleList();
+  renderPickupDateAssignments();
+  showToast('차량 정보가 저장되었습니다.', 'success');
+}
+
+function removePickupVehicle(vehicleId) {
+  const inUse = Object.values(PICKUP_DISPATCH_GROUPS).flat().some(group => Number(group.vehicleId) === vehicleId);
+  if (inUse) {
+    showToast('배차에 사용 중인 차량은 삭제할 수 없어.', 'warning');
+    return;
+  }
+  const index = MOCK_PICKUP_VEHICLES.findIndex(vehicle => vehicle.id === vehicleId);
+  if (index >= 0) MOCK_PICKUP_VEHICLES.splice(index, 1);
+  renderPickupVehicleList();
+  renderPickupDateAssignments();
+  showToast('차량이 삭제되었습니다.', 'success');
+}
+
+function updatePickupDispatch(dateKey, groupId, field, value) {
+  const group = getPickupDispatchGroups(dateKey).find(item => item.id === groupId);
+  if (!group) return;
+  group[field] = field === 'managerId' || field === 'vehicleCapacity' ? Number(value) || null : value.trim();
+  group.status = group.managerId && group.vehiclePlate && Number(group.vehicleCapacity) >= group.studentIds.length ? 'dispatched' : 'pending';
+  renderPickupCalendar();
+}
+
+function removePickupDispatchGroup(dateKey, groupId) {
+  PICKUP_DISPATCH_GROUPS[dateKey] = getPickupDispatchGroups(dateKey).filter(group => group.id !== groupId);
+  renderPickupCalendar();
+  showToast('배차 그룹이 삭제되었습니다.', 'success');
 }
 
 function selectPickupCalendarDate(dateKey) {
@@ -4641,11 +5283,9 @@ function openPickupManagerModal(managerId = null) {
   document.getElementById('pickup-manager-id').value = manager?.id || '';
   document.getElementById('pickup-manager-name').value = manager?.name || '';
   document.getElementById('pickup-manager-phone').value = manager?.phone || '';
-  document.getElementById('pickup-manager-vehicle').value = manager?.vehicle || '';
-  document.getElementById('pickup-manager-car').value = manager?.car || '';
+  document.getElementById('pickup-manager-gender').value = manager?.gender || '남';
+  document.getElementById('pickup-manager-age').value = manager?.age || '';
   document.getElementById('pickup-manager-messenger').value = manager?.messenger || '';
-  document.getElementById('pickup-manager-visible').value = manager?.visible === false ? 'false' : 'true';
-  document.getElementById('pickup-manager-memo').value = manager?.memo || '';
   document.getElementById('pickup-manager-photo').value = '';
   document.getElementById('pickup-manager-photo-preview').innerHTML = `<img src="${APP.pickupManagerPhotoData}" style="width:100%;height:100%;object-fit:cover" alt=""/>`;
   openModal('pickup-manager-modal');
@@ -4666,20 +5306,21 @@ function savePickupManager() {
   const id = Number(document.getElementById('pickup-manager-id').value) || null;
   const name = document.getElementById('pickup-manager-name').value.trim();
   const phone = document.getElementById('pickup-manager-phone').value.trim();
-  if (!name || !phone) {
-    showToast('담당자 이름과 연락처를 입력해줘.', 'warning');
+  const gender = document.getElementById('pickup-manager-gender').value;
+  const age = Number(document.getElementById('pickup-manager-age').value);
+  if (!name || !phone || !gender || !age) {
+    showToast('담당자 이름, 연락처, 성별, 나이를 모두 입력해줘.', 'warning');
     return;
   }
   const payload = {
     id: id || Math.max(0, ...MOCK_PICKUP_MANAGERS.map(item => item.id)) + 1,
     name,
     phone,
-    vehicle: document.getElementById('pickup-manager-vehicle').value.trim(),
-    car: document.getElementById('pickup-manager-car').value.trim(),
+    gender,
+    age,
     messenger: document.getElementById('pickup-manager-messenger').value.trim(),
-    memo: document.getElementById('pickup-manager-memo').value.trim(),
     photo: APP.pickupManagerPhotoData || 'assets/images/teacher_male.png',
-    visible: document.getElementById('pickup-manager-visible').value === 'true',
+    visible: true,
   };
   const existing = MOCK_PICKUP_MANAGERS.find(item => item.id === id);
   if (existing) Object.assign(existing, payload);
@@ -4689,10 +5330,64 @@ function savePickupManager() {
   showToast('픽업 담당자 프로필이 저장되었습니다.', 'success');
 }
 
+function renderRecommendedStudentInvoice(std) {
+  const billing = getStudentBillingBreakdown(std);
+  const savedFees = std.courseRegistrationFees || {};
+  const extraItems = Array.isArray(savedFees.extraItems) ? savedFees.extraItems : [];
+  const route = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
+  const routeLabel = getRemittanceRouteLabel(route);
+  const paidAmount = billing.items.filter(item => item.paymentStatus === 'paid').reduce((sum, item) => sum + item.amount, 0);
+  const balance = Math.max(0, billing.gross - paidAmount);
+  const issueDate = new Date().toISOString().substring(0, 10);
+  const dueDate = std.paymentDueDate || std.startDate || issueDate;
+  const invoiceNo = `TSA-${std.id}-${(std.startDate || issueDate).replace(/-/g, '')}`;
+  const statusLabel = balance <= 0 ? 'PAID · 완납' : paidAmount > 0 ? 'PARTIAL · 부분납' : 'UNPAID · 미납';
+  const statusColor = balance <= 0 ? '#047857' : paidAmount > 0 ? '#B45309' : '#DC2626';
+  const statusBg = balance <= 0 ? '#D1FAE5' : paidAmount > 0 ? '#FEF3C7' : '#FEE2E2';
+  const paymentGuide = route === 'direct'
+    ? `<strong>어학원 직접 송금</strong><br>Bank: BDO Cebu Branch · Account Name: TalkStation Academy<br>Account No: 0000-0000-0000 · SWIFT: BNORPHMM<br>송금 메모에 학생 영문명과 인보이스 번호를 입력해줘.`
+    : route === 'onsite'
+      ? `<strong>어학원 현장 결제</strong><br>세부 캠퍼스 Admin Office에서 입학 첫날 결제해줘.<br>현장 결제 가능 통화와 결제 수단은 방문 전 확인이 필요해.`
+      : `<strong>에이전시 납부</strong><br>담당 에이전시를 통해 청구 금액을 납부해줘.<br>납부 확인 및 영수증은 담당 에이전시에 요청할 수 있어.`;
+  const chargeRows = billing.items.map(item => `
+    <tr>
+      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.label}</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.key === 'education' ? `${std.course} · ${std.duration}주` : item.key === 'dorm' ? (std.dorm || '기숙사') : '-'}</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:center"><span style="font-size:10px;font-weight:800;color:${item.paymentStatus === 'paid' ? '#047857' : '#DC2626'}">${item.paymentStatus === 'paid' ? '완납' : '미납'}</span></td>
+      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:800">$${Number(item.amount).toLocaleString()}</td>
+    </tr>`).join('');
+  const localRows = extraItems.length
+    ? extraItems.map(item => `<tr><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB">${item.name || item.label || '기타 비용'}</td><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:right">${item.currency === 'PHP' ? '₱' : '$'}${Number(item.amount || 0).toLocaleString()}</td><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;color:#6B7280">${item.paymentLocation || '등록 시 선택한 경로'}</td></tr>`).join('')
+    : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#9CA3AF">별도로 등록된 현지 납부 항목이 없습니다.</td></tr>`;
+
+  return `
+    <div style="max-width:920px;margin:0 auto;background:#fff;border:1px solid #DDE3EC;color:#1F2937;font-family:Arial, sans-serif">
+      <div style="padding:24px 28px;background:#172554;color:#fff;display:flex;justify-content:space-between;align-items:start">
+        <div><div style="font-size:22px;font-weight:900;letter-spacing:1px">TALKSTATION ACADEMY</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">Cebu Campus · Official Student Invoice</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:300;letter-spacing:2px">INVOICE</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">${invoiceNo}</div></div>
+      </div>
+      <div style="padding:24px 28px">
+        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:20px">
+          <div><div style="font-size:10px;font-weight:800;color:#64748B;margin-bottom:7px">STUDENT INFORMATION</div><div style="font-size:16px;font-weight:900">${std.name}</div><div style="font-size:11.5px;line-height:1.7;color:#475569;margin-top:5px">Nick: ${std.nick} · ${std.nationality || '-'}<br>Passport: ${std.passportNum || 'N/A'}<br>Agency: ${std.agency || 'Direct Student'}</div></div>
+          <div style="font-size:11.5px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Issue Date</span><strong>${issueDate}</strong></div><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Due</span><strong>${dueDate}</strong></div><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Route</span><strong>${routeLabel}</strong></div><div style="margin-top:8px;text-align:right"><span style="display:inline-block;padding:5px 10px;border-radius:999px;background:${statusBg};color:${statusColor};font-weight:900">${statusLabel}</span></div></div>
+        </div>
+        <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;margin-bottom:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:11px"><div><span style="color:#64748B">Course</span><br><strong>${std.course}</strong></div><div><span style="color:#64748B">Study Period</span><br><strong>${std.startDate || '-'} ~ ${std.endDate || '-'}</strong></div><div><span style="color:#64748B">Accommodation</span><br><strong>${std.dorm || '-'}</strong></div><div><span style="color:#64748B">Dorm Period</span><br><strong>${std.dormIn || '-'} ~ ${std.dormOut || '-'}</strong></div></div>
+        <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">USD BILLING DETAILS</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:#E0E7FF;color:#312E81"><th style="padding:9px 10px;text-align:left">항목</th><th style="padding:9px 10px;text-align:left">상세</th><th style="padding:9px 10px;text-align:center">납부 상태</th><th style="padding:9px 10px;text-align:right">금액 (USD)</th></tr></thead><tbody>${chargeRows}</tbody></table>
+        <div style="display:flex;justify-content:flex-end;margin:12px 0 22px"><div style="width:300px;font-size:12px"><div style="display:flex;justify-content:space-between;padding:5px 0"><span>총 청구액</span><strong>$${billing.gross.toLocaleString()}</strong></div><div style="display:flex;justify-content:space-between;padding:5px 0;color:#047857"><span>납부 완료</span><strong>-$${paidAmount.toLocaleString()}</strong></div><div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #172554;font-size:15px;color:#172554"><strong>남은 금액</strong><strong>$${balance.toLocaleString()}</strong></div></div></div>
+        <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">LOCAL / ADDITIONAL PAYMENT</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:20px"><thead><tr style="background:#F1F5F9"><th style="padding:8px 9px;text-align:left">현지 비용 항목</th><th style="padding:8px 9px;text-align:right">금액</th><th style="padding:8px 9px;text-align:left">납부 안내</th></tr></thead><tbody>${localRows}</tbody></table>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"><div style="padding:13px 15px;border:1px solid #C7D2FE;background:#EEF2FF;border-radius:8px;font-size:11px;line-height:1.7;color:#3730A3"><div style="font-weight:900;margin-bottom:5px">PAYMENT INSTRUCTIONS</div>${paymentGuide}</div><div style="padding:13px 15px;border:1px solid #D1FAE5;background:#ECFDF5;border-radius:8px;font-size:11px;line-height:1.7;color:#065F46"><div style="font-weight:900;margin-bottom:5px">INCLUDED SERVICES</div>수강료, 등록된 기숙사 이용료 및 등록금이 포함됩니다.<br>식사 제공 여부와 포함 범위는 등록 과정 정책을 따릅니다.</div></div>
+        <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;line-height:1.7;color:#475569"><strong>IMPORTANT TERMS</strong><br>1. SSP, 비자 연장, ACR I-Card 등 정부 관련 비용은 현지 통화로 별도 청구될 수 있으며 고지 없이 변경될 수 있습니다.<br>2. 기숙사 체크인·체크아웃 시간 외 입퇴실에는 추가 숙박비가 발생할 수 있습니다.<br>3. 취소 및 환불은 어학원 공식 환불 정책과 과정별 조건을 따릅니다.<br>4. 해외 송금 수수료와 중개은행 수수료의 부담 주체는 결제 안내를 확인해줘.</div>
+        <div style="display:flex;justify-content:space-between;align-items:end;margin-top:28px"><div style="font-size:10.5px;line-height:1.6;color:#64748B">TalkStation Academy · Cebu Campus<br>Official Student Billing Document</div><div style="width:190px;text-align:center;font-size:10.5px"><div style="height:30px;border-bottom:1px solid #334155;margin-bottom:6px"></div><strong>Authorized Signature / Seal</strong></div></div>
+      </div>
+    </div>`;
+}
+
 function switchInvoiceTab(tab) {
   APP.selectedInvoiceTab = tab;
   
-  const tabIds = { 'invoice': 'itab-invoice', 'loa': 'itab-loa', 'pickup': 'itab-pickup' };
+  const tabIds = { 'invoice': 'itab-invoice', 'loa': 'itab-loa', 'invitation': 'itab-invitation', 'pickup': 'itab-pickup' };
   for (const [tKey, id] of Object.entries(tabIds)) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', tKey === tab);
@@ -4707,6 +5402,17 @@ function switchInvoiceTab(tab) {
 
   const prices = calculatePrices(std);
   const avatarSrc = std.profilePhoto || (std.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+  const invoiceRemittanceRoute = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
+  const invoiceRemittanceLabel = ({ agency: 'Agency Payment', direct: 'Direct Bank Transfer', onsite: 'On-site Payment' })[invoiceRemittanceRoute] || 'Agency Payment';
+  const invoiceAgency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(agency => agency.name === std.agency) : null;
+  const invoiceAgencyBankDetails = invoiceAgency && invoiceAgency.bankName
+    ? `<br><strong>Bank Name:</strong> ${invoiceAgency.bankName}<br><strong>Account Name:</strong> ${invoiceAgency.accountName || '-'}<br><strong>Account Number:</strong> ${invoiceAgency.accountNumber || '-'}<br><strong>SWIFT Code:</strong> ${invoiceAgency.swiftCode || '-'}<br><strong>Bank Address:</strong> ${invoiceAgency.bankAddress || '-'}<br><strong>Agency Contact:</strong> ${invoiceAgency.contact || '-'} · ${invoiceAgency.phone || '-'} · ${invoiceAgency.email || '-'}`
+    : `<br><strong>Agency:</strong> ${std.agency || '-'}<br>Please contact the agency for its official bank account details before making payment.`;
+  const invoicePaymentGuide = invoiceRemittanceRoute === 'direct'
+    ? 'Please transfer the invoiced amount directly to the academy-designated bank account. Enter the student’s full English name and invoice number in the transfer reference. All remittance and intermediary bank charges are borne by the sender.'
+    : invoiceRemittanceRoute === 'onsite'
+      ? 'Please make payment at the Cebu Campus Administration Office. Confirm the accepted currency and available cash or card payment methods with the academy before arrival.'
+      : `Please pay the invoiced amount to the designated agency account. Verify the account holder and account number with the agency before making payment.${invoiceAgencyBankDetails}`;
 
   if (tab === 'invoice') {
     content.style.position = 'relative';
@@ -4762,10 +5468,17 @@ function switchInvoiceTab(tab) {
         </tbody>
       </table>
 
-      <div style="font-size:11px;color:#6B7280;background:#F9FAFB;padding:12px;border-radius:8px;border:1px solid #E5E7EB;line-height:1.6">
-        <strong>Important Notices:</strong><br>
-        1. Local fees (SSP, visa extensions, utility bills, deposit) are not included above and must be paid in cash at the campus in local currency (PHP/KRW).<br>
-        2. Refund policy follows the official rules specified in the academy student guidebook.
+      <div style="font-size:11px;color:#3730A3;background:#EEF2FF;padding:12px;border-radius:8px;border:1px solid #C7D2FE;line-height:1.65;margin-bottom:10px">
+        <strong>Payment Instructions</strong><br>
+        <span style="display:inline-block;margin:5px 0 3px;padding:3px 8px;border-radius:999px;background:#fff;border:1px solid #C7D2FE;font-weight:800">${invoiceRemittanceLabel}</span><br>
+        ${invoicePaymentGuide}
+      </div>
+
+      <div style="font-size:11px;color:#6B7280;background:#F9FAFB;padding:12px;border-radius:8px;border:1px solid #E5E7EB;line-height:1.65">
+        <strong>Important Notices</strong><br>
+        1. <strong>Refunds:</strong> All cancellations and refunds are subject to the academy’s official refund policy and the applicable enrollment conditions for the selected program.<br>
+        2. <strong>Government and Local Fees:</strong> SSP, visa extension fees, ACR I-Card, electricity charges, deposits, and other local fees may not be included in the invoice total and may be collected separately in local currency. Government fees and exchange-rate-based charges are subject to change without prior notice.<br>
+        3. <strong>Accommodation:</strong> Students must follow the designated dormitory check-in and check-out times. Early check-in or late check-out may incur an additional nightly charge. Accommodation changes and cancellations are subject to the academy’s separate dormitory policy.
       </div>
 
       <div style="position:absolute;bottom:15px;right:25px;opacity:0.85;transform:rotate(-12deg);pointer-events:none">
@@ -4783,17 +5496,6 @@ function switchInvoiceTab(tab) {
       </div>
     `;
   } else if (tab === 'loa') {
-    if (std.remittanceStatus !== 'paid') {
-      content.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:240px;color:#9CA3AF">
-          <i data-lucide="lock" style="font-size:48px;margin-bottom:14px;color:#D1D5DB"></i>
-          <div style="font-size:14px;font-weight:700;color:#374151">입학 허가서 출력 제한 (🔒)</div>
-          <div style="font-size:12px;margin-top:6px">어학원 어드민의 순 송금액(Net) [송금 승인] 처리가 완료된 이후 해제됩니다.</div>
-        </div>
-      `;
-      return;
-    }
-
     content.innerHTML = `
       <div style="text-align:center;margin-bottom:24px;border-bottom:1px double #9CA3AF;padding-bottom:12px">
         <h2 style="font-size:22px;font-weight:800;font-family:'Pretendard', sans-serif;letter-spacing:1.5px;color:#111827">LETTER OF ACCEPTANCE (LOA)</h2>
@@ -4828,19 +5530,42 @@ function switchInvoiceTab(tab) {
         </div>
       </div>
     `;
-  } else if (tab === 'pickup') {
-    if (std.remittanceStatus !== 'paid') {
-      content.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:240px;color:#9CA3AF">
-          <i data-lucide="lock" style="font-size:48px;margin-bottom:14px;color:#D1D5DB"></i>
-          <div style="font-size:14px;font-weight:700;color:#374151">공항 픽업 확인서 출력 제한 (🔒)</div>
-          <div style="font-size:12px;margin-top:6px">어학원 어드민의 순 송금액(Net) [송금 승인] 처리가 완료된 이후 해제됩니다.</div>
+  } else if (tab === 'invitation') {
+    const invitationIssueDate = new Date().toISOString().substring(0, 10);
+    const invitationBirthDate = std.birthDate || std.birthday || std.dateOfBirth || 'N/A';
+    const invitationEndDate = std.endDate || calculateCourseRegSegmentEndDate(std.startDate, std.duration) || 'N/A';
+    const invitationNo = `TSA-${String(std.id).padStart(5, '0')}`;
+    content.style.position = 'relative';
+    content.innerHTML = `
+      <div style="max-width:760px;margin:0 auto;background:#fff;padding:38px 48px;color:#1F2937;font-family:Arial, sans-serif;border:1px solid #E5E7EB;position:relative">
+        <div style="text-align:center;border-bottom:3px solid #1E3A5F;padding-bottom:18px;margin-bottom:30px">
+          <div style="font-size:24px;font-weight:900;letter-spacing:1.5px;color:#1E3A5F">TALKSTATION ACADEMY</div>
+          <div style="font-size:11px;color:#64748B;margin-top:6px">Cebu Campus · Student Admissions Office</div>
         </div>
-      `;
-      return;
-    }
-
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:24px">
+          <h2 style="font-size:28px;letter-spacing:3px;color:#111827;margin:0">INVITATION</h2>
+          <div style="text-align:right;font-size:11.5px;line-height:1.7;color:#475569"><strong>Issue Date</strong><br>${invitationIssueDate}<br><strong>No.</strong> ${invitationNo}</div>
+        </div>
+        <p style="font-size:13px;line-height:1.9;margin:0 0 22px">TALKSTATION ACADEMY warmly welcomes the following student who has been officially enrolled in our English program. The enrollment details are as follows:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 24px">
+          <tbody>
+            <tr><th style="width:34%;text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Name</th><td style="padding:10px 12px;border:1px solid #CBD5E1;font-weight:700">${std.name}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Gender</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.gender === '남' ? 'Male' : std.gender === '여' ? 'Female' : std.gender || 'N/A'}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Date of Birth</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${invitationBirthDate}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Passport Number</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.passportNum || 'N/A'}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Course Program</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.course}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Study Period</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.startDate || 'N/A'} to ${invitationEndDate}</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12.5px;line-height:1.9">Our academy is located in Cebu, Philippines. We look forward to welcoming the student and supporting their studies during the stated enrollment period.</p>
+        <div style="margin-top:46px;display:flex;justify-content:space-between;align-items:end">
+          <div style="font-size:11px;line-height:1.7;color:#64748B"><strong style="color:#334155">School Address</strong><br>TalkStation Academy, Cebu Campus<br>Cebu, Philippines</div>
+          <div style="width:220px;text-align:center;font-size:11.5px"><div style="height:38px;border-bottom:1px solid #334155;margin-bottom:7px"></div><strong>Director of Admissions</strong><br><span style="color:#64748B">Authorized Signature</span></div>
+        </div>
+      </div>`;
+  } else if (tab === 'pickup') {
     const pickupManagers = getPickupManagersForStudent(std);
+    const pickupDispatch = getPickupDispatchGroups(std.arrivalDate || std.startDate).find(group => group.studentIds.includes(std.id));
 
     content.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #0284C7;padding-bottom:10px">
@@ -4867,9 +5592,10 @@ function switchInvoiceTab(tab) {
             <div style="display:grid;grid-template-columns:${pickupManagers.length > 1 ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:10px">
               ${pickupManagers.map(pickupManager => `<div style="display:flex;align-items:center;gap:12px;padding:10px;background:#fff;border:1px solid #BAE6FD;border-radius:8px">
                 <img src="${pickupManager.photo || 'assets/images/teacher_male.png'}" style="width:52px;height:62px;border-radius:8px;object-fit:cover;border:1px solid #38BDF8" alt=""/>
-                <div style="flex:1"><div style="font-size:13px;font-weight:900;color:#111827">${pickupManager.name}</div><div style="font-size:10.5px;color:#374151;margin-top:3px">${pickupManager.phone}</div><div style="font-size:10px;color:#6B7280;margin-top:2px">${pickupManager.vehicle || 'Vehicle TBD'}${pickupManager.messenger ? ` · ${pickupManager.messenger}` : ''}</div></div>
+                <div style="flex:1"><div style="font-size:13px;font-weight:900;color:#111827">${pickupManager.name}</div><div style="font-size:10.5px;color:#374151;margin-top:3px">${pickupManager.phone}</div><div style="font-size:10px;color:#6B7280;margin-top:2px">${pickupManager.gender || '-'} · ${pickupManager.age ? pickupManager.age + ' years' : ''}${pickupManager.messenger ? ` · ${pickupManager.messenger}` : ''}</div></div>
               </div>`).join('')}
             </div>
+            ${pickupDispatch ? `<div style="margin-top:10px;padding:8px 10px;background:#E0F2FE;border-radius:7px;font-size:10.5px;color:#075985"><strong>Vehicle:</strong> ${pickupDispatch.vehicleModel || 'Model TBD'} · ${pickupDispatch.vehicleCapacity || '-'} seats · ${pickupDispatch.vehiclePlate || 'Plate TBD'}</div>` : ''}
           </div>
         ` : `<div style="margin:0 0 16px;padding:12px;border:1px dashed #CBD5E1;background:#F8FAFC;border-radius:10px;font-size:11px;color:#64748B">픽업 담당자가 아직 배정되지 않았습니다.</div>`}
 
@@ -5226,7 +5952,7 @@ function renderCourseList() {
       .map(t => `<span style="white-space:nowrap">${t.code} ${classHours[t.code] || 0}시간</span>`)
       .join(' · ');
 
-    // 매핑 레벨 배지
+    // 추천 레벨 배지
     const levelsBadge = (c.levels || [])
       .map(lvId => MOCK_MASTER_LEVELS.find(m => m.id === lvId))
       .filter(Boolean)
@@ -5384,8 +6110,14 @@ function getStudentBillingBreakdown(s) {
 
   const registration = Number(savedFees.registration || registrationFromFees || prices.registration || 0);
   const education = Number(savedFees.tuition || prices.tuition || 0);
-  const dorm = Number(savedFees.dorm || prices.dorm || 0);
+  const dorm = isStudentWalkIn(s) ? 0 : Number(savedFees.dorm || prices.dorm || 0);
   const local = Number(savedFees.extras || localFromFees || 0);
+  const savedExtraItems = Array.isArray(savedFees.extraItems) ? savedFees.extraItems : [];
+  const localCommissionBase = savedExtraItems.length
+    ? savedExtraItems
+        .filter(item => !/등록금|Registration/i.test(item.name || item.label || '') && item.commissionEnabled !== false)
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    : local;
 
   const itemStatuses = s.billingItemStatuses || {};
   const defaultPaidStatus = s.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
@@ -5396,10 +6128,10 @@ function getStudentBillingBreakdown(s) {
     { key: 'registration', label: '등록금', amount: registration },
     { key: 'education', label: '수강료', amount: education },
     { key: 'dorm', label: '기숙사비', amount: dorm },
-    { key: 'local', label: '기타 비용', amount: local },
+    { key: 'local', label: '기타 비용', amount: local, commissionBase: localCommissionBase },
   ].map(baseItem => {
     const policy = commissionPolicies[baseItem.key] || { type: 'none', value: 0, rate: 0 };
-    const commission = calculateAgencyItemCommission(baseItem.amount, policy);
+    const commission = calculateAgencyItemCommission(baseItem.commissionBase ?? baseItem.amount, policy);
     return {
     ...baseItem,
     commissionRate: policy.rate || 0,
@@ -5438,7 +6170,7 @@ function renderAgencyBillingCompactCell(item) {
   const amount = Number(item.amount || 0);
   const commission = Number(item.commission || 0);
   const commissionText = commission > 0
-    ? `-$${commission.toLocaleString()}`
+    ? `$${commission.toLocaleString()}`
     : '$0';
   const commissionMeta = commission > 0
     ? (item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`)
@@ -5479,7 +6211,7 @@ function renderAgencyCommissionItemCell(item) {
   }
   return `
     <div style="min-width:112px;text-align:right;line-height:1.5">
-      <div style="font-weight:900;color:#4F46E5">-$${commission.toLocaleString()}</div>
+      <div style="font-weight:900;color:#4F46E5">$${commission.toLocaleString()}</div>
       <div style="font-size:10.5px;color:#6B7280">${item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`}</div>
       <div style="margin-top:3px">${renderAgencyCommissionBadge(item.commissionStatus)}</div>
     </div>
@@ -5529,8 +6261,8 @@ function renderAgencyPaymentSummary(s, breakdown) {
   const balance = Math.max(Number(breakdown.net || 0) - approvedPaid, 0);
   const cards = [
     { label: '청구 금액 합계', value: breakdown.gross, color: '#111827', bg: '#F8FAFC' },
-    { label: '에이전시 커미션', value: -breakdown.commission, color: '#4F46E5', bg: '#EEF2FF' },
-    { label: '어학원 송금액', value: breakdown.net, color: '#0F766E', bg: '#F0FDFA' },
+    { label: '커미션 합계', value: breakdown.commission, color: '#4F46E5', bg: '#EEF2FF' },
+    { label: '어학원 송금액 합계', value: breakdown.net, color: '#0F766E', bg: '#F0FDFA' },
     { label: '납부 완료액', value: approvedPaid, color: '#059669', bg: '#ECFDF5' },
   ];
   return `
@@ -5700,6 +6432,10 @@ function renderMasterSettings() {
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
   }
 
+  MOCK_MASTER_CLASS_TYPES.forEach(c => {
+    c.minStudents = 1;
+    if (!c.classMode) c.classMode = Number(c.maxStudents || 1) === 1 ? 'individual' : 'group';
+  });
   MOCK_MASTER_CLASS_TYPES.sort((a, b) => (a.order || 0) - (b.order || 0));
   const ctBody = document.getElementById('master-classtype-list-body');
   if (ctBody) {
@@ -5716,9 +6452,11 @@ function renderMasterSettings() {
           style="cursor:grab">
         <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${c.order}</td>
-        <td><span class="tsa-badge tsa-badge-outline" style="font-size:11px">${c.code}</span></td>
         <td style="font-weight:600;font-size:12.5px">${c.name}</td>
+        <td style="text-align:center"><span class="tsa-badge ${c.classMode === 'individual' ? 'tsa-badge-primary' : 'tsa-badge-warning'}">${c.classMode === 'individual' ? '개인' : '그룹'}</span></td>
+        <td style="text-align:center;font-size:12px">1명</td>
         <td style="text-align:center;font-size:12px">${c.maxStudents}명</td>
+        <td style="font-size:12px;color:#374151">${getClassTypeDisplayName(c)}</td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditClassTypeModal(${idx})">수정</button>
@@ -5766,13 +6504,35 @@ function onClassTypeRowDragEnd(ev) {
 
 let _editingClassTypeIdx = null;
 
+function getClassTypeDisplayName(classType) {
+  const name = classType?.name || '수업';
+  const maxStudents = Math.max(1, Number(classType?.maxStudents || 1));
+  return classType?.classMode === 'individual' || maxStudents === 1
+    ? `1:1 ${name}`
+    : `최대 ${maxStudents}명 ${name}`;
+}
+
+function updateClassTypePreview() {
+  const name = document.getElementById('classtype-modal-name')?.value.trim() || '수업 유형명';
+  const classMode = document.getElementById('classtype-modal-mode')?.value || 'group';
+  const maxInput = document.getElementById('classtype-modal-max');
+  let maxStudents = Math.max(1, parseInt(maxInput?.value, 10) || 1);
+  if (classMode === 'individual') {
+    maxStudents = 1;
+    if (maxInput) maxInput.value = '1';
+  }
+  const preview = document.getElementById('classtype-modal-preview');
+  if (preview) preview.textContent = getClassTypeDisplayName({ name, classMode, maxStudents });
+}
+
 function openClassTypeModal() {
   _editingClassTypeIdx = null;
-  document.getElementById('classtype-modal-title').textContent = '그룹 수업 유형 추가';
+  document.getElementById('classtype-modal-title').textContent = '수업 유형 추가';
   document.getElementById('classtype-modal-id').value = '';
-  document.getElementById('classtype-modal-code').value = '';
   document.getElementById('classtype-modal-name').value = '';
-  document.getElementById('classtype-modal-max').value = '';
+  document.getElementById('classtype-modal-mode').value = 'group';
+  document.getElementById('classtype-modal-max').value = '4';
+  updateClassTypePreview();
   openModal('classtype-modal');
 }
 
@@ -5780,33 +6540,39 @@ function openEditClassTypeModal(idx) {
   _editingClassTypeIdx = idx;
   const c = MOCK_MASTER_CLASS_TYPES[idx];
   if (!c) return;
-  document.getElementById('classtype-modal-title').textContent = '그룹 수업 유형 수정';
+  document.getElementById('classtype-modal-title').textContent = '수업 유형 수정';
   document.getElementById('classtype-modal-id').value = c.id;
-  document.getElementById('classtype-modal-code').value = c.code;
   document.getElementById('classtype-modal-name').value = c.name;
+  document.getElementById('classtype-modal-mode').value = c.classMode || (Number(c.maxStudents) === 1 ? 'individual' : 'group');
   document.getElementById('classtype-modal-max').value = c.maxStudents;
+  updateClassTypePreview();
   openModal('classtype-modal');
 }
 
 function saveMasterClassType() {
-  const code = document.getElementById('classtype-modal-code').value.trim();
   const name = document.getElementById('classtype-modal-name').value.trim();
+  const classMode = document.getElementById('classtype-modal-mode').value || 'group';
   const maxStudents = parseInt(document.getElementById('classtype-modal-max').value) || 1;
 
-  if (!code || !name) {
-    showToast('코드와 수업명을 입력하세요.', 'warning');
+  if (!name) {
+    showToast('수업 유형명을 입력하세요.', 'warning');
+    return;
+  }
+  if (classMode === 'individual' && maxStudents !== 1) {
+    showToast('개인 수업의 최대 인원은 1명으로 설정해줘.', 'warning');
     return;
   }
 
   if (_editingClassTypeIdx !== null) {
     const c = MOCK_MASTER_CLASS_TYPES[_editingClassTypeIdx];
-    c.code = code;
     c.name = name;
+    c.classMode = classMode;
+    c.minStudents = 1;
     c.maxStudents = maxStudents;
     showToast('수업 유형 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'CT_' + String(MOCK_MASTER_CLASS_TYPES.length + 1).padStart(2, '0');
-    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code, name, maxStudents, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
+    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code: newId, name, classMode, minStudents: 1, maxStudents, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
     showToast('신규 수업 유형이 추가되었습니다.', 'success');
   }
 

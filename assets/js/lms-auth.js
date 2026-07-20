@@ -9,6 +9,31 @@ function switchLoginTab(tab) {
 }
 
 function handleLogin(type) {
+  const dataEnhancersReady = typeof enhanceMockStudents === 'function'
+    && typeof enhanceMockTeachers === 'function';
+
+  if (document.readyState === 'loading' || !dataEnhancersReady) {
+    if (document.readyState === 'loading') {
+      if (!window.__tsaLoginRetryPending) {
+        window.__tsaLoginRetryPending = true;
+        window.addEventListener('load', () => {
+          window.__tsaLoginRetryPending = false;
+          handleLogin(type);
+        }, { once: true });
+      }
+      return;
+    }
+
+    const message = '필수 데이터 스크립트를 불러오지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.';
+    console.error(message, {
+      enhanceMockStudents: typeof enhanceMockStudents,
+      enhanceMockTeachers: typeof enhanceMockTeachers
+    });
+    if (typeof showToast === 'function') showToast(message, 'danger');
+    else alert(message);
+    return;
+  }
+
   let role;
   if (type === 'admin') {
     role = document.getElementById('login-role').value;

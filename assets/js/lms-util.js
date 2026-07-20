@@ -137,7 +137,38 @@ function navigate(view) {
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 300);
+  closeMobileSidebar();
 }
+
+function isMobileSidebarMode() {
+  return window.matchMedia('(max-width: 1100px)').matches;
+}
+
+function toggleMobileSidebar(forceOpen) {
+  if (!isMobileSidebarMode()) return;
+  const shouldOpen = typeof forceOpen === 'boolean'
+    ? forceOpen
+    : !document.body.classList.contains('tsa-sidebar-open');
+  document.body.classList.toggle('tsa-sidebar-open', shouldOpen);
+  const button = document.getElementById('tsa-mobile-menu-btn');
+  if (button) button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+function closeMobileSidebar() {
+  document.body.classList.remove('tsa-sidebar-open');
+  const button = document.getElementById('tsa-mobile-menu-btn');
+  if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+window.addEventListener('resize', () => {
+  if (!isMobileSidebarMode()) closeMobileSidebar();
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && document.body.classList.contains('tsa-sidebar-open')) {
+    closeMobileSidebar();
+  }
+});
 
 /* =============================================
    CLOCK

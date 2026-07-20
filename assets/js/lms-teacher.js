@@ -32,6 +32,28 @@ function initTeacherList() {
   renderTeacherList(MOCK_TEACHERS);
 }
 
+function getTeacherTeachingModes(teacher) {
+  const modes = teacher.teachingModes || {
+    academy: true,
+    online: teacher.videoCapable !== false
+  };
+  return {
+    academy: modes.academy === true,
+    online: modes.online === true
+  };
+}
+
+function renderTeacherTeachingModes(teacher) {
+  const modes = getTeacherTeachingModes(teacher);
+  if (modes.academy && modes.online) {
+    return '<span class="tsa-badge tsa-badge-primary">어학원 + 화상</span>';
+  }
+  if (modes.online) {
+    return '<span class="tsa-badge tsa-badge-success">화상</span>';
+  }
+  return '<span class="tsa-badge tsa-badge-gray">어학원</span>';
+}
+
 function previewTeacherPhoto(input, teacherId) {
   const file = input.files[0];
   if (!file) return;
@@ -59,7 +81,12 @@ function saveTeacherDetailInline() {
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
   const capableSubjects = [...document.querySelectorAll('input[name="td-capable-subject"]:checked')].map(cb => cb.value);
   const capableLevels = [...document.querySelectorAll('input[name="td-capable-level"]:checked')].map(cb => cb.value);
-  const videoCapableEl = document.getElementById('td-video-capable');
+  const teachingModes = [...document.querySelectorAll('input[name="td-teaching-mode"]:checked')].map(cb => cb.value);
+
+  if (teachingModes.length === 0) {
+    showToast('수업 가능 방식을 하나 이상 선택하세요.', 'danger');
+    return;
+  }
 
   t.room      = room;
   t.contract  = contract;
@@ -69,7 +96,11 @@ function saveTeacherDetailInline() {
   if (classTypes.length > 0) t.classTypes = classTypes;
   t.capableSubjects = capableSubjects;
   t.capableLevels = capableLevels;
-  if (videoCapableEl) t.videoCapable = videoCapableEl.checked;
+  t.teachingModes = {
+    academy: teachingModes.includes('academy'),
+    online: teachingModes.includes('online')
+  };
+  t.videoCapable = t.teachingModes.online;
 
   // 시간표 강의실 동기화
   const ttRow = MOCK_TIMETABLE.find(r => r.teacher === t.nick);
@@ -161,11 +192,7 @@ function renderTeacherList(list) {
         <td><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
         <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
         <td><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
-        <td style="text-align:center">
-          ${t.videoCapable !== false
-            ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleTeacherVideoCapable(${t.id})">가능</span>`
-            : `<span class="tsa-badge tsa-badge-gray" style="cursor:pointer" onclick="toggleTeacherVideoCapable(${t.id})">불가</span>`}
-        </td>
+        <td style="text-align:center;white-space:nowrap">${renderTeacherTeachingModes(t)}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
             <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
@@ -216,14 +243,6 @@ function renderTeacherCapabilityCheckboxes(selectedSubjects = [], selectedLevels
       </label>
     `).join('');
   }
-}
-
-function toggleTeacherVideoCapable(id) {
-  const t = MOCK_TEACHERS.find(x => x.id === id);
-  if (!t) return;
-  t.videoCapable = t.videoCapable === false ? true : false;
-  showToast(`✓ ${t.nick} 강사의 화상 수업 진행 여부가 '${t.videoCapable ? '가능' : '불가'}'로 변경되었습니다.`, 'success');
-  if (typeof initTeacherList === 'function') initTeacherList();
 }
 
 function openTeacherScheduleModal(nick) {
@@ -362,77 +381,66 @@ function getCheckedTags(name) {
   return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(cb => cb.value);
 }
 
-function openTeacherRegisterModal() {
-  // 폼 초기화
+function openTeacherImportModal() {
+  // LMS 불러오기 폼 초기화
   const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
   setVal('tf-id', '');
+  setVal('tf-lms-source-id', '');
   setVal('tf-name', ''); setVal('tf-gender', ''); setVal('tf-gender-display', '');
   setVal('tf-birthday', ''); setVal('tf-email', ''); setVal('tf-phone', '');
-  setVal('tf-joindate', ''); setVal('tf-jobgrade', ''); setVal('tf-talkstatus', '');
+  setVal('tf-joindate', ''); setVal('tf-jobgrade', ''); setVal('tf-talkstatus', ''); setVal('tf-education', '');
   setVal('tf-room', ''); setVal('tf-contract', '정규직');
   setVal('tf-status', 'active'); setVal('tf-rating', '');
+  setVal('tf-work-start', '08:00'); setVal('tf-work-end', '17:00');
+
+  const title = document.getElementById('teacher-form-title');
+  const subtitle = document.getElementById('teacher-form-subtitle');
+  if (title) title.textContent = '🔗 LMS 강사 불러오기';
+  if (subtitle) subtitle.textContent = '톡스테이션 LMS 기본정보를 확인하고 어학원 운영정보를 설정합니다.';
 
   // 수업 유형 체크 해제
   document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('input[name="tf-teaching-mode"]').forEach(cb => {
+    cb.checked = cb.value === 'academy';
+  });
   renderTeacherCapabilityCheckboxes([], []);
 
-  // 톡스 미리보기 숨김, 수기 입력 폼 표시 (기본값)
+  // LMS 강사 선택 전에는 미리보기를 숨김
   const preview = document.getElementById('tf-talk-preview');
   if (preview) preview.style.display = 'none';
   const manualForm = document.getElementById('tf-manual-form');
-  if (manualForm) manualForm.style.display = 'block';
+  if (manualForm) manualForm.style.display = 'none';
 
   // 사진 미리보기 초기화
-  const manualPhoto = document.getElementById('tf-manual-photo-preview');
-  if (manualPhoto) manualPhoto.innerHTML = `No<br>Image<br><span style="font-size:10px">클릭 첨부</span>`;
   const photoWrap = document.getElementById('tf-photo-preview');
   if (photoWrap) photoWrap.innerHTML = `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px">No<br>Image</div>`;
 
-  // 수기 필드 초기화
-  ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate'].forEach(id => {
+  // LMS 연동값 초기화
+  ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate','tf-education'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
 
-  // 톡스 드롭다운 초기화 (기본값 = 선택 안 함)
+  // LMS 드롭다운 초기화
   initTalkTeacherDropdown();
 
   openModal('teacher-form-modal');
 }
 
 function openTeacherEditModal(id) {
-  const t = MOCK_TEACHERS.find(tch => tch.id === id);
-  if (!t) return;
-
-  document.getElementById('teacher-form-title').textContent = `🧑‍🏫 강사 정보 수정 - ${t.nick}`;
-  document.getElementById('teacher-form-subtitle').textContent = "선택한 강사의 인사 카드 및 계약 조건을 편집합니다.";
-
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  setVal('tf-id', t.id); setVal('tf-name', t.name||''); setVal('tf-nick', t.nick||'');
-  setVal('tf-gender', t.gender||'여'); setVal('tf-exp', t.exp||''); setVal('tf-room', t.room||'');
-  setVal('tf-contract', t.contract||'정규직'); setVal('tf-status', t.status||'active');
-  setVal('tf-available', String(t.available));
-
-  renderTeacherTagCheckboxes(t.preferredCourses||[], t.excludedCourses||[]);
-  document.querySelectorAll('input[name="tf-classtype"]').forEach(cb => {
-    cb.checked = (t.classTypes||[]).includes(cb.value);
-  });
-  renderTeacherCapabilityCheckboxes(getTeacherCapableSubjectIds(t), getTeacherCapableLevelIds(t));
-
-  const matchingGroup = document.getElementById('tf-talk-matching-group');
-  if (matchingGroup) matchingGroup.style.display = 'none';
-  closeModal('teacher-detail-modal');
-  openModal('teacher-form-modal');
+  openTeacherDetail(id, 'school');
 }
 
 function initTalkTeacherDropdown() {
   const select = document.getElementById('tf-talk-matching');
   if (!select) return;
   
-  select.innerHTML = '<option value="">== 선택 안 함 (직접 수동 입력) ==</option>';
+  select.innerHTML = '<option value="">불러올 LMS 강사를 선택해줘</option>';
   MOCK_TALK_LMS_TEACHERS.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t.id;
-    opt.textContent = `${t.name} (${t.nick}) - ${t.gender}성`;
+    const imported = MOCK_TEACHERS.some(local => String(local.lmsSourceId || '') === String(t.id));
+    opt.textContent = `${t.name} (${t.nick}) · ${t.gender}성${imported ? ' · 불러오기 완료' : ''}`;
+    opt.disabled = imported;
     select.appendChild(opt);
   });
   select.value = "";
@@ -452,23 +460,24 @@ function previewTeacherPhotoManual(input) {
 function onTalkTeacherMatched(matchedId) {
   const preview    = document.getElementById('tf-talk-preview');
   const manualForm = document.getElementById('tf-manual-form');
+  const sourceId = document.getElementById('tf-lms-source-id');
 
   if (!matchedId) {
-    // 선택 안 함 → 수기 입력 폼 표시
+    // 선택하지 않으면 신규 등록할 수 없음
     if (preview) preview.style.display = 'none';
-    if (manualForm) manualForm.style.display = 'block';
-    // 필드 초기화
-    ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate'].forEach(id => {
+    if (manualForm) manualForm.style.display = 'none';
+    if (sourceId) sourceId.value = '';
+    ['tf-name','tf-birthday','tf-email','tf-phone','tf-joindate','tf-education'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
     return;
   }
 
-  // 톡스 선택 → 수기 폼 숨김
+  // LMS 선택 → 읽기 전용 미리보기 표시
   if (manualForm) manualForm.style.display = 'none';
-  const teacher = MOCK_TALK_LMS_TEACHERS.find(t => t.id === matchedId)
-    || MOCK_TEACHERS.find(t => String(t.id) === String(matchedId));
+  const teacher = MOCK_TALK_LMS_TEACHERS.find(t => t.id === matchedId);
   if (!teacher) return;
+  if (sourceId) sourceId.value = teacher.id;
 
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
   // 미리보기 섹션 (tfp- 접두사)
@@ -480,6 +489,7 @@ function onTalkTeacherMatched(matchedId) {
   setVal('tfp-joindate',     teacher.joinDate || '-');
   setVal('tfp-jobgrade',     teacher.jobGrade || '-');
   setVal('tfp-talkstatus',   teacher.talkStatus || 'Employed');
+  setVal('tfp-education',    teacher.education || '-');
   // 저장용 히든 필드 (saveTeacherForm에서 사용)
   setVal('tf-name',      teacher.name || '');
   setVal('tf-gender',    teacher.gender || '여');
@@ -490,6 +500,7 @@ function onTalkTeacherMatched(matchedId) {
   setVal('tf-jobgrade',  teacher.jobGrade || '');
   setVal('tf-talkstatus', teacher.talkStatus || 'Employed');
   setVal('tf-experience', teacher.experience || 'Now');
+  setVal('tf-education',  teacher.education || '');
 
   // 사진 미리보기
   const photoWrap = document.getElementById('tf-photo-preview');
@@ -503,122 +514,94 @@ function onTalkTeacherMatched(matchedId) {
 }
 
 function saveTeacherForm() {
-  const idVal    = document.getElementById('tf-id').value;
-  const name     = (document.getElementById('tf-name')?.value || '').trim();
-  const nick     = name.split(' ')[0] || name; // 첫 이름을 닉네임으로
-  const gender   = document.getElementById('tf-gender')?.value || '여';
+  const idVal = document.getElementById('tf-id')?.value || '';
+  const lmsSourceId = document.getElementById('tf-lms-source-id')?.value || '';
+  if (idVal) {
+    showToast('기존 강사 수정은 상세/수정 화면에서 진행해줘.', 'warning');
+    return;
+  }
+  const sourceTeacher = MOCK_TALK_LMS_TEACHERS.find(t => String(t.id) === String(lmsSourceId));
+  if (!sourceTeacher) {
+    showToast('톡스테이션 LMS에서 불러올 강사를 선택해줘.', 'danger');
+    return;
+  }
+  if (MOCK_TEACHERS.some(t => String(t.lmsSourceId || '') === String(lmsSourceId))) {
+    showToast('이미 불러온 LMS 강사야. 목록에서 상세/수정을 이용해줘.', 'warning');
+    return;
+  }
+
+  const name = sourceTeacher.name || '';
+  const nick = sourceTeacher.nick || name.split(' ')[0] || name;
+  const gender = sourceTeacher.gender || '여';
   const room       = (document.getElementById('tf-room')?.value || '').trim();
   const rating     = parseFloat(document.getElementById('tf-rating')?.value) || 4.5;
-  const talkStatus = document.getElementById('tf-talkstatus')?.value || 'Employed';
-  const experience = document.getElementById('tf-experience')?.value || 'Now';
+  const talkStatus = sourceTeacher.talkStatus || 'Employed';
+  const experience = sourceTeacher.experience || 'Now';
+  const workStart  = document.getElementById('tf-work-start')?.value || '08:00';
+  const workEnd    = document.getElementById('tf-work-end')?.value || '17:00';
   // 톡스 재직 상태 → 어학원 상태 자동 매핑
   const statusMap  = { 'Employed':'active', 'Resigning':'active', 'Training':'active', 'Resigned':'resigned', 'Dropout':'resigned' };
   const status     = statusMap[talkStatus] || 'active';
   const contract   = '정규직';
   const classTypes = [...document.querySelectorAll('input[name="tf-classtype"]:checked')].map(cb => cb.value);
+  const teachingModeValues = [...document.querySelectorAll('input[name="tf-teaching-mode"]:checked')].map(cb => cb.value);
+  const teachingModes = {
+    academy: teachingModeValues.includes('academy'),
+    online: teachingModeValues.includes('online')
+  };
   const capableSubjects = [...document.querySelectorAll('input[name="tf-capable-subject"]:checked')].map(cb => cb.value);
   const capableLevels = [...document.querySelectorAll('input[name="tf-capable-level"]:checked')].map(cb => cb.value);
-  const email    = document.getElementById('tf-email')?.value || '';
-  const phone    = document.getElementById('tf-phone')?.value || '';
-  const birthday = document.getElementById('tf-birthday')?.value || '';
-  const joinDate = document.getElementById('tf-joindate')?.value || '';
-  const jobGrade = document.getElementById('tf-jobgrade')?.value || '';
+  const email    = sourceTeacher.email || '';
+  const phone    = sourceTeacher.phone || '';
+  const birthday = sourceTeacher.birthday || '';
+  const joinDate = sourceTeacher.joinDate || '';
+  const jobGrade = sourceTeacher.jobGrade || '';
   const available = status === 'active';
 
-  if (!name) { showToast('토크스테이션에서 강사를 선택하세요.', 'danger'); return; }
+  if (teachingModeValues.length === 0) { showToast('수업 가능 방식을 하나 이상 선택하세요.', 'danger'); return; }
 
-  if (idVal) {
-    // Edit
-    const t = MOCK_TEACHERS.find(tch => tch.id == idVal);
-    if (t) {
-      const oldNick = t.nick;
-      t.name = name;
-      t.nick = nick;
-      t.gender = gender;
-      t.room = room;
-      t.contract = contract;
-      t.status = status;
-      t.available = available;
-      t.rating = rating;
-      t.email = email;
-      t.phone = phone;
-      t.birthday = birthday;
-      t.joinDate = joinDate;
-      t.jobGrade = jobGrade;
-      t.talkStatus = talkStatus;
-      t.experience = experience;
-      t.classTypes       = classTypes;
-      t.capableSubjects  = capableSubjects;
-      t.capableLevels    = capableLevels;
-
-      // Update nickname and room in MOCK_TIMETABLE too!
-      const ttRow = MOCK_TIMETABLE.find(row => row.teacher === oldNick);
-      if (ttRow) {
-        ttRow.teacher = nick;
-        ttRow.room = room;
-      }
-
-      showToast(`✓ [강사 수정 완료] ${t.nick} 강사의 계약 정보가 정상 업데이트되었습니다.`, 'success');
+  const teacherType = classTypes.includes('1:8') ? '그룹 수업' : '일반 영어 (1:1)';
+  const newId = Math.max(...MOCK_TEACHERS.map(tch => tch.id), 0) + 1;
+  const newTeacher = {
+    id: newId,
+    lmsSourceId,
+    name, nick, gender, room, contract, available,
+    type: teacherType,
+    todaySlots: 0, rating, exp: 0, status,
+    email, phone, birthday, joinDate, jobGrade, talkStatus, experience,
+    education: sourceTeacher.education || '',
+    photoUrl: sourceTeacher.photoUrl || '',
+    preferredCourses: [], excludedCourses: [],
+    classTypes, teachingModes, videoCapable: teachingModes.online, capableSubjects, capableLevels,
+    workHours: { start: workStart, end: workEnd },
+    availability: {
+      '월': [true, true, true, true, true, true, true, true],
+      '화': [true, true, true, true, true, true, true, true],
+      '수': [true, true, true, true, true, true, true, true],
+      '목': [true, true, true, true, true, true, true, true],
+      '금': [true, true, true, true, true, true, true, true],
+      '토': [false, false, false, false, false, false, false, false],
+      '일': [false, false, false, false, false, false, false, false],
     }
-  } else {
-    // Register new teacher
-    const newId = Math.max(...MOCK_TEACHERS.map(tch => tch.id), 0) + 1;
-    const newTeacher = {
-      id: newId,
-      name, nick, gender, room, contract, available,
-      type: '일반 영어 (1:1)',
-      todaySlots: 0, rating, exp: 0, status,
-      email, phone, birthday, joinDate, jobGrade, talkStatus, experience,
-      preferredCourses: [], excludedCourses: [],
-      classTypes, capableSubjects, capableLevels,
-      availability: {
-        '월': [true, true, true, true, true, true, true, true],
-        '화': [true, true, true, true, true, true, true, true],
-        '수': [true, true, true, true, true, true, true, true],
-        '목': [true, true, true, true, true, true, true, true],
-        '금': [true, true, true, true, true, true, true, true],
-        '토': [false, false, false, false, false, false, false, false],
-        '일': [false, false, false, false, false, false, false, false],
-      }
-    };
-    MOCK_TEACHERS.push(newTeacher);
+  };
+  MOCK_TEACHERS.push(newTeacher);
 
-    // Also push a blank timetable row for the new teacher
-    const typeColors = {
-      'IELTS 전문': '#5E5CE6',
-      '일반 영어 (1:1)': '#0EA5E9',
-      '그룹 수업': '#16A34A',
-      '주니어 전담': '#D97706',
-      '비즈니스 영어': '#7C3AED'
-    };
-    const bgColors = {
-      'IELTS 전문': '#EEF2FF',
-      '일반 영어 (1:1)': '#E0F2FE',
-      '그룹 수업': '#DCFCE7',
-      '주니어 전담': '#FEF3C7',
-      '비즈니스 영어': '#F5F3FF'
-    };
-    
-    MOCK_TIMETABLE.push({
-      teacher: nick,
-      room: room,
-      color: typeColors[type] || '#5E5CE6',
-      bg: bgColors[type] || '#EEF2FF',
-      slots: ['월', '화', '수', '목', '금', '토', '일'].flatMap(day => 
-        [1,2,3,4,5,6,7,8].map(p => ({
-          p: p,
-          day: day,
-          student: null,
-          type: null,
-          locked: false
-        }))
-      )
-    });
+  const typeColors = { '일반 영어 (1:1)': '#0EA5E9', '그룹 수업': '#16A34A' };
+  const bgColors = { '일반 영어 (1:1)': '#E0F2FE', '그룹 수업': '#DCFCE7' };
+  MOCK_TIMETABLE.push({
+    teacher: nick,
+    room,
+    color: typeColors[teacherType] || '#5E5CE6',
+    bg: bgColors[teacherType] || '#EEF2FF',
+    slots: ['월', '화', '수', '목', '금', '토', '일'].flatMap(day =>
+      [1,2,3,4,5,6,7,8].map(p => ({ p, day, student: null, type: null, locked: false }))
+    )
+  });
 
-    showToast(`✓ [강사 등록 완료] 신규 강사 ${nick}님이 성공적으로 등록되었으며, 가용 시간표 노드가 활성화되었습니다.`, 'success');
-  }
+  showToast(`✓ ${nick} 강사를 톡스테이션 LMS에서 불러왔습니다.`, 'success');
 
   closeModal('teacher-form-modal');
+  renderTeacherKPIs();
   filterTeacherList('all');
   renderTimetable(APP.conflictMode);
 }
@@ -630,7 +613,7 @@ function openTeacherDetail(id, activeTab = 'profile') {
   document.getElementById('modal-teacher-name').textContent = `${t.name} (${t.nick})`;
   document.getElementById('modal-teacher-meta').textContent = `${t.gender}성 · ${t.type} · ${t.contract}`;
   
-  const tabNames = ['profile', 'availability', 'schedule', 'eval', 'tags'];
+  const tabNames = ['profile', 'school', 'schedule', 'weekly', 'tags'];
   const activeIndex = tabNames.indexOf(activeTab);
 
   // Activate basic tab
@@ -694,11 +677,13 @@ function switchTeacherTab(tab, el) {
   const t = APP.currentTeacher;
   const container = document.getElementById('teacher-modal-tab-content');
   if (!t || !container) return;
+  const operationSaveBtn = document.getElementById('teacher-operation-save-btn');
+  if (operationSaveBtn) operationSaveBtn.style.display = tab === 'school' ? '' : 'none';
 
   switch (tab) {
     case 'profile': {
       const ro = 'background:#F9FAFB;color:#6B7280;cursor:not-allowed;border-color:#E5E7EB';
-      const tLbl = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">톡스</span>`;
+      const tLbl = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">LMS 연동</span>`;
       const photoSrc = t.photoUrl || (t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png');
       container.innerHTML = `
         <div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#3730A3;display:flex;align-items:center;gap:8px">
@@ -713,8 +698,7 @@ function switchTeacherTab(tab, el) {
                 ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover"/>`
                 : `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px">No<br>Image</div>`}
             </div>
-            <button onclick="document.getElementById('td-photo-file').click()" style="font-size:11px;padding:4px 10px;border:0.5px solid #D1D5DB;border-radius:6px;background:#fff;cursor:pointer;color:#374151">사진 첨부</button>
-            <input id="td-photo-file" type="file" accept="image/*" style="display:none" onchange="previewTeacherPhoto(this,${t.id})"/>
+            <span style="display:inline-flex;padding:4px 9px;border-radius:999px;background:#EEF2FF;color:#4F46E5;font-size:10px;font-weight:800">LMS 사진</span>
           </div>
 
           <!-- 인적 정보 -->
@@ -798,10 +782,15 @@ function switchTeacherTab(tab, el) {
             </div>
           </div>
           <div>
-            <label class="tsa-label" style="margin-bottom:8px;display:block">화상 수업 가능 여부</label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #A7F3D0;background:#ECFDF5;font-size:13px;font-weight:600;color:#065F46;width:fit-content">
-              <input type="checkbox" id="td-video-capable" ${t.videoCapable !== false ? 'checked' : ''} style="accent-color:#059669"/> 화상 수업 가능
-            </label>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 방식</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #C7D2FE;background:#EEF2FF;font-size:13px;font-weight:600;color:#3730A3">
+                <input type="checkbox" name="td-teaching-mode" value="academy" ${getTeacherTeachingModes(t).academy ? 'checked' : ''} style="accent-color:#4F46E5"/> 어학원 수업
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #A7F3D0;background:#ECFDF5;font-size:13px;font-weight:600;color:#065F46">
+                <input type="checkbox" name="td-teaching-mode" value="online" ${getTeacherTeachingModes(t).online ? 'checked' : ''} style="accent-color:#059669"/> 화상 수업
+              </label>
+            </div>
           </div>
         </div>
       `;
@@ -1206,8 +1195,8 @@ function saveTeacherAvailability(id) {
     let conflicts = [];
     days.forEach(d => {
       for (let p = 1; p <= 8; p++) {
-        const isChecked = document.getElementById(`avail-${d}-p-${p}`).checked;
-        if (!isChecked) {
+        const isBlocked = getAvailState(t, d, p) === 'black';
+        if (isBlocked) {
           const tTimetable = MOCK_TIMETABLE.find(time => time.teacher === t.nick);
           if (tTimetable) {
             const slot = tTimetable.slots.find(slot => Number(slot.p) === Number(p) && slot.day === d && slot.student);
@@ -1244,8 +1233,7 @@ function saveTeacherAvailability(id) {
         t.availability[d] = [true, true, true, true, true, true, true, true];
       }
       for (let p = 1; p <= 8; p++) {
-        const isChecked = document.getElementById(`avail-${d}-p-${p}`).checked;
-        t.availability[d][p-1] = isChecked;
+        t.availability[d][p-1] = getAvailState(t, d, p) !== 'black';
       }
     });
     showToast(`✓ [가용성 연동 완료] ${t.nick} 강사의 요일별 가용성이 업데이트되어 시간표 셀이 동기화되었습니다.`, 'success');

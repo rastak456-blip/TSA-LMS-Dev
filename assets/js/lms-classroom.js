@@ -50,7 +50,7 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', lat: 37.5006, lng: 127.0364, manager: '김민지' },
+  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', bankName: 'Sample Bank', accountName: 'Korea English Village', accountNumber: '000-0000-0000', swiftCode: 'SAMPLEKRSE', bankAddress: 'Seoul, Republic of Korea', lat: 37.5006, lng: 127.0364, manager: '김민지' },
   { id: 7, name: '서울 유학원', country: '한국', flag: '🇰🇷', contact: '최영희', phone: '+82-10-9876-5432', email: 'seoul@talkstn.com', accountId: 'agency_seoul', commissionRate: 10, status: 'active', createdAt: '2025-08-12', note: '카카오톡 채널 서울유학원', address: '서울특별시 종로구 종로 50', lat: 37.5704, lng: 126.9831, manager: '박서준' },
   { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921, manager: '이하늘' },
   { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', lat: 34.7024, lng: 135.4959, manager: '이하늘' },
@@ -242,14 +242,62 @@ function populateAgmManagerSelect(selectedId) {
   if (selectedId) sel.value = selectedId;
 }
 
+let editingAgencyContacts = [];
+
+function readAgencyContactRows() {
+  return editingAgencyContacts.map((contact, index) => ({
+    name: document.getElementById(`agm-contact-name-${index}`)?.value.trim() || '',
+    gender: document.getElementById(`agm-contact-gender-${index}`)?.value || '',
+    phone: document.getElementById(`agm-contact-phone-${index}`)?.value.trim() || '',
+    email: document.getElementById(`agm-contact-email-${index}`)?.value.trim() || '',
+    sns: document.getElementById(`agm-contact-sns-${index}`)?.value.trim() || '',
+  }));
+}
+
+function renderAgencyContactRows() {
+  const target = document.getElementById('agm-contact-list');
+  if (!target) return;
+  target.innerHTML = editingAgencyContacts.map((contact, index) => `
+    <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F9FAFB">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><b style="font-size:12px;color:#374151">담당자 ${index + 1}</b><button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444" onclick="removeAgencyContactRow(${index})">삭제</button></div>
+      <div style="display:grid;grid-template-columns:1fr 150px 1fr;gap:10px">
+        <div><label class="tsa-label">이름</label><input id="agm-contact-name-${index}" class="tsa-input" value="${contact.name || ''}" placeholder="담당자 이름"/></div>
+        <div><label class="tsa-label">성별</label><select id="agm-contact-gender-${index}" class="tsa-input"><option value="">선택</option><option value="male" ${contact.gender === 'male' ? 'selected' : ''}>남성</option><option value="female" ${contact.gender === 'female' ? 'selected' : ''}>여성</option><option value="other" ${contact.gender === 'other' ? 'selected' : ''}>기타</option></select></div>
+        <div><label class="tsa-label">연락처</label><input id="agm-contact-phone-${index}" class="tsa-input" value="${contact.phone || ''}" placeholder="+82-10-0000-0000"/></div>
+        <div><label class="tsa-label">이메일</label><input id="agm-contact-email-${index}" class="tsa-input" type="email" value="${contact.email || ''}" placeholder="contact@example.com"/></div>
+        <div style="grid-column:span 2"><label class="tsa-label">SNS(기타)</label><input id="agm-contact-sns-${index}" class="tsa-input" value="${contact.sns || ''}" placeholder="카카오톡·위챗·라인 등 서비스명과 ID"/></div>
+      </div>
+    </div>
+  `).join('') || `<div style="padding:14px;text-align:center;color:#9CA3AF;font-size:11.5px;border:1px dashed #D1D5DB;border-radius:10px">등록된 담당자가 없습니다. 담당자 추가 버튼을 눌러 등록해 주세요.</div>`;
+}
+
+function addAgencyContactRow() {
+  editingAgencyContacts = readAgencyContactRows();
+  editingAgencyContacts.push({ name: '', gender: '', phone: '', email: '', sns: '' });
+  renderAgencyContactRows();
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function removeAgencyContactRow(index) {
+  editingAgencyContacts = readAgencyContactRows();
+  editingAgencyContacts.splice(index, 1);
+  renderAgencyContactRows();
+}
+
 function openAgencyRegisterModal() {
   document.getElementById('agm-modal-title').textContent = '에이전시 등록';
   document.getElementById('agm-modal-id').value = '';
-  ['agm-name','agm-country','agm-contact','agm-phone','agm-email','agm-address','agm-account-id','agm-password','agm-note'].forEach(id => {
+  ['agm-name','agm-country','agm-phone','agm-email','agm-address','agm-website','agm-official-sns','agm-account-id','agm-password','agm-note','agm-legal-name','agm-registration-number','agm-bank-name','agm-bank-account-name','agm-bank-account-number','agm-bank-swift','agm-bank-address'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const documentInput = document.getElementById('agm-documents');
+  if (documentInput) documentInput.value = '';
+  const documentSummary = document.getElementById('agm-document-summary');
+  if (documentSummary) documentSummary.textContent = '등록된 서류가 없습니다.';
   setAgencyCommissionPolicyInputs(normalizeAgencyCommissionPolicies({ commissionRate: 10 }));
+  editingAgencyContacts = [{ name: '', gender: '', phone: '', email: '', sns: '' }];
+  renderAgencyContactRows();
   populateAgmManagerSelect('');
   document.getElementById('agency-manage-modal').style.display = 'block';
   document.getElementById('agency-manage-backdrop').style.display = 'block';
@@ -264,13 +312,29 @@ function openAgencyEditModal(id) {
   document.getElementById('agm-modal-id').value = id;
   document.getElementById('agm-name').value       = a.name;
   document.getElementById('agm-country').value    = a.country;
-  document.getElementById('agm-contact').value    = a.contact;
   document.getElementById('agm-phone').value      = a.phone;
   document.getElementById('agm-email').value      = a.email;
   document.getElementById('agm-address').value    = a.address || '';
+  document.getElementById('agm-website').value    = a.website || '';
+  document.getElementById('agm-official-sns').value = a.officialSns || '';
   document.getElementById('agm-account-id').value = a.accountId;
   document.getElementById('agm-password').value   = '';
+  document.getElementById('agm-legal-name').value = a.legalName || '';
+  document.getElementById('agm-registration-number').value = a.registrationNumber || '';
+  document.getElementById('agm-bank-name').value = a.bankName || '';
+  document.getElementById('agm-bank-account-name').value = a.accountName || '';
+  document.getElementById('agm-bank-account-number').value = a.accountNumber || '';
+  document.getElementById('agm-bank-swift').value = a.swiftCode || '';
+  document.getElementById('agm-bank-address').value = a.bankAddress || '';
+  const documentInput = document.getElementById('agm-documents');
+  if (documentInput) documentInput.value = '';
+  const documentSummary = document.getElementById('agm-document-summary');
+  if (documentSummary) documentSummary.textContent = a.documents?.length ? `등록 서류: ${a.documents.join(', ')}` : '등록된 서류가 없습니다.';
   setAgencyCommissionPolicyInputs(normalizeAgencyCommissionPolicies(a));
+  editingAgencyContacts = Array.isArray(a.contacts) && a.contacts.length
+    ? a.contacts.map(contact => ({ ...contact }))
+    : [{ name: a.contact || '', gender: '', phone: a.contactPhone || a.phone || '', email: a.contactEmail || a.email || '', sns: a.contactSns || '' }];
+  renderAgencyContactRows();
   document.getElementById('agm-note').value        = a.note || '';
   populateAgmManagerSelect(a.manager || '');
   document.getElementById('agency-manage-modal').style.display = 'block';
@@ -294,14 +358,31 @@ function closeAgencyManageModal() {
   document.getElementById('agency-manage-backdrop').style.display = 'none';
 }
 
+function updateAgencyDocumentSummary() {
+  const input = document.getElementById('agm-documents');
+  const summary = document.getElementById('agm-document-summary');
+  if (!summary) return;
+  const names = input?.files ? Array.from(input.files).map(file => file.name) : [];
+  summary.textContent = names.length ? `선택 서류 ${names.length}개: ${names.join(', ')}` : '등록된 서류가 없습니다.';
+}
+
 function setAgencyCommissionPolicyInputs(policies) {
   AGENCY_COMMISSION_ITEMS.forEach(item => {
     const typeEl = document.getElementById(`agm-commission-type-${item.key}`);
     const valueEl = document.getElementById(`agm-commission-${item.key}`);
     const policy = policies[item.key] || { type: item.defaultType, value: item.defaultValue };
     if (typeEl) typeEl.value = policy.type;
+    document.querySelectorAll(`input[name="agm-commission-type-${item.key}-radio"]`).forEach(radio => {
+      radio.checked = radio.value === policy.type;
+    });
     if (valueEl) valueEl.value = Number(policy.value || 0);
   });
+  updateAgencyCommissionInputLabels();
+}
+
+function setAgencyCommissionType(key, type) {
+  const input = document.getElementById(`agm-commission-type-${key}`);
+  if (input) input.value = type;
   updateAgencyCommissionInputLabels();
 }
 
@@ -336,25 +417,46 @@ function updateAgencyCommissionInputLabels() {
 function saveAgencyManage() {
   const name    = document.getElementById('agm-name').value.trim();
   const country = document.getElementById('agm-country').value.trim();
-  const contact = document.getElementById('agm-contact').value.trim();
   const email   = document.getElementById('agm-email').value.trim();
   const accountId = document.getElementById('agm-account-id').value.trim();
+  const legalName = document.getElementById('agm-legal-name').value.trim();
+  const bankName = document.getElementById('agm-bank-name').value.trim();
+  const bankAccountName = document.getElementById('agm-bank-account-name').value.trim();
+  const bankAccountNumber = document.getElementById('agm-bank-account-number').value.trim();
+  const contacts = readAgencyContactRows().filter(contact => contact.name || contact.phone || contact.email || contact.sns);
+  const primaryContact = contacts[0] || { name: '', phone: '', email: '', sns: '' };
   const commissionPolicies = readAgencyCommissionPolicyInputs();
   const manager = document.getElementById('agm-manager').value;
-  if (!name || !accountId) { showToast('에이전시명과 계정 ID는 필수입니다.', 'danger'); return; }
+  if (!name || !accountId) { showToast('에이전시명과 계정 ID를 입력해 주세요.', 'danger'); return; }
   if (!manager) { showToast('담당 어학원 직원을 선택해 주세요.', 'danger'); return; }
 
   const id = document.getElementById('agm-modal-id').value;
+  const existingAgency = id ? MOCK_AGENCIES.find(a => a.id === parseInt(id)) : null;
+  const selectedDocuments = Array.from(document.getElementById('agm-documents')?.files || []).map(file => file.name);
   const data = {
-    name, country, contact,
+    name, country, contact: primaryContact.name,
     phone: document.getElementById('agm-phone').value.trim(),
     email, accountId,
+    website: document.getElementById('agm-website').value.trim(),
+    officialSns: document.getElementById('agm-official-sns').value.trim(),
+    contacts,
+    contactPhone: primaryContact.phone,
+    contactEmail: primaryContact.email,
+    contactSns: primaryContact.sns,
     commissionPolicies,
     commissionType: 'itemized',
     commissionRate: Number(commissionPolicies.education?.type === 'rate' ? commissionPolicies.education.value : 0),
     commissionAmount: 0,
     manager,
     address: document.getElementById('agm-address').value.trim(),
+    legalName,
+    registrationNumber: document.getElementById('agm-registration-number').value.trim(),
+    bankName,
+    accountName: bankAccountName,
+    accountNumber: bankAccountNumber,
+    swiftCode: document.getElementById('agm-bank-swift').value.trim(),
+    bankAddress: document.getElementById('agm-bank-address').value.trim(),
+    documents: selectedDocuments.length ? selectedDocuments : (existingAgency?.documents || []),
     note: document.getElementById('agm-note').value.trim(),
     flag: '🏢',
   };
@@ -1422,20 +1524,13 @@ function openDormTemplateModal() {}
 function openDormRoomModal() {}
 
 function saveDormRoomIndividual() {
-  const roomNo    = document.getElementById('tpl-room-no')?.value.trim();
   const accom     = document.getElementById('tpl-accom')?.value;
   const capacity  = parseInt(document.getElementById('tpl-capacity')?.value);
   const condition = document.getElementById('tpl-condition')?.value;
 
-  if (!roomNo) { showToast('호실 번호를 입력하세요.', 'danger'); return; }
-
-  // 중복 체크
-  const dup = MOCK_DORM_ROOMS.find(r => r.roomNo === roomNo);
-  if (dup) { showToast(`이미 등록된 호실 번호입니다. (${roomNo}호)`, 'warning'); return; }
-
   const typeStr = `${capacity}인실 (${condition})`;
   MOCK_DORM_ROOMS.push({
-    roomNo: roomNo,
+    roomNo: null,
     accomType: accom,
     type: typeStr,
     capacity: capacity,
@@ -1449,13 +1544,10 @@ function saveDormRoomIndividual() {
     }))
   });
 
-  // 폼 초기화
-  document.getElementById('tpl-room-no').value = '';
-
   // 템플릿 정보와 동기화
   if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
 
-  showToast(`✓ ${roomNo}호가 성공적으로 등록되었습니다.`, 'success');
+  showToast(`✓ ${condition} · ${capacity}인실 유형이 등록되었습니다. 호실 번호는 나중에 배정할 수 있습니다.`, 'success');
   renderAdminDormTemplates();
   if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
 }
@@ -1533,7 +1625,8 @@ function deleteDormRoom(idx) {
     return;
   }
 
-  if (!confirm(`호실 [${room.roomNo}호]를 삭제하시겠습니까?`)) return;
+  const roomLabel = room.roomNo ? `${room.roomNo}호` : `미배정 ${room.capacity || room.beds?.length || 1}인실`;
+  if (!confirm(`[${roomLabel}]을 삭제하시겠습니까?`)) return;
 
   MOCK_DORM_ROOMS.splice(idx, 1);
   if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
@@ -1542,12 +1635,37 @@ function deleteDormRoom(idx) {
   if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
 }
 
+function assignDormRoomNumber(idx) {
+  const room = MOCK_DORM_ROOMS[idx];
+  if (!room) return;
+
+  const input = prompt('배정할 호실 번호를 입력하세요.', room.roomNo || '');
+  if (input === null) return;
+
+  const roomNo = input.trim();
+  if (!roomNo) {
+    showToast('호실 번호를 입력하세요.', 'danger');
+    return;
+  }
+
+  const duplicate = MOCK_DORM_ROOMS.some((item, itemIdx) => itemIdx !== idx && item.roomNo === roomNo);
+  if (duplicate) {
+    showToast(`이미 등록된 호실 번호입니다. (${roomNo}호)`, 'warning');
+    return;
+  }
+
+  room.roomNo = roomNo;
+  if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
+  showToast(`✓ ${roomNo}호가 배정되었습니다.`, 'success');
+  renderAdminDormTemplates();
+  if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
+}
+
 function renderAdminDormTemplates() {
   const tbody = document.getElementById('admin-dorm-template-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = MOCK_DORM_ROOMS.filter(r => r.roomNo).map((r, idx) => {
-    // MOCK_DORM_ROOMS에서 roomNo가 있는 방들의 진짜 인덱스를 찾아 삭제/수정 버튼에 매핑
+  tbody.innerHTML = [...MOCK_DORM_ROOMS].sort(compareDormRoomOrder).map((r) => {
     const originalIdx = MOCK_DORM_ROOMS.indexOf(r);
     const conditionMatch = r.type ? r.type.match(/\(([^)]+)\)/) : null;
     const condition = conditionMatch ? conditionMatch[1] : '스탠다드';
@@ -1559,12 +1677,15 @@ function renderAdminDormTemplates() {
 
     return `
       <tr>
-        <td><strong>${r.roomNo}호</strong></td>
-        <td>${accomBadge}</td>
-        <td>${capacity}인실</td>
         <td>${condition}</td>
+        <td>${capacity}인실</td>
+        <td>${r.roomNo
+          ? `<strong>${r.roomNo}호</strong>`
+          : `<span style="background:#F3F4F6;color:#6B7280;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600">미배정</span>`}</td>
+        <td>${accomBadge}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
+            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="assignDormRoomNumber(${originalIdx})">${r.roomNo ? '4. 번호 변경' : '4. 호실 번호 설정'}</button>
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditDormRoomModal(${originalIdx})">수정</button>
             <button class="tsa-btn tsa-btn-danger tsa-btn-xs" style="background:#EF4444;border:none;color:white;" onclick="deleteDormRoom(${originalIdx})">삭제</button>
           </div>
@@ -1612,6 +1733,33 @@ let MOCK_DORM_MASTER_GRADES = [
 let MOCK_DORM_MASTER_CAPACITIES = [1, 2, 3, 4, 5, 6].map((n, i) => ({ name: `${n}인실`, order: i + 1, visible: true }));
 
 const _dormMasterDragSrc = { accom: null, grade: null, capacity: null };
+
+// 배정 리스트 정렬 기준 통일: 숙소유형 → 등급 → 인실 → 호수
+// 숙소유형/등급 순서는 '유형·인실·등급 설정'에서 관리자가 지정한 order를 그대로 따른다.
+function getDormRoomGrade(room) {
+  if (room.condition) return room.condition;
+  const m = room.type ? room.type.match(/\(([^)]+)\)/) : null;
+  return m ? m[1] : '스탠다드';
+}
+
+function compareDormRoomOrder(a, b) {
+  const accomOrder = name => MOCK_DORM_MASTER_ACCOM_TYPES.find(i => i.name === name)?.order ?? 999;
+  const gradeOrder = name => MOCK_DORM_MASTER_GRADES.find(i => i.name === name)?.order ?? 999;
+
+  const accomCmp = accomOrder(a.accomType) - accomOrder(b.accomType);
+  if (accomCmp !== 0) return accomCmp;
+
+  const gradeCmp = gradeOrder(getDormRoomGrade(a)) - gradeOrder(getDormRoomGrade(b));
+  if (gradeCmp !== 0) return gradeCmp;
+
+  const capA = Number(a.capacity || (a.beds ? a.beds.length : 0));
+  const capB = Number(b.capacity || (b.beds ? b.beds.length : 0));
+  if (capA !== capB) return capA - capB;
+
+  const na = parseInt(a.roomNo, 10), nb = parseInt(b.roomNo, 10);
+  if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+  return String(a.roomNo || '').localeCompare(String(b.roomNo || ''));
+}
 
 function _renderDormMasterTable(list, bodyId, key, labelFn) {
   const el = document.getElementById(bodyId);
@@ -1765,7 +1913,7 @@ function getDormErpFilteredRooms() {
   if (_erpAccomFilter !== '전체') rooms = rooms.filter(r => r.accomType === _erpAccomFilter);
   if (_erpCapFilter !== '전체') rooms = rooms.filter(r => (r.capacity || r.beds?.length) === parseInt(_erpCapFilter));
   if (_erpGenderFilter !== '전체') rooms = rooms.filter(r => r.genderRestriction === '무관' || r.genderRestriction === _erpGenderFilter);
-  return rooms.filter(r => r.roomNo);
+  return rooms.filter(r => r.roomNo).sort(compareDormRoomOrder);
 }
 
 function getDormErpAnnualFilteredRooms() {
@@ -1778,7 +1926,7 @@ function getDormErpAnnualFilteredRooms() {
     if (cap !== '전체' && (room.capacity || room.beds?.length) !== parseInt(cap, 10)) return false;
     if (gender !== '전체' && room.genderRestriction !== '무관' && room.genderRestriction !== gender) return false;
     return true;
-  });
+  }).sort(compareDormRoomOrder);
 }
 
 function renderDormErpAnnualGantt() {
@@ -1822,7 +1970,11 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const offset = date => Math.round((date - start) / dayMs);
-  const genderColor = { '남성': '#0EA5E9', '여성': '#EC4899', '무관': '#5E5CE6' };
+  const genderPalette = {
+    male: { active: '#0EA5E9', muted: '#DCE6F0', text: '#0369A1', border: '#7DD3FC' },
+    female: { active: '#EC4899', muted: '#EADDE5', text: '#BE185D', border: '#F9A8D4' },
+    neutral: { active: '#5E5CE6', muted: '#E2E8F0', text: '#64748B', border: '#CBD5E1' },
+  };
 
   const weekdayLabels = ['일','월','화','수','목','금','토'];
   const dateItems = Array.from({ length: totalDays }, (_, idx) => {
@@ -1857,11 +2009,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   const todayLine = today >= start && today <= end
     ? `<div class="erp-gantt-today" style="left:${offset(today) * dayWidth + dayWidth / 2}px" title="오늘"></div>` : '';
 
-  const sortedRooms = [...rooms].sort((a, b) => {
-    const na = parseInt(a.roomNo, 10), nb = parseInt(b.roomNo, 10);
-    if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
-    return String(a.roomNo).localeCompare(String(b.roomNo));
-  });
+  const sortedRooms = [...rooms].sort(compareDormRoomOrder);
 
   const roomColWidth = 90;
   const bedColWidth = 120;
@@ -1899,10 +2047,18 @@ function renderDormErpGantt(rooms, startVal, endVal) {
       const bars = resolved.map(({ item, leftDays, rightDays }) => {
         const left = leftDays * dayWidth + 2;
         const width = Math.max(dayWidth - 4, (rightDays - leftDays + 1) * dayWidth - 4);
-        const color = item.status === 'reserved' ? '#8B5CF6' : item.status === 'history' ? '#94A3B8' : (genderColor[room.genderRestriction] || '#5E5CE6');
+        const assignedStudent = MOCK_STUDENTS.find(student =>
+          (item.studentId && student.id === item.studentId) ||
+          String(item.student || '').includes(student.nick) ||
+          String(item.student || '').includes(student.name)
+        );
+        const genderValue = assignedStudent?.gender || room.genderRestriction || '';
+        const genderKey = /^(남|남성|male)$/i.test(genderValue) ? 'male' : /^(여|여성|female)$/i.test(genderValue) ? 'female' : 'neutral';
+        const palette = genderPalette[genderKey];
+        const color = item.status === 'occupied' ? palette.active : palette.muted;
         const label = String(item.student || '배정').split(' ')[0];
-        const extraStyle = item.status === 'reserved' ? 'border:2px dashed #6D28D9;background:#EDE9FE;color:#6D28D9;'
-          : item.status === 'history' ? 'background:#E2E8F0;color:#64748B;opacity:.85;'
+        const extraStyle = item.status === 'reserved' ? `border:2px dashed ${palette.border};background:${palette.muted};color:${palette.text};`
+          : item.status === 'history' ? `background:${palette.muted};color:${palette.text};opacity:.9;`
           : '';
         const tooltip = item.status === 'history'
           ? `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end} (퇴소: ${item.reason || '-'})`
@@ -1937,7 +2093,11 @@ function renderDormErpGantt(rooms, startVal, endVal) {
     <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <strong style="font-size:13px;color:#111827">침대별 배정 일정</strong>
       <span style="font-size:11px;color:#64748B">${startVal} ~ ${endVal} · ${rooms.length}개 호실 · ${rows ? '침대별 일정' : '배정 없음'}</span>
-      <div style="margin-left:auto;display:flex;gap:12px;font-size:10.5px;color:#64748B"><span>● 입실 중</span><span style="color:#8B5CF6">◆ 예약</span><span style="color:#EF4444">│ 오늘</span></div>
+      <div style="margin-left:auto;display:flex;gap:10px;font-size:10.5px;color:#64748B;flex-wrap:wrap">
+        <span style="color:#0369A1">● 남성 입실</span><span style="color:#647F99">◆ 남성 예약·이력</span>
+        <span style="color:#BE185D">● 여성 입실</span><span style="color:#A56A87">◆ 여성 예약·이력</span>
+        <span style="color:#EF4444">│ 오늘</span>
+      </div>
     </div>
     <div class="erp-gantt-scroll">
       <div style="display:flex;position:sticky;top:0;z-index:4;border-bottom:1px solid #E5E7EB">
@@ -2043,7 +2203,10 @@ function renderDormErpGrid() {
           const studentName = b.student ? b.student.split(' ')[0] : '사용 중';
           bedContent = `
             <div style="font-size:11px;font-weight:600;color:#374151">${studentName}</div>
-            <div style="font-size:10px;color:#9CA3AF">~ ${b.end || '-'}</div>
+            <div style="font-size:9.5px;color:#6B7280;margin-top:2px;line-height:1.35">
+              <div><span style="color:#9CA3AF">입실</span> ${b.start || '-'}</div>
+              <div><span style="color:#9CA3AF">퇴실</span> ${b.end || '-'}</div>
+            </div>
             <button onclick="openErpReleaseModal('${r.roomNo}','${b.id}')" style="margin-top:4px;font-size:10px;padding:2px 6px;border:1px solid #EF4444;border-radius:4px;background:#FEF2F2;color:#EF4444;cursor:pointer;width:100%">해제</button>`;
           clickHandler = '';
         } else if (hasIncoming) {

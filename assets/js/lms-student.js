@@ -105,12 +105,23 @@ function renderStudentList(list) {
     const avatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
 
     const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
+    const latestEnrollment = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
+    const remittanceRoute = s.remittanceRoute || latestEnrollment?.remittanceRoute || (s.agency ? 'agency' : 'direct');
+    const remittanceRouteLabel = typeof getRemittanceRouteLabel === 'function'
+      ? getRemittanceRouteLabel(remittanceRoute)
+      : ({ agency: '에이전시', direct: '직접 송금', onsite: '현장 결제' }[remittanceRoute] || '-');
     const payment = getStudentPaymentSummary(s);
-    const paymentMeta = payment.status === 'paid'
-      ? { label: '완납', color: '#047857', bg: '#D1FAE5' }
-      : payment.status === 'partial'
-        ? { label: '부분납', color: '#B45309', bg: '#FEF3C7' }
-        : { label: '미납', color: '#DC2626', bg: '#FEE2E2' };
+    const billingItems = getStudentPopupBilling(s);
+    const billingByKey = Object.fromEntries(billingItems.map(item => [item.key, item]));
+    const renderBillingCell = key => {
+      const item = billingByKey[key] || { amount: 0, status: 'unpaid' };
+      const isPaid = item.status === 'paid';
+      return `
+        <td style="white-space:nowrap;text-align:right">
+          <div style="font-size:12px;font-weight:800;color:#111827">$${Number(item.amount || 0).toLocaleString()}</div>
+          <span style="display:inline-flex;align-items:center;margin-top:3px;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:700;color:${isPaid ? '#047857' : '#DC2626'};background:${isPaid ? '#D1FAE5' : '#FEE2E2'}">${isPaid ? '완납' : '미납'}</span>
+        </td>`;
+    };
 
     let mentorName = '미배정';
     const mentorMatch = (typeof MOCK_TIMETABLE !== 'undefined') ? MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick)) : null;
@@ -132,6 +143,9 @@ function renderStudentList(list) {
         <div style="font-weight:600;color:#374151">${s.agency || '-'}</div>
         ${agencyInfo ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:1px">${agencyInfo.contact} · ${agencyInfo.phone}</div>` : ''}
       </td>
+      <td style="font-size:11.5px;white-space:nowrap">
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-weight:700;color:#4338CA;background:#EEF2FF">${remittanceRouteLabel}</span>
+      </td>
       <td style="font-size:11.5px;font-weight:600;color:#374151">${mentorName}</td>
       <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
@@ -149,13 +163,10 @@ function renderStudentList(list) {
         </div>
         ${s.warning > 0 ? `<div style="font-size:10px;color:#EF4444;margin-top:2px">경고 ${s.warning}회</div>` : ''}
       </td>
-      <td style="white-space:nowrap">
-        <div style="font-size:12px;font-weight:800;color:#111827">$${payment.paid.toLocaleString()}</div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:2px">등록 $${payment.total.toLocaleString()}</div>
-      </td>
-      <td style="white-space:nowrap">
-        <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;color:${paymentMeta.color};background:${paymentMeta.bg}">${paymentMeta.label}</span>
-      </td>
+      ${renderBillingCell('registration')}
+      ${renderBillingCell('education')}
+      ${renderBillingCell('dorm')}
+      ${renderBillingCell('local')}
       <td>
         ${statusPill}
       </td>
@@ -338,7 +349,369 @@ function renderAdminStatusCards() {
 function openStudentDetail(id) {
   APP.currentStudent = MOCK_STUDENTS.find(s => s.id === id);
   if (!APP.currentStudent) return;
-  openAgencyStudentDetailPage(id, 'admin');
+  openStudentDetailPopup(id, 'admin');
+}
+
+function escapeStudentPopupHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getStudentPopupWeeks(student) {
+  const start = student.startDate ? new Date(student.startDate) : null;
+  const endValue = student.endDate || student.courseEndDate || '';
+  const end = endValue ? new Date(endValue) : null;
+  if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / (7 * 86400000)));
+  }
+  return Math.max(1, parseInt(student.duration, 10) || 1);
+}
+
+function isStudentWalkIn(student) {
+  const dorm = String(student.dorm || '').trim().toLowerCase();
+  return student.dormRequested === false || !dorm || ['미사용', '미신청', 'walk-in', 'walk in'].includes(dorm);
+}
+
+function getStudentPopupBilling(student) {
+  let items = [];
+  if (typeof getStudentBillingBreakdown === 'function') {
+    items = getStudentBillingBreakdown(student).items.map(item => ({
+      key: item.key,
+      label: item.label,
+      amount: Number(item.amount || 0),
+      status: item.paymentStatus || 'unpaid',
+    }));
+  } else {
+    const prices = typeof calculatePrices === 'function'
+      ? calculatePrices(student)
+      : { registration: 0, tuition: 0, dorm: 0 };
+    const fees = Array.isArray(student.fees) ? student.fees : [];
+    const registration = fees.filter(f => /등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0);
+    const other = fees.filter(f => !/등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0);
+    items = [
+      { key: 'registration', label: '등록금', amount: registration || Number(prices.registration || 0), status: student.remittanceStatus || 'unpaid' },
+      { key: 'education', label: '수강료', amount: Number(prices.tuition || 0), status: student.remittanceStatus || 'unpaid' },
+      { key: 'dorm', label: '기숙사비', amount: Number(prices.dorm || 0), status: student.remittanceStatus || 'unpaid' },
+      { key: 'local', label: '기타 비용', amount: other, status: student.remittanceStatus || 'unpaid' },
+    ];
+  }
+  if (isStudentWalkIn(student)) {
+    items = items.map(item => item.key === 'dorm' ? { ...item, amount: 0 } : item);
+  }
+  return items;
+}
+
+function getStudentConsultationNotes(student) {
+  const key = `tsa_student_consultation_notes_${student.id}`;
+  let saved = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(parsed)) saved = parsed;
+  } catch (error) {
+    saved = [];
+  }
+  const sourceNotes = saved.length ? saved : (Array.isArray(student.consultationNotes) ? student.consultationNotes : []);
+  const notes = sourceNotes.map((note, index) => ({
+    ...note,
+    id: note.id ?? `legacy-${student.id}-${index}`,
+  }));
+  student.consultationNotes = notes;
+  return notes;
+}
+
+function getStudentPopupCounselorName() {
+  const names = {
+    admin: '슈퍼 어드민',
+    super_admin: '슈퍼 어드민',
+    agency_head: '에이전시 본사',
+    agency_branch: '에이전시 지사',
+  };
+  return names[APP.user] || '상담 담당자';
+}
+
+function addStudentConsultationNote(studentId, popupWindow) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  const doc = popupWindow?.document;
+  if (!student || !doc) return;
+  const counselor = doc.getElementById('student-consult-counselor')?.value.trim() || '';
+  const consultedAt = doc.getElementById('student-consult-datetime')?.value || '';
+  const content = doc.getElementById('student-consult-content')?.value.trim() || '';
+  if (!counselor || !consultedAt || !content) {
+    popupWindow.alert('상담자, 상담 일시, 상담 내용을 모두 입력해줘.');
+    return;
+  }
+  const notes = getStudentConsultationNotes(student);
+  notes.unshift({ id: Date.now(), counselor, consultedAt, content });
+  student.consultationNotes = notes;
+  localStorage.setItem(`tsa_student_consultation_notes_${student.id}`, JSON.stringify(notes));
+  const consultationContainer = doc.getElementById('adetail-page-enrollment-content');
+  if (consultationContainer) {
+    renderStudentConsultationTab(student, consultationContainer);
+  } else {
+    renderStudentDetailPopup(student, popupWindow.__tsaPortal || 'admin', popupWindow);
+  }
+  if (typeof showToast === 'function') showToast('상담 노트가 저장되었습니다.', 'success');
+}
+
+function parseStudentActivityTimestamp(value) {
+  const normalized = String(value || '').trim().replace(' ', 'T');
+  const timestamp = new Date(normalized).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function formatStudentActivityDate(value) {
+  const text = String(value || '').trim();
+  return text ? text.replace('T', ' ') : '-';
+}
+
+function getStudentActivityItems(student) {
+  const consultationItems = getStudentConsultationNotes(student).map(note => ({
+    type: 'consultation',
+    timestamp: note.consultedAt || '',
+    note,
+  }));
+  const changeItems = (Array.isArray(student.changeRequests) ? student.changeRequests : []).map((change, sourceIndex) => ({
+    type: 'change',
+    timestamp: change.requestDate || change.changedAt || change.updatedAt || '',
+    change,
+    sourceIndex,
+  }));
+  return [...consultationItems, ...changeItems]
+    .sort((a, b) => parseStudentActivityTimestamp(b.timestamp) - parseStudentActivityTimestamp(a.timestamp));
+}
+
+function setStudentActivityFilter(studentId, filter) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  if (!student) return;
+  student._activityFilter = ['all', 'consultation', 'change'].includes(filter) ? filter : 'all';
+  const container = document.getElementById('adetail-page-enrollment-content');
+  if (container) renderStudentConsultationTab(student, container);
+}
+
+function openStudentDetailPopup(id, portal) {
+  const student = MOCK_STUDENTS.find(item => item.id === id);
+  if (!student) return;
+  APP.currentStudent = student;
+  const popupUrl = new URL(window.location.href);
+  popupUrl.search = '';
+  popupUrl.hash = '';
+  popupUrl.searchParams.set('studentPopup', String(id));
+  popupUrl.searchParams.set('portal', portal || ((APP.user === 'agency_head' || APP.user === 'agency_branch') ? 'agency' : 'admin'));
+  const popup = window.open(popupUrl.toString(), `tsa-student-${id}`, 'popup=yes,width=1420,height=960,resizable=yes,scrollbars=yes');
+  if (!popup) {
+    if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해줘.', 'warning');
+    return;
+  }
+  popup.focus();
+}
+
+function renderStudentConsultationTab(student, container) {
+  if (!student || !container) return;
+  const esc = escapeStudentPopupHtml;
+  const notes = getStudentConsultationNotes(student);
+  const changes = Array.isArray(student.changeRequests) ? student.changeRequests : [];
+  const activities = getStudentActivityItems(student);
+  const activeFilter = ['all', 'consultation', 'change'].includes(student._activityFilter) ? student._activityFilter : 'all';
+  const filteredActivities = activeFilter === 'all' ? activities : activities.filter(item => item.type === activeFilter);
+  const filterOptions = [
+    { key: 'all', label: '전체', count: activities.length },
+    { key: 'consultation', label: '상담', count: notes.length },
+    { key: 'change', label: '정보 변경', count: changes.length },
+  ];
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="border:1px solid #C7D2FE;background:#F8F9FF;border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:800;color:#312E81;margin-bottom:4px">상담 노트 등록</div>
+        <div style="font-size:10.5px;color:#6B7280;margin-bottom:13px">상담자, 상담 일시, 상담 내용과 후속 조치 사항을 기록합니다.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label class="tsa-label">상담자</label><input id="student-consult-counselor" class="tsa-input" value="${esc(getStudentPopupCounselorName())}"/></div>
+          <div><label class="tsa-label">상담 일시</label><input id="student-consult-datetime" type="datetime-local" class="tsa-input" value="${now}"/></div>
+        </div>
+        <div style="margin-top:10px"><label class="tsa-label">상담 내용</label><textarea id="student-consult-content" class="tsa-input" rows="4" placeholder="상담 내용과 후속 조치 사항을 입력해 주세요."></textarea></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="tsa-btn tsa-btn-primary" onclick="addStudentConsultationNote(${student.id},window)"><i data-lucide="save"></i> 상담 노트 저장</button></div>
+      </div>
+      <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;background:#fff">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div><div style="font-size:13px;font-weight:800;color:#111827">학생 활동 히스토리</div><div style="font-size:10.5px;color:#6B7280;margin-top:4px">상담 기록과 시스템 정보 변경 기록을 시간순으로 확인합니다.</div></div>
+          <span class="tsa-badge tsa-badge-primary">${filteredActivities.length}건</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          ${filterOptions.map(option => {
+            const selected = option.key === activeFilter;
+            return `<button type="button" onclick="setStudentActivityFilter(${student.id},'${option.key}')" style="border:1px solid ${selected ? '#6366F1' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};color:${selected ? '#4F46E5' : '#6B7280'};border-radius:999px;padding:6px 10px;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer">${option.label} ${option.count}</button>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${filteredActivities.length ? filteredActivities.map(item => {
+            if (item.type === 'consultation') {
+              const note = item.note;
+              return `
+                <div style="border-left:3px solid #818CF8;background:#F8FAFC;border-radius:8px;padding:12px 14px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div style="display:flex;align-items:center;gap:7px"><span style="display:inline-flex;align-items:center;border-radius:999px;background:#EEF2FF;color:#4F46E5;padding:3px 7px;font-size:9.5px;font-weight:800">상담</span><strong style="font-size:12px;color:#1F2937">${esc(note.counselor)}</strong></div><span style="font-size:10.5px;color:#9CA3AF">${esc(formatStudentActivityDate(note.consultedAt))}</span></div>
+                  <div style="font-size:12px;color:#374151;line-height:1.65;margin-top:7px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(note.content)}</div>
+                  <div style="display:flex;justify-content:flex-end;margin-top:9px"><button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentConsultationNoteDetail(${student.id},'${esc(note.id)}')"><i data-lucide="expand"></i> 자세히 보기</button></div>
+                </div>`;
+            }
+            const change = item.change;
+            return `
+              <div style="border-left:3px solid #F59E0B;background:#FFFBEB;border-radius:8px;padding:12px 14px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div style="display:flex;align-items:center;gap:7px"><span style="display:inline-flex;align-items:center;border-radius:999px;background:#FEF3C7;color:#B45309;padding:3px 7px;font-size:9.5px;font-weight:800">정보 변경</span><strong style="font-size:12px;color:#1F2937">${esc(change.changedBy || '시스템')}</strong></div><span style="font-size:10.5px;color:#9CA3AF">${esc(formatStudentActivityDate(item.timestamp))}</span></div>
+                <div style="font-size:12px;font-weight:800;color:#374151;line-height:1.6;margin-top:7px;overflow-wrap:anywhere">${esc(change.field || '학생 정보')} : ${esc(change.from || '-')} → ${esc(change.to || '-')}</div>
+                ${change.reason ? `<div style="font-size:11px;color:#6B7280;line-height:1.6;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(change.reason)}</div>` : ''}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px"><span style="font-size:9.5px;color:#9CA3AF">시스템 기록 · 수정/삭제 불가</span><button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentChangeHistoryDetail(${student.id},${item.sourceIndex})"><i data-lucide="expand"></i> 자세히 보기</button></div>
+              </div>`;
+          }).join('') : `<div style="padding:30px;text-align:center;border:1px dashed #D1D5DB;border-radius:10px;color:#9CA3AF;font-size:12px">${activeFilter === 'consultation' ? '등록된 상담 기록이 없습니다.' : activeFilter === 'change' ? '등록된 정보 변경 기록이 없습니다.' : '등록된 활동 기록이 없습니다.'}</div>`}
+        </div>
+      </div>
+    </div>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function openStudentConsultationNoteDetail(studentId, noteId) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  if (!student) return;
+  const note = getStudentConsultationNotes(student).find(item => String(item.id) === String(noteId));
+  if (!note) {
+    if (typeof showToast === 'function') showToast('상담 기록을 찾을 수 없습니다.', 'warning');
+    return;
+  }
+  const esc = escapeStudentPopupHtml;
+  let modal = document.getElementById('student-consultation-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'student-consultation-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:2500;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:24px';
+    modal.addEventListener('click', event => {
+      if (event.target === modal) closeStudentConsultationNoteDetail();
+    });
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div style="width:min(760px,100%);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.25);display:flex;flex-direction:column;overflow:hidden" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #E5E7EB">
+        <div><div style="font-size:16px;font-weight:900;color:#111827">상담 내용 상세</div><div style="font-size:11px;color:#6B7280;margin-top:5px">${esc(student.name)} · Nick: ${esc(student.nick || '-')}</div></div>
+        <button class="tsa-modal-close" onclick="closeStudentConsultationNoteDetail()"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:18px 22px;overflow-y:auto">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">상담자</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(note.counselor || '-')}</div></div>
+          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">상담 일시</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(String(note.consultedAt || '-').replace('T',' '))}</div></div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">전체 상담 내용</div>
+        <div style="min-height:220px;padding:16px;border:1px solid #E5E7EB;border-radius:11px;background:#FCFCFD;font-size:13px;color:#1F2937;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere">${esc(note.content || '')}</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC"><button class="tsa-btn tsa-btn-primary" onclick="closeStudentConsultationNoteDetail()">확인</button></div>
+    </div>`;
+  modal.style.display = 'flex';
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function closeStudentConsultationNoteDetail() {
+  const modal = document.getElementById('student-consultation-detail-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function openStudentChangeHistoryDetail(studentId, changeIndex) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  const change = student && Array.isArray(student.changeRequests) ? student.changeRequests[changeIndex] : null;
+  if (!student || !change) {
+    if (typeof showToast === 'function') showToast('정보 변경 기록을 찾을 수 없습니다.', 'warning');
+    return;
+  }
+  const esc = escapeStudentPopupHtml;
+  const changedAt = change.requestDate || change.changedAt || change.updatedAt || '-';
+  let modal = document.getElementById('student-change-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'student-change-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:2500;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:24px';
+    modal.addEventListener('click', event => {
+      if (event.target === modal) closeStudentChangeHistoryDetail();
+    });
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div style="width:min(760px,100%);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.25);display:flex;flex-direction:column;overflow:hidden" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;border-bottom:1px solid #E5E7EB">
+        <div><div style="font-size:16px;font-weight:900;color:#111827">정보 변경 기록 상세</div><div style="font-size:11px;color:#6B7280;margin-top:5px">${esc(student.name)} · 시스템 자동 기록</div></div>
+        <button class="tsa-modal-close" onclick="closeStudentChangeHistoryDetail()"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:18px 22px;overflow-y:auto">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 항목</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(change.field || '-')}</div></div>
+          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 일시</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(formatStudentActivityDate(changedAt))}</div></div>
+          <div style="padding:11px 12px;background:#FFF7ED;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 전</div><div style="font-size:12.5px;font-weight:800;color:#9A3412;margin-top:4px;overflow-wrap:anywhere">${esc(change.from || '-')}</div></div>
+          <div style="padding:11px 12px;background:#ECFDF5;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 후</div><div style="font-size:12.5px;font-weight:800;color:#047857;margin-top:4px;overflow-wrap:anywhere">${esc(change.to || '-')}</div></div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">변경 사유</div>
+        <div style="min-height:120px;padding:16px;border:1px solid #E5E7EB;border-radius:11px;background:#FCFCFD;font-size:13px;color:#1F2937;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere">${esc(change.reason || '기록된 변경 사유가 없습니다.')}</div>
+        <div style="margin-top:12px;padding:10px 12px;border-radius:9px;background:#FFFBEB;color:#92400E;font-size:10.5px;line-height:1.6">변경자: <b>${esc(change.changedBy || '시스템')}</b> · 이 기록은 시스템 감사 이력으로 수정하거나 삭제할 수 없습니다.</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC"><button class="tsa-btn tsa-btn-primary" onclick="closeStudentChangeHistoryDetail()">확인</button></div>
+    </div>`;
+  modal.style.display = 'flex';
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function closeStudentChangeHistoryDetail() {
+  const modal = document.getElementById('student-change-detail-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderStudentDetailPopup(student, portal, popup) {
+  if (!popup || popup.closed) return;
+  const esc = escapeStudentPopupHtml;
+  const weeks = getStudentPopupWeeks(student);
+  const walkIn = isStudentWalkIn(student);
+  const billingItems = getStudentPopupBilling(student);
+  const total = billingItems.reduce((sum, item) => sum + item.amount, 0);
+  const notes = getStudentConsultationNotes(student);
+  const avatarUrl = new URL(student.gender === '여' ? 'assets/images/student_female.png' : 'assets/images/student_male.png', window.location.href).href;
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const courseEnd = student.endDate || student.courseEndDate || '-';
+  const statusLabels = { current: '재학', waiting: '입학 대기', completed: '졸업', resigned: '퇴원', extended: '연장' };
+  const feeColors = {
+    registration: ['#EEF2FF', '#4F46E5'],
+    education: ['#ECFDF5', '#047857'],
+    dorm: ['#FFF7ED', '#C2410C'],
+    local: ['#F5F3FF', '#7C3AED'],
+  };
+
+  popup.document.open();
+  popup.document.write(`<!doctype html>
+  <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(student.name)} 학생 정보</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#F5F7FB;color:#111827;font-family:Pretendard,"Noto Sans KR",Arial,sans-serif}.header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #E5E7EB;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}.wrap{max-width:1180px;margin:0 auto;padding:22px}.card{background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:18px;box-shadow:0 3px 12px rgba(15,23,42,.04)}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.label{font-size:11px;color:#64748B;margin-bottom:5px}.value{font-size:13px;font-weight:750;color:#1F2937}.badge{display:inline-flex;padding:4px 9px;border-radius:999px;background:#EEF2FF;color:#4F46E5;font-size:11px;font-weight:800}.fees{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.fee{border-radius:12px;padding:15px;border:1px solid transparent}.fee-name{font-size:11px;font-weight:800}.fee-amount{font-size:22px;font-weight:900;margin-top:8px}.input{width:100%;border:1px solid #D7DCE5;border-radius:8px;padding:10px 11px;font:inherit;font-size:12px;background:#fff}.btn{border:0;border-radius:8px;padding:10px 15px;font-weight:800;cursor:pointer}.btn-primary{background:#5E5CE6;color:#fff}.btn-light{background:#F3F4F6;color:#374151}.note{border-left:3px solid #818CF8;background:#F8FAFC;border-radius:8px;padding:12px 14px}.section-title{font-size:15px;font-weight:900;margin-bottom:13px}.muted{font-size:11px;color:#6B7280}.profile{display:flex;gap:16px;align-items:center}@media(max-width:850px){.grid2,.fees,.info-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.grid2,.fees,.info-grid{grid-template-columns:1fr}.wrap{padding:12px}}
+  </style></head><body>
+    <header class="header">
+      <div><div style="font-size:19px;font-weight:900">학생 정보</div><div class="muted" style="margin-top:4px">사이드 메뉴 없는 독립 팝업 · 다른 학생 정보와 동시에 열람 가능</div></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-light" onclick="window.print()">인쇄</button><button class="btn btn-light" onclick="window.close()">닫기</button></div>
+    </header>
+    <main class="wrap">
+      <section class="card profile">
+        <img src="${avatarUrl}" alt="학생 사진" style="width:78px;height:78px;border-radius:14px;object-fit:cover;border:1px solid #E5E7EB">
+        <div style="flex:1"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h1 style="font-size:21px;margin:0">${esc(student.name)}</h1><span class="badge">${esc(statusLabels[student.status] || student.status || '-')}</span></div><div style="font-size:13px;color:#4F46E5;font-weight:800;margin-top:5px">Nick: ${esc(student.nick || '-')}</div><div class="muted" style="margin-top:7px">${esc(student.nationality || '-')} · ${esc(student.gender || '-')} · ${esc(student.age ? `${student.age}세` : '-')} · ${esc(student.agency || '직접 등록')}</div></div>
+      </section>
+
+      <div class="grid2" style="margin-top:14px">
+        <section class="card"><div class="section-title">기본 정보</div><div class="info-grid"><div><div class="label">연락처</div><div class="value">${esc(student.phone || '-')}</div></div><div><div class="label">이메일</div><div class="value">${esc(student.email || '-')}</div></div><div><div class="label">여권번호</div><div class="value">***</div></div><div><div class="label">비상 연락처</div><div class="value">${esc(student.emergencyContact || '-')}</div></div><div><div class="label">입국 항공편</div><div class="value">${esc(student.flightNum || student.flightInfo || '-')}</div></div><div><div class="label">입국 예정일</div><div class="value">${esc(student.arrivalDate || '-')} ${esc(student.flightTime || '')}</div></div></div></section>
+        <section class="card"><div class="section-title">수강 및 기숙사 정보</div><div class="info-grid"><div><div class="label">수강 과정</div><div class="value">${esc(student.course || '-')}</div></div><div><div class="label">수강 기간</div><div class="value" style="color:#4F46E5">${weeks}주</div></div><div><div class="label">수강 일정</div><div class="value">${esc(student.startDate || '-')} ~ ${esc(courseEnd)}</div></div><div><div class="label">추천 레벨</div><div class="value">${esc(student.level || '-')}</div></div><div style="grid-column:span 2"><div class="label">기숙사</div><div class="value" style="color:${walkIn ? '#D97706' : '#047857'}">${walkIn ? 'Walk-in' : esc(student.dorm || '미배정')}</div></div></div></section>
+      </div>
+
+      <section class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:end;margin-bottom:13px"><div><div class="section-title" style="margin:0">금액 정보</div><div class="muted" style="margin-top:4px">등록금·수강료·기숙사비·기타 비용을 구분하여 표시합니다.</div></div><div style="font-size:13px;font-weight:800">총 청구액 <span style="font-size:21px;color:#4F46E5;margin-left:8px">$${total.toLocaleString()}</span></div></div><div class="fees">${billingItems.map(item => { const color = feeColors[item.key] || ['#F8FAFC','#334155']; return `<div class="fee" style="background:${color[0]};border-color:${color[1]}22"><div class="fee-name" style="color:${color[1]}">${esc(item.label)}</div><div class="fee-amount" style="color:${color[1]}">$${item.amount.toLocaleString()}</div><div class="muted" style="margin-top:5px">${item.status === 'paid' ? '완납' : '미납'}</div></div>`; }).join('')}</div></section>
+
+      <section class="card" style="margin-top:14px"><div class="section-title">상담 노트 등록</div><div class="grid2"><div><div class="label">상담자</div><input id="student-consult-counselor" class="input" value="${esc(getStudentPopupCounselorName())}"></div><div><div class="label">상담 일시</div><input id="student-consult-datetime" type="datetime-local" class="input" value="${now}"></div></div><div style="margin-top:10px"><div class="label">상담 내용</div><textarea id="student-consult-content" class="input" rows="4" placeholder="상담 내용과 후속 조치 사항을 기록해줘."></textarea></div><div style="text-align:right;margin-top:10px"><button class="btn btn-primary" onclick="window.opener.addStudentConsultationNote(${student.id},window)">상담 노트 저장</button></div></section>
+
+      <section class="card" style="margin:14px 0 30px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="section-title" style="margin:0">상담 히스토리</div><span class="badge">${notes.length}건</span></div><div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">${notes.length ? notes.map(note => `<article class="note"><div style="display:flex;justify-content:space-between;gap:12px"><strong style="font-size:12px">${esc(note.counselor)}</strong><span class="muted">${esc(String(note.consultedAt || '').replace('T',' '))}</span></div><div style="font-size:12.5px;line-height:1.65;margin-top:7px;white-space:pre-wrap">${esc(note.content)}</div></article>`).join('') : '<div style="padding:24px;text-align:center;border:1px dashed #D1D5DB;border-radius:10px;color:#9CA3AF;font-size:12px">등록된 상담 기록이 없습니다.</div>'}</div></section>
+    </main>
+  </body></html>`);
+  popup.document.close();
 }
 
 function switchStudentTab(tab, el) {

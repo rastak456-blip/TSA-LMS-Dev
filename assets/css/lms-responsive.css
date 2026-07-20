@@ -1,0 +1,452 @@
+/* TalkStation Academy LMS responsive layout */
+
+.tsa-mobile-menu-btn,
+.tsa-sidebar-close,
+.tsa-sidebar-overlay {
+  display: none;
+}
+
+.tsa-header-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tsa-branch-switcher-wrap,
+.tsa-live-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tsa-main,
+.tsa-main-content,
+.tsa-view,
+.tsa-card,
+.tsa-card-body,
+.tsa-modal-body {
+  min-width: 0;
+}
+
+.tsa-table-scroll,
+.tsa-tabs,
+.tsa-main-content [style*="overflow-x:auto"],
+.tsa-main-content [style*="overflow-x: auto"] {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 1100px) {
+  body.tsa-sidebar-open {
+    overflow: hidden;
+  }
+
+  .tsa-sidebar {
+    width: min(320px, 86vw) !important;
+    z-index: 310 !important;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: 12px 0 34px rgba(15, 23, 42, 0.18);
+  }
+
+  body.tsa-sidebar-open .tsa-sidebar {
+    transform: translateX(0);
+  }
+
+  .tsa-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    padding: 0;
+    border: 0;
+    background: rgba(15, 23, 42, 0.48);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  body.tsa-sidebar-open .tsa-sidebar-overlay {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .tsa-sidebar-logo {
+    padding-right: 14px !important;
+  }
+
+  .tsa-sidebar-close,
+  .tsa-mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border: 1px solid #E5E7EB;
+    border-radius: 9px;
+    background: #fff;
+    color: #4B5563;
+  }
+
+  .tsa-sidebar-close {
+    margin-left: auto;
+    background: #F8FAFC;
+  }
+
+  .tsa-main {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .tsa-header {
+    padding: 0 18px !important;
+  }
+
+  .tsa-main-content {
+    padding: 20px !important;
+  }
+
+  .tsa-stat-grid,
+  .tsa-view [style*="grid-template-columns:repeat(5"],
+  .tsa-view [style*="grid-template-columns: repeat(5"],
+  .tsa-view [style*="grid-template-columns:repeat(4"],
+  .tsa-view [style*="grid-template-columns: repeat(4"],
+  .tsa-view [style*="grid-template-columns:repeat(3"],
+  .tsa-view [style*="grid-template-columns: repeat(3"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .tsa-view [style*="grid-template-columns:1fr 1.5fr"],
+  .tsa-view [style*="grid-template-columns:1.5fr 1fr"],
+  .tsa-view [style*="grid-template-columns:1fr 1.2fr"],
+  .tsa-view [style*="grid-template-columns:1.2fr 1fr"],
+  .tsa-view [style*="grid-template-columns:2.5fr 1fr"],
+  .tsa-view [style*="grid-template-columns:1.15fr 0.85fr"],
+  .tsa-modal-body [style*="grid-template-columns:minmax(0,1fr) 320px"],
+  .tsa-modal-body [style*="grid-template-columns:minmax(0, 1fr) 320px"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tsa-modal-body [style*="position:sticky"] {
+    position: static !important;
+  }
+
+  .tsa-table,
+  .tsa-tt-grid,
+  .tsa-wk-grid {
+    min-width: 760px;
+  }
+
+  .tsa-card:has(.tsa-table),
+  .tsa-card-body:has(.tsa-table),
+  .tsa-card:has(.tsa-tt-grid),
+  .tsa-card-body:has(.tsa-tt-grid),
+  .tsa-card:has(.tsa-wk-grid),
+  .tsa-card-body:has(.tsa-wk-grid) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #admin-calendar-grid,
+  #agency-calendar-grid,
+  #pickup-calendar-grid {
+    min-width: 760px;
+  }
+
+  .tsa-card-body:has(#admin-calendar-grid),
+  .tsa-card-body:has(#agency-calendar-grid),
+  .tsa-card-body:has(#pickup-calendar-grid) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tsa-modal-backdrop {
+    padding: 12px !important;
+  }
+
+  .tsa-modal,
+  .tsa-modal-sm,
+  .tsa-modal-md,
+  .tsa-modal-lg,
+  .tsa-modal-xl {
+    width: 100% !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --tsa-header-h: 58px;
+  }
+
+  body {
+    font-size: 13px;
+  }
+
+  .tsa-header {
+    min-height: var(--tsa-header-h);
+    height: auto !important;
+    padding: 8px 12px !important;
+    gap: 10px;
+  }
+
+  .tsa-header-leading {
+    gap: 8px;
+    flex: 1;
+  }
+
+  .tsa-breadcrumb {
+    min-width: 0;
+  }
+
+  .tsa-breadcrumb > * {
+    display: none !important;
+  }
+
+  .tsa-breadcrumb > .current {
+    display: block !important;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tsa-header-actions {
+    gap: 7px !important;
+  }
+
+  .tsa-branch-switcher-wrap > span,
+  .tsa-live-status,
+  #role-badge {
+    display: none !important;
+  }
+
+  .tsa-branch-select {
+    width: 142px;
+    max-width: 38vw;
+    font-size: 11px !important;
+    padding-left: 8px !important;
+    padding-right: 24px !important;
+  }
+
+  .tsa-main-content,
+  body.student-popup-mode .tsa-main-content {
+    padding: 14px !important;
+  }
+
+  .tsa-page-header {
+    margin-bottom: 16px !important;
+  }
+
+  .tsa-page-title {
+    font-size: 19px !important;
+  }
+
+  .tsa-page-subtitle {
+    font-size: 12px !important;
+  }
+
+  .tsa-card {
+    border-radius: 11px;
+  }
+
+  .tsa-card-header {
+    padding: 14px 15px !important;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tsa-card-body {
+    padding: 15px !important;
+  }
+
+  .tsa-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap !important;
+    margin-bottom: 14px;
+  }
+
+  .tsa-tab {
+    padding: 9px 13px;
+    flex: 0 0 auto;
+  }
+
+  .tsa-btn {
+    min-height: 40px;
+    padding: 9px 13px;
+  }
+
+  .tsa-btn-sm {
+    min-height: 34px;
+    padding: 6px 9px;
+  }
+
+  .tsa-input {
+    min-height: 42px;
+  }
+
+  .tsa-modal-backdrop {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .tsa-modal,
+  .tsa-modal-sm,
+  .tsa-modal-md,
+  .tsa-modal-lg,
+  .tsa-modal-xl {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+  }
+
+  .tsa-modal-header {
+    padding: 16px !important;
+    flex: 0 0 auto;
+  }
+
+  .tsa-modal-body {
+    padding: 16px !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  .tsa-modal-footer {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 3;
+    background: #fff;
+  }
+
+  .tsa-modal-footer .tsa-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .tsa-modal-body [style*="grid-template-columns:repeat(4"],
+  .tsa-modal-body [style*="grid-template-columns: repeat(4"],
+  .tsa-modal-body [style*="grid-template-columns:repeat(3"],
+  .tsa-modal-body [style*="grid-template-columns: repeat(3"],
+  .tsa-modal-body [style*="grid-template-columns:1fr 1.5fr"],
+  .tsa-modal-body [style*="grid-template-columns:1.5fr 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:1fr 1.2fr"],
+  .tsa-modal-body [style*="grid-template-columns:1.2fr 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:1.15fr 0.85fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tsa-login-screen {
+    padding: 12px !important;
+  }
+
+  .tsa-login-card {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+  .tsa-login-hero {
+    padding: 24px 20px 20px !important;
+  }
+
+  .tsa-login-body {
+    padding: 22px 20px 24px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tsa-stat-grid,
+  .tsa-view [style*="grid-template-columns:repeat(5"],
+  .tsa-view [style*="grid-template-columns: repeat(5"],
+  .tsa-view [style*="grid-template-columns:repeat(4"],
+  .tsa-view [style*="grid-template-columns: repeat(4"],
+  .tsa-view [style*="grid-template-columns:repeat(3"],
+  .tsa-view [style*="grid-template-columns: repeat(3"],
+  .tsa-view [style*="grid-template-columns:repeat(2"],
+  .tsa-view [style*="grid-template-columns: repeat(2"],
+  .tsa-view [style*="grid-template-columns:1fr 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:repeat(2"],
+  .tsa-modal-body [style*="grid-template-columns: repeat(2"],
+  .tsa-modal-body [style*="grid-template-columns:1fr 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:minmax(220px,360px) 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:minmax(220px, 360px) 1fr"],
+  .tsa-modal-body [style*="grid-template-columns:150px 1fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .tsa-stat-card {
+    padding: 16px;
+  }
+
+  .tsa-stat-value {
+    font-size: 23px;
+  }
+
+  .tsa-sidebar-nav {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .tsa-modal-title {
+    font-size: 15px;
+  }
+
+  .tsa-modal-subtitle {
+    font-size: 11px;
+  }
+
+  .tsa-modal-footer {
+    gap: 8px;
+  }
+
+  #course-reg-course-compare-table,
+  #course-reg-dorm-compare-table {
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .tsa-branch-select {
+    width: 116px;
+    max-width: 34vw;
+  }
+
+  .tsa-breadcrumb > .current {
+    max-width: 112px;
+  }
+
+  .tsa-main-content,
+  body.student-popup-mode .tsa-main-content {
+    padding: 10px !important;
+  }
+
+  .tsa-card-header,
+  .tsa-card-body {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tsa-sidebar,
+  .tsa-sidebar-overlay,
+  .tsa-modal,
+  .tsa-view {
+    animation: none !important;
+    transition: none !important;
+  }
+}
