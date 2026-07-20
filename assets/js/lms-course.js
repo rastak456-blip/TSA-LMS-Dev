@@ -1015,11 +1015,6 @@ function initAgencyStudentList() {
           <div style="font-weight:700;color:#374151">${s.course}</div>
           <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || '-'}${courseWeeks ? ` <span style="color:#9CA3AF">(${courseWeeks}주)</span>` : ''}</div>
         </td>
-        <td style="font-size:11px;white-space:nowrap;min-width:112px">
-          <select class="tsa-input" aria-label="${s.name} 송금 경로" style="height:32px;min-width:100px;padding:4px 28px 4px 9px;background:#fff;font-size:11px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
-            ${renderRemittanceRouteOptions(remittanceRoute)}
-          </select>
-        </td>
         <td class="col-dorm" style="font-size:11.5px;line-height:1.55">${(() => {
           const req = MOCK_DORM_BOOK_REQUESTS.find(r => r.studentId === s.id || r.studentName === s.name || r.studentName === s.nick);
           const dormIn = s.dormIn || s.startDate || '';
@@ -1034,14 +1029,21 @@ function initAgencyStudentList() {
           }
           return `<div style="color:#D1D5DB">-</div>${periodHtml}`;
         })()}</td>
+        <td style="font-size:10.5px;white-space:nowrap">
+          <select class="tsa-input" aria-label="${s.name} 송금 경로" style="width:100%;height:30px;padding:3px 22px 3px 6px;background:#fff;font-size:10.5px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
+            ${renderRemittanceRouteOptions(remittanceRoute)}
+          </select>
+        </td>
         <td>${renderAgencyBillingCompactCell(billingMap.registration)}</td>
         <td>${renderAgencyBillingCompactCell(billingMap.education)}</td>
         <td>${renderAgencyBillingCompactCell(billingMap.dorm)}</td>
         <td>${renderAgencyBillingCompactCell(billingMap.local)}</td>
-        <td style="min-width:160px;padding:8px 12px">
-          <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;color:#6B7280"><span>어학원 송금</span><strong style="color:#059669">$${billingBreakdown.net.toLocaleString()}</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;font-size:10.5px;color:#6B7280;margin-top:4px"><span>커미션</span><strong style="color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #E5E7EB;margin-top:5px;padding-top:5px;font-size:11px"><span style="font-weight:700;color:#374151">합산 청구액</span><strong style="font-size:12px;color:#111827">$${billingBreakdown.gross.toLocaleString()}</strong></div>
+        <td style="padding:6px 4px">
+          <div style="display:grid;grid-template-columns:auto auto;justify-content:center;column-gap:6px;row-gap:3px;font-size:9px;line-height:1.25;white-space:nowrap">
+            <span style="color:#6B7280">어학원 송금</span><strong style="text-align:right;color:#059669">$${billingBreakdown.net.toLocaleString()}</strong>
+            <span style="color:#6B7280">커미션</span><strong style="text-align:right;color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</strong>
+            <span style="font-weight:700;color:#374151;border-top:1px solid #E5E7EB;padding-top:3px">총 청구 금액</span><strong style="text-align:right;font-size:10.5px;color:#111827;border-top:1px solid #E5E7EB;padding-top:3px">$${billingBreakdown.gross.toLocaleString()}</strong>
+          </div>
         </td>
         <td class="col-flight" style="font-size:11px;line-height:1.8">
           <div><span style="color:#6B7280;font-size:10px">입국</span> ${fmtFlightStr(s.flightInfo) || '-'}</div>
@@ -3258,10 +3260,10 @@ function renderAgencyStudentEnrollmentHub() {
       <div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
-          ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
+          ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="consultation" onclick="switchAgencyEnrollmentHubTab('consultation')">학생 활동 히스토리</button>
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
@@ -3316,6 +3318,444 @@ function getSelectedStudentEnrollment(s) {
 function selectAgencyStudentEnrollment(enrollmentId) {
   currentAdetailEnrollmentId = String(enrollmentId);
   renderAgencyStudentEnrollmentHub();
+}
+
+// 과정 자체에 설정된 추천 레벨(복수 가능)을 우선 사용하고, 과정을 못 찾을 때만 학생 개인의 단일 level 값으로 폴백
+function getFallbackRecommendedLevels(courseName, fallbackLevel) {
+  const course = (typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : []).find(c => c.name === courseName);
+  const courseLevels = course && typeof getCourseRegRecommendedLevels === 'function'
+    ? getCourseRegRecommendedLevels(course).map(level => level.name)
+    : [];
+  if (courseLevels.length) return courseLevels;
+  return fallbackLevel && fallbackLevel !== '-' ? [fallbackLevel] : [];
+}
+
+// 현재 선택된 수강 구간(enrollment)에 대응하는, 실제로 수정 가능한 원본 segments 배열을 찾는다.
+// currentAdetailEnrollmentId === 'current'면 학생의 진행중 등록(courseSegments), 아니면 과거 enrollments 항목의 segments.
+function getEditableSegmentsArray(baseStudent) {
+  if (currentAdetailEnrollmentId === 'current' || !Array.isArray(baseStudent.enrollments)) {
+    if (!Array.isArray(baseStudent.courseSegments) || !baseStudent.courseSegments.length) {
+      baseStudent.courseSegments = [{
+        course: baseStudent.course || '코스 미등록',
+        duration: Number(baseStudent.duration || 0),
+        startDate: baseStudent.startDate || '',
+        endDate: baseStudent.endDate || '',
+        recommendedLevels: getFallbackRecommendedLevels(baseStudent.course, baseStudent.level),
+        tuitionAmount: Number(baseStudent.tuitionAmount || 0),
+      }];
+    }
+    return baseStudent.courseSegments;
+  }
+  const enrollment = baseStudent.enrollments.find(e => String(e.id) === String(currentAdetailEnrollmentId));
+  if (!enrollment) {
+    if (!Array.isArray(baseStudent.courseSegments) || !baseStudent.courseSegments.length) {
+      baseStudent.courseSegments = [{
+        course: baseStudent.course || '코스 미등록',
+        duration: Number(baseStudent.duration || 0),
+        startDate: baseStudent.startDate || '',
+        endDate: baseStudent.endDate || '',
+        recommendedLevels: getFallbackRecommendedLevels(baseStudent.course, baseStudent.level),
+        tuitionAmount: Number(baseStudent.tuitionAmount || 0),
+      }];
+    }
+    return baseStudent.courseSegments;
+  }
+  if (!Array.isArray(enrollment.segments) || !enrollment.segments.length) {
+    enrollment.segments = [{
+      course: enrollment.course || '코스 미등록',
+      duration: Number(enrollment.duration || 0),
+      startDate: enrollment.startDate || '',
+      endDate: enrollment.endDate || '',
+      recommendedLevels: [],
+      tuitionAmount: 0,
+    }];
+  }
+  return enrollment.segments;
+}
+
+// 현재 진행중 등록(courseSegments)을 수정/삭제한 뒤, 학생 최상위 필드(course/startDate/endDate/duration)를 세그먼트 합계로 재동기화
+function syncStudentTopLevelFromSegments(baseStudent) {
+  if (currentAdetailEnrollmentId !== 'current') return;
+  const segments = baseStudent.courseSegments;
+  if (!Array.isArray(segments) || !segments.length) return;
+  baseStudent.course = segments.map(seg => seg.course).join(' → ');
+  baseStudent.startDate = segments[0].startDate;
+  baseStudent.endDate = segments[segments.length - 1].endDate;
+  baseStudent.duration = segments.reduce((sum, seg) => sum + Number(seg.duration || 0), 0);
+}
+
+function refreshCourseSegmentTab() {
+  if (document.getElementById('adetail-page-enrollment-content') && typeof switchAgencyEnrollmentHubTab === 'function') {
+    switchAgencyEnrollmentHubTab('class');
+  } else if (typeof switchAdetailTab === 'function') {
+    switchAdetailTab('class');
+  }
+}
+
+function refreshDormRequestTab() {
+  if (document.getElementById('adetail-page-enrollment-content') && typeof switchAgencyEnrollmentHubTab === 'function') {
+    switchAgencyEnrollmentHubTab('dorm');
+  } else if (typeof switchAdetailTab === 'function') {
+    switchAdetailTab('dorm');
+  }
+}
+
+function openCourseSegmentEditModal(studentId, index) {
+  const baseStudent = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!baseStudent) return;
+  const segments = getEditableSegmentsArray(baseStudent);
+  const segment = segments[index];
+  if (!segment) return;
+
+  APP._segmentEditTarget = { studentId, index };
+
+  const courseEl = document.getElementById('seg-edit-course');
+  if (courseEl) courseEl.value = segment.course || '';
+  const startEl = document.getElementById('seg-edit-start');
+  if (startEl) startEl.value = segment.startDate || '';
+  const durationEl = document.getElementById('seg-edit-duration');
+  if (durationEl) durationEl.value = String(segment.duration || 4);
+
+  renderSegmentEditCourseComparison();
+  renderSegmentEditRecommendedLevels();
+  previewCourseSegmentEdit();
+  document.getElementById('course-segment-edit-modal').style.display = 'flex';
+  document.getElementById('course-segment-edit-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
+}
+
+function closeCourseSegmentEditModal() {
+  document.getElementById('course-segment-edit-modal').style.display = 'none';
+  document.getElementById('course-segment-edit-backdrop').style.display = 'none';
+  APP._segmentEditTarget = null;
+}
+
+// 수강 등록 팝업의 "과정별 수강료 비교표"와 동일한 방식(getCourseRegActiveCourses/getCourseRegPeriodFee 재사용) —
+// 다만 등록 모달의 selectCourseRegOption과는 독립적으로, 이 수정 모달의 hidden 필드만 갱신한다.
+function renderSegmentEditCourseComparison() {
+  const target = document.getElementById('seg-edit-compare-table');
+  if (!target) return;
+  const summary = document.getElementById('seg-edit-selection-summary');
+  const rows = typeof getCourseRegActiveCourses === 'function' ? getCourseRegActiveCourses() : [];
+  const selectedCourseName = document.getElementById('seg-edit-course')?.value || '';
+  const selectedWeeks = parseInt(document.getElementById('seg-edit-duration')?.value, 10) || 0;
+  const hasStartDate = Boolean(document.getElementById('seg-edit-start')?.value);
+
+  if (!rows.length) {
+    target.innerHTML = `<div style="padding:18px;text-align:center;color:#9CA3AF;font-size:12px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">현재 등록 가능한 과정이 없습니다.</div>`;
+    return;
+  }
+
+  if (summary) {
+    summary.textContent = !hasStartDate ? '(시작일 먼저 선택)' : selectedCourseName ? `현재 선택: ${selectedCourseName} · ${selectedWeeks}주` : '';
+  }
+
+  target.innerHTML = `
+    <div style="min-width:680px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:150px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+        <div style="padding:8px 10px;font-size:10.5px;font-weight:800;color:#4B5563">과정명</div>
+        ${COURSE_REG_PERIODS.map(weeks => `
+          <div style="padding:8px 5px;text-align:center;font-size:10.5px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
+        `).join('')}
+      </div>
+      ${rows.map(({ course, index }, rowIndex) => `
+        <div style="display:grid;grid-template-columns:150px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+          <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourseName === course.name ? '#F8FAFF' : '#fff'}">
+            <b style="font-size:11px;color:#111827">${course.name}</b>
+          </div>
+          ${COURSE_REG_PERIODS.map(weeks => {
+            const active = hasStartDate && selectedCourseName === course.name && weeks === selectedWeeks;
+            const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
+            return `
+              <button type="button" onclick="selectSegmentEditOption(${index}, ${weeks})" aria-pressed="${active}" ${hasStartDate ? '' : 'disabled'} style="min-height:44px;padding:5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : hasStartDate ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasStartDate ? '#111827' : '#9CA3AF'};cursor:${hasStartDate ? 'pointer' : 'not-allowed'};font-family:inherit">
+                <span style="display:block;font-size:11px;font-weight:900">${formatCourseRegMoney(amount)}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectSegmentEditOption(courseIndex, weeks) {
+  const startVal = document.getElementById('seg-edit-start')?.value || '';
+  if (!startVal) {
+    showToast('시작일을 먼저 선택해줘.', 'warning');
+    return;
+  }
+  const course = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES[courseIndex] : null;
+  if (!course) return;
+  const courseEl = document.getElementById('seg-edit-course');
+  if (courseEl) courseEl.value = course.name;
+  const durationEl = document.getElementById('seg-edit-duration');
+  if (durationEl) durationEl.value = String(weeks);
+  renderSegmentEditCourseComparison();
+  renderSegmentEditRecommendedLevels();
+  previewCourseSegmentEdit();
+}
+
+// 등록 모달의 renderCourseRegRecommendedLevels와 동일한 로직 — 선택된 과정에 설정된 추천 레벨을 뱃지로 보여주기만 함(선택 불가)
+function renderSegmentEditRecommendedLevels() {
+  const target = document.getElementById('seg-edit-recommended-levels');
+  if (!target) return;
+  const courseName = document.getElementById('seg-edit-course')?.value || '';
+  const courses = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : [];
+  const course = courses.find(c => c.name === courseName);
+  const levels = typeof getCourseRegRecommendedLevels === 'function' ? getCourseRegRecommendedLevels(course) : [];
+  target.innerHTML = levels.length
+    ? levels.map(level => `<span class="tsa-badge tsa-badge-gray" style="font-size:11px;padding:5px 8px">${level.name}</span>`).join('')
+    : `<span style="font-size:11.5px;color:#9CA3AF">${courseName ? '추천 레벨이 설정되지 않았습니다.' : '과정을 선택하면 추천 레벨이 표시됩니다.'}</span>`;
+}
+
+function previewCourseSegmentEdit() {
+  const preview = document.getElementById('seg-edit-preview');
+  const endEl = document.getElementById('seg-edit-end');
+  if (!preview) return;
+  const courseName = document.getElementById('seg-edit-course')?.value || '';
+  const startVal = document.getElementById('seg-edit-start')?.value || '';
+  const weeks = parseInt(document.getElementById('seg-edit-duration')?.value, 10) || 4;
+  const courses = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : [];
+  const course = courses.find(c => c.name === courseName);
+  const tuition = course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks) : 0;
+  let endDate = '';
+  if (startVal) {
+    const d = new Date(startVal);
+    d.setDate(d.getDate() + weeks * 7);
+    endDate = d.toISOString().split('T')[0];
+  }
+  if (endEl) endEl.value = endDate;
+  preview.innerHTML = startVal && courseName
+    ? `${courseName} · 종료일 <strong>${endDate}</strong> · 수강료 <strong>${formatCourseRegMoney(tuition)}</strong>`
+    : '시작일과 위 표에서 과정·기간을 선택하면 종료일과 수강료가 자동 계산됩니다.';
+}
+
+function saveCourseSegmentEdit() {
+  const target = APP._segmentEditTarget;
+  if (!target) return;
+  const baseStudent = MOCK_STUDENTS.find(std => std.id === target.studentId);
+  if (!baseStudent) return;
+  const segments = getEditableSegmentsArray(baseStudent);
+  const segment = segments[target.index];
+  if (!segment) return;
+
+  const courseName = document.getElementById('seg-edit-course')?.value || '';
+  const startVal = document.getElementById('seg-edit-start')?.value || '';
+  const weeks = parseInt(document.getElementById('seg-edit-duration')?.value, 10) || 4;
+
+  if (!courseName || !startVal) {
+    showToast('과정과 시작일을 입력해줘.', 'danger');
+    return;
+  }
+
+  const courses = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : [];
+  const course = courses.find(c => c.name === courseName);
+  const start = new Date(startVal);
+  start.setDate(start.getDate() + weeks * 7);
+  const endDate = start.toISOString().split('T')[0];
+  const recommendedLevels = (typeof getCourseRegRecommendedLevels === 'function' ? getCourseRegRecommendedLevels(course) : []).map(level => level.name);
+
+  segment.course = courseName;
+  segment.startDate = startVal;
+  segment.endDate = endDate;
+  segment.duration = weeks;
+  segment.recommendedLevels = recommendedLevels;
+  segment.tuitionAmount = course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks) : segment.tuitionAmount;
+
+  syncStudentTopLevelFromSegments(baseStudent);
+  closeCourseSegmentEditModal();
+  showToast('수강 구간이 수정되었습니다.', 'success');
+  refreshCourseSegmentTab();
+}
+
+function deleteCourseSegment(studentId, index) {
+  const baseStudent = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!baseStudent) return;
+  const segments = getEditableSegmentsArray(baseStudent);
+  if (segments.length <= 1) {
+    showToast('최소 1개의 수강 구간은 남아있어야 합니다.', 'warning');
+    return;
+  }
+  if (!window.confirm('이 수강 구간을 삭제할까요?')) return;
+  segments.splice(index, 1);
+  syncStudentTopLevelFromSegments(baseStudent);
+  showToast('수강 구간이 삭제되었습니다.', 'success');
+  refreshCourseSegmentTab();
+}
+
+function openDormRequestEditModal(studentId) {
+  const student = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!student) return;
+  APP._dormEditTarget = { studentId };
+
+  const accomEl = document.getElementById('dre-accom');
+  if (accomEl) accomEl.value = student.dormAccomType || '';
+  const capEl = document.getElementById('dre-cap');
+  if (capEl) capEl.value = student.dormType ? String(parseInt(student.dormType, 10)) : '';
+  const gradeEl = document.getElementById('dre-grade');
+  if (gradeEl) gradeEl.value = student.dormGrade || '';
+  const weeksEl = document.getElementById('dre-weeks');
+  if (weeksEl) {
+    const presetWeeks = student.dormIn && student.dormOut
+      ? Math.max(1, Math.round((new Date(student.dormOut) - new Date(student.dormIn)) / (7 * 86400000)))
+      : 0;
+    weeksEl.value = presetWeeks ? String(presetWeeks) : '';
+  }
+
+  const inEl = document.getElementById('dre-in');
+  if (inEl) inEl.value = student.dormIn || student.startDate || '';
+
+  renderDormRequestCompareTable();
+  previewDormRequestEdit();
+  document.getElementById('dorm-request-edit-modal').style.display = 'flex';
+  document.getElementById('dorm-request-edit-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
+}
+
+function closeDormRequestEditModal() {
+  document.getElementById('dorm-request-edit-modal').style.display = 'none';
+  document.getElementById('dorm-request-edit-backdrop').style.display = 'none';
+  APP._dormEditTarget = null;
+}
+
+function getDreSelectedTemplate() {
+  const accom = document.getElementById('dre-accom')?.value || '';
+  const cap = parseInt(document.getElementById('dre-cap')?.value, 10);
+  const grade = document.getElementById('dre-grade')?.value || '';
+  return MOCK_DORM_TEMPLATES.find(t => t.accomType === accom && t.capacity === cap && t.condition === grade) || null;
+}
+
+// 수강 구간 수정 모달의 과정별 비교표와 동일한 패턴 — 숙소 마스터 템플릿(MOCK_DORM_TEMPLATES) × 기간(COURSE_REG_PERIODS)으로 비용 비교
+function renderDormRequestCompareTable() {
+  const target = document.getElementById('dre-compare-table');
+  if (!target) return;
+  const summary = document.getElementById('dre-selection-summary');
+  const rows = (typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : []).filter(t => t.active !== false);
+  const selectedAccom = document.getElementById('dre-accom')?.value || '';
+  const selectedCap = parseInt(document.getElementById('dre-cap')?.value, 10) || 0;
+  const selectedGrade = document.getElementById('dre-grade')?.value || '';
+  const selectedWeeks = parseInt(document.getElementById('dre-weeks')?.value, 10) || 0;
+  const hasStartDate = Boolean(document.getElementById('dre-in')?.value);
+
+  if (!rows.length) {
+    target.innerHTML = `<div style="padding:18px;text-align:center;color:#9CA3AF;font-size:12px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">등록된 숙소 유형이 없습니다.</div>`;
+    return;
+  }
+
+  if (summary) {
+    summary.textContent = !hasStartDate ? '(입실일 먼저 선택)' : selectedAccom ? `현재 선택: ${selectedAccom} · ${selectedCap}인실 · ${selectedGrade} · ${selectedWeeks}주` : '';
+  }
+
+  target.innerHTML = `
+    <div style="min-width:680px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:190px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+        <div style="padding:8px 10px;font-size:10.5px;font-weight:800;color:#4B5563">숙소</div>
+        ${COURSE_REG_PERIODS.map(weeks => `
+          <div style="padding:8px 5px;text-align:center;font-size:10.5px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
+        `).join('')}
+      </div>
+      ${rows.map((template, rowIndex) => {
+        const isSelectedRow = selectedAccom === template.accomType && selectedCap === template.capacity && selectedGrade === template.condition;
+        return `
+        <div style="display:grid;grid-template-columns:190px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+          <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${isSelectedRow ? '#F8FAFF' : '#fff'}">
+            <b style="font-size:11px;color:#111827">${template.accomType}</b>
+            <span style="font-size:9.5px;color:#9CA3AF;margin-top:2px">${template.capacity}인실 · ${template.condition}</span>
+          </div>
+          ${COURSE_REG_PERIODS.map(weeks => {
+            const active = hasStartDate && isSelectedRow && weeks === selectedWeeks;
+            const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
+            return `
+              <button type="button" onclick="selectDormRequestOption(${rowIndex}, ${weeks})" aria-pressed="${active}" ${hasStartDate ? '' : 'disabled'} style="min-height:44px;padding:5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : hasStartDate ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasStartDate ? '#111827' : '#9CA3AF'};cursor:${hasStartDate ? 'pointer' : 'not-allowed'};font-family:inherit">
+                <span style="display:block;font-size:11px;font-weight:900">${formatCourseRegMoney(amount)}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function selectDormRequestOption(templateIndex, weeks) {
+  const inVal = document.getElementById('dre-in')?.value || '';
+  if (!inVal) {
+    showToast('입실 희망일을 먼저 선택해줘.', 'warning');
+    return;
+  }
+  const rows = (typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : []).filter(t => t.active !== false);
+  const template = rows[templateIndex];
+  if (!template) return;
+
+  const accomEl = document.getElementById('dre-accom');
+  if (accomEl) accomEl.value = template.accomType;
+  const capEl = document.getElementById('dre-cap');
+  if (capEl) capEl.value = String(template.capacity);
+  const gradeEl = document.getElementById('dre-grade');
+  if (gradeEl) gradeEl.value = template.condition;
+  const weeksEl = document.getElementById('dre-weeks');
+  if (weeksEl) weeksEl.value = String(weeks);
+
+  renderDormRequestCompareTable();
+  previewDormRequestEdit();
+}
+
+function previewDormRequestEdit() {
+  const preview = document.getElementById('dre-preview');
+  const outEl = document.getElementById('dre-out');
+  if (!preview) return;
+  const template = getDreSelectedTemplate();
+  const inVal = document.getElementById('dre-in')?.value || '';
+  const weeks = parseInt(document.getElementById('dre-weeks')?.value, 10) || 0;
+
+  let outVal = '';
+  if (inVal && weeks) {
+    const d = new Date(inVal);
+    d.setDate(d.getDate() + weeks * 7);
+    outVal = d.toISOString().split('T')[0];
+  }
+  if (outEl) outEl.value = outVal;
+
+  if (!template || !inVal || !weeks) {
+    preview.innerHTML = '입실일과 위 표에서 숙소·기간을 선택하면 퇴실일과 예상 비용이 자동 계산됩니다.';
+    return;
+  }
+  const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
+  preview.innerHTML = `${template.accomType} · ${template.capacity}인실 · ${template.condition} · 퇴실일 <strong>${outVal}</strong> · 예상 비용 <strong>${formatCourseRegMoney(amount)}</strong>`;
+}
+
+function saveDormRequestEdit() {
+  const target = APP._dormEditTarget;
+  if (!target) return;
+  const student = MOCK_STUDENTS.find(std => std.id === target.studentId);
+  if (!student) return;
+
+  const accom = document.getElementById('dre-accom')?.value || '';
+  const cap = document.getElementById('dre-cap')?.value || '';
+  const grade = document.getElementById('dre-grade')?.value || '';
+  const inVal = document.getElementById('dre-in')?.value || '';
+  const outVal = document.getElementById('dre-out')?.value || '';
+
+  if (!accom || !cap || !grade || !inVal || !outVal) {
+    showToast('입실일과 위 표에서 숙소·기간을 선택해줘.', 'danger');
+    return;
+  }
+
+  student.dormAccomType = accom;
+  student.dormType = parseInt(cap, 10);
+  student.dormGrade = grade;
+  student.dormIn = inVal;
+  student.dormOut = outVal;
+
+  const template = getDreSelectedTemplate();
+  if (template) {
+    const weeks = parseInt(document.getElementById('dre-weeks')?.value, 10) || Math.max(1, Math.round((new Date(outVal) - new Date(inVal)) / (7 * 86400000)));
+    student.dormAmount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
+  }
+
+  closeDormRequestEditModal();
+  showToast('기숙사 신청 정보가 수정되었습니다.', 'success');
+  refreshDormRequestTab();
 }
 
 function getEnrollmentStatusLabel(status) {
@@ -3926,7 +4366,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           duration: Number(s.duration || 0),
           startDate: s.startDate || '',
           endDate: s.endDate || '',
-          recommendedLevels: s.level && s.level !== '-' ? [s.level] : [],
+          recommendedLevels: getFallbackRecommendedLevels(s.course, s.level),
           tuitionAmount: Number(s.tuitionAmount || 0),
         }];
     const totalWeeks = courseSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
@@ -3966,7 +4406,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           <div style="display:flex;flex-direction:column;gap:8px">
             ${courseSegments.map((segment, index) => `
-              <div style="display:grid;grid-template-columns:32px minmax(0,1fr) 90px 120px;gap:10px;align-items:center;padding:10px 12px;border-top:${index ? '1px solid #EEF0F4' : '0'}">
+              <div style="display:grid;grid-template-columns:32px minmax(0,1fr) 90px 120px 110px;gap:10px;align-items:center;padding:10px 12px;border-top:${index ? '1px solid #EEF0F4' : '0'}">
                 <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
                 <div>
                   <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course || '-'}</div>
@@ -3974,6 +4414,10 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                 </div>
                 <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration || 0}주</div>
                 <div style="text-align:right;font-size:12px;font-weight:900;color:#111827">${segment.tuitionAmount ? formatCourseRegMoney(segment.tuitionAmount) : '-'}</div>
+                <div style="display:flex;gap:5px;justify-content:flex-end">
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openCourseSegmentEditModal(${baseStudent.id}, ${index})">수정</button>
+                  ${courseSegments.length > 1 ? `<button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444;border-color:#FCA5A5" onclick="deleteCourseSegment(${baseStudent.id}, ${index})">삭제</button>` : ''}
+                </div>
               </div>
             `).join('')}
           </div>
@@ -4375,54 +4819,23 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <strong style="color:#D97706">Walk-in</strong><br/><span style="font-size:10.5px">이 수강 등록 건에는 기숙사 이용이 포함되지 않았습니다.</span>
           </div>
         ` : `
-        <div style="padding:14px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:#374151">기숙사 신청 정보</div><span class="tsa-badge" style="background:#EEF2FF;color:#4F46E5">희망 조건</span></div>
-          ${isLocked ? `
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
-            <div style="padding:10px 12px;background:#F8FAFC;border-radius:8px"><div style="font-size:9.5px;color:#9CA3AF">숙소 유형</div><div style="font-size:12px;font-weight:800;color:#374151;margin-top:4px">${s.dormAccomType || '미선택'}</div></div>
-            <div style="padding:10px 12px;background:#F8FAFC;border-radius:8px"><div style="font-size:9.5px;color:#9CA3AF">인실 기준</div><div style="font-size:12px;font-weight:800;color:#374151;margin-top:4px">${s.dormType || '미선택'}</div></div>
-            <div style="padding:10px 12px;background:#F8FAFC;border-radius:8px"><div style="font-size:9.5px;color:#9CA3AF">등급</div><div style="font-size:12px;font-weight:800;color:#374151;margin-top:4px">${s.dormGrade || '미선택'}</div></div>
+        <div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:800;color:#111827">기숙사 신청 정보</div>
+            <span class="tsa-badge" style="background:#EEF2FF;color:#4F46E5">희망 조건</span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="padding:10px 12px;background:#F8FAFC;border-radius:8px"><div style="font-size:9.5px;color:#9CA3AF">입실 희망일</div><div style="font-size:12px;font-weight:700;color:#374151;margin-top:4px">${fmtDate(s.dormIn || s.startDate) || '-'}</div></div>
-            <div style="padding:10px 12px;background:#F8FAFC;border-radius:8px"><div style="font-size:9.5px;color:#9CA3AF">퇴실 희망일</div><div style="font-size:12px;font-weight:700;color:#374151;margin-top:4px">${fmtDate(s.dormOut || s.departureDate) || '-'}</div></div>
-          </div>
-          <div style="font-size:10px;color:#9CA3AF;margin-top:9px">※ 신청 정보이며 실제 호실·침대 배정 정보와 다를 수 있습니다.</div>
-          ` : `
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">숙소 유형</label>
-              <select id="ad-dorm-accom" class="tsa-input" ${lockAttr} onchange="onDormAccomChange(this.value)">
-                <option value="">— 선택 —</option>
-                ${[...new Set(MOCK_DORM_TEMPLATES.map(t=>t.accomType))].map(v=>`<option value="${v}" ${s.dormAccomType===v?'selected':''}>${v}</option>`).join('')}
-              </select>
+          <div style="display:grid;grid-template-columns:32px minmax(0,1fr) 150px 110px;gap:10px;align-items:center;padding:10px 12px">
+            <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">1</div>
+            <div>
+              <div style="font-size:12.5px;font-weight:800;color:#111827">${s.dormAccomType || '미선택'} · ${s.dormType ? `${s.dormType}${String(s.dormType).includes('인실') ? '' : '인실'}` : '미선택'}${s.dormGrade ? ` · ${s.dormGrade}` : ''}</div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:3px">입실 ${fmtDate(s.dormIn || s.startDate) || '-'} ~ 퇴실 ${fmtDate(s.dormOut || s.departureDate) || '-'}</div>
             </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">인실 기준</label>
-              <select id="ad-dorm-cap" class="tsa-input" ${lockAttr} onchange="onDormCapChange(this.value)">
-                <option value="">— 유형 먼저 —</option>
-                ${s.dormAccomType ? [...new Set(MOCK_DORM_TEMPLATES.filter(t=>t.accomType===s.dormAccomType).map(t=>t.capacity+'인실'))].map(v=>`<option value="${v}" ${parseInt(s.dormType, 10)===parseInt(v, 10)?'selected':''}>${v}</option>`).join('') : ''}
-              </select>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">등급</label>
-              <select id="ad-dorm-grade" class="tsa-input" ${lockAttr}>
-                <option value="">— 인실 먼저 —</option>
-                ${s.dormAccomType && s.dormType ? [...new Set(MOCK_DORM_TEMPLATES.filter(t=>t.accomType===s.dormAccomType&&t.capacity===parseInt(s.dormType)).map(t=>t.condition))].map(v=>`<option value="${v}" ${s.dormGrade===v?'selected':''}>${v}</option>`).join('') : ''}
-              </select>
+            <div style="text-align:right;font-size:12px;font-weight:900;color:#111827">${s.dormAmount ? formatCourseRegMoney(s.dormAmount) : '금액 확인 중'}</div>
+            <div style="display:flex;justify-content:flex-end">
+              ${isLocked ? '' : `<button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openDormRequestEditModal(${s.id})">수정</button>`}
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="tsa-form-group">
-              <label class="tsa-label">입실 희망일</label>
-              <input id="ad-dorm-in" type="date" class="tsa-input" value="${s.dormIn || s.startDate || ''}" ${lockAttr}/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">퇴실 희망일</label>
-              <input id="ad-dorm-out" type="date" class="tsa-input" value="${s.dormOut || s.departureDate || ''}" ${lockAttr}/>
-            </div>
-          </div>
-          `}
+          ${isLocked ? `<div style="font-size:10px;color:#9CA3AF;padding:0 12px 4px">※ 신청 정보이며 실제 호실·침대 배정 정보와 다를 수 있습니다.</div>` : ''}
         </div>
         <div>
           <div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:0.04em;margin-bottom:8px">실제 배정 숙소</div>
@@ -6215,15 +6628,15 @@ function renderAgencyBillingCompactCell(item) {
     ? (item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`)
     : '커미션 없음';
   return `
-    <div style="min-width:96px;text-align:right;line-height:1.35">
-      <div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;white-space:nowrap">
-        <strong style="font-size:12px;color:#111827">$${amount.toLocaleString()}</strong>
+    <div style="width:100%;text-align:center;line-height:1.2">
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap">
+        <strong style="font-size:11.5px;color:#111827">$${amount.toLocaleString()}</strong>
         ${renderAgencyPaidBadge(item.paymentStatus)}
       </div>
-      <div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;white-space:nowrap;margin-top:3px">
-        <span style="font-size:10.5px;font-weight:800;color:${commission > 0 ? '#4F46E5' : '#9CA3AF'}">${commissionText}</span>
-        <span style="font-size:10px;color:#9CA3AF">${commissionMeta}</span>
-        ${commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : ''}
+      <div style="border-top:1px solid #E5E7EB;margin-top:4px;padding-top:4px;display:flex;justify-content:center;align-items:center;gap:3px;white-space:nowrap">
+          <span style="font-size:10.5px;font-weight:800;color:${commission > 0 ? '#4F46E5' : '#9CA3AF'}">${commissionText}</span>
+          <span style="font-size:9px;color:#9CA3AF">${commissionMeta}</span>
+          ${commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : ''}
       </div>
     </div>
   `;
@@ -6298,21 +6711,7 @@ function renderAgencyPaymentSummary(s, breakdown) {
     .filter(r => r.status === 'pending')
     .reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const balance = Math.max(Number(breakdown.net || 0) - approvedPaid, 0);
-  const cards = [
-    { label: '청구 금액 합계', value: breakdown.gross, color: '#111827', bg: '#F8FAFC' },
-    { label: '커미션 합계', value: breakdown.commission, color: '#4F46E5', bg: '#EEF2FF' },
-    { label: '어학원 송금액 합계', value: breakdown.net, color: '#0F766E', bg: '#F0FDFA' },
-    { label: '납부 완료액', value: approvedPaid, color: '#059669', bg: '#ECFDF5' },
-  ];
   return `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
-      ${cards.map(card => `
-        <div style="background:${card.bg};border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px">
-          <div style="font-size:10.5px;color:#6B7280;font-weight:800">${card.label}</div>
-          <div style="font-size:16px;font-weight:900;color:${card.color};margin-top:4px">${card.value < 0 ? '-' : ''}$${Math.abs(card.value).toLocaleString()}</div>
-        </div>
-      `).join('')}
-    </div>
     <div style="font-size:11px;color:${balance > 0 ? '#DC2626' : '#059669'};background:${balance > 0 ? '#FEF2F2' : '#ECFDF5'};border:1px solid ${balance > 0 ? '#FECACA' : '#BBF7D0'};border-radius:8px;padding:8px 10px;margin-bottom:10px">
       현재 납부 상태: ${balance > 0 ? '미납' : '완납'} · 남은 어학원 송금액 $${balance.toLocaleString()}
     </div>

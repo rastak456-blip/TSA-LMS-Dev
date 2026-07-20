@@ -1854,7 +1854,7 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
     const grouped = {};
     events.forEach(evt => {
       if (!grouped[evt.type]) grouped[evt.type] = { label: evt.typeLabel, students: [] };
-      grouped[evt.type].students.push(evt.studentNick);
+      grouped[evt.type].students.push({ id: evt.studentId, nick: evt.studentNick });
     });
 
     Object.entries(grouped).forEach(([type, info]) => {
@@ -1863,7 +1863,7 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
       row.style.display = 'flex';
       row.style.alignItems = 'center';
       row.style.gap = '3px';
-      row.title = `${info.label}: ${info.students.join(', ')}`;
+      row.title = `${info.label}: ${info.students.map(st => st.nick).join(', ')}`;
 
       const dot = document.createElement('span');
       dot.style.width = '5px';
@@ -1872,6 +1872,22 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
       dot.style.background = color;
       dot.style.flexShrink = '0';
 
+      let pickupSuffix = '';
+      if (type === 'arrival' && typeof isPickupRequired === 'function' && typeof getPickupDispatchGroups === 'function') {
+        const required = info.students
+          .map(st => MOCK_STUDENTS.find(s => s.id === st.id))
+          .filter(s => s && isPickupRequired(s));
+        if (required.length) {
+          const dateGroups = getPickupDispatchGroups(cellDateStr);
+          const dispatchedCount = required.filter(s => {
+            const g = dateGroups.find(gr => gr.studentIds.includes(s.id));
+            return g && g.status === 'dispatched';
+          }).length;
+          row.title += ` · 픽업 배정 ${dispatchedCount}/${required.length}`;
+          pickupSuffix = ` · 배정 ${dispatchedCount}/${required.length}`;
+        }
+      }
+
       const label = document.createElement('span');
       label.style.fontSize = '8.5px';
       label.style.fontWeight = '600';
@@ -1879,8 +1895,10 @@ function renderUnifiedCalendar(gridId, labelId, listId, agencyFilter = null) {
       label.style.whiteSpace = 'nowrap';
       label.style.overflow = 'hidden';
       label.style.textOverflow = 'ellipsis';
-      label.style.maxWidth = '72px';
-      label.textContent = `${info.label} ${info.students.length}명`;
+      label.style.maxWidth = 'none';
+      label.style.overflow = 'visible';
+      label.style.textOverflow = 'clip';
+      label.textContent = `${info.label} ${info.students.length}명${pickupSuffix}`;
 
       row.appendChild(dot);
       row.appendChild(label);

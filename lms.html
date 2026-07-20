@@ -493,13 +493,38 @@
 
     .agency-student-table th,
     .agency-student-table td {
-      padding: 8px 8px;
+      padding: 6px 4px;
       vertical-align: middle;
     }
 
+    .agency-student-table {
+      table-layout: fixed;
+    }
+
+    .agency-student-table th:nth-child(1),
+    .agency-student-table td:nth-child(1) { width: 30px; }
+    .agency-student-table th:nth-child(2),
+    .agency-student-table td:nth-child(2) { width: 170px; }
+    .agency-student-table th:nth-child(3),
+    .agency-student-table td:nth-child(3) { width: 118px; }
+    .agency-student-table th:nth-child(4),
+    .agency-student-table td:nth-child(4) { width: 120px; }
+    .agency-student-table th:nth-child(5),
+    .agency-student-table td:nth-child(5) { width: 92px; }
+    .agency-student-table th:nth-child(n+6):nth-child(-n+9),
+    .agency-student-table td:nth-child(n+6):nth-child(-n+9) { width: 90px; }
+    .agency-student-table th:nth-child(10),
+    .agency-student-table td:nth-child(10) { width: 108px; }
+    .agency-student-table th:nth-child(11),
+    .agency-student-table td:nth-child(11) { width: 145px; }
+    .agency-student-table th:nth-child(12),
+    .agency-student-table td:nth-child(12) { width: 60px; }
+    .agency-student-table th:nth-child(13),
+    .agency-student-table td:nth-child(13) { width: 125px; }
+
     .agency-student-table .tsa-badge {
-      padding: 2px 7px;
-      font-size: 10px;
+      padding: 2px 5px;
+      font-size: 9px;
       line-height: 1.1;
     }
 
@@ -1499,7 +1524,6 @@
       <a class="tsa-nav-item admin-only" id="menu-students" onclick="navigate('students')">
         <i data-lucide="users"></i>
         학생 정보 관리
-        <span class="tsa-nav-badge" id="badge-students">128</span>
       </a>
       <a class="tsa-nav-item admin-only" id="menu-teachers" onclick="navigate('teachers')">
         <i data-lucide="graduation-cap"></i>
@@ -2526,19 +2550,19 @@
               <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 소속 등록 학생 목록 · 학비 및 납부 관리</h3>
             </div>
             <div style="overflow-x:auto">
-              <table class="tsa-table agency-student-table" style="min-width:1740px;font-size:11.2px">
+              <table class="tsa-table agency-student-table" style="min-width:1490px;font-size:10.8px">
                 <thead>
                   <tr>
                     <th style="width:36px;text-align:center">#</th>
                     <th>학생 정보</th>
                     <th>코스 / 수강 기간</th>
-                    <th>송금 경로</th>
                     <th class="col-dorm">희망 기숙사 정보</th>
+                    <th>송금 경로</th>
                     <th>등록금 / 커미션</th>
                     <th>수강료 / 커미션</th>
                     <th>기숙사비 / 커미션</th>
                     <th>기타 비용 / 커미션</th>
-                    <th style="min-width:160px">정산 요약</th>
+                    <th>정산 요약</th>
                     <th class="col-flight">항공편 (입/출국)</th>
                     <th>등록 상태</th>
                     <th>상세 액션</th>
@@ -2868,7 +2892,7 @@
                       </select>
                     </div>
                     <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">4. 호실 번호 <span style="font-weight:400;color:#9CA3AF">(선택 — 나중에 목록에서 배정 가능)</span></label>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">4. 호실 번호</label>
                       <input id="tpl-roomno" type="text" class="tsa-input" style="width:100%" placeholder="예: 101"/>
                     </div>
                     <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="saveDormRoomIndividual()">
@@ -6710,7 +6734,7 @@
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.2"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
-    <script src="assets/js/lms-course.js?v=0.6.35"></script>
+    <script src="assets/js/lms-course.js?v=0.6.41"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.7"></script>
   <script src="assets/js/lms-classroom.js?v=0.6.5"></script>
     <script src="assets/js/lms-main.js?v=0.6.9"></script>
@@ -6798,6 +6822,78 @@
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
             <button class="tsa-btn tsa-btn-outline" onclick="closeErpReleaseModal()">취소</button>
             <button class="tsa-btn" style="background:#EF4444;color:#fff;border:none" onclick="confirmErpRelease()">배정 해제</button>
+          </div>
+        </div>
+
+        <!-- 수강 구간 수정 모달 -->
+        <div id="course-segment-edit-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCourseSegmentEditModal()"></div>
+        <div id="course-segment-edit-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:820px;max-width:95vw;max-height:88vh;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden;flex-direction:column">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+            <h3 style="font-size:15px;font-weight:700;color:#111827;margin:0">수강 구간 수정</h3>
+            <button onclick="closeCourseSegmentEditModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+            <input id="seg-edit-course" type="hidden"/>
+            <input id="seg-edit-duration" type="hidden"/>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="tsa-label">시작일 <span style="color:#EF4444">*</span></label>
+                <input id="seg-edit-start" type="date" class="tsa-input" onchange="renderSegmentEditCourseComparison()"/>
+                <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">시작일을 선택하면 아래 표에서 과정·기간을 고를 수 있어.</div>
+              </div>
+              <div>
+                <label class="tsa-label">종료일 <span style="font-weight:400;color:#9CA3AF">(자동 계산)</span></label>
+                <input id="seg-edit-end" type="date" class="tsa-input" style="background:#F9FAFB" disabled/>
+              </div>
+            </div>
+            <div>
+              <label class="tsa-label" style="margin-bottom:6px;display:block">과정별 수강료 비교 <span id="seg-edit-selection-summary" style="font-weight:400;color:#6B7280;font-size:11px"></span></label>
+              <div id="seg-edit-compare-table" style="overflow-x:auto"></div>
+            </div>
+            <div>
+              <label class="tsa-label" style="margin-bottom:6px;display:block">추천 레벨</label>
+              <div id="seg-edit-recommended-levels" style="min-height:36px;padding:8px 10px;border:1px solid #DDE3EC;border-radius:8px;background:#F8FAFC;display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
+            </div>
+            <div id="seg-edit-preview" style="padding:10px 12px;background:#F8F9FF;border:1px solid #C7D2FE;border-radius:8px;font-size:11.5px;color:#374151"></div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeCourseSegmentEditModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveCourseSegmentEdit()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- 기숙사 신청 정보 수정 모달 -->
+        <div id="dorm-request-edit-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeDormRequestEditModal()"></div>
+        <div id="dorm-request-edit-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:820px;max-width:95vw;max-height:88vh;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden;flex-direction:column">
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+            <h3 style="font-size:15px;font-weight:700;color:#111827;margin:0">기숙사 신청 정보 수정</h3>
+            <button onclick="closeDormRequestEditModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+            <input id="dre-accom" type="hidden"/>
+            <input id="dre-cap" type="hidden"/>
+            <input id="dre-grade" type="hidden"/>
+            <input id="dre-weeks" type="hidden"/>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="tsa-label">입실 희망일 <span style="color:#EF4444">*</span></label>
+                <input id="dre-in" type="date" class="tsa-input" onchange="renderDormRequestCompareTable()"/>
+                <div style="font-size:10.5px;color:#9CA3AF;margin-top:3px">입실일을 선택하면 아래 표에서 숙소·기간을 고를 수 있어.</div>
+              </div>
+              <div>
+                <label class="tsa-label">퇴실 희망일 <span style="font-weight:400;color:#9CA3AF">(자동 계산)</span></label>
+                <input id="dre-out" type="date" class="tsa-input" style="background:#F9FAFB" disabled/>
+              </div>
+            </div>
+            <div>
+              <label class="tsa-label" style="margin-bottom:6px;display:block">숙소별 비용 비교 <span id="dre-selection-summary" style="font-weight:400;color:#6B7280;font-size:11px"></span></label>
+              <div id="dre-compare-table" style="overflow-x:auto"></div>
+            </div>
+            <div id="dre-preview" style="padding:10px 12px;background:#F8F9FF;border:1px solid #C7D2FE;border-radius:8px;font-size:11.5px;color:#374151"></div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeDormRequestEditModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveDormRequestEdit()"><i data-lucide="check"></i> 저장</button>
           </div>
         </div>
 </body>
