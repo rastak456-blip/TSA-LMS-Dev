@@ -198,7 +198,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 11, name: 'JUNG TAEHWAN', nick: 'Tae', gender: '남', age: 27, nationality: '한국', flag: '🇰🇷',
-    course: '일반 코스', level: 'Intermediate', duration: 4, dorm: '미배정', visaExpiry: '2026-05-10', sspExpiry: '면제',
+    course: '일반 코스', level: 'Intermediate', duration: 4, dorm: '미배정', dormRequested: false, visaExpiry: '2026-05-10', sspExpiry: '면제',
     departureDate: '2026-05-10', startDate: '2026-04-10', arrivalDate: '2026-04-10',
     attendance: 61.0, status: 'resigned', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 4,
     quiz: [55, 60, 48],

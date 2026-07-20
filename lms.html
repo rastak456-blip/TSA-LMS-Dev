@@ -2713,6 +2713,10 @@
               style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">
               🏷️ 유형·인실·등급 설정
             </button>
+            <button id="dorm-erp-tab-exposure" onclick="switchDormErpTab('exposure')"
+              style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">
+              🔒 공실 노출 정책
+            </button>
           </div>
 
           <!-- 배정 현황 패널 -->
@@ -2836,13 +2840,13 @@
               <div class="tsa-card">
                 <div class="tsa-card-body" style="padding:20px 24px">
                   <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px">신규 호실 유형 등록</div>
-                  <div style="font-size:11px;color:#6B7280;margin-bottom:20px">등급과 인실 기준을 먼저 등록하고, 호실 번호는 목록에서 나중에 배정해.</div>
+                  <div style="font-size:11px;color:#6B7280;margin-bottom:20px">등급과 인실 기준을 먼저 등록해 주시고, 호실 번호는 목록에서 나중에 배정하실 수 있습니다.</div>
                   <div style="display:flex;flex-direction:column;gap:14px">
                     <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1. 등급</label>
-                      <select id="tpl-condition" class="tsa-input" style="width:100%">
-                        <option value="스탠다드">스탠다드</option>
-                        <option value="프리미엄">프리미엄</option>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1. 숙소 유형</label>
+                      <select id="tpl-accom" class="tsa-input" style="width:100%">
+                        <option value="가든 호텔">가든 호텔</option>
+                        <option value="IT Park 콘도">IT Park 콘도</option>
                       </select>
                     </div>
                     <div>
@@ -2857,11 +2861,15 @@
                       </select>
                     </div>
                     <div>
-                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">3. 숙소 유형</label>
-                      <select id="tpl-accom" class="tsa-input" style="width:100%">
-                        <option value="가든 호텔">가든 호텔</option>
-                        <option value="IT Park 콘도">IT Park 콘도</option>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">3. 등급</label>
+                      <select id="tpl-condition" class="tsa-input" style="width:100%">
+                        <option value="스탠다드">스탠다드</option>
+                        <option value="프리미엄">프리미엄</option>
                       </select>
+                    </div>
+                    <div>
+                      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">4. 호실 번호 <span style="font-weight:400;color:#9CA3AF">(선택 — 나중에 목록에서 배정 가능)</span></label>
+                      <input id="tpl-roomno" type="text" class="tsa-input" style="width:100%" placeholder="예: 101"/>
                     </div>
                     <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="saveDormRoomIndividual()">
                       <i data-lucide="save"></i> 호실 유형 저장
@@ -2873,32 +2881,16 @@
               <!-- 등록된 호실 목록 -->
               <div class="tsa-card">
                 <div class="tsa-card-body" style="padding:0">
-                  <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;font-size:13px;font-weight:700;color:#111827">4. 호실 번호 설정</div>
+                  <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;font-size:13px;font-weight:700;color:#111827">등록된 호실 목록</div>
                   <table class="tsa-table" style="font-size:12px">
                     <thead>
                       <tr>
-                        <th>등급</th><th>인실 기준</th><th>4. 호실 번호</th><th>숙소 유형</th><th style="text-align:center">동작</th>
+                        <th>숙소 유형</th><th>인실 기준</th><th>등급</th><th>호실 번호</th><th style="text-align:center">동작</th>
                       </tr>
                     </thead>
                     <tbody id="admin-dorm-template-tbody"></tbody>
                   </table>
                 </div>
-              </div>
-            </div>
-
-            <div class="tsa-card" style="margin-top:20px">
-              <div class="tsa-card-body" style="padding:0">
-                <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:12px">
-                  <div>
-                    <div style="font-size:13px;font-weight:700;color:#111827">에이전시 공실 노출 정책</div>
-                    <div style="font-size:11px;color:#6B7280;margin-top:3px">실제 재고는 숨기고, 타입별 가능 여부 또는 마케팅용 잔여 수만 노출해.</div>
-                  </div>
-                  <span style="font-size:10.5px;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;padding:4px 9px;border-radius:8px">실제 재고와 분리</span>
-                </div>
-                <table class="tsa-table" style="font-size:12px">
-                  <thead><tr><th>숙소 유형</th><th>룸 타입</th><th>에이전시 노출 방식</th><th>마케팅 잔여 수</th><th>미리보기</th></tr></thead>
-                  <tbody id="dorm-agency-visibility-tbody"></tbody>
-                </table>
               </div>
             </div>
 
@@ -2983,6 +2975,25 @@
               </div>
             </div>
           </div><!-- /dorm-erp-panel-master -->
+
+          <!-- 에이전시 공실 노출 정책 패널 -->
+          <div id="dorm-erp-panel-exposure" style="display:none">
+            <div class="tsa-card">
+              <div class="tsa-card-body" style="padding:0">
+                <div style="padding:14px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:#111827">에이전시 공실 노출 정책</div>
+                    <div style="font-size:11px;color:#6B7280;margin-top:3px">실제 재고는 숨기고, 타입별 가능 여부 또는 마케팅용 잔여 수만 노출해.</div>
+                  </div>
+                  <span style="font-size:10.5px;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;padding:4px 9px;border-radius:8px">실제 재고와 분리</span>
+                </div>
+                <table class="tsa-table" style="font-size:12px">
+                  <thead><tr><th>숙소 유형</th><th>룸 타입</th><th>에이전시 노출 방식</th><th>마케팅 잔여 수</th><th>미리보기</th></tr></thead>
+                  <tbody id="dorm-agency-visibility-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div><!-- /dorm-erp-panel-exposure -->
 
           <table style="display:none"><tbody id="admin-dorm-rooms-tbody"></tbody></table>
 
@@ -5335,7 +5346,7 @@
 <!-- Student Registration & Edit Form Modal -->
 <div id="student-form-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('student-form-modal')">
-    <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
+    <div class="tsa-modal tsa-modal-xl" id="student-form-modal-box" onclick="event.stopPropagation()">
       <div class="tsa-modal-header" style="background:#EEF2FF">
         <div>
           <h3 class="tsa-modal-title" id="student-form-title">👤 신규 학생 등록</h3>
@@ -5346,19 +5357,31 @@
       <div class="tsa-modal-body" style="max-height:70vh;overflow-y:auto">
         <form id="student-form" onsubmit="event.preventDefault(); saveStudentForm();">
           <input type="hidden" id="sf-id"/>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div id="sf-outer-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
 
             <!-- 좌측: Section A + B -->
             <div style="display:flex;flex-direction:column;gap:20px">
 
               <!-- Section A: 기본 인적 사항 -->
               <div class="tsa-card">
-                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section A: 기본 인적 사항</h4></div>
+                <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">기본 인적 사항</h4></div>
                 <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div style="grid-column:span 2;display:flex;align-items:center;gap:14px;padding:12px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px">
+                    <div id="sf-profile-photo-preview" style="width:76px;height:88px;border-radius:10px;overflow:hidden;border:1px solid #DDE3EC;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      <img src="assets/images/student_male.png" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>
+                    </div>
+                    <div style="flex:1">
+                      <div style="font-size:11.5px;font-weight:800;color:#374151;margin-bottom:4px">학생 증명사진</div>
+                      <div id="sf-profile-photo-name" style="font-size:10px;color:#9CA3AF;margin-bottom:8px">등록된 사진 없음</div>
+                      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="document.getElementById('sf-profile-photo').click()"><i data-lucide="image-plus"></i> 사진 선택</button>
+                      <input id="sf-profile-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewStudentFormProfilePhoto(this)"/>
+                      <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
+                    </div>
+                  </div>
                   <div class="tsa-form-group"><label class="tsa-label">영문 성명 (여권명) <span style="color:#EF4444">*</span></label><input id="sf-name" type="text" class="tsa-input" placeholder="HONG GILDONG" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">영문 닉네임 (호칭) <span style="color:#EF4444">*</span></label><input id="sf-nick" type="text" class="tsa-input" placeholder="Kevin" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">성별 <span style="color:#EF4444">*</span></label><select id="sf-gender" class="tsa-input"><option value="남">남성</option><option value="여">여성</option></select></div>
-                  <div class="tsa-form-group"><label class="tsa-label">생년월일 <span style="color:#EF4444">*</span></label><input id="sf-dob" type="date" class="tsa-input" required onchange="handleAregDobChange()"/><input id="sf-age" type="hidden"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">생년월일 <span style="color:#EF4444">*</span> <span id="sf-age-preview" style="color:#4F46E5;font-weight:700"></span></label><input id="sf-dob" type="date" class="tsa-input" required onchange="handleSfDobChange()"/><input id="sf-age" type="hidden"/></div>
                   <div class="tsa-form-group"><label class="tsa-label">국적 <span style="color:#EF4444">*</span></label>
                     <select id="sf-nationality" class="tsa-input">
                       <option value="한국">한국 🇰🇷</option><option value="일본">일본 🇯🇵</option><option value="중국">중국 🇨🇳</option><option value="베트남">베트남 🇻🇳</option><option value="몽골">몽골 🇲🇳</option><option value="필리핀">필리핀 🇵🇭</option>
@@ -5368,12 +5391,12 @@
                   <div class="tsa-form-group"><label class="tsa-label">이메일 주소 <span style="color:#EF4444">*</span></label><input id="sf-email" type="email" class="tsa-input" placeholder="student@example.com" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">비상 연락처 <span style="color:#EF4444">*</span></label><input id="sf-emergency" type="text" class="tsa-input" placeholder="010-5678-1234 (부모)" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">식단 구분</label><select id="sf-diet" class="tsa-input"><option value="일반식">🍚 일반식</option><option value="채식">🥗 채식</option><option value="할랄">🌙 할랄</option><option value="글루텐 프리">🌾 글루텐 프리</option></select></div>
-                  <div class="tsa-form-group"><label class="tsa-label">건강 특이사항</label><input id="sf-health" type="text" class="tsa-input" placeholder="알레르기, 복약 정보 등"/></div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">건강 및 정서 특이사항</label><textarea id="sf-health" class="tsa-input" rows="3" style="resize:vertical;min-height:72px;width:100%" placeholder="알레르기 없음, 복약 정보 없음"></textarea></div>
                 </div>
               </div>
 
               <!-- Section B: 여권·항공·비자 -->
-              <div class="tsa-card">
+              <div class="tsa-card" id="sf-section-b">
                 <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section B: 여권 · 항공 · 비자 정보</h4></div>
                 <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
                   <div class="tsa-form-group"><label class="tsa-label">여권 번호 <span style="color:#EF4444">*</span></label><input id="sf-passportNum" type="text" class="tsa-input" placeholder="M12345678" required/></div>
@@ -5401,7 +5424,7 @@
             </div>
 
             <!-- 우측: Section C + D -->
-            <div style="display:flex;flex-direction:column;gap:20px">
+            <div id="sf-section-cd" style="display:flex;flex-direction:column;gap:20px">
 
               <!-- Section C: 수강 및 기숙사 -->
               <div class="tsa-card">
@@ -5485,7 +5508,7 @@
 
           <div class="tsa-modal-footer" style="padding:16px 0 0;border-top:1px solid #E5E7EB;margin-top:16px">
             <button type="button" class="tsa-btn tsa-btn-outline" onclick="closeModal('student-form-modal')">취소</button>
-            <button type="submit" class="tsa-btn tsa-btn-primary"><i data-lucide="check"></i> 저장 완료</button>
+            <button type="submit" class="tsa-btn tsa-btn-primary"><i data-lucide="check"></i> <span id="student-form-submit-label">저장 완료</span></button>
           </div>
         </form>
       </div>

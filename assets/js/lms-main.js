@@ -1950,6 +1950,25 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
     const groupEvents = groupedEvents[type];
     const groupColor = getEventColor(type);
     const groupId = `${listId}-${dateStr}-${type}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+
+    let pickupSummaryHtml = '';
+    if (type === 'arrival' && typeof isPickupRequired === 'function' && typeof getPickupDispatchGroups === 'function') {
+      let notRequested = 0, pendingDispatch = 0, dispatched = 0;
+      groupEvents.forEach(evt => {
+        const student = MOCK_STUDENTS.find(s => s.id === evt.studentId);
+        if (!student) return;
+        if (!isPickupRequired(student)) { notRequested++; return; }
+        const group = getPickupDispatchGroups(dateStr).find(g => g.studentIds.includes(student.id));
+        if (group && group.status === 'dispatched') dispatched++;
+        else pendingDispatch++;
+      });
+      const parts = [];
+      if (notRequested) parts.push(`<span style="color:#6B7280;font-weight:700">미신청 ${notRequested}</span>`);
+      if (pendingDispatch) parts.push(`<span style="color:#C2410C;font-weight:700">배차대기 ${pendingDispatch}</span>`);
+      if (dispatched) parts.push(`<span style="color:#047857;font-weight:700">배차완료 ${dispatched}</span>`);
+      if (parts.length) pickupSummaryHtml = `<span style="font-size:9.5px;color:#9CA3AF;margin-left:auto;padding-right:8px;white-space:nowrap">${parts.join(' · ')}</span>`;
+    }
+
     const section = document.createElement('section');
     section.style.border = '1px solid #E5E7EB';
     section.style.borderRadius = '10px';
@@ -1963,7 +1982,8 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
           <b style="font-size:11.5px;color:#374151">${groupEvents[0].typeLabel}</b>
           <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:19px;padding:0 6px;border-radius:10px;background:${groupColor}18;color:${groupColor};font-size:9.5px;font-weight:800">${groupEvents.length}명</span>
         </span>
-        <i data-lucide="chevron-up" style="width:15px;height:15px;color:#9CA3AF;transition:transform .2s"></i>
+        ${pickupSummaryHtml}
+        <i data-lucide="chevron-up" style="width:15px;height:15px;color:#9CA3AF;transition:transform .2s;flex-shrink:0"></i>
       </button>
       <div id="${groupId}" style="padding:0 8px 8px;display:flex;flex-direction:column;gap:6px;border-top:1px solid #F3F4F6"></div>`;
     const groupBody = section.querySelector(`#${groupId}`);
@@ -1984,6 +2004,22 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
       card.style.borderColor = '#FDE68A';
     }
 
+    let pickupTag = '';
+    if (evt.type === 'arrival' && typeof isPickupRequired === 'function' && typeof getPickupDispatchGroups === 'function') {
+      const student = MOCK_STUDENTS.find(s => s.id === evt.studentId);
+      if (student && !isPickupRequired(student)) {
+        pickupTag = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F3F4F6;color:#6B7280;font-size:9.5px;font-weight:700;margin-top:4px">픽업 미신청</span>`;
+      } else if (student) {
+        const groups = getPickupDispatchGroups(dateStr);
+        const group = groups.find(g => g.studentIds.includes(student.id));
+        if (group && group.status === 'dispatched') {
+          pickupTag = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFDF5;color:#047857;font-size:9.5px;font-weight:700;margin-top:4px">픽업 신청 · 배차완료</span>`;
+        } else {
+          pickupTag = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#FFF7ED;color:#C2410C;font-size:9.5px;font-weight:700;margin-top:4px">픽업 신청 · 배차대기</span>`;
+        }
+      }
+    }
+
     card.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="display:flex;align-items:center;gap:10px;min-width:0">
@@ -1991,6 +2027,7 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
           <div style="min-width:0">
             <div style="font-weight:700;font-size:12px;color:#374151">${evt.studentNick} (${evt.studentName})</div>
             <div style="font-size:10.5px;color:#6B7280">${evt.typeLabel} · ${dateStr}</div>
+            ${pickupTag}
           </div>
         </div>
         <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="${detailFn}(${evt.studentId})">보기</button>
@@ -3179,6 +3216,21 @@ function initializeStudentPopupMode() {
   const params = new URLSearchParams(window.location.search);
   const studentId = parseInt(params.get('studentPopup'), 10);
   if (!studentId) return;
+
+  // 팝업은 lms.html을 완전히 새로 로드하기 때문에 원래 창(부모)에서 방금 한 수정·배정(픽업 담당자 배정 등)이
+  // 이 창의 초기 mock 데이터에는 반영되어 있지 않다. 부모 창이 열려 있으면 그 창의 실시간 상태를 그대로 이어받는다.
+  if (window.opener && !window.opener.closed) {
+    try {
+      const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
+      syncArray(MOCK_STUDENTS, window.opener.MOCK_STUDENTS);
+      if (typeof MOCK_DORM_ROOMS !== 'undefined') syncArray(MOCK_DORM_ROOMS, window.opener.MOCK_DORM_ROOMS);
+      if (typeof MOCK_PICKUP_MANAGERS !== 'undefined') syncArray(MOCK_PICKUP_MANAGERS, window.opener.MOCK_PICKUP_MANAGERS);
+      if (typeof MOCK_PICKUP_VEHICLES !== 'undefined') syncArray(MOCK_PICKUP_VEHICLES, window.opener.MOCK_PICKUP_VEHICLES);
+      if (typeof PICKUP_DISPATCH_GROUPS !== 'undefined' && window.opener.PICKUP_DISPATCH_GROUPS) Object.assign(PICKUP_DISPATCH_GROUPS, window.opener.PICKUP_DISPATCH_GROUPS);
+      if (typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' && window.opener.PICKUP_DATE_ASSIGNMENTS) Object.assign(PICKUP_DATE_ASSIGNMENTS, window.opener.PICKUP_DATE_ASSIGNMENTS);
+    } catch (e) { /* 접근 불가 시(다른 오리진 등) 기본 mock 데이터로 진행 */ }
+  }
+
   const portal = params.get('portal') === 'agency' ? 'agency' : 'admin';
   APP.user = portal === 'agency' ? 'agency_head' : 'super_admin';
   if (typeof enhanceMockStudents === 'function') enhanceMockStudents();

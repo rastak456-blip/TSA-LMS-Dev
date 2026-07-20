@@ -150,11 +150,16 @@ function renderStudentList(list) {
       <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
         <div style="font-size:12px;font-weight:600;color:#374151">${s.course}</div>
-        <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : (s.duration ? `(${s.duration}주)` : '-')}</div>
+        <div style="color:#9CA3AF;font-size:10.5px">${s.startDate ? s.startDate.replace('2026-','26.').replace(/-/g,'.') : '-'} ~ ${s.endDate ? s.endDate.replace('2026-','26.').replace(/-/g,'.') : '-'}${(() => {
+          const weeks = (s.startDate && s.endDate) ? Math.max(1, Math.round((new Date(s.endDate) - new Date(s.startDate)) / (7 * 86400000))) : (s.duration || null);
+          return weeks ? ` (${weeks}주)` : '';
+        })()}</div>
       </td>
       <td style="font-size:11.5px;white-space:nowrap">
-        <div style="font-weight:600;color:#374151">${s.dorm}</div>
-        ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}
+        ${isStudentWalkIn(s)
+          ? `<div style="font-weight:600;color:#D97706">Walk-in</div>`
+          : `<div style="font-weight:600;color:#374151">${s.dorm || '미배정'}</div>
+             ${s.dormIn ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:2px">${s.dormIn.replace('2026-','26.').replace(/-/g,'.')} ~ ${s.dormOut ? s.dormOut.replace('2026-','26.').replace(/-/g,'.') : '-'}</div>` : ''}`}
       </td>
       <td>
         <div style="font-weight:700;color:${attColor};font-size:13px">${s.attendance}%</div>
@@ -727,7 +732,21 @@ function switchStudentTab(tab, el) {
     case 'basic': {
       const dobVal = s.dob || '';
       const ageDisplay = s.age ? `${s.age}세` : '-';
+      const currentAvatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+      adProfilePhotoData = null;
       container.innerHTML = `
+        <div style="display:flex;align-items:center;gap:14px;padding:12px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:16px">
+          <div id="ad-profile-photo-preview" style="width:76px;height:88px;border-radius:10px;overflow:hidden;border:1px solid #DDE3EC;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <img src="${currentAvatarSrc}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11.5px;font-weight:800;color:#374151;margin-bottom:4px">학생 증명사진</div>
+            <div id="ad-profile-photo-name" style="font-size:10px;color:#9CA3AF;margin-bottom:8px">${s.profilePhoto ? '등록된 사진 있음' : '등록된 사진 없음'}</div>
+            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="document.getElementById('ad-profile-photo').click()"><i data-lucide="image-plus"></i> 사진 선택</button>
+            <input id="ad-profile-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewAdminStudentDetailPhoto(this)"/>
+            <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
             <div class="tsa-form-group">
               <label class="tsa-label">영문 성명 (여권명)</label>
@@ -1693,6 +1712,7 @@ function saveAdminStudentBasic() {
 
   // 값 저장
   Object.assign(s, newVals);
+  if (adProfilePhotoData) s.profilePhoto = adProfilePhotoData;
   const dobEl = document.getElementById('ad-dob');
   if (dobEl && dobEl.value) {
     s.dob = dobEl.value;
@@ -1702,6 +1722,7 @@ function saveAdminStudentBasic() {
   // 모달 헤더 갱신
   document.getElementById('modal-student-name').textContent = `${s.nick} (${s.name})`;
   document.getElementById('modal-student-meta').textContent = `${s.flag} ${s.nationality} · ${s.gender}성 ${s.age}세 · ${s.course}`;
+  if (s.profilePhoto) { const avatarEl = document.getElementById('modal-student-avatar'); if (avatarEl) avatarEl.src = s.profilePhoto; }
 
   showToast(`✓ ${s.nick} 학생 정보가 저장되었습니다.`, 'success');
 }
@@ -1888,6 +1909,65 @@ function getNationalityFlag(nat) {
 }
 
 let sfFiles = { passport: null, ticket: null, photo: null, insurance: null };
+let sfProfilePhotoData = null;
+let adProfilePhotoData = null;
+
+function previewAdminStudentDetailPhoto(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('이미지 파일만 등록할 수 있습니다.', 'warning');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = event => {
+    adProfilePhotoData = event.target.result;
+    const preview = document.getElementById('ad-profile-photo-preview');
+    const name = document.getElementById('ad-profile-photo-name');
+    if (preview) preview.innerHTML = `<img src="${adProfilePhotoData}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>`;
+    if (name) name.textContent = `✓ ${file.name}`;
+    const headerAvatar = document.getElementById('modal-student-avatar');
+    if (headerAvatar) headerAvatar.src = adProfilePhotoData;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleSfDobChange() {
+  const dobVal = document.getElementById('sf-dob').value;
+  if (!dobVal) return;
+
+  const today = new Date();
+  const birthDate = new Date(dobVal);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  document.getElementById('sf-age').value = age;
+  const preview = document.getElementById('sf-age-preview');
+  if (preview) preview.textContent = `(만 ${age}세)`;
+}
+
+function previewStudentFormProfilePhoto(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('이미지 파일만 등록할 수 있습니다.', 'warning');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = event => {
+    sfProfilePhotoData = event.target.result;
+    const preview = document.getElementById('sf-profile-photo-preview');
+    const name = document.getElementById('sf-profile-photo-name');
+    if (preview) preview.innerHTML = `<img src="${sfProfilePhotoData}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>`;
+    if (name) name.textContent = `✓ ${file.name}`;
+  };
+  reader.readAsDataURL(file);
+}
 
 function handleSfFileSelected(key) {
   const input = document.getElementById('sf-file-' + key);
@@ -1900,7 +1980,31 @@ function handleSfFileSelected(key) {
 
 function openStudentRegisterModal() {
   sfFiles = { passport: null, ticket: null, photo: null, insurance: null };
+  sfProfilePhotoData = null;
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+
+  // 에이전시 포탈과 동일한 레이아웃 — 신규 등록은 기본 인적사항 카드 1개만 단일 컬럼으로 보여주고
+  // 여권·항공·비자(B), 수강·기숙사(C), 서류업로드(D)는 '상세/수정'에서 나중에 입력한다.
+  const titleEl = document.getElementById('student-form-title');
+  if (titleEl) titleEl.textContent = '👤 신규 학생 등록';
+  const subtitleEl = document.getElementById('student-form-subtitle');
+  if (subtitleEl) subtitleEl.textContent = '학생 기본 인적 사항만 먼저 등록합니다. 나머지 정보는 등록 후 상세/수정에서 입력합니다.';
+  const sectionB = document.getElementById('sf-section-b');
+  if (sectionB) sectionB.style.display = 'none';
+  const sectionCD = document.getElementById('sf-section-cd');
+  if (sectionCD) sectionCD.style.display = 'none';
+  const outerGrid = document.getElementById('sf-outer-grid');
+  if (outerGrid) outerGrid.style.gridTemplateColumns = '1fr';
+  const modalBox = document.getElementById('student-form-modal-box');
+  if (modalBox) modalBox.style.maxWidth = '760px';
+  const submitLabel = document.getElementById('student-form-submit-label');
+  if (submitLabel) submitLabel.textContent = '기본정보 등록';
+  const photoPreview = document.getElementById('sf-profile-photo-preview');
+  if (photoPreview) photoPreview.innerHTML = `<img src="assets/images/student_male.png" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>`;
+  const photoName = document.getElementById('sf-profile-photo-name');
+  if (photoName) photoName.textContent = '등록된 사진 없음';
+  const agePreview = document.getElementById('sf-age-preview');
+  if (agePreview) agePreview.textContent = '';
   const resetBadge = key => {
     const b = document.getElementById('sf-badge-' + key);
     if (b) { b.textContent = '없음'; b.className = 'tsa-badge tsa-badge-gray'; b.style.fontSize = '9px'; }
@@ -1951,6 +2055,21 @@ function openStudentEditModal(id) {
 
   document.getElementById('student-form-title').textContent = `👤 학생 정보 수정 - ${s.nick}`;
   document.getElementById('student-form-subtitle').textContent = "선택한 학생의 등록 세부 정보를 업데이트합니다.";
+  const sectionBEl = document.getElementById('sf-section-b');
+  if (sectionBEl) sectionBEl.style.display = '';
+  const sectionCDEl = document.getElementById('sf-section-cd');
+  if (sectionCDEl) sectionCDEl.style.display = '';
+  const outerGridEl = document.getElementById('sf-outer-grid');
+  if (outerGridEl) outerGridEl.style.gridTemplateColumns = '1fr 1fr';
+  const modalBoxEl = document.getElementById('student-form-modal-box');
+  if (modalBoxEl) modalBoxEl.style.maxWidth = '';
+  const submitLabelEl = document.getElementById('student-form-submit-label');
+  if (submitLabelEl) submitLabelEl.textContent = '저장 완료';
+  const photoPreviewEl = document.getElementById('sf-profile-photo-preview');
+  if (photoPreviewEl) photoPreviewEl.innerHTML = `<img src="${s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png')}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>`;
+  const photoNameEl = document.getElementById('sf-profile-photo-name');
+  if (photoNameEl) photoNameEl.textContent = s.profilePhoto ? '등록된 사진 있음' : '등록된 사진 없음';
+  sfProfilePhotoData = s.profilePhoto || null;
 
   // Populate form
   document.getElementById('sf-id').value = s.id;
@@ -1999,26 +2118,26 @@ function saveStudentForm() {
   const nick = document.getElementById('sf-nick').value.trim();
   const gender = document.getElementById('sf-gender').value;
   const age = parseInt(document.getElementById('sf-age').value);
+  const phone = document.getElementById('sf-phone')?.value.trim() || '';
+  const email = document.getElementById('sf-email')?.value.trim() || '';
+  const emergencyContact = document.getElementById('sf-emergency')?.value.trim() || '';
 
-  // 신규 등록 시에만 검증
+  // 신규 등록 시에는 에이전시 포탈과 동일하게 기본 인적사항만 검증 (여권·수강 정보는 상세/수정에서 나중에 입력)
   if (!idVal) {
-    if (!passportNum) {
-      showToast('여권번호를 입력해 주세요.', 'danger');
+    if (!name || !nick || !gender || !document.getElementById('sf-nationality').value || !phone || !email || !emergencyContact) {
+      showToast('⚠ 기본 인적 사항의 필수 항목을 모두 입력해 주세요.', 'danger');
       return;
     }
-    if (!startDate) {
-      showToast('수강 시작일을 입력해 주세요.', 'danger');
+    if (isNaN(age)) {
+      showToast('생년월일을 입력해 주세요.', 'danger');
       return;
     }
-    const dayOfWeek = new Date(startDate).getDay();
-    if (dayOfWeek !== 1) {
-      showToast('수강 시작일은 반드시 월요일이어야 합니다.', 'danger');
-      return;
-    }
-    const dupPassport = MOCK_STUDENTS.find(s => s.passportNum && s.passportNum.toUpperCase() === passportNum.toUpperCase());
-    if (dupPassport) {
-      showToast(`중복된 여권번호입니다 — 이미 등록된 학생: ${dupPassport.nick} (${dupPassport.name})`, 'danger');
-      return;
+    if (passportNum) {
+      const dupPassport = MOCK_STUDENTS.find(s => s.passportNum && s.passportNum.toUpperCase() === passportNum.toUpperCase());
+      if (dupPassport) {
+        showToast(`중복된 여권번호입니다 — 이미 등록된 학생: ${dupPassport.nick} (${dupPassport.name})`, 'danger');
+        return;
+      }
     }
   }
   const nationality = document.getElementById('sf-nationality').value;
@@ -2052,10 +2171,15 @@ function saveStudentForm() {
       s.age = age;
       s.nationality = nationality;
       s.flag = flag;
+      s.phone = phone;
+      s.email = email;
+      s.emergencyContact = emergencyContact;
+      if (sfProfilePhotoData) s.profilePhoto = sfProfilePhotoData;
       s.course = course;
       s.duration = duration;
       if (dormAccomType) { s.dormAccomType = dormAccomType; s.dormType = dormCapacity; s.dormGrade = dormGrade; }
       s.agency = agency;
+      s.passportNum = passportNum ? passportNum.toUpperCase() : s.passportNum;
       s.visaExpiry = visaExpiry;
       s.sspExpiry = sspExpiry;
       s.passportStatus = passportStatus;
@@ -2066,10 +2190,13 @@ function saveStudentForm() {
       s.healthNotes = healthNotes || "특이사항 없음.";
       s.level = level;
 
-      s.arrivalDate = startDate;
-      const start = new Date(startDate);
-      start.setDate(start.getDate() + duration * 7);
-      s.endDate = start.toISOString().split('T')[0];
+      if (startDate) {
+        s.startDate = startDate;
+        s.arrivalDate = startDate;
+        const start = new Date(startDate);
+        start.setDate(start.getDate() + duration * 7);
+        s.endDate = start.toISOString().split('T')[0];
+      }
 
       // Update student nickname in MOCK_TIMETABLE slots too!
       MOCK_TIMETABLE.forEach(t => {
@@ -2083,52 +2210,49 @@ function saveStudentForm() {
       showToast(`✓ [학생 수정 완료] ${s.nick} 학생의 상세 정보가 성공적으로 반영되었습니다.`, 'success');
     }
   } else {
-    // Register new student
+    // Register new student — 에이전시 포탈과 동일하게 기본 인적사항만으로 등록, 나머지는 '상세/수정'에서 나중에 입력
     const newId = Math.max(...MOCK_STUDENTS.map(std => std.id), 0) + 1;
-    
-    const start = new Date(startDate);
-    start.setDate(start.getDate() + (duration * 7));
-    const endDate = start.toISOString().split('T')[0];
-    let depDate = departureDate || endDate;
 
     const newStudent = {
       id: newId,
-      passportNum: passportNum.toUpperCase(),
-      startDate: startDate,
-      arrivalDate: startDate,
-      endDate: endDate,
+      passportNum: '',
+      startDate: '',
+      arrivalDate: '',
+      endDate: '',
       name: name,
       nick: nick,
       gender: gender,
       age: age,
       nationality: nationality,
       flag: flag,
-      course: course,
-      duration: duration,
-      level: level,
+      phone: phone,
+      email: email,
+      emergencyContact: emergencyContact,
+      profilePhoto: sfProfilePhotoData,
+      course: '미등록',
+      duration: 0,
+      level: '',
       dorm: '미배정',
-      dormAccomType: dormAccomType || null,
-      dormType: dormCapacity || null,
-      dormGrade: dormGrade || null,
-      visaExpiry: visaExpiry || "미설정",
-      sspExpiry: sspExpiry || "면제",
-      passportStatus: passportStatus,
-      flightInfo: flightInfo || "미등록",
-      departureDate: depDate,
+      dormAccomType: null,
+      dormType: null,
+      dormGrade: null,
+      visaExpiry: '',
+      sspExpiry: '면제',
+      passportStatus: '미등록',
+      flightInfo: '',
+      departureDate: '',
       dietType: dietType,
-      status: status,
+      status: 'waiting',
       healthNotes: healthNotes || "특이사항 없음.",
-      attendance: 100.0,
+      attendance: 0,
       warning: 0,
       quiz: [],
       grades: { speaking: [], listening: [], reading: [], writing: [] },
-      fees: [
-        { id: newId * 1000 + 1, item: '입학금 (Registration Fee)', amount: 100, paid: false },
-        { id: newId * 1000 + 2, item: '교재 및 보증금 (Deposit)', amount: 150, paid: false }
-      ]
+      fees: [],
+      remittanceStatus: 'unpaid',
     };
     MOCK_STUDENTS.push(newStudent);
-    showToast(`✓ [학생 등록 완료] 신규 입학생 ${nick} (${name})이 성공적으로 등록되었습니다.`, 'success');
+    showToast(`✓ [학생 등록 완료] 신규 입학생 ${nick} (${name})이 성공적으로 등록되었습니다. 수강·기숙사 정보는 상세/수정에서 이어서 입력해줘.`, 'success');
   }
 
   closeModal('student-form-modal');

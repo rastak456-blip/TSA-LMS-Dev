@@ -1527,10 +1527,17 @@ function saveDormRoomIndividual() {
   const accom     = document.getElementById('tpl-accom')?.value;
   const capacity  = parseInt(document.getElementById('tpl-capacity')?.value);
   const condition = document.getElementById('tpl-condition')?.value;
+  const roomNoInput = document.getElementById('tpl-roomno');
+  const roomNo = (roomNoInput?.value || '').trim();
+
+  if (roomNo && MOCK_DORM_ROOMS.some(r => r.roomNo === roomNo)) {
+    showToast(`이미 등록된 호실 번호입니다. (${roomNo}호)`, 'warning');
+    return;
+  }
 
   const typeStr = `${capacity}인실 (${condition})`;
   MOCK_DORM_ROOMS.push({
-    roomNo: null,
+    roomNo: roomNo || null,
     accomType: accom,
     type: typeStr,
     capacity: capacity,
@@ -1547,7 +1554,10 @@ function saveDormRoomIndividual() {
   // 템플릿 정보와 동기화
   if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
 
-  showToast(`✓ ${condition} · ${capacity}인실 유형이 등록되었습니다. 호실 번호는 나중에 배정할 수 있습니다.`, 'success');
+  if (roomNoInput) roomNoInput.value = '';
+  showToast(roomNo
+    ? `✓ ${roomNo}호(${condition} · ${capacity}인실)가 등록되었습니다.`
+    : `✓ ${condition} · ${capacity}인실 유형이 등록되었습니다. 호실 번호는 나중에 배정할 수 있습니다.`, 'success');
   renderAdminDormTemplates();
   if (typeof renderDormErpGrid === 'function') renderDormErpGrid();
 }
@@ -1677,15 +1687,14 @@ function renderAdminDormTemplates() {
 
     return `
       <tr>
-        <td>${condition}</td>
+        <td>${accomBadge}</td>
         <td>${capacity}인실</td>
+        <td>${condition}</td>
         <td>${r.roomNo
           ? `<strong>${r.roomNo}호</strong>`
           : `<span style="background:#F3F4F6;color:#6B7280;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600">미배정</span>`}</td>
-        <td>${accomBadge}</td>
         <td style="text-align:center">
           <div style="display:flex;gap:5px;justify-content:center">
-            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="assignDormRoomNumber(${originalIdx})">${r.roomNo ? '4. 번호 변경' : '4. 호실 번호 설정'}</button>
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditDormRoomModal(${originalIdx})">수정</button>
             <button class="tsa-btn tsa-btn-danger tsa-btn-xs" style="background:#EF4444;border:none;color:white;" onclick="deleteDormRoom(${originalIdx})">삭제</button>
           </div>
@@ -1700,7 +1709,8 @@ function switchDormErpTab(tab) {
   document.getElementById('dorm-erp-panel-gantt').style.display    = tab === 'gantt'    ? '' : 'none';
   document.getElementById('dorm-erp-panel-settings').style.display = tab === 'settings' ? '' : 'none';
   document.getElementById('dorm-erp-panel-master').style.display   = tab === 'master'   ? '' : 'none';
-  ['assign','gantt','settings','master'].forEach(t => {
+  document.getElementById('dorm-erp-panel-exposure').style.display = tab === 'exposure' ? '' : 'none';
+  ['assign','gantt','settings','master','exposure'].forEach(t => {
     const btn = document.getElementById(`dorm-erp-tab-${t}`);
     if (!btn) return;
     btn.style.color = t === tab ? '#5E5CE6' : '#6B7280';
@@ -1711,10 +1721,12 @@ function switchDormErpTab(tab) {
   } else if (tab === 'settings') {
     renderAdminDormTemplates();
     renderAdminDormRoomsTable();
-    if (typeof renderDormAgencyVisibilitySettings === 'function') renderDormAgencyVisibilitySettings();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
   } else if (tab === 'master') {
     renderDormMasterLists();
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
+  } else if (tab === 'exposure') {
+    if (typeof renderDormAgencyVisibilitySettings === 'function') renderDormAgencyVisibilitySettings();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
   }
 }
@@ -2009,6 +2021,14 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   const todayLine = today >= start && today <= end
     ? `<div class="erp-gantt-today" style="left:${offset(today) * dayWidth + dayWidth / 2}px" title="오늘"></div>` : '';
 
+  // 주말(토/일) 컬럼 배경을 헤더뿐 아니라 각 침대 행 트랙 전체 높이에도 반복해서 표시
+  const weekendBands = Array.from({ length: totalDays }, (_, idx) => {
+    const d = new Date(start); d.setDate(start.getDate() + idx);
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    if (!weekend) return '';
+    return `<div style="position:absolute;top:0;bottom:0;left:${idx * dayWidth}px;width:${dayWidth}px;background:#F8FAFC;z-index:0;pointer-events:none"></div>`;
+  }).join('');
+
   const sortedRooms = [...rooms].sort(compareDormRoomOrder);
 
   const roomColWidth = 90;
@@ -2017,6 +2037,7 @@ function renderDormErpGantt(rooms, startVal, endVal) {
   const rows = sortedRooms.map((room, ridx) => {
     const bandBg = ridx % 2 ? '#FAFBFF' : '#fff';
     const beds = room.beds || [];
+    const roomIdx = MOCK_DORM_ROOMS.indexOf(room);
 
     const bedRows = beds.map(bed => {
       const assignments = [];
@@ -2063,16 +2084,20 @@ function renderDormErpGantt(rooms, startVal, endVal) {
         const tooltip = item.status === 'history'
           ? `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end} (퇴소: ${item.reason || '-'})`
           : `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}`;
-        return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${extraStyle}" title="${tooltip}">
+        return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${extraStyle}cursor:pointer" title="${tooltip}" onclick="openRoomDetailModal(${roomIdx})">
           <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
         </div>`;
       }).join('');
+
       return `<div class="erp-gantt-row" style="background:${bandBg}">
-        <div style="position:sticky;left:${roomColWidth}px;z-index:2;width:${bedColWidth}px;min-width:${bedColWidth}px;padding:6px 10px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;flex-direction:column;justify-content:center">
-          <div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div>
-          <div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div>
+        <div style="position:sticky;left:${roomColWidth}px;z-index:2;width:${bedColWidth}px;min-width:${bedColWidth}px;padding:6px 10px;background:${bandBg};border-right:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:4px">
+          <div style="min-width:0">
+            <div style="font-size:11px;font-weight:700;color:#475569">침대 ${bed.id}</div>
+            <div style="font-size:9.5px;color:#94A3B8;margin-top:1px">${bed.student ? String(bed.student).split(' ')[0] : '공실'}</div>
+          </div>
+          <button onclick="openErpAssignModal('${room.roomNo}','${bed.id}','${room.accomType}','${room.type}','${room.genderRestriction || '무관'}')" title="배정/예약 추가" style="flex-shrink:0;width:20px;height:20px;border:1px solid #10B981;border-radius:5px;background:#D1FAE5;color:#059669;font-size:13px;font-weight:800;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0">+</button>
         </div>
-        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${todayLine}${bars}</div>
+        <div class="erp-gantt-track" style="width:${trackWidth}px;min-width:${trackWidth}px;background-size:${dayWidth}px 100%">${weekendBands}${todayLine}${bars}</div>
       </div>`;
     }).join('');
 
@@ -2325,6 +2350,7 @@ function renderErpAssignStudentList(list) {
   listEl.innerHTML = list.map(s => {
     const avatarSrc = (s.gender === '남' || s.gender === '남성') ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
     const preferredDormIn = s.dormIn || s.startDate || '';
+    const preferredDormOut = s.dormOut || s.endDate || '';
     return `
     <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='#5E5CE6'" onmouseout="this.style.borderColor='#E5E7EB'">
       <input type="radio" name="erp-assign-student" value="${s.id}" style="accent-color:#5E5CE6" onchange="onErpAssignStudentSelected(${s.id})"/>
@@ -2332,7 +2358,7 @@ function renderErpAssignStudentList(list) {
       <div style="flex:1">
         <div style="font-size:12.5px;font-weight:600;color:#111827">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
         <div style="font-size:11px;color:#6B7280">${s.flag||''} ${s.nationality} · ${s.gender==='남'?'남성':'여성'} · ${[s.dormType, s.dormGrade].filter(Boolean).join(' ')}</div>
-        <div style="font-size:10.5px;color:#5E5CE6;margin-top:3px;font-weight:600">📅 희망 입실일 ${preferredDormIn || '미입력'}</div>
+        <div style="font-size:10.5px;color:#5E5CE6;margin-top:3px;font-weight:600">📅 희망 입실일 ${preferredDormIn || '미입력'} ~ 퇴실일 ${preferredDormOut || '미입력'}</div>
       </div>
       <span style="font-size:11px;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:8px">대기</span>
     </label>`;
@@ -2410,20 +2436,28 @@ function confirmErpAssign() {
   if (!s || !room || !bed) return;
   const startVal = startFull.replace('2026-','');
   const endVal   = endFull.replace('2026-','');
-  // 기존 배정 이력 추가 후 배정
   if (!bed.history) bed.history = [];
-  bed.student   = `${s.nick} (${s.name})`;
-  bed.studentId = s.id;
-  bed.start     = startVal;
-  bed.end       = endVal;
-  bed.color     = '#5E5CE6';
-  s.dorm = `${room.roomNo}호 침대${bed.id}`;
-  // 8-5: 배정 시 호실 성별 제한 자동 갱신
-  if (s.gender === '남' || s.gender === '남성') room.genderRestriction = '남성';
-  else if (s.gender === '여' || s.gender === '여성') room.genderRestriction = '여성';
-  showToast(`✓ ${s.nick} → ${room.roomNo}호 침대${bed.id} 배정 완료`, 'success');
+
+  if (bed.student) {
+    // 이미 배정된 침대 — 기존 배정을 덮어쓰지 않고 예약으로 추가
+    if (!bed.reservations) bed.reservations = [];
+    bed.reservations.push({ student: `${s.nick} (${s.name})`, start: startVal, end: endVal });
+    showToast(`✓ ${s.nick} → ${room.roomNo}호 침대${bed.id} 예약 완료 (${startVal}~${endVal})`, 'success');
+  } else {
+    bed.student   = `${s.nick} (${s.name})`;
+    bed.studentId = s.id;
+    bed.start     = startVal;
+    bed.end       = endVal;
+    bed.color     = '#5E5CE6';
+    s.dorm = `${room.roomNo}호 침대${bed.id}`;
+    // 8-5: 배정 시 호실 성별 제한 자동 갱신
+    if (s.gender === '남' || s.gender === '남성') room.genderRestriction = '남성';
+    else if (s.gender === '여' || s.gender === '여성') room.genderRestriction = '여성';
+    showToast(`✓ ${s.nick} → ${room.roomNo}호 침대${bed.id} 배정 완료`, 'success');
+  }
   closeErpAssignModal();
   renderDormErpGrid();
+  if (typeof renderDormErpAnnualGantt === 'function') renderDormErpAnnualGantt();
 }
 
 function openErpReleaseModal(roomNo, bedId) {
@@ -2438,6 +2472,7 @@ function openErpReleaseModal(roomNo, bedId) {
   bed.student = null; bed.studentId = null; bed.start = null; bed.end = null; bed.color = null;
   showToast('배정이 해제되었습니다.', 'success');
   renderDormErpGrid();
+  if (typeof renderDormErpAnnualGantt === 'function') renderDormErpAnnualGantt();
 }
 
 function closeErpReleaseModal() {

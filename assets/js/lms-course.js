@@ -990,6 +990,9 @@ function initAgencyStudentList() {
     const avatarSrc = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
     const latestEnrollment = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
     const remittanceRoute = s.remittanceRoute || latestEnrollment?.remittanceRoute || 'agency';
+    const courseWeeks = (s.startDate && s.endDate)
+      ? Math.max(1, Math.round((new Date(s.endDate) - new Date(s.startDate)) / (7 * 86400000)))
+      : (s.duration || null);
 
     let teacherName = '미배정';
     const tMatch = MOCK_TIMETABLE.find(t => t.slots.some(slot => slot.student === s.nick));
@@ -1010,7 +1013,7 @@ function initAgencyStudentList() {
         </td>
         <td style="font-size:11.5px;line-height:1.55;white-space:nowrap">
           <div style="font-weight:700;color:#374151">${s.course}</div>
-          <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || `(${s.duration}주)`}</div>
+          <div style="color:#6B7280;margin-top:3px">${fmtDate(s.startDate) || '-'} ~ ${fmtDate(s.endDate) || '-'}${courseWeeks ? ` <span style="color:#9CA3AF">(${courseWeeks}주)</span>` : ''}</div>
         </td>
         <td style="font-size:11px;white-space:nowrap;min-width:112px">
           <select class="tsa-input" aria-label="${s.name} 송금 경로" style="height:32px;min-width:100px;padding:4px 28px 4px 9px;background:#fff;font-size:11px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
@@ -3074,6 +3077,28 @@ let currentAdetailTab = 'basic';
 let currentAdetailPortal = 'agency';
 let currentAdetailEnrollmentId = 'current';
 let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null, visa: null, ssp: null };
+let adpProfilePhotoData = null;
+
+function previewAdetailStudentPhoto(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('이미지 파일만 등록할 수 있습니다.', 'warning');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = event => {
+    adpProfilePhotoData = event.target.result;
+    const preview = document.getElementById('adp-profile-photo-preview');
+    const name = document.getElementById('adp-profile-photo-name');
+    if (preview) preview.innerHTML = `<img src="${adpProfilePhotoData}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>`;
+    if (name) name.textContent = `✓ ${file.name}`;
+    const headerAvatar = document.getElementById('adetail-page-avatar');
+    if (headerAvatar) headerAvatar.src = adpProfilePhotoData;
+  };
+  reader.readAsDataURL(file);
+}
 
 function openAgencyStudentDetailModal(id) {
   currentAdetailStudentId = id;
@@ -3168,7 +3193,7 @@ function renderAgencyStudentDetailPageHeader(s) {
   if (subEl) subEl.textContent = `등록 상태: ${stateStr} · ${s.agency || '한국 영어마을'} · ${currentAdetailPortal === 'admin' ? '어드민 학생 상세 정보' : '학생 상세 페이지'}`;
 
   const avatar = document.getElementById('adetail-page-avatar');
-  if (avatar) avatar.src = s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png';
+  if (avatar) avatar.src = s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
 
   const saveBtn = document.getElementById('adetail-page-save-btn');
   const isAgencyUser = APP.user === 'agency_head' || APP.user === 'agency_branch';
@@ -3660,8 +3685,21 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       return Math.floor(diff / (365.25 * 86400000)) + '세';
     })() : '-');
 
+    adpProfilePhotoData = null;
     html = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:10px">
+        <div style="grid-column:span 2;display:flex;align-items:center;gap:14px;padding:12px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:10px">
+          <div id="adp-profile-photo-preview" style="width:76px;height:88px;border-radius:10px;overflow:hidden;border:1px solid #DDE3EC;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <img src="${s.profilePhoto || (s.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png')}" style="width:100%;height:100%;object-fit:cover" alt="학생 사진 미리보기"/>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11.5px;font-weight:800;color:#374151;margin-bottom:4px">학생 증명사진</div>
+            <div id="adp-profile-photo-name" style="font-size:10px;color:#9CA3AF;margin-bottom:8px">${s.profilePhoto ? '등록된 사진 있음' : '등록된 사진 없음'}</div>
+            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="document.getElementById('adp-profile-photo').click()"><i data-lucide="image-plus"></i> 사진 선택</button>
+            <input id="adp-profile-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewAdetailStudentPhoto(this)"/>
+            <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
+          </div>
+        </div>
         <div class="tsa-form-group">
           <label class="tsa-label">영문 성명 (여권명) ${changeBtn('name', '영문 성명')}</label>
           <input id="ad-name" type="text" class="tsa-input" value="${s.name}" ${lockAttr}/>
@@ -3986,9 +4024,9 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               `).join('')}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">
-              <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px"><strong>청구 금액 합계:</strong> <strong style="float:right">$${billingBreakdown.gross.toLocaleString()}</strong></div>
+              <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액 합계:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
               <div style="color:#4F46E5">커미션 합계:</div><div style="text-align:right;color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</div>
-              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액 합계:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
+              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px"><strong>청구 금액 합계:</strong> <strong style="float:right">$${billingBreakdown.gross.toLocaleString()}</strong></div>
             </div>
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
               ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
@@ -4668,6 +4706,7 @@ function saveAgencyStudentDetails() {
   s.phone            = getVal('ad-phone', s.phone);
   s.email            = getVal('ad-email', s.email);
   s.emergencyContact = getVal('ad-emergency', s.emergencyContact);
+  if (adpProfilePhotoData) s.profilePhoto = adpProfilePhotoData;
 
   // 항공 & 입출국
   const newFlightNum = getVal('ad-flight-num', s.flightNum);
@@ -5176,11 +5215,11 @@ function renderPickupVehicleList() {
   const target = document.getElementById('pickup-vehicle-list');
   if (!target) return;
   target.innerHTML = MOCK_PICKUP_VEHICLES.length ? MOCK_PICKUP_VEHICLES.map(vehicle => `
-    <div style="display:grid;grid-template-columns:1fr 100px 76px 38px;gap:8px;align-items:center;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#fff">
+    <div style="display:grid;grid-template-columns:1fr 100px 76px 44px;gap:8px;align-items:center;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#fff">
       <div><b style="font-size:11px;color:#111827">${vehicle.model}</b><div style="font-size:9.5px;color:#6B7280;margin-top:2px">${vehicle.plate}${vehicle.memo ? ` · ${vehicle.memo}` : ''}</div></div>
       <span style="font-size:10.5px;color:#374151">${vehicle.capacity}인승</span>
       <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="editPickupVehicle(${vehicle.id})">수정</button>
-      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444" onclick="removePickupVehicle(${vehicle.id})"><i data-lucide="trash-2"></i></button>
+      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" title="삭제" style="color:#EF4444;border-color:#FCA5A5;display:flex;align-items:center;justify-content:center;padding:0;width:32px;height:28px" onclick="removePickupVehicle(${vehicle.id})"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
     </div>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:8px;color:#9CA3AF;font-size:10.5px">등록된 차량이 없습니다.</div>';
   if (typeof refreshIcons === 'function') refreshIcons();
 }
@@ -5581,7 +5620,7 @@ function switchInvoiceTab(tab) {
           <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px">
             <div><strong>Student Name:</strong> ${std.name} (${std.nick})</div>
             <div><strong>Flight Details:</strong> ${std.flightInfo || 'KE631'}</div>
-            <div><strong>Estimated Arrival:</strong> ${std.startDate} (Sunday)</div>
+            <div><strong>Estimated Arrival:</strong> ${std.arrivalDate || std.startDate || 'TBD'}</div>
             <div><strong>Beds Assign:</strong> Room ${std.dorm.includes('/') ? std.dorm.split('/')[0].trim() : std.dorm}</div>
           </div>
         </div>
