@@ -18,7 +18,7 @@ function setTeacherTagFilter(tag) {
 function renderTeacherTagFilters() {
   const wrap = document.getElementById('teacher-tag-filter-wrap');
   if (!wrap) return;
-  const tags = ['전체', ...MOCK_ASSIGNMENT_TAGS.filter(t => t.visible).map(t => t.name)];
+  const tags = ['전체', ...MOCK_ASSIGNMENT_TAGS.filter(t => t.visible && (t.type || 'strength') === 'strength').map(t => t.name)];
   wrap.innerHTML = tags.map(tag => `
     <button class="tsa-dorm-filter-chip teacher-tag-filter-btn ${tag === '전체' ? 'active' : ''}"
       data-tag="${tag}" onclick="setTeacherTagFilter('${tag}')">${tag}</button>
@@ -41,6 +41,13 @@ function getTeacherTeachingModes(teacher) {
     academy: modes.academy === true,
     online: modes.online === true
   };
+}
+
+function renderTeacherGradeBadge(teacher) {
+  const ms = teacher.grade4ms;
+  const pron = teacher.gradePronunciation;
+  if (!ms && !pron) return '<span style="font-size:11px;color:#D1D5DB">-</span>';
+  return `<span style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap">${ms || '-'} / ${pron || '-'}</span>`;
 }
 
 function renderTeacherTeachingModes(teacher) {
@@ -163,6 +170,7 @@ function renderTeacherList(list) {
             </div>
           </div>
         </td>
+        <td>${renderTeacherGradeBadge(t)}</td>
         <td>
           ${(t.preferredCourses||[]).length > 0
             ? (t.preferredCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#D1FAE5;color:#065F46;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
@@ -1004,25 +1012,25 @@ function switchTeacherTab(tab, el) {
     }
 
     case 'tags':
-      const masterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
-      
-      const preferredHtml = masterTags.map(tag => {
+      const allMasterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
+      const strengthTags = allMasterTags.filter(tag => (tag.type || 'strength') === 'strength');
+      const exclusionTags = allMasterTags.filter(tag => tag.type === 'exclusion');
+
+      const preferredHtml = strengthTags.map(tag => {
         const checked = (t.preferredCourses || []).includes(tag.name) ? 'checked' : '';
-        const disabled = (t.prohibitedCourses || []).includes(tag.name) ? 'disabled' : '';
         return `
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
-            <input type="checkbox" name="pref-tag" value="${tag.name}" ${checked} ${disabled} onchange="handleTeacherTagCheckChange()"/>
+            <input type="checkbox" name="pref-tag" value="${tag.name}" ${checked} onchange="handleTeacherTagCheckChange()"/>
             <span>${tag.name}</span>
           </label>
         `;
       }).join('');
 
-      const excludedHtml = masterTags.map(tag => {
+      const excludedHtml = exclusionTags.map(tag => {
         const checked = (t.prohibitedCourses || []).includes(tag.name) ? 'checked' : '';
-        const disabled = (t.preferredCourses || []).includes(tag.name) ? 'disabled' : '';
         return `
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
-            <input type="checkbox" name="excl-tag" value="${tag.name}" ${checked} ${disabled} onchange="handleTeacherTagCheckChange()"/>
+            <input type="checkbox" name="excl-tag" value="${tag.name}" ${checked} onchange="handleTeacherTagCheckChange()"/>
             <span>${tag.name}</span>
           </label>
         `;
@@ -1034,14 +1042,14 @@ function switchTeacherTab(tab, el) {
         <div style="margin-bottom:16px">
           <div style="font-size:11.5px;font-weight:700;color:#1E3A8A;margin-bottom:8px">⭐ 장점 과정 설정 (우선 배정 태그, 다중 선택 가능)</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px" id="pref-tag-container">
-            ${preferredHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 노출 배정 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
+            ${preferredHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 장점 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
           </div>
         </div>
 
         <div style="margin-bottom:16px">
           <div style="font-size:11.5px;font-weight:700;color:#DC2626;margin-bottom:8px">❌ 제외 과정 설정 (배정 금지 태그, 다중 선택 가능)</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px" id="excl-tag-container">
-            ${excludedHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 노출 배정 태그가 없습니다.</div>'}
+            ${excludedHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 배정 제외 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
           </div>
         </div>
 

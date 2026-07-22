@@ -563,71 +563,71 @@ const MOCK_TALK_LMS_TEACHERS = [
 ];
 
 let MOCK_ASSIGNMENT_TAGS = [
-  { id: "TAG-01", name: "일반 영어 스피킹", visible: true, priority: 1 },
-  { id: "TAG-02", name: "일반 영어 리스닝", visible: true, priority: 2 },
-  { id: "TAG-03", name: "문법", visible: true, priority: 3 },
-  { id: "TAG-04", name: "리딩", visible: true, priority: 4 },
-  { id: "TAG-05", name: "IELTS 전문", visible: true, priority: 5 },
-  { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 6 }
+  { id: "TAG-01", name: "일반 영어 스피킹", visible: true, priority: 1, type: "strength" },
+  { id: "TAG-02", name: "일반 영어 리스닝", visible: true, priority: 2, type: "strength" },
+  { id: "TAG-03", name: "문법", visible: true, priority: 3, type: "strength" },
+  { id: "TAG-04", name: "리딩", visible: true, priority: 4, type: "strength" },
+  { id: "TAG-05", name: "IELTS 전문", visible: true, priority: 5, type: "strength" },
+  { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 6, type: "strength" }
 ];
 
 const MOCK_TEACHERS = [
   { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문','리딩'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1','1:4'],
-    email: 'sarah.j@talkstation.co', phone: '+63-917-111-1111', birthday: '1990-03-15', joinDate: '2021-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'sarah.j@talkstation.co', phone: '+63-917-111-1111', birthday: '1990-03-15', joinDate: '2021-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Sarah. I specialize in IELTS and will help you achieve your target band score!',
     intro: 'I am a dedicated English teacher with over 5 years of IELTS coaching experience. I focus on speaking fluency and reading comprehension.',
     education: 'Bachelor of Secondary Education, Major in English — University of Cebu', hobby: 'Reading novels, Yoga, Traveling' },
 
   { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true,true,false,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'],
-    email: 'mike.c@talkstation.co', phone: '+63-920-222-2222', birthday: '1993-07-22', joinDate: '2022-08-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'mike.c@talkstation.co', phone: '+63-920-222-2222', birthday: '1993-07-22', joinDate: '2022-08-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Mike. Let\'s improve your conversational English together!',
     intro: 'I enjoy making English fun and practical. My teaching style focuses on real-life conversations.',
     education: 'Bachelor of Arts in Communication — Cebu Normal University', hobby: 'Basketball, Music, Cooking' },
 
   { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹','문법'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
-    email: 'anna.r@talkstation.co', phone: '+63-932-333-3333', birthday: '1995-01-10', joinDate: '2023-01-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now',
+    email: 'anna.r@talkstation.co', phone: '+63-932-333-3333', birthday: '1995-01-10', joinDate: '2023-01-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hello everyone! I\'m Teacher Anna. Group classes are my specialty — energy and fun guaranteed!',
     intro: 'I believe learning is better together. I create engaging group activities to build confidence in speaking.',
     education: 'Bachelor of Elementary Education — University of San Jose-Recoletos', hobby: 'Singing, Dancing, Art' },
 
   { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['문법','리딩','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
-    email: 'james.p@talkstation.co', phone: '+63-915-444-4444', birthday: '1985-11-30', joinDate: '2019-06-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'james.p@talkstation.co', phone: '+63-915-444-4444', birthday: '1985-11-30', joinDate: '2019-06-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hi! I\'m Teacher James. With 7 years of experience, I can guide you to fluency step by step.',
     intro: 'I specialize in grammar and comprehensive English skills. Currently on approved leave and returning soon.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Chess, Running, Photography' },
 
   { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['주니어 ESL','일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1','1:4','1:8'],
-    email: 'emily.s@talkstation.co', phone: '+63-918-555-5555', birthday: '1992-05-08', joinDate: '2021-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'emily.s@talkstation.co', phone: '+63-918-555-5555', birthday: '1992-05-08', joinDate: '2021-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hi kids and parents! I\'m Teacher Emily. Learning English should be fun and I make sure it is!',
     intro: 'I am passionate about teaching young learners. My classes use games, songs, and stories to build English foundations.',
     education: 'Bachelor of Early Childhood Education — Southwestern University', hobby: 'Drawing, Storytelling, Baking' },
 
   { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true,true,true,false,false,true,true,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'],
-    email: 'david.l@talkstation.co', phone: '+63-927-666-6666', birthday: '1997-09-14', joinDate: '2024-03-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now',
+    email: 'david.l@talkstation.co', phone: '+63-927-666-6666', birthday: '1997-09-14', joinDate: '2024-03-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hello! I\'m Teacher David. I\'m new but very enthusiastic about helping you speak English confidently!',
     intro: 'Fresh graduate with a passion for English teaching. I focus on pronunciation and everyday conversation.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Technological University', hobby: 'Video games, Cycling, Movies' },
 
   { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4'],
-    email: 'grace.s@talkstation.co', phone: '+63-933-777-7777', birthday: '1994-12-03', joinDate: '2022-05-16', jobGrade: 'Regular Tutor', talkStatus: 'Resigned', experience: 'Experienced',
+    email: 'grace.s@talkstation.co', phone: '+63-933-777-7777', birthday: '1994-12-03', joinDate: '2022-05-16', jobGrade: 'Regular Tutor', talkStatus: 'Resigned', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hi! I\'m Teacher Grace. I love helping students find their confidence in English.',
     intro: 'Experienced in 1:1 and small group sessions. Focused on listening and speaking improvement.',
     education: 'Bachelor of Arts in English — University of Cebu-Lapu-Lapu and Mandaue', hobby: 'Singing, Hiking, Cooking' },
 
   { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: 'A-105', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹','문법'], excludedCourses: [], classTypes: ['1:1','1:4'],
-    email: 'karen.v@talkstation.co', phone: '+63-919-888-8888', birthday: '1991-06-25', joinDate: '2022-02-07', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'karen.v@talkstation.co', phone: '+63-919-888-8888', birthday: '1991-06-25', joinDate: '2022-02-07', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Karen. I make sure every student leaves the class smiling and more confident!',
     intro: 'I specialize in helping intermediate learners break through their plateau and reach fluency.',
     education: 'Bachelor of Secondary Education — University of San Carlos', hobby: 'Badminton, K-drama, Cooking' },
 
   { id: 9, name: 'Mark Dela Cruz', nick: 'Mark', gender: '남', type: '그룹 수업', room: 'B-203', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['주니어 ESL'], classTypes: ['1:4','1:8'],
-    email: 'mark.d@talkstation.co', phone: '+63-912-999-9999', birthday: '1994-04-18', joinDate: '2023-06-12', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now',
+    email: 'mark.d@talkstation.co', phone: '+63-912-999-9999', birthday: '1994-04-18', joinDate: '2023-06-12', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hey! I\'m Teacher Mark. Group classes are where the magic happens — let\'s learn together!',
     intro: 'I create a comfortable and dynamic environment for group learning. Energy and humor are my teaching tools.',
     education: 'Bachelor of Arts in Mass Communication — Cebu Normal University', hobby: 'Guitar, Volleyball, Photography' },
 
   { id: 10, name: 'Lisa Fernandez', nick: 'Lisa', gender: '여', type: 'IELTS 전문', room: 'A-106', contract: '정규직', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문','리딩','문법'], excludedCourses: [], classTypes: ['1:1'],
-    email: 'lisa.f@talkstation.co', phone: '+63-921-101-0101', birthday: '1988-08-30', joinDate: '2020-01-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced',
+    email: 'lisa.f@talkstation.co', phone: '+63-921-101-0101', birthday: '1988-08-30', joinDate: '2020-01-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Lisa. IELTS is my expertise and I\'ll guide you from Band 5 to Band 7 and beyond!',
     intro: 'With 6 years of IELTS preparation experience, I know exactly what examiners are looking for.',
     education: 'Master of Arts in Applied Linguistics — University of the Philippines Cebu', hobby: 'Reading academic journals, Jogging, Cooking' },
@@ -784,11 +784,16 @@ let MOCK_MASTER_SUBJECTS = [
 ];
 
 let MOCK_MASTER_LEVELS = [
-  { id: 'LV_01', name: 'Beginner', order: 1, desc: '입문 기초 레벨', visible: true },
-  { id: 'LV_02', name: 'Elementary', order: 2, desc: '초급 기초 회화 레벨', visible: true },
-  { id: 'LV_03', name: 'Intermediate', order: 3, desc: '중급 프리토킹 준비 레벨', visible: true },
-  { id: 'LV_04', name: 'Upper-Int', order: 4, desc: '중상급 프리토킹 심화 레벨', visible: true },
-  { id: 'LV_05', name: 'Advanced', order: 5, desc: '고급 토론 및 아카데믹 레벨', visible: true }
+  { id: 'LV_01', name: 'Beginner', order: 1, desc: '입문 기초 레벨', visible: true,
+    subLevels: [{ id: 'LV_01_1', name: 'Beginner-1', order: 1, visible: true }, { id: 'LV_01_2', name: 'Beginner-2', order: 2, visible: true }] },
+  { id: 'LV_02', name: 'Elementary', order: 2, desc: '초급 기초 회화 레벨', visible: true,
+    subLevels: [{ id: 'LV_02_1', name: 'Elementary-1', order: 1, visible: true }, { id: 'LV_02_2', name: 'Elementary-2', order: 2, visible: true }] },
+  { id: 'LV_03', name: 'Intermediate', order: 3, desc: '중급 프리토킹 준비 레벨', visible: true,
+    subLevels: [{ id: 'LV_03_1', name: 'Intermediate-1', order: 1, visible: true }, { id: 'LV_03_2', name: 'Intermediate-2', order: 2, visible: true }] },
+  { id: 'LV_04', name: 'Upper-Int', order: 4, desc: '중상급 프리토킹 심화 레벨', visible: true,
+    subLevels: [{ id: 'LV_04_1', name: 'Upper-Int-1', order: 1, visible: true }, { id: 'LV_04_2', name: 'Upper-Int-2', order: 2, visible: true }] },
+  { id: 'LV_05', name: 'Advanced', order: 5, desc: '고급 토론 및 아카데믹 레벨', visible: true,
+    subLevels: [{ id: 'LV_05_1', name: 'Advanced-1', order: 1, visible: true }, { id: 'LV_05_2', name: 'Advanced-2', order: 2, visible: true }] }
 ];
 
 let MOCK_MASTER_CLASS_TYPES = [

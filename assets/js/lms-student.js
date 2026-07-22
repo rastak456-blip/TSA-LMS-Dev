@@ -143,9 +143,6 @@ function renderStudentList(list) {
         <div style="font-weight:600;color:#374151">${s.agency || '-'}</div>
         ${agencyInfo ? `<div style="color:#9CA3AF;font-size:10.5px;margin-top:1px">${agencyInfo.contact} · ${agencyInfo.phone}</div>` : ''}
       </td>
-      <td style="font-size:11.5px;white-space:nowrap">
-        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-weight:700;color:#4338CA;background:#EEF2FF">${remittanceRouteLabel}</span>
-      </td>
       <td style="font-size:11.5px;font-weight:600;color:#374151">${mentorName}</td>
       <td><span style="color:#5E5CE6;font-weight:600;font-size:11.5px">${s.level || '-'}</span></td>
       <td style="font-size:11.5px;white-space:nowrap">
@@ -168,6 +165,9 @@ function renderStudentList(list) {
         </div>
         ${s.warning > 0 ? `<div style="font-size:10px;color:#EF4444;margin-top:2px">경고 ${s.warning}회</div>` : ''}
       </td>
+      <td style="font-size:11.5px;white-space:nowrap">
+        <span style="display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-weight:700;color:#4338CA;background:#EEF2FF">${remittanceRouteLabel}</span>
+      </td>
       ${renderBillingCell('registration')}
       ${renderBillingCell('education')}
       ${renderBillingCell('dorm')}
@@ -179,6 +179,9 @@ function renderStudentList(list) {
         <div style="display:flex;gap:6px;justify-content:center;align-items:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentDetail(${s.id})" style="border-color:#5E5CE6;color:#5E5CE6">
             <i data-lucide="pencil" style="font-size:11px"></i> 상세/수정
+          </button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openStudentCourseRegistration(${s.id})" style="border-color:#16A34A;color:#16A34A">
+            <i data-lucide="plus-square" style="font-size:11px"></i> 코스 등록
           </button>
         </div>
       </td>
@@ -542,7 +545,7 @@ function renderStudentConsultationTab(student, container) {
       </div>
       <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;background:#fff">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
-          <div><div style="font-size:13px;font-weight:800;color:#111827">학생 활동 히스토리</div><div style="font-size:10.5px;color:#6B7280;margin-top:4px">상담 기록과 시스템 정보 변경 기록을 시간순으로 확인합니다.</div></div>
+          <div><div style="font-size:13px;font-weight:800;color:#111827">상담 노트</div><div style="font-size:10.5px;color:#6B7280;margin-top:4px">상담 기록과 시스템 정보 변경 기록을 시간순으로 확인합니다.</div></div>
           <span class="tsa-badge tsa-badge-primary">${filteredActivities.length}건</span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
@@ -1978,6 +1981,18 @@ function handleSfFileSelected(key) {
   }
 }
 
+// 등록 에이전시 select를 MOCK_AGENCIES 기준으로 채운다 ('직접 등록' 포함, 활성 에이전시만)
+function populateSfRegAgencyOptions(selected) {
+  const sel = document.getElementById('sf-reg-agency');
+  if (!sel) return;
+  const agencies = (typeof MOCK_AGENCIES !== 'undefined')
+    ? MOCK_AGENCIES.filter(a => a.status === 'active' && a.name !== '직접 등록')
+    : [];
+  sel.innerHTML = `<option value="직접 등록">🏢 직접 등록 (에이전시 미경유)</option>`
+    + agencies.map(a => `<option value="${a.name}">${a.flag || ''} ${a.name} · ${a.contact}</option>`).join('');
+  sel.value = selected && [...sel.options].some(o => o.value === selected) ? selected : '직접 등록';
+}
+
 function openStudentRegisterModal() {
   sfFiles = { passport: null, ticket: null, photo: null, insurance: null };
   sfProfilePhotoData = null;
@@ -2018,7 +2033,7 @@ function openStudentRegisterModal() {
   setVal('sf-gender', '남');
   setVal('sf-dob', '');
   setVal('sf-age', '');
-  setVal('sf-nationality', '한국');
+  setVal('sf-reg-nationality', '한국');
   setVal('sf-phone', '');
   setVal('sf-email', '');
   setVal('sf-emergency', '');
@@ -2034,12 +2049,12 @@ function openStudentRegisterModal() {
   setVal('sf-flight-out-time', '');
   setVal('sf-visa', '');
   setVal('sf-ssp', '면제');
-  setVal('sf-course', '일반 코스');
+  setVal('sf-reg-course', '일반 코스');
   setVal('sf-duration', '4');
   setVal('sf-startDate', '');
   setVal('sf-endDate', '');
   setVal('sf-level', '');
-  setVal('sf-agency', '직접 등록');
+  populateSfRegAgencyOptions('직접 등록');
   setVal('sf-status', 'waiting');
   setVal('sf-dormAccomType', '');
   setVal('sf-dorm-in', '');
@@ -2079,13 +2094,13 @@ function openStudentEditModal(id) {
   document.getElementById('sf-nick').value = s.nick || "";
   document.getElementById('sf-gender').value = s.gender || "남";
   document.getElementById('sf-age').value = s.age || "";
-  document.getElementById('sf-nationality').value = s.nationality || "한국";
-  document.getElementById('sf-course').value = s.course || "일반 코스";
+  document.getElementById('sf-reg-nationality').value = s.nationality || "한국";
+  document.getElementById('sf-reg-course').value = s.course || "일반 코스";
   document.getElementById('sf-duration').value = s.duration || "4";
   document.getElementById('sf-endDate').value = s.endDate || "";
   document.getElementById('sf-level').value = s.level || "";
   document.getElementById('sf-dorm').value = s.dorm || "";
-  document.getElementById('sf-agency').value = s.agency || "직접 등록";
+  populateSfRegAgencyOptions(s.agency || "직접 등록");
   document.getElementById('sf-visa').value = s.visaExpiry || "";
   document.getElementById('sf-ssp').value = s.sspExpiry || "면제";
   document.getElementById('sf-passport').value = s.passportStatus || "보관 중";
@@ -2124,7 +2139,7 @@ function saveStudentForm() {
 
   // 신규 등록 시에는 에이전시 포탈과 동일하게 기본 인적사항만 검증 (여권·수강 정보는 상세/수정에서 나중에 입력)
   if (!idVal) {
-    if (!name || !nick || !gender || !document.getElementById('sf-nationality').value || !phone || !email || !emergencyContact) {
+    if (!name || !nick || !gender || !document.getElementById('sf-reg-nationality').value || !phone || !email || !emergencyContact) {
       showToast('⚠ 기본 인적 사항의 필수 항목을 모두 입력해 주세요.', 'danger');
       return;
     }
@@ -2140,14 +2155,14 @@ function saveStudentForm() {
       }
     }
   }
-  const nationality = document.getElementById('sf-nationality').value;
-  const course = document.getElementById('sf-course').value;
+  const nationality = document.getElementById('sf-reg-nationality').value;
+  const course = document.getElementById('sf-reg-course').value;
   const duration = parseInt(document.getElementById('sf-duration').value);
   const dormAccomType = (document.getElementById('sf-dormAccomType') || {}).value || '';
   const dormCapacity  = (document.getElementById('sf-dormCapacity')  || {}).value || '';
   const dormGrade     = (document.getElementById('sf-dormGrade')     || {}).value || '';
   const dorm = '미배정';
-  const agency = document.getElementById('sf-agency').value.trim();
+  const agency = (document.getElementById('sf-reg-agency')?.value || '직접 등록').trim();
   const visaExpiry = document.getElementById('sf-visa').value;
   const sspExpiry = document.getElementById('sf-ssp').value.trim();
   const passportStatus = document.getElementById('sf-passport').value;
@@ -2229,6 +2244,8 @@ function saveStudentForm() {
       email: email,
       emergencyContact: emergencyContact,
       profilePhoto: sfProfilePhotoData,
+      agency: agency,
+      remittanceRoute: agency === '직접 등록' ? 'direct' : 'agency',
       course: '미등록',
       duration: 0,
       level: '',

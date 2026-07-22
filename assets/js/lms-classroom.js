@@ -50,12 +50,12 @@ function isGroupTeacher(teacher) {
 
 // ── 에이전시 관리 ────────────────────────────────────
 let MOCK_AGENCIES = [
-  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', bankName: 'Sample Bank', accountName: 'Korea English Village', accountNumber: '000-0000-0000', swiftCode: 'SAMPLEKRSE', bankAddress: 'Seoul, Republic of Korea', lat: 37.5006, lng: 127.0364, manager: '김민지' },
-  { id: 7, name: '서울 유학원', country: '한국', flag: '🇰🇷', contact: '최영희', phone: '+82-10-9876-5432', email: 'seoul@talkstn.com', accountId: 'agency_seoul', commissionRate: 10, status: 'active', createdAt: '2025-08-12', note: '카카오톡 채널 서울유학원', address: '서울특별시 종로구 종로 50', lat: 37.5704, lng: 126.9831, manager: '박서준' },
-  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', lat: 35.6896, lng: 139.6921, manager: '이하늘' },
-  { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', lat: 34.7024, lng: 135.4959, manager: '이하늘' },
-  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', lat: 39.9087, lng: 116.4322, manager: '최우진' },
-  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', lat: 10.7769, lng: 106.7009, manager: '최우진' },
+  { id: 1, name: '한국 영어마을', country: '한국', flag: '🇰🇷', contact: '김지훈', phone: '+82-10-1234-5678', email: 'korea@talkstn.com', accountId: 'agency_head', commissionRate: 10, status: 'active', createdAt: '2025-01-15', note: '메인 파트너 / 카카오톡 채널 한국영어마을', address: '서울특별시 강남구 테헤란로 123', website: 'https://koreaenglishvillage.co.kr', officialSns: 'Instagram @koreaenglishvillage', bankName: 'Sample Bank', accountName: 'Korea English Village', accountNumber: '000-0000-0000', swiftCode: 'SAMPLEKRSE', bankAddress: 'Seoul, Republic of Korea', lat: 37.5006, lng: 127.0364, manager: '김민지' },
+  { id: 7, name: '서울 유학원', country: '한국', flag: '🇰🇷', contact: '최영희', phone: '+82-10-9876-5432', email: 'seoul@talkstn.com', accountId: 'agency_seoul', commissionRate: 10, status: 'active', createdAt: '2025-08-12', note: '카카오톡 채널 서울유학원', address: '서울특별시 종로구 종로 50', website: 'https://seouledu.co.kr', officialSns: '카카오톡 채널 @서울유학원', lat: 37.5704, lng: 126.9831, manager: '박서준' },
+  { id: 2, name: 'Tokyo Language', country: '일본', flag: '🇯🇵', contact: 'Tanaka Kenji', phone: '+81-90-1234-5678', email: 'tokyo@talkstn.com', accountId: 'agency_tokyo', commissionRate: 8, status: 'active', createdAt: '2025-03-01', note: '라인 ID @tokyo_lang', address: '東京都新宿区西新宿2-8-1', website: 'https://tokyolanguage.jp', officialSns: 'LINE @tokyo_lang', lat: 35.6896, lng: 139.6921, manager: '이하늘' },
+  { id: 8, name: 'Osaka Study', country: '일본', flag: '🇯🇵', contact: 'Yamamoto Yui', phone: '+81-90-9876-5432', email: 'osaka@talkstn.com', accountId: 'agency_osaka', commissionRate: 8, status: 'active', createdAt: '2025-09-05', note: '라인 ID @osaka_study', address: '大阪府大阪市北区梅田3-1-1', website: 'https://osakastudy.jp', officialSns: 'LINE @osaka_study', lat: 34.7024, lng: 135.4959, manager: '이하늘' },
+  { id: 3, name: 'Beijing Partner', country: '중국', flag: '🇨🇳', contact: 'Wang Fang', phone: '+86-10-1234-5678', email: 'beijing@talkstn.com', accountId: 'agency_beijing', commissionRate: 9, status: 'active', createdAt: '2025-04-10', note: '위챗 ID BJ_Partner01', address: '北京市朝阳区建国路88号', website: 'https://beijingpartner.cn', officialSns: 'WeChat BJ_Partner01', lat: 39.9087, lng: 116.4322, manager: '최우진' },
+  { id: 4, name: 'VN Academy', country: '베트남', flag: '🇻🇳', contact: 'Nguyen Lan', phone: '+84-90-1234-5678', email: 'vn@talkstn.com', accountId: 'agency_vn', commissionRate: 7, status: 'inactive', createdAt: '2025-06-01', note: '일시 정지', address: 'Quận 1, Hồ Chí Minh, Việt Nam', website: 'https://vnacademy.vn', officialSns: 'Zalo @vnacademy', lat: 10.7769, lng: 106.7009, manager: '최우진' },
   { id: 9, name: '직접 등록', country: '한국', flag: '🏢', contact: 'TSA 본사', phone: '-', email: '-', accountId: '-', commissionRate: 0, status: 'active', createdAt: '2025-01-01', note: '에이전시를 거치지 않고 자사가 직접 등록한 학생', address: '', lat: null, lng: null, manager: '-' },
 ];
 let _agencyNextId = 10;
@@ -120,15 +120,19 @@ function renderAgencyManage() {
   // 같은 상위 에이전시명(name)을 공유하는 지사가 여러 개일 경우, 학생 수는
   // 첫 번째(대표) 지사에서만 집계하여 중복 카운트를 방지한다.
   const seenAgencyName = {};
-  tbody.innerHTML = MOCK_AGENCIES.map(a => {
+  tbody.innerHTML = MOCK_AGENCIES.map((a, idx) => {
     const isPrimaryForName = !seenAgencyName[a.name];
     seenAgencyName[a.name] = true;
 
     const studentCount = isPrimaryForName ? MOCK_STUDENTS.filter(s => s.agency === a.name).length : null;
     const activeCount  = isPrimaryForName ? MOCK_STUDENTS.filter(s => s.agency === a.name && (s.status === 'current' || s.status === 'extended')).length : null;
-    const statusBadge = a.status === 'active'
-      ? `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#D1FAE5;color:#065F46">활성</span>`
-      : `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#F3F4F6;color:#6B7280">비활성</span>`;
+    const statusBadge = a.name === '직접 등록'
+      ? (a.status === 'active'
+          ? `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#D1FAE5;color:#065F46">활성</span>`
+          : `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#F3F4F6;color:#6B7280">비활성</span>`)
+      : (a.status === 'active'
+          ? `<button onclick="toggleAgencyStatus(${a.id})" title="클릭하여 비활성화" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#D1FAE5;color:#065F46;border:none;cursor:pointer">활성</button>`
+          : `<button onclick="toggleAgencyStatus(${a.id})" title="클릭하여 활성화" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#F3F4F6;color:#6B7280;border:none;cursor:pointer">비활성</button>`);
 
     const displayName = a.branch ? `${a.name} <span style="font-weight:600;color:#5E5CE6">· ${a.branch}</span>` : a.name;
     const studentCell = isPrimaryForName
@@ -142,12 +146,31 @@ function renderAgencyManage() {
          <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">${managerStaff ? managerStaff.dept : ''}</div>`
       : '<span style="font-size:11px;color:#9CA3AF">미지정</span>';
 
+    const contacts = Array.isArray(a.contacts) && a.contacts.length
+      ? a.contacts
+      : (a.contact ? [{ name: a.contact, phone: a.contactPhone || a.phone, email: a.contactEmail || a.email }] : []);
+    const primaryContact = contacts[0];
+    const extraContactCount = Math.max(0, contacts.length - 1);
+    const contactCell = primaryContact
+      ? `<div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country || '-'} · 담당: ${primaryContact.name || '-'}${extraContactCount > 0 ? ` <span style="color:#5E5CE6;font-weight:700">외 ${extraContactCount}명</span>` : ''}</div>
+         <div style="font-size:11px;color:#9CA3AF">대표 연락처 ${a.phone || '-'}</div>`
+      : `<div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country || '-'} · 담당자 미등록</div>
+         <div style="font-size:11px;color:#9CA3AF">대표 연락처 ${a.phone || '-'}</div>`;
+    const websiteCell = a.website
+      ? `<a href="${a.website}" target="_blank" style="color:#5E5CE6;text-decoration:none;font-size:11.5px;word-break:break-all">${a.website}</a>`
+      : `<span style="font-size:11px;color:#D1D5DB">-</span>`;
+    const snsCell = a.officialSns
+      ? `<span style="font-size:11.5px;color:#374151">${a.officialSns}</span>`
+      : `<span style="font-size:11px;color:#D1D5DB">-</span>`;
+
     return `<tr>
+      <td style="text-align:center;color:#9CA3AF;font-size:11px;width:36px">${idx + 1}</td>
       <td>
         <div style="font-size:13px;font-weight:700;color:#111827">${a.flag} ${displayName}</div>
-        <div style="font-size:11px;color:#6B7280;margin-top:2px">${a.country} · 담당: ${a.contact}</div>
-        <div style="font-size:11px;color:#9CA3AF">${a.phone}</div>
+        ${contactCell}
       </td>
+      <td style="max-width:160px">${websiteCell}</td>
+      <td style="max-width:150px">${snsCell}</td>
       <td style="font-size:12px;color:#374151">${a.email}</td>
       <td style="font-size:12px;font-weight:600;color:#374151">${a.accountId}</td>
       <td style="text-align:center">${managerCell}</td>
@@ -164,7 +187,6 @@ function renderAgencyManage() {
         <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
           <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="viewAsAgency('${a.accountId}')">포털 보기</button>
           <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openAgencyEditModal(${a.id})">수정</button>
-          <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#EF4444;border:none" onclick="toggleAgencyStatus(${a.id})">${a.status === 'active' ? '비활성화' : '활성화'}</button>
         </div>`}
       </td>
     </tr>`;
@@ -2077,15 +2099,22 @@ function renderDormErpGantt(rooms, startVal, endVal) {
         const genderKey = /^(남|남성|male)$/i.test(genderValue) ? 'male' : /^(여|여성|female)$/i.test(genderValue) ? 'female' : 'neutral';
         const palette = genderPalette[genderKey];
         const color = item.status === 'occupied' ? palette.active : palette.muted;
+        // 닉네임 (여권이름) · 국적 · 성별 · 나이까지 표시 — 학생 레코드를 못 찾으면 기존 문자열 그대로
+        const studentProfile = assignedStudent
+          ? `${assignedStudent.nick} (${assignedStudent.name}) · ${assignedStudent.nationality || '-'} · ${/^남/.test(assignedStudent.gender || '') ? '남성' : '여성'} · ${assignedStudent.age ? assignedStudent.age + '세' : '-'}`
+          : String(item.student || '배정');
         const label = String(item.student || '배정').split(' ')[0];
+        const barText = assignedStudent
+          ? `${assignedStudent.nick} (${assignedStudent.name}) · ${assignedStudent.nationality || '-'} · ${/^남/.test(assignedStudent.gender || '') ? '남' : '여'} · ${assignedStudent.age ? assignedStudent.age + '세' : '-'}`
+          : label;
         const extraStyle = item.status === 'reserved' ? `border:2px dashed ${palette.border};background:${palette.muted};color:${palette.text};`
           : item.status === 'history' ? `background:${palette.muted};color:${palette.text};opacity:.9;`
           : '';
         const tooltip = item.status === 'history'
-          ? `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end} (퇴소: ${item.reason || '-'})`
-          : `${item.student} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}`;
+          ? `${studentProfile} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end} (퇴소: ${item.reason || '-'})`
+          : `${studentProfile} · ${start.getFullYear()}-${item.start} ~ ${start.getFullYear()}-${item.end}`;
         return `<div class="erp-gantt-bar" style="left:${left}px;width:${width}px;background:${color};${extraStyle}cursor:pointer" title="${tooltip}" onclick="openRoomDetailModal(${roomIdx})">
-          <span>${item.status === 'reserved' ? '예약' : label}</span><span style="font-size:9px;opacity:.85">${item.start}~${item.end}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.status === 'reserved' ? '예약' : barText}</span><span style="font-size:9px;opacity:.85;flex-shrink:0">${item.start}~${item.end}</span>
         </div>`;
       }).join('');
 

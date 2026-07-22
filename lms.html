@@ -585,6 +585,9 @@
     }
     .tsa-table tbody tr:hover { background: #FAFBFF; }
 
+    .tsa-table-compact thead th,
+    .tsa-table-compact tbody td { padding: 6px 8px; }
+
     /* ===== FORM ELEMENTS ===== */
     .tsa-input {
       width: 100%;
@@ -2130,18 +2133,18 @@
           <!-- Student Table -->
           <div class="tsa-card">
             <div style="overflow-x:auto">
-              <table class="tsa-table" id="student-table" style="min-width:1760px">
+              <table class="tsa-table tsa-table-compact" id="student-table" style="min-width:1480px;font-size:12px">
                 <thead>
                   <tr>
                     <th style="width:36px;text-align:center">#</th>
                     <th>학생명 / 국적</th>
                     <th>에이전시</th>
-                    <th>송금 경로</th>
                     <th>담당 멘토</th>
                     <th>레벨</th>
                     <th>코스 / 수강 기간</th>
                     <th>기숙사 호실 / 입실 기간</th>
                     <th>출석률</th>
+                    <th>학생 정산 방식</th>
                     <th style="text-align:right">등록금</th>
                     <th style="text-align:right">수강료</th>
                     <th style="text-align:right">기숙사비</th>
@@ -2172,7 +2175,7 @@
 
           <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;margin-bottom:14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8F9FF;color:#3730A3;font-size:11.5px">
             <i data-lucide="refresh-cw" style="width:15px;height:15px;flex-shrink:0"></i>
-            <span><b>성명·성별·생년월·입사일·학력</b> 등 기본정보는 톡스테이션 LMS에서 불러오며, <b>강의실·평점·근무시간·수업유형·과목·레벨·교시별 가능 여부</b>는 상세/수정에서 관리합니다.</span>
+            <span><b>성명·성별·생년월·입사일·학력·강사 등급</b> 등 기본정보는 톡스테이션 LMS에서 불러오며, <b>강의실·평점·근무시간·수업유형·과목·레벨·교시별 가능 여부</b>는 상세/수정에서 관리합니다.</span>
           </div>
 
           <!-- 서브 탭 네비게이션 -->
@@ -2211,6 +2214,7 @@
                     <tr>
                       <th style="width:36px;text-align:center">#</th>
                       <th>강사명</th>
+                      <th>강사 등급<div style="font-size:10px;font-weight:400;color:#9CA3AF;margin-top:2px">4MS/발음</div></th>
                       <th>장점 태그</th>
                       <th>배정 제외 태그</th>
                       <th>수업 가능 유형</th>
@@ -2246,6 +2250,13 @@
                       <input type="text" id="tag-manage-name" class="tsa-input" placeholder="예: IELTS Speaking" required/>
                     </div>
                     <div class="tsa-form-group">
+                      <label class="tsa-label">태그 유형 <span style="color:#EF4444">*</span></label>
+                      <select id="tag-manage-type" class="tsa-input">
+                        <option value="strength">⭐ 장점 태그</option>
+                        <option value="exclusion">❌ 배정 제외 태그</option>
+                      </select>
+                    </div>
+                    <div class="tsa-form-group">
                       <label class="tsa-label">노출 여부</label>
                       <select id="tag-manage-visible" class="tsa-input">
                         <option value="true">노출 (사용)</option>
@@ -2264,24 +2275,45 @@
                 </div>
               </div>
 
-              <!-- 우측: 태그 목록 -->
-              <div class="tsa-card">
-                <div class="tsa-card-header">
-                  <h3 class="tsa-card-title"><i data-lucide="list" style="color:#10B981"></i> 배정 태그 풀 (Master Pool)</h3>
+              <!-- 우측: 태그 목록 (장점/배정 제외 분리) -->
+              <div style="display:flex;flex-direction:column;gap:20px">
+                <div class="tsa-card">
+                  <div class="tsa-card-header">
+                    <h3 class="tsa-card-title"><i data-lucide="star" style="color:#10B981"></i> 장점 태그 목록</h3>
+                  </div>
+                  <div style="overflow:hidden">
+                    <table class="tsa-table">
+                      <thead>
+                        <tr>
+                          <th>태그명</th>
+                          <th style="text-align:center">노출 상태</th>
+                          <th style="text-align:center">우선순위</th>
+                          <th style="text-align:center">순서 정렬</th>
+                          <th style="text-align:center">동작</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tag-master-list-tbody-strength"></tbody>
+                    </table>
+                  </div>
                 </div>
-                <div style="overflow:hidden">
-                  <table class="tsa-table">
-                    <thead>
-                      <tr>
-                        <th>태그명</th>
-                        <th style="text-align:center">노출 상태</th>
-                        <th style="text-align:center">우선순위</th>
-                        <th style="text-align:center">순서 정렬</th>
-                        <th style="text-align:center">동작</th>
-                      </tr>
-                    </thead>
-                    <tbody id="tag-master-list-tbody"></tbody>
-                  </table>
+                <div class="tsa-card">
+                  <div class="tsa-card-header">
+                    <h3 class="tsa-card-title"><i data-lucide="ban" style="color:#EF4444"></i> 배정 제외 태그 목록</h3>
+                  </div>
+                  <div style="overflow:hidden">
+                    <table class="tsa-table">
+                      <thead>
+                        <tr>
+                          <th>태그명</th>
+                          <th style="text-align:center">노출 상태</th>
+                          <th style="text-align:center">우선순위</th>
+                          <th style="text-align:center">순서 정렬</th>
+                          <th style="text-align:center">동작</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tag-master-list-tbody-exclusion"></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2557,7 +2589,7 @@
                     <th>학생 정보</th>
                     <th>코스 / 수강 기간</th>
                     <th class="col-dorm">희망 기숙사 정보</th>
-                    <th>송금 경로</th>
+                    <th>학생 정산 방식</th>
                     <th>등록금 / 커미션</th>
                     <th>수강료 / 커미션</th>
                     <th>기숙사비 / 커미션</th>
@@ -3120,16 +3152,16 @@
                   <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 수업 유형 관리</h3>
                   <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openClassTypeModal()"><i data-lucide="plus"></i> 수업 유형 추가</button>
                 </div>
-                <div style="overflow:hidden">
-                  <table class="tsa-table" style="width:100%">
+                <div style="overflow-x:auto">
+                  <table class="tsa-table tsa-table-compact" style="width:100%;font-size:11px">
                     <thead>
                       <tr>
-                        <th style="width:30px"></th>
+                        <th style="width:22px"></th>
                         <th>우선순위</th>
                         <th>수업 유형명</th>
                         <th style="text-align:center">수업 형태</th>
-                        <th style="text-align:center">최소 인원</th>
-                        <th style="text-align:center">최대 인원</th>
+                        <th style="text-align:center">최소</th>
+                        <th style="text-align:center">최대</th>
                         <th>화면 표시</th>
                         <th style="text-align:center">노출</th>
                         <th style="text-align:center">관리</th>
@@ -3727,10 +3759,10 @@
               <button class="tsa-btn tsa-btn-sm tsa-btn-primary" onclick="renderMonthlyInvoiceStats()">검색</button>
             </div>
             <div style="overflow-x:auto">
-              <table class="tsa-table">
+              <table class="tsa-table tsa-table-compact" style="font-size:12px">
                 <thead>
                   <tr id="month-stats-thead-row">
-                    <th>#</th><th>학생 정보</th><th>코스 / 수강 기간</th><th style="min-width:120px">송금 경로</th>
+                    <th>#</th><th>학생 정보</th><th>코스 / 수강 기간</th><th style="min-width:120px">학생 정산 방식</th>
                     <th style="text-align:right">등록금</th><th style="text-align:right;color:#D97706">등록금<br/>커미션</th>
                     <th style="text-align:right">수강료</th><th style="text-align:right;color:#D97706">수강료<br/>커미션</th>
                     <th style="text-align:right">기숙사비</th><th style="text-align:right;color:#D97706">기숙사<br/>커미션</th>
@@ -3797,7 +3829,10 @@
               <table class="tsa-table" style="font-size:12px">
                 <thead>
                   <tr>
+                    <th style="width:36px;text-align:center">#</th>
                     <th>에이전시 정보</th>
+                    <th>웹사이트</th>
+                    <th>공식 SNS</th>
                     <th>이메일</th>
                     <th>계정 ID</th>
                     <th style="text-align:center">담당 직원</th>
@@ -4895,6 +4930,13 @@
           <label class="tsa-label">정렬 우선순위 (숫자)</label>
           <input id="level-modal-order" type="number" class="tsa-input" placeholder="1"/>
         </div>
+        <div class="tsa-form-group">
+          <label class="tsa-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>세부 레벨</span>
+            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addLevelModalSubRow('')"><i data-lucide="plus"></i> 세부 레벨 추가</button>
+          </label>
+          <div id="level-modal-sublevels" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
       </div>
       <div class="tsa-modal-footer">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('level-modal')">취소</button>
@@ -5319,54 +5361,6 @@
   </div>
 </div>
 
-<!-- ══ 공실 배정 모달 (공실 bar 클릭) ══ -->
-<div id="bed-assign-modal" style="display:none">
-  <div class="tsa-modal-backdrop" onclick="closeModal('bed-assign-modal')">
-    <div class="tsa-modal tsa-modal-md" style="max-width:520px" onclick="event.stopPropagation()">
-      <div class="tsa-modal-header" style="background:#F0FDF4">
-        <div>
-          <h3 class="tsa-modal-title" style="color:#16A34A"><i data-lucide="user-plus"></i> 학생 배정</h3>
-          <p class="tsa-modal-subtitle" id="bam-subtitle"></p>
-        </div>
-        <button class="tsa-modal-close" onclick="closeModal('bed-assign-modal')"><i data-lucide="x"></i></button>
-      </div>
-      <div class="tsa-modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
-        <!-- 방 정보 표시 -->
-        <div id="bam-room-info" style="background:#F8F9FC;border-radius:8px;padding:12px 16px;font-size:12px;color:#374151"></div>
-        <!-- 학생 검색 -->
-        <div class="tsa-form-group">
-          <label class="tsa-label">학생 검색 (이름 · 여권번호)</label>
-          <div style="position:relative">
-            <input id="bam-search" type="text" class="tsa-input" placeholder="이름 또는 여권번호 입력..." oninput="searchBamStudents()" style="padding-left:36px"/>
-            <i data-lucide="search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9CA3AF;font-size:14px"></i>
-          </div>
-        </div>
-        <!-- 검색 결과 -->
-        <div id="bam-results" style="max-height:200px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px">
-          <div style="padding:12px;font-size:12px;color:#9CA3AF;text-align:center">학생 이름 또는 여권번호를 입력하세요</div>
-        </div>
-        <!-- 선택된 학생 표시 -->
-        <div id="bam-selected-student" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:#16A34A"></div>
-        <!-- 기간 입력 -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="tsa-form-group">
-            <label class="tsa-label">체크인 날짜</label>
-            <input id="bam-checkin" type="date" class="tsa-input" value="2026-06-15"/>
-          </div>
-          <div class="tsa-form-group">
-            <label class="tsa-label">체크아웃 날짜</label>
-            <input id="bam-checkout" type="date" class="tsa-input" value="2026-07-13"/>
-          </div>
-        </div>
-      </div>
-      <div class="tsa-modal-footer">
-        <button class="tsa-btn tsa-btn-outline" onclick="closeModal('bed-assign-modal')">취소</button>
-        <button class="tsa-btn tsa-btn-primary" onclick="confirmBedAssign()"><i data-lucide="check"></i> 배정 확정</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Student Registration & Edit Form Modal -->
 <div id="student-form-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('student-form-modal')">
@@ -5402,12 +5396,16 @@
                       <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
                     </div>
                   </div>
-                  <div class="tsa-form-group"><label class="tsa-label">영문 성명 (여권명) <span style="color:#EF4444">*</span></label><input id="sf-name" type="text" class="tsa-input" placeholder="HONG GILDONG" required/></div>
+                  <div class="tsa-form-group">
+                    <label class="tsa-label" style="display:block">영문 성명 (여권명) <span style="color:#EF4444">*</span></label>
+                    <div style="font-size:10px;color:#9CA3AF;margin-bottom:4px">Surname Given Name 순, 미들네임은 Given Name에 붙여서 입력</div>
+                    <input id="sf-name" type="text" class="tsa-input" placeholder="예: HONG GILDONG / KIM MINJI SARAH" required/>
+                  </div>
                   <div class="tsa-form-group"><label class="tsa-label">영문 닉네임 (호칭) <span style="color:#EF4444">*</span></label><input id="sf-nick" type="text" class="tsa-input" placeholder="Kevin" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">성별 <span style="color:#EF4444">*</span></label><select id="sf-gender" class="tsa-input"><option value="남">남성</option><option value="여">여성</option></select></div>
                   <div class="tsa-form-group"><label class="tsa-label">생년월일 <span style="color:#EF4444">*</span> <span id="sf-age-preview" style="color:#4F46E5;font-weight:700"></span></label><input id="sf-dob" type="date" class="tsa-input" required onchange="handleSfDobChange()"/><input id="sf-age" type="hidden"/></div>
                   <div class="tsa-form-group"><label class="tsa-label">국적 <span style="color:#EF4444">*</span></label>
-                    <select id="sf-nationality" class="tsa-input">
+                    <select id="sf-reg-nationality" class="tsa-input">
                       <option value="한국">한국 🇰🇷</option><option value="일본">일본 🇯🇵</option><option value="중국">중국 🇨🇳</option><option value="베트남">베트남 🇻🇳</option><option value="몽골">몽골 🇲🇳</option><option value="필리핀">필리핀 🇵🇭</option>
                     </select>
                   </div>
@@ -5415,6 +5413,9 @@
                   <div class="tsa-form-group"><label class="tsa-label">이메일 주소 <span style="color:#EF4444">*</span></label><input id="sf-email" type="email" class="tsa-input" placeholder="student@example.com" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">비상 연락처 <span style="color:#EF4444">*</span></label><input id="sf-emergency" type="text" class="tsa-input" placeholder="010-5678-1234 (부모)" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">식단 구분</label><select id="sf-diet" class="tsa-input"><option value="일반식">🍚 일반식</option><option value="채식">🥗 채식</option><option value="할랄">🌙 할랄</option><option value="글루텐 프리">🌾 글루텐 프리</option></select></div>
+                  <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">등록 에이전시 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(에이전시 미경유 시 '직접 등록' 선택)</span></label>
+                    <select id="sf-reg-agency" class="tsa-input"></select>
+                  </div>
                   <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">건강 및 정서 특이사항</label><textarea id="sf-health" class="tsa-input" rows="3" style="resize:vertical;min-height:72px;width:100%" placeholder="알레르기 없음, 복약 정보 없음"></textarea></div>
                 </div>
               </div>
@@ -5455,7 +5456,7 @@
                 <div class="tsa-card-header" style="padding:10px 14px;background:#F8F9FC"><h4 style="font-size:13px;font-weight:700;color:#4F46E5">Section C: 수강 및 기숙사 정보</h4></div>
                 <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
                   <div class="tsa-form-group"><label class="tsa-label">코스 유형 <span style="color:#EF4444">*</span></label>
-                    <select id="sf-course" class="tsa-input">
+                    <select id="sf-reg-course" class="tsa-input">
                       <option value="일반 코스">일반 코스</option><option value="IELTS 전문 코스">IELTS 전문 코스</option><option value="주니어 패키지">주니어 패키지</option><option value="가디언 코스">가디언 코스</option><option value="비즈니스 영어">비즈니스 영어</option>
                     </select>
                   </div>
@@ -5477,7 +5478,6 @@
                       <option value="Advanced">Advanced</option>
                     </select>
                   </div>
-                  <div class="tsa-form-group"><label class="tsa-label">등록 에이전시</label><input id="sf-agency" type="text" class="tsa-input" placeholder="직접 등록"/></div>
                   <div class="tsa-form-group"><label class="tsa-label">학사 상태</label>
                     <select id="sf-status" class="tsa-input">
                       <option value="waiting">입학 대기</option><option value="current">재학</option><option value="completed">졸업</option><option value="resigned">퇴원</option>
@@ -5720,8 +5720,9 @@
                   </div>
                 </div>
                 <div class="tsa-form-group">
-                  <label class="tsa-label">영문 성명 (여권명 필수) <span style="color:#EF4444">*</span></label>
-                  <input id="areg-name" type="text" class="tsa-input" placeholder="HONG GILDONG" required/>
+                  <label class="tsa-label" style="display:block">영문 성명 (여권명 필수) <span style="color:#EF4444">*</span></label>
+                  <div style="font-size:10px;color:#9CA3AF;margin-bottom:4px">Surname Given Name 순, 미들네임은 Given Name에 붙여서 입력</div>
+                  <input id="areg-name" type="text" class="tsa-input" placeholder="예: HONG GILDONG / KIM MINJI SARAH" required/>
                 </div>
                 <div class="tsa-form-group">
                   <label class="tsa-label">영문 닉네임 (호칭) <span style="color:#EF4444">*</span></label>
@@ -6312,7 +6313,7 @@
                   <div style="font-size:10px;color:#9CA3AF;margin-top:4px">선택한 과정에 연결된 추천 레벨입니다.</div>
                 </div>
                 <div class="tsa-form-group">
-                  <label class="tsa-label">송금 경로 <span style="color:#EF4444">*</span></label>
+                  <label class="tsa-label">학생 정산 방식 <span style="color:#EF4444">*</span></label>
                   <select id="course-reg-remittance-route" class="tsa-input">
                     <option value="agency">에이전시</option>
                     <option value="direct">직접 송금</option>

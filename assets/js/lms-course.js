@@ -878,14 +878,38 @@ function updateStudentRemittanceRoute(studentId, route, source = '상세') {
     if (!student.changeRequests) student.changeRequests = [];
     student.changeRequests.push({
       id: Date.now() + Math.random(),
-      field: '송금 경로',
+      field: '학생 정산 방식',
       from: getRemittanceRouteLabel(previousRoute),
       to: getRemittanceRouteLabel(route),
       reason: `${source}에서 직접 변경`,
       changedBy: APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : '관리자',
       requestDate: new Date().toISOString().substring(0, 10),
     });
-    showToast(`송금 경로가 '${getRemittanceRouteLabel(route)}'(으)로 변경되었습니다.`, 'success');
+    showToast(`학생 정산 방식가 '${getRemittanceRouteLabel(route)}'(으)로 변경되었습니다.`, 'success');
+  }
+
+  initAgencyStudentList();
+}
+
+function updateStudentLevel(studentId, level, source = '상세') {
+  const student = MOCK_STUDENTS.find(row => row.id === Number(studentId));
+  if (!student) return;
+
+  const previousLevel = student.level || '미정';
+  student.level = level;
+
+  if (previousLevel !== (level || '미정')) {
+    if (!student.changeRequests) student.changeRequests = [];
+    student.changeRequests.push({
+      id: Date.now() + Math.random(),
+      field: '레벨',
+      from: previousLevel,
+      to: level || '미정',
+      reason: `${source}에서 직접 변경`,
+      changedBy: APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : '관리자',
+      requestDate: new Date().toISOString().substring(0, 10),
+    });
+    showToast(`레벨이 '${level || '미정'}'(으)로 변경되었습니다.`, 'success');
   }
 
   initAgencyStudentList();
@@ -1030,7 +1054,7 @@ function initAgencyStudentList() {
           return `<div style="color:#D1D5DB">-</div>${periodHtml}`;
         })()}</td>
         <td style="font-size:10.5px;white-space:nowrap">
-          <select class="tsa-input" aria-label="${s.name} 송금 경로" style="width:100%;height:30px;padding:3px 22px 3px 6px;background:#fff;font-size:10.5px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
+          <select class="tsa-input" aria-label="${s.name} 학생 정산 방식" style="width:100%;height:30px;padding:3px 22px 3px 6px;background:#fff;font-size:10.5px;font-weight:700;color:#4338CA" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '학생 관리')">
             ${renderRemittanceRouteOptions(remittanceRoute)}
           </select>
         </td>
@@ -3264,7 +3288,7 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="consultation" onclick="switchAgencyEnrollmentHubTab('consultation')">학생 활동 히스토리</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="consultation" onclick="switchAgencyEnrollmentHubTab('consultation')">상담 노트</button>
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
       </div>
@@ -3841,9 +3865,9 @@ function renderAgencyEnrollmentFlightDocs(s, container) {
           <div style="font-size:10px;color:#6B7280;margin-top:5px">저장 후에는 보안을 위해 마스킹되어 표시됩니다.</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-        ${['passport','ticket','photo','insurance'].map(type => {
-          const labels = { passport: '여권 사본', ticket: 'E-티켓', photo: '증명 사진', insurance: '보험증서' };
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        ${['passport','ticket','insurance'].map(type => {
+          const labels = { passport: '여권 사본', ticket: 'E-티켓', insurance: '보험증서' };
           const uploaded = adetailUploadedFiles[type];
           const isPdf = uploaded && /\.pdf$/i.test(uploaded);
           const previewLabel = isPdf ? 'PDF 미리보기' : '미리보기';
@@ -4141,7 +4165,8 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
         </div>
         <div class="tsa-form-group">
-          <label class="tsa-label">영문 성명 (여권명) ${changeBtn('name', '영문 성명')}</label>
+          <label class="tsa-label" style="display:block">영문 성명 (여권명) ${changeBtn('name', '영문 성명')}</label>
+          <div style="font-size:10px;color:#9CA3AF;margin-bottom:4px">Surname Given Name 순, 미들네임은 Given Name에 붙여서 입력</div>
           <input id="ad-name" type="text" class="tsa-input" value="${s.name}" ${lockAttr}/>
         </div>
         <div class="tsa-form-group">
@@ -4243,6 +4268,25 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
               </div>
             `;
           }
+        })()}
+        ${(() => {
+          const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
+          const isWalkInReg = !s.agency || s.agency === '직접 등록';
+          return `
+            <div style="grid-column:span 2;background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:10px;padding:14px 16px">
+              <div style="font-size:11px;font-weight:700;color:#3730A3;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+                <i data-lucide="building-2" style="width:13px;height:13px;color:#5E5CE6"></i> 등록 에이전시 정보
+              </div>
+              ${isWalkInReg
+                ? `<div style="font-size:12px;color:#6B7280">직접 등록 (에이전시 미경유)</div>`
+                : `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px">
+                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">에이전시명</div><div style="font-weight:700;color:#111827">${s.agency}</div></div>
+                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">담당자</div><div style="font-weight:600;color:#374151">${agencyInfo?.contact || '-'}</div></div>
+                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">연락처</div><div style="font-weight:600;color:#374151">${agencyInfo?.phone || '-'}</div></div>
+                    ${agencyInfo?.email ? `<div style="grid-column:span 3"><div style="font-size:10px;color:#6B7280;margin-bottom:3px">이메일</div><div style="font-weight:600;color:#374151">${agencyInfo.email}</div></div>` : ''}
+                  </div>`}
+            </div>
+          `;
         })()}
       </div>
 
@@ -4393,7 +4437,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
         </div>
         <div class="tsa-form-group" style="grid-column:span 2;padding:12px 14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8F9FF">
-          <label class="tsa-label" style="color:#3730A3">송금 경로</label>
+          <label class="tsa-label" style="color:#3730A3">학생 정산 방식</label>
           <select id="ad-remittance-route" class="tsa-input" style="max-width:260px;background:#fff" onchange="updateStudentRemittanceRoute(${baseStudent.id}, this.value, '상세')">
             ${renderRemittanceRouteOptions(s.remittanceRoute || baseStudent.remittanceRoute)}
           </select>
@@ -4424,7 +4468,12 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         </div>
         <div class="tsa-form-group">
           <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원 기입)</span></label>
-          <input class="tsa-input" type="text" value="${s.level || '미정'}" style="background:#F9FAFB" readonly/>
+          ${isAgency
+            ? `<input class="tsa-input" type="text" value="${s.level || '미정'}" style="background:#F9FAFB" readonly/>`
+            : `<select class="tsa-input" onchange="updateStudentLevel(${baseStudent.id}, this.value, '상세')">
+                <option value="" ${!s.level ? 'selected' : ''}>미정</option>
+                ${[...MOCK_MASTER_LEVELS].filter(l => l.visible !== false).sort((a, b) => a.order - b.order).map(l => `<option value="${l.name}" ${s.level === l.name ? 'selected' : ''}>${l.name}</option>`).join('')}
+              </select>`}
         </div>
         <div class="tsa-form-group">
           <label class="tsa-label" style="display:flex;align-items:center;gap:6px">
@@ -4494,22 +4543,33 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
           ${localFeesHtml}
 
-          <!-- 송금 명세서 제출 섹션 (어드민은 미표시, 에이전시만 노출) -->
+          <!-- 납부 등록 섹션 (어드민은 미표시, 에이전시만 노출) -->
           ${isAgency ? `
           <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
-            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 납부 내역 등록</div>
+            <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 납부 등록</div>
+            <div class="tsa-form-group" style="margin:0 0 10px;max-width:220px">
+              <label class="tsa-label" style="font-size:11px">학생 정산 방식 <span style="color:#EF4444">*</span></label>
+              <select id="remit-route" class="tsa-input" style="font-size:12px" onchange="updateStudentRemittanceRoute(${s.id}, this.value, '납부 등록')">
+                ${renderRemittanceRouteOptions(s.remittanceRoute || 'agency')}
+              </select>
+            </div>
+            <div style="margin-bottom:10px">
+              <label class="tsa-label" style="font-size:11px;margin-bottom:6px;display:block">결제 항목 <span style="color:#EF4444">*</span> <span style="font-weight:400;color:#9CA3AF">(여러 항목 동시 결제 가능)</span></label>
+              <div id="remit-item-checklist" style="display:flex;flex-direction:column;gap:6px"></div>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
               <div class="tsa-form-group" style="margin:0">
                 <label class="tsa-label" style="font-size:11px">송금 일자</label>
                 <input id="remit-receipt-date" type="date" class="tsa-input" style="font-size:12px"/>
               </div>
               <div class="tsa-form-group" style="margin:0">
-                <label class="tsa-label" style="font-size:11px">송금 금액 (USD)</label>
-                <input id="remit-receipt-amount" type="number" class="tsa-input" placeholder="예: 1066" style="font-size:12px"/>
-              </div>
-              <div class="tsa-form-group" style="margin:0">
                 <label class="tsa-label" style="font-size:11px">송금 은행명</label>
                 <input id="remit-receipt-bank" type="text" class="tsa-input" placeholder="예: 국민은행" style="font-size:12px"/>
+              </div>
+              <div class="tsa-form-group" style="margin:0">
+                <label class="tsa-label" style="font-size:11px">송금 금액 (USD)</label>
+                <input id="remit-receipt-amount" type="number" class="tsa-input" placeholder="예: 1066" style="font-size:12px"/>
+                <div id="remit-amount-hint" style="font-size:9.5px;color:#9CA3AF;margin-top:3px"></div>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;margin-bottom:10px">
@@ -4530,7 +4590,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             </div>
             <div style="display:flex;justify-content:flex-end">
               <button class="tsa-btn tsa-btn-primary" onclick="submitRemittanceReceipt(${s.id})">
-                <i data-lucide="send"></i> 제출
+                <i data-lucide="send"></i> 등록하기
               </button>
             </div>
           </div>
@@ -4852,7 +4912,62 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   container.innerHTML = html;
   if (tab === 'settle') {
     setTimeout(() => renderAgencyInlineDocument(s.id, 'invoice'), 0);
+    setTimeout(() => { if (typeof renderRemitItemChecklist === 'function') renderRemitItemChecklist(s.id); }, 0);
   }
+}
+
+// 결제 항목(등록금/수강료/기숙사비/기타)별로 지금까지 승인된 납부 합계
+function getBillingItemPaidAmount(s, itemKey) {
+  return (s.remittanceHistory || [])
+    .filter(r => r.item === itemKey && r.status !== 'rejected')
+    .reduce((sum, r) => sum + Number(r.appliedAmount ?? r.amount ?? 0), 0);
+}
+
+// 결제 항목 체크리스트 — 항목별 청구/기납부/남은 금액과 개별 적용 금액 입력을 렌더링
+function renderRemitItemChecklist(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  const listEl = document.getElementById('remit-item-checklist');
+  if (!s || !listEl) return;
+
+  const breakdown = getStudentBillingBreakdown(s);
+  listEl.innerHTML = breakdown.items.map(item => {
+    const paid = getBillingItemPaidAmount(s, item.key);
+    const remaining = Math.max(0, item.amount - paid);
+    const disabled = remaining <= 0;
+    return `
+      <div style="display:grid;grid-template-columns:20px 100px 90px 90px 90px 120px;gap:10px;align-items:center;padding:8px 10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;${disabled ? 'opacity:.55' : ''}">
+        <input type="checkbox" id="remit-check-${item.key}" ${disabled ? 'disabled' : ''} onchange="onRemitItemCheckChange('${item.key}')" style="accent-color:#5E5CE6;width:15px;height:15px"/>
+        <div style="font-weight:800;color:#374151;font-size:12px">${item.label}</div>
+        <div style="text-align:right"><div style="font-size:8.5px;color:#9CA3AF">청구</div><div style="font-size:11.5px;font-weight:800;color:#111827">$${item.amount.toLocaleString()}</div></div>
+        <div style="text-align:right"><div style="font-size:8.5px;color:#9CA3AF">기납부</div><div style="font-size:11.5px;font-weight:800;color:#059669">$${paid.toLocaleString()}</div></div>
+        <div style="text-align:right"><div style="font-size:8.5px;color:#9CA3AF">남은</div><div style="font-size:11.5px;font-weight:800;color:${remaining > 0 ? '#DC2626' : '#059669'}">$${remaining.toLocaleString()}</div></div>
+        <input type="number" id="remit-applied-${item.key}" min="0" max="${remaining}" value="${remaining || ''}" placeholder="적용 금액" class="tsa-input" style="font-size:11px;padding:5px 8px" disabled onchange="recomputeRemitTotalAmount()"/>
+      </div>
+    `;
+  }).join('');
+  recomputeRemitTotalAmount();
+}
+
+function onRemitItemCheckChange(itemKey) {
+  const checked = document.getElementById(`remit-check-${itemKey}`)?.checked;
+  const appliedEl = document.getElementById(`remit-applied-${itemKey}`);
+  if (appliedEl) appliedEl.disabled = !checked;
+  recomputeRemitTotalAmount();
+}
+
+// 체크된 항목들의 적용 금액 합계를 송금 금액(USD) 칸에 자동 반영
+function recomputeRemitTotalAmount() {
+  const breakdownKeys = ['registration', 'education', 'dorm', 'local'];
+  let total = 0;
+  breakdownKeys.forEach(key => {
+    const checked = document.getElementById(`remit-check-${key}`)?.checked;
+    if (!checked) return;
+    total += parseFloat(document.getElementById(`remit-applied-${key}`)?.value || 0);
+  });
+  const amountEl = document.getElementById('remit-receipt-amount');
+  if (amountEl) amountEl.value = total || '';
+  const hintEl = document.getElementById('remit-amount-hint');
+  if (hintEl) hintEl.textContent = total ? `(선택 항목 적용 금액 합계: $${total.toLocaleString()})` : '';
 }
 
 function submitRemittanceReceipt(studentId, editIdx) {
@@ -4862,6 +4977,7 @@ function submitRemittanceReceipt(studentId, editIdx) {
   const memo = document.getElementById('remit-receipt-memo')?.value?.trim() || '';
   const fileInput = document.getElementById('remit-receipt-file');
   const fileName = fileInput?.files?.[0]?.name || null;
+  const route = document.getElementById('remit-route')?.value || '';
 
   if (!remitDate) { showToast('송금 일자를 입력해 주세요.', 'warning'); return; }
   if (!amount || amount <= 0) { showToast('송금 금액을 입력해 주세요.', 'warning'); return; }
@@ -4885,17 +5001,42 @@ function submitRemittanceReceipt(studentId, editIdx) {
     }
     showToast('✅ 송금 명세서가 수정되었습니다.', 'success');
   } else {
-    s.remittanceHistory.unshift({
-      submittedAt: new Date().toISOString().slice(0, 10),
-      remitDate,
-      amount,
-      bank,
-      memo,
-      fileName,
-      status: 'approved'
+    const breakdownKeys = ['registration', 'education', 'dorm', 'local'];
+    const checkedItems = breakdownKeys
+      .filter(key => document.getElementById(`remit-check-${key}`)?.checked)
+      .map(key => ({ key, appliedAmount: parseFloat(document.getElementById(`remit-applied-${key}`)?.value || 0) }))
+      .filter(entry => entry.appliedAmount > 0);
+
+    if (!checkedItems.length) { showToast('결제할 항목을 하나 이상 선택하고 적용 금액을 입력해 주세요.', 'warning'); return; }
+
+    const breakdown = getStudentBillingBreakdown(s);
+    if (!s.billingItemStatuses) s.billingItemStatuses = {};
+
+    checkedItems.forEach(({ key, appliedAmount }) => {
+      s.remittanceHistory.unshift({
+        submittedAt: new Date().toISOString().slice(0, 10),
+        remitDate,
+        amount: appliedAmount,
+        bank,
+        memo,
+        fileName,
+        route,
+        item: key,
+        appliedAmount,
+        status: 'approved'
+      });
+
+      // 이 결제 항목의 잔액이 0이 되면 해당 항목만 완납 처리 (전체 학생을 일괄 완납 처리하지 않음)
+      const billedItem = breakdown.items.find(i => i.key === key);
+      const paidForItem = getBillingItemPaidAmount(s, key);
+      s.billingItemStatuses[key] = billedItem && paidForItem >= billedItem.amount ? 'paid' : 'unpaid';
     });
-    s.remittanceStatus = 'paid';
-    showToast('✅ 송금 명세서가 제출되어 완납 처리되었습니다.', 'success');
+
+    const allItemsPaid = breakdown.items.every(i => (s.billingItemStatuses?.[i.key] || i.paymentStatus) === 'paid');
+    s.remittanceStatus = allItemsPaid ? 'paid' : 'unpaid';
+
+    const itemLabels = checkedItems.map(({ key }) => breakdown.items.find(i => i.key === key)?.label || key).join(', ');
+    showToast(`✅ ${itemLabels} 납부 $${amount.toLocaleString()}이(가) 등록되었습니다.`, 'success');
   }
 
   switchAdetailTab('settle');
@@ -6733,7 +6874,7 @@ function renderCourseClassTypeSections(course) {
   `).join('');
   const classHourInputs = types.map(t => `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #E5E7EB;border-radius:9px;background:#FAFAFA">
-      <label class="tsa-label" style="margin:0">${t.name}</label>
+      <label class="tsa-label" style="margin:0">${getClassTypeDisplayName(t)}</label>
       <div style="display:flex;align-items:center;gap:6px">
         <input type="number" class="tsa-input course-class-hours" data-code="${t.code}" value="${classHours[t.code] || 0}" min="0" max="12" step="1" style="width:82px;text-align:center"/>
         <span style="font-size:12px;color:#6B7280">시간/일</span>
@@ -6859,7 +7000,10 @@ function renderMasterSettings() {
           style="cursor:grab">
         <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
         <td style="font-weight:700;color:#4B5563;font-size:12px">${l.order}</td>
-        <td style="font-weight:600;font-size:12.5px">${l.name}</td>
+        <td style="font-weight:600;font-size:12.5px">
+          ${l.name}
+          ${Array.isArray(l.subLevels) && l.subLevels.length ? `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">${l.subLevels.map(sub => `<span style="font-size:9.5px;font-weight:600;color:#6B7280;background:#F3F4F6;border-radius:5px;padding:2px 6px">${sub.name}</span>`).join('')}</div>` : ''}
+        </td>
         <td style="text-align:center">${visibleBadge}</td>
         <td style="text-align:center">
           <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openEditLevelModal(${idx})">수정</button>
@@ -6947,7 +7091,7 @@ function getClassTypeDisplayName(classType) {
   const maxStudents = Math.max(1, Number(classType?.maxStudents || 1));
   return classType?.classMode === 'individual' || maxStudents === 1
     ? `1:1 ${name}`
-    : `최대 ${maxStudents}명 ${name}`;
+    : `1:${maxStudents} ${name}`;
 }
 
 function updateClassTypePreview() {
@@ -7144,12 +7288,40 @@ function deleteMasterSubject(idx) {
   renderMasterSettings();
 }
 
+// 세부 레벨 입력 행을 동적으로 추가 (레벨당 개수 제한 없음 — 2개, 3개, 4개 등 자유롭게 구성)
+function addLevelModalSubRow(value = '') {
+  const container = document.getElementById('level-modal-sublevels');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;align-items:center';
+  const escaped = String(value).replace(/"/g, '&quot;');
+  row.innerHTML = `
+    <input type="text" class="tsa-input level-modal-sub-input" placeholder="예: Beginner-1" value="${escaped}" style="flex:1"/>
+    <button type="button" onclick="this.closest('div').remove()" style="border:0;background:none;color:#EF4444;cursor:pointer;font-size:11px;flex-shrink:0;padding:4px 6px">삭제</button>
+  `;
+  container.appendChild(row);
+}
+
+function renderLevelModalSubRows(subLevels, fallbackBaseName) {
+  const container = document.getElementById('level-modal-sublevels');
+  if (!container) return;
+  container.innerHTML = '';
+  const names = (Array.isArray(subLevels) && subLevels.length)
+    ? subLevels.map(s => s.name)
+    : [`${fallbackBaseName}-1`, `${fallbackBaseName}-2`];
+  names.forEach(name => addLevelModalSubRow(name));
+}
+
 function openLevelModal() {
   _editingLevelIdx = null;
   document.getElementById('level-modal-title').textContent = '레벨 추가';
   document.getElementById('level-modal-id').value = '';
   document.getElementById('level-modal-name').value = '';
   document.getElementById('level-modal-order').value = MOCK_MASTER_LEVELS.length + 1;
+  const container = document.getElementById('level-modal-sublevels');
+  if (container) container.innerHTML = '';
+  addLevelModalSubRow('');
+  addLevelModalSubRow('');
   openModal('level-modal');
 }
 
@@ -7162,15 +7334,23 @@ function openEditLevelModal(idx) {
   document.getElementById('level-modal-id').value = l.id;
   document.getElementById('level-modal-name').value = l.name;
   document.getElementById('level-modal-order').value = l.order;
+  renderLevelModalSubRows(l.subLevels, l.name);
   openModal('level-modal');
 }
 
 function saveMasterLevel() {
   const name = document.getElementById('level-modal-name').value.trim();
   const order = parseInt(document.getElementById('level-modal-order').value, 10) || 1;
+  const subNames = Array.from(document.querySelectorAll('#level-modal-sublevels .level-modal-sub-input'))
+    .map(input => input.value.trim())
+    .filter(Boolean);
 
   if (!name) {
     showToast('레벨명을 입력하세요.', 'warning');
+    return;
+  }
+  if (!subNames.length) {
+    showToast('세부 레벨을 최소 1개 입력하세요.', 'warning');
     return;
   }
 
@@ -7178,10 +7358,19 @@ function saveMasterLevel() {
     const l = MOCK_MASTER_LEVELS[_editingLevelIdx];
     l.name = name;
     l.order = order;
+    l.subLevels = subNames.map((subName, i) => ({
+      id: l.subLevels?.[i]?.id || `${l.id}_${i + 1}`,
+      name: subName,
+      order: i + 1,
+      visible: true,
+    }));
     showToast('레벨 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'LV_' + String(MOCK_MASTER_LEVELS.length + 1).padStart(2, '0');
-    MOCK_MASTER_LEVELS.push({ id: newId, name, order, visible: true });
+    MOCK_MASTER_LEVELS.push({
+      id: newId, name, order, visible: true,
+      subLevels: subNames.map((subName, i) => ({ id: `${newId}_${i + 1}`, name: subName, order: i + 1, visible: true })),
+    });
     showToast('신규 레벨이 추가되었습니다.', 'success');
   }
 

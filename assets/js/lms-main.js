@@ -1377,10 +1377,14 @@ function openRoomDetailModal(idx) {
   const bedsList = document.getElementById('rdm-beds-list');
   bedsList.innerHTML = (room.beds || []).map(b => {
     const occupied = b.student;
+    const stu = occupied && b.studentId && typeof MOCK_STUDENTS !== 'undefined' ? MOCK_STUDENTS.find(s => s.id === b.studentId) : null;
+    const label = stu
+      ? `${stu.nick} (${stu.name}) · ${stu.flag || ''} ${stu.nationality || '-'} · ${stu.gender || '-'}성 · ${stu.age ? stu.age + '세' : '-'}`
+      : (occupied || '');
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${occupied ? '#EEF2FF' : '#F9FAFB'};border-radius:7px;border:1px solid ${occupied ? '#C7D2FE' : '#E5E7EB'}">
       <span style="font-size:11px;font-weight:700;color:#6B7280;width:50px">Bed ${b.id}</span>
       ${occupied
-        ? `<span style="font-size:12px;font-weight:600;color:#1E3A8A;flex:1">${b.student}</span><span style="font-size:10px;color:#6B7280">${b.start} ~ ${b.end}</span>`
+        ? `<span style="font-size:12px;font-weight:600;color:#1E3A8A;flex:1">${label}</span><span style="font-size:10px;color:#6B7280">${b.start} ~ ${b.end}</span>`
         : `<span style="font-size:12px;color:#9CA3AF;flex:1">공실</span><button style="font-size:11px;padding:3px 10px;background:#5E5CE6;color:white;border:none;border-radius:5px;cursor:pointer" onclick="closeModal('room-detail-modal');openBedAssignModal(${idx},'${b.id}')">배정</button>`}
     </div>`;
   }).join('');
@@ -1443,130 +1447,26 @@ function calcRoomLaundry() {
     <div style="display:flex;justify-content:space-between;color:#0EA5E9;font-weight:700;font-size:13px"><span>총 과금액</span><strong>₱${charge.toLocaleString()}</strong></div>`;
 }
 
-/* ─── 공실 배정 모달 ─── */
-let _assignTarget = { roomIdx: null, bedId: null };
-
+/* ─── 공실 배정 모달 (통합 배정 모달로 위임) ─── */
 function openBedAssignModal(idx, bedId, afterDate) {
-  _assignTarget = { roomIdx: idx, bedId, isPrebook: !!afterDate };
   const room = MOCK_DORM_ROOMS[idx];
-  const displayNo = room && room.roomNo ? room.roomNo : '미배정';
-  const isPrebook = !!afterDate;
+  if (!room) return;
+  openErpAssignModal(room.roomNo || '미배정', bedId, room.accomType, room.type, room.genderRestriction || '무관');
 
-  const subtitle = isPrebook
-    ? `Room ${displayNo} · Bed ${bedId} · 사전 예약`
-    : `Room ${displayNo} · ${room ? room.type : ''} · Bed ${bedId}`;
-  document.getElementById('bam-subtitle').textContent = subtitle;
-
-  const accomBadge = room && room.accomType === 'IT Park 콘도' ? 'IT Park 콘도' : '가든 호텔';
-  document.getElementById('bam-room-info').innerHTML =
-    `<strong>${accomBadge}</strong> · ${room ? room.type : ''} · ${room ? (room.genderRestriction || '무관') : ''} · <strong>Bed ${bedId}</strong>`
-    + (isPrebook ? ` · <span style="color:#7C3AED;font-weight:700">📋 사전 예약</span>` : '');
-
-  // 사전 예약이면 체크인을 퇴실일 다음날로 자동 세팅
-  if (isPrebook && afterDate) {
+  // 퇴실 예정일 이후 사전 예약 진입 시, 입실일을 퇴실일 다음날로 자동 세팅
+  if (afterDate) {
     const nextDay = new Date(`${_ganttYear}-${afterDate}`);
     nextDay.setDate(nextDay.getDate() + 1);
     const fmt = d => d.toISOString().slice(0, 10);
-    document.getElementById('bam-checkin').value  = fmt(nextDay);
-    const defaultOut = new Date(nextDay);
-    defaultOut.setDate(defaultOut.getDate() + 28);
-    document.getElementById('bam-checkout').value = fmt(defaultOut);
-  } else {
-    document.getElementById('bam-checkin').value  = '';
-    document.getElementById('bam-checkout').value = '';
+    const dateIn = document.getElementById('erp-assign-date-in');
+    const dateOut = document.getElementById('erp-assign-date-out');
+    if (dateIn) dateIn.value = fmt(nextDay);
+    if (dateOut) {
+      const defaultOut = new Date(nextDay);
+      defaultOut.setDate(defaultOut.getDate() + 28);
+      dateOut.value = fmt(defaultOut);
+    }
   }
-
-  document.getElementById('bam-search').value = '';
-  document.getElementById('bam-results').innerHTML = '<div style="padding:12px;font-size:12px;color:#9CA3AF;text-align:center">학생 이름 또는 여권번호를 입력하세요</div>';
-  document.getElementById('bam-selected-student').style.display = 'none';
-  document.getElementById('bam-selected-student').dataset.studentId = '';
-  document.getElementById('bed-assign-modal').style.display = 'block';
-  if (typeof refreshIcons === 'function') refreshIcons();
-  setTimeout(() => document.getElementById('bam-search').focus(), 100);
-}
-
-function searchBamStudents() {
-  const q = (document.getElementById('bam-search').value || '').toLowerCase().trim();
-  const box = document.getElementById('bam-results');
-  if (!q) { box.innerHTML = '<div style="padding:12px;font-size:12px;color:#9CA3AF;text-align:center">검색어를 입력하세요</div>'; return; }
-  const matched = MOCK_STUDENTS.filter(s =>
-    s.name.toLowerCase().includes(q) || s.nick.toLowerCase().includes(q) || (s.passportNum || '').toLowerCase().includes(q)
-  );
-  if (!matched.length) { box.innerHTML = '<div style="padding:12px;font-size:12px;color:#9CA3AF;text-align:center">검색 결과가 없습니다</div>'; return; }
-
-  const assignedStudentIds = new Set();
-  MOCK_DORM_ROOMS.forEach(r => r.beds && r.beds.forEach(b => { if (b.studentId) assignedStudentIds.add(b.studentId); }));
-
-  box.innerHTML = matched.map(s => {
-    const alreadyAssigned = assignedStudentIds.has(s.id);
-    const assignedRoom = alreadyAssigned ? MOCK_DORM_ROOMS.find(r => r.beds && r.beds.some(b => b.studentId === s.id)) : null;
-    const assignedInfo = assignedRoom ? `Room ${assignedRoom.roomNo} 배정중` : '';
-    return `<div onclick="${alreadyAssigned ? '' : `selectBamStudent(${s.id})`}"
-      style="padding:10px 14px;border-bottom:1px solid #F3F4F6;cursor:${alreadyAssigned ? 'default' : 'pointer'};display:flex;align-items:center;gap:10px;background:${alreadyAssigned ? '#F9FAFB' : 'white'}"
-      onmouseover="${alreadyAssigned ? '' : "this.style.background='#F0F9FF'"}" onmouseout="${alreadyAssigned ? '' : "this.style.background='white'"}">
-      <div style="width:30px;height:30px;border-radius:50%;background:${alreadyAssigned ? '#E5E7EB' : '#EEF2FF'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${alreadyAssigned ? '#9CA3AF' : '#5E5CE6'};flex-shrink:0">${s.nick[0] || '?'}</div>
-      <div style="flex:1">
-        <div style="font-size:12px;font-weight:600;color:${alreadyAssigned ? '#9CA3AF' : '#1A1D23'}">${s.nick} (${s.name})</div>
-        <div style="font-size:10px;color:#9CA3AF">${s.gender}성 · ${maskPassportNumber(s.passportNum, '여권번호 없음')}${assignedInfo ? ' · <span style="color:#F59E0B">' + assignedInfo + '</span>' : ''}</div>
-      </div>
-      ${alreadyAssigned ? '' : '<span style="font-size:10px;color:#5E5CE6;font-weight:600">선택</span>'}
-    </div>`;
-  }).join('');
-}
-
-function selectBamStudent(studentId) {
-  const s = MOCK_STUDENTS.find(st => st.id === studentId);
-  if (!s) return;
-  const el = document.getElementById('bam-selected-student');
-  el.style.display = 'block';
-  el.dataset.studentId = studentId;
-  el.innerHTML = `✓ 선택된 학생: <strong>${s.nick} (${s.name})</strong> · ${s.gender}성`;
-  document.getElementById('bam-search').value = s.nick + ' (' + s.name + ')';
-  document.getElementById('bam-results').innerHTML = '';
-}
-
-function confirmBedAssign() {
-  const el = document.getElementById('bam-selected-student');
-  const studentId = parseInt(el.dataset.studentId);
-  const checkin  = document.getElementById('bam-checkin').value;
-  const checkout = document.getElementById('bam-checkout').value;
-  if (!studentId) { showToast('배정할 학생을 선택하세요.', 'warning'); return; }
-  if (!checkin || !checkout) { showToast('체크인/체크아웃 날짜를 입력하세요.', 'warning'); return; }
-  if (checkin >= checkout) { showToast('체크아웃은 체크인보다 이후여야 합니다.', 'warning'); return; }
-
-  const s = MOCK_STUDENTS.find(st => st.id === studentId);
-  const room = MOCK_DORM_ROOMS[_assignTarget.roomIdx];
-  const bed  = room && room.beds && room.beds.find(b => b.id === _assignTarget.bedId);
-  if (!bed) { showToast('침대 정보를 찾을 수 없습니다.', 'error'); return; }
-
-  const checkinMD  = checkin.slice(5);
-  const checkoutMD = checkout.slice(5);
-  const displayNo  = room.roomNo || '미배정';
-
-  if (_assignTarget.isPrebook) {
-    if (!bed.reservations) bed.reservations = [];
-    const occupiedOverlap = bed.student && bed.start && bed.end
-      && !(checkoutMD <= bed.start || checkinMD >= bed.end);
-    const historyOverlap = (bed.history || []).some(h => h.start && h.end
-      && !(checkoutMD <= h.start || checkinMD >= h.end));
-    const reservationOverlap = bed.reservations.some(rv => !(checkoutMD <= rv.start || checkinMD >= rv.end));
-    const overlap = occupiedOverlap || historyOverlap || reservationOverlap;
-    if (overlap) { showToast('선택한 기간에 기존 배정 또는 예약이 있습니다.', 'warning'); return; }
-    bed.reservations.push({ student: `${s.nick} (${s.name})`, studentId: s.id, start: checkinMD, end: checkoutMD });
-    showToast(`✓ Room ${displayNo} Bed ${_assignTarget.bedId}에 ${s.nick} 사전 예약 완료`, 'success');
-  } else {
-    bed.student   = `${s.nick} (${s.name})`;
-    bed.studentId = s.id;
-    bed.start     = checkinMD;
-    bed.end       = checkoutMD;
-    // 8-5: 배정 시 호실 성별 제한 자동 갱신
-    if (s.gender === '남' || s.gender === '남성') room.genderRestriction = '남성';
-    else if (s.gender === '여' || s.gender === '여성') room.genderRestriction = '여성';
-    showToast(`✓ Room ${displayNo} Bed ${_assignTarget.bedId}에 ${s.nick} 배정 완료`, 'success');
-  }
-  closeModal('bed-assign-modal');
-  renderAdminDormRoomsTable();
-  initDormGantt();
 }
 
 function searchDormVacancyForAssign() {
@@ -2904,7 +2804,7 @@ function openMonthlyStudentSettlement(studentId) {
         <div style="display:flex;align-items:center;gap:13px;padding:14px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:12px;margin-bottom:16px">
           <img src="${avatarSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #E5E7EB" alt=""/>
           <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#111827">${student.name} <span style="font-size:12px;color:#6B7280">(Nick: ${student.nick || '-'})</span></div><div style="font-size:11px;color:#6B7280;margin-top:4px">${student.agency || '-'} · ${student.course || '-'} · ${student.startDate || '-'} ~ ${student.endDate || '-'}</div></div>
-          <div style="text-align:right"><span class="tsa-badge ${student.remittanceStatus === 'paid' ? 'tsa-badge-success' : 'tsa-badge-danger'}">${student.remittanceStatus === 'paid' ? '완납' : '미납'}</span><div style="font-size:10.5px;color:#6B7280;margin-top:5px">송금 경로: ${routeLabels[student.remittanceRoute] || student.remittanceRoute || '에이전시'}</div></div>
+          <div style="text-align:right"><span class="tsa-badge ${student.remittanceStatus === 'paid' ? 'tsa-badge-success' : 'tsa-badge-danger'}">${student.remittanceStatus === 'paid' ? '완납' : '미납'}</span><div style="font-size:10.5px;color:#6B7280;margin-top:5px">학생 정산 방식: ${routeLabels[student.remittanceRoute] || student.remittanceRoute || '에이전시'}</div></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
           <div style="padding:13px;border:1px solid #E5E7EB;border-radius:10px"><div style="font-size:10.5px;color:#6B7280">청구 금액 합계</div><div style="font-size:20px;font-weight:900;color:#111827;margin-top:5px">$${breakdown.gross.toLocaleString()}</div></div>
@@ -2984,16 +2884,23 @@ function handleTeacherTagCheckChange() {
 }
 
 function renderAssignmentTags() {
-  const tbody = document.getElementById('tag-master-list-tbody');
+  MOCK_ASSIGNMENT_TAGS.sort((a, b) => a.priority - b.priority);
+  renderAssignmentTagTable('strength', 'tag-master-list-tbody-strength');
+  renderAssignmentTagTable('exclusion', 'tag-master-list-tbody-exclusion');
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function renderAssignmentTagTable(type, tbodyId) {
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  MOCK_ASSIGNMENT_TAGS.sort((a, b) => a.priority - b.priority);
+  const list = MOCK_ASSIGNMENT_TAGS.filter(tag => (tag.type || 'strength') === type);
 
-  tbody.innerHTML = MOCK_ASSIGNMENT_TAGS.map((tag, idx) => {
-    const visibleBadge = tag.visible 
+  tbody.innerHTML = list.map((tag, idx) => {
+    const visibleBadge = tag.visible
       ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="toggleTagVisibility('${tag.id}')">노출</span>`
       : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleTagVisibility('${tag.id}')">비노출</span>`;
-    
+
     return `
       <tr>
         <td style="font-weight:700">${tag.name}</td>
@@ -3002,7 +2909,7 @@ function renderAssignmentTags() {
         <td style="text-align:center">
           <div style="display:flex;justify-content:center;gap:4px">
             <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'up')" ${idx === 0 ? 'disabled' : ''}>▲</button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'down')" ${idx === MOCK_ASSIGNMENT_TAGS.length - 1 ? 'disabled' : ''}>▼</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'down')" ${idx === list.length - 1 ? 'disabled' : ''}>▼</button>
           </div>
         </td>
         <td style="text-align:center">
@@ -3014,18 +2921,18 @@ function renderAssignmentTags() {
       </tr>
     `;
   }).join('');
-  
-  if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 function saveAssignmentTag() {
   const idEl = document.getElementById('tag-manage-id');
   const nameEl = document.getElementById('tag-manage-name');
+  const typeEl = document.getElementById('tag-manage-type');
   const visibleEl = document.getElementById('tag-manage-visible');
   const priorityEl = document.getElementById('tag-manage-priority');
 
   const id = idEl.value;
   const name = nameEl.value.trim();
+  const type = typeEl.value === 'exclusion' ? 'exclusion' : 'strength';
   const visible = visibleEl.value === 'true';
   const priority = parseInt(priorityEl.value, 10);
 
@@ -3035,6 +2942,7 @@ function saveAssignmentTag() {
     const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
     if (tag) {
       tag.name = name;
+      tag.type = type;
       tag.visible = visible;
       tag.priority = priority;
       showToast('배정 태그가 수정되었습니다.', 'success');
@@ -3044,6 +2952,7 @@ function saveAssignmentTag() {
     MOCK_ASSIGNMENT_TAGS.push({
       id: newId,
       name: name,
+      type: type,
       visible: visible,
       priority: priority
     });
@@ -3060,6 +2969,7 @@ function editAssignmentTag(id) {
 
   document.getElementById('tag-manage-id').value = tag.id;
   document.getElementById('tag-manage-name').value = tag.name;
+  document.getElementById('tag-manage-type').value = tag.type || 'strength';
   document.getElementById('tag-manage-visible').value = String(tag.visible);
   document.getElementById('tag-manage-priority').value = tag.priority;
   document.getElementById('tag-form-title').innerHTML = `<i data-lucide="edit-3" style="color:#F59E0B"></i> 배정 태그 수정`;
@@ -3082,17 +2992,22 @@ function toggleTagVisibility(id) {
 }
 
 function changeTagPriority(id, direction) {
-  const idx = MOCK_ASSIGNMENT_TAGS.findIndex(t => t.id === id);
+  const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
+  if (!tag) return;
+  // 우선순위 이동은 같은 유형(장점/배정 제외) 안에서만 이루어진다
+  const type = tag.type || 'strength';
+  const list = MOCK_ASSIGNMENT_TAGS.filter(t => (t.type || 'strength') === type).sort((a, b) => a.priority - b.priority);
+  const idx = list.findIndex(t => t.id === id);
   if (idx === -1) return;
 
   if (direction === 'up' && idx > 0) {
-    const temp = MOCK_ASSIGNMENT_TAGS[idx].priority;
-    MOCK_ASSIGNMENT_TAGS[idx].priority = MOCK_ASSIGNMENT_TAGS[idx - 1].priority;
-    MOCK_ASSIGNMENT_TAGS[idx - 1].priority = temp;
-  } else if (direction === 'down' && idx < MOCK_ASSIGNMENT_TAGS.length - 1) {
-    const temp = MOCK_ASSIGNMENT_TAGS[idx].priority;
-    MOCK_ASSIGNMENT_TAGS[idx].priority = MOCK_ASSIGNMENT_TAGS[idx + 1].priority;
-    MOCK_ASSIGNMENT_TAGS[idx + 1].priority = temp;
+    const temp = list[idx].priority;
+    list[idx].priority = list[idx - 1].priority;
+    list[idx - 1].priority = temp;
+  } else if (direction === 'down' && idx < list.length - 1) {
+    const temp = list[idx].priority;
+    list[idx].priority = list[idx + 1].priority;
+    list[idx + 1].priority = temp;
   }
   renderAssignmentTags();
 }
@@ -3100,8 +3015,10 @@ function changeTagPriority(id, direction) {
 function resetTagForm() {
   document.getElementById('tag-manage-id').value = '';
   document.getElementById('tag-manage-name').value = '';
+  document.getElementById('tag-manage-type').value = 'strength';
   document.getElementById('tag-manage-visible').value = 'true';
-  document.getElementById('tag-manage-priority').value = String(MOCK_ASSIGNMENT_TAGS.length + 1);
+  const strengthCount = MOCK_ASSIGNMENT_TAGS.filter(t => (t.type || 'strength') === 'strength').length;
+  document.getElementById('tag-manage-priority').value = String(strengthCount + 1);
   document.getElementById('tag-form-title').innerHTML = `<i data-lucide="plus-circle" style="color:#5E5CE6"></i> 배정 태그 등록/수정`;
   if (typeof refreshIcons === 'function') refreshIcons();
 }
