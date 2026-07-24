@@ -2805,6 +2805,11 @@ function submitAgencyStudentRegistration() {
 
   MOCK_STUDENTS.push(newStdObj);
 
+  if (APP.isRegisterPopup) {
+    finishStudentRegisterPopup(newStdObj, 'agency');
+    return;
+  }
+
   MOCK_AGENCY_STUDENTS.push({
     name: `${name} (${nick})`,
     course: '미등록',
@@ -3239,17 +3244,29 @@ function renderAgencyStudentDetailPageHeader(s) {
 function switchAgencyStudentDetailPageTab(tab) {
   const basicTab = document.getElementById('adetail-page-tab-basic');
   const enrollmentTab = document.getElementById('adetail-page-tab-enrollment');
+  const consultationTab = document.getElementById('adetail-page-tab-consultation');
   const saveBtn = document.getElementById('adetail-page-save-btn');
   if (basicTab) basicTab.classList.toggle('active', tab === 'basic');
   if (enrollmentTab) enrollmentTab.classList.toggle('active', tab === 'enrollment');
+  if (consultationTab) consultationTab.classList.toggle('active', tab === 'consultation');
   if (saveBtn) saveBtn.style.display = tab === 'basic' ? '' : 'none';
 
   if (tab === 'basic') {
     switchAdetailTab('basic', 'adetail-page-tab-content', currentAdetailStudentId);
   } else if (tab === 'enrollment') {
     renderAgencyStudentEnrollmentHub();
+  } else if (tab === 'consultation') {
+    renderAgencyStudentConsultationPage();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+// 상담 현황을 '수강 현황' 하위 탭에서 분리해 최상위 탭으로 독립시킨 뷰
+function renderAgencyStudentConsultationPage() {
+  const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  const container = document.getElementById('adetail-page-tab-content');
+  if (!s || !container) return;
+  renderStudentConsultationTab(s, container);
 }
 
 function renderAgencyStudentEnrollmentHub() {
@@ -3288,14 +3305,13 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="consultation" onclick="switchAgencyEnrollmentHubTab('consultation')">상담 노트</button>
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
       </div>
     </div>
   `;
 
-  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle', 'consultation'];
+  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle'];
   switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
 }
 
@@ -4270,21 +4286,21 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           }
         })()}
         ${(() => {
-          const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === s.agency) : null;
-          const isWalkInReg = !s.agency || s.agency === '직접 등록';
+          const agencyOptions = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.filter(a => a.status === 'active' && a.name !== '직접 등록') : [];
+          const currentAgencyName = s.agency || '직접 등록';
           return `
             <div style="grid-column:span 2;background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:10px;padding:14px 16px">
               <div style="font-size:11px;font-weight:700;color:#3730A3;margin-bottom:10px;display:flex;align-items:center;gap:6px">
                 <i data-lucide="building-2" style="width:13px;height:13px;color:#5E5CE6"></i> 등록 에이전시 정보
               </div>
-              ${isWalkInReg
-                ? `<div style="font-size:12px;color:#6B7280">직접 등록 (에이전시 미경유)</div>`
-                : `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px">
-                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">에이전시명</div><div style="font-weight:700;color:#111827">${s.agency}</div></div>
-                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">담당자</div><div style="font-weight:600;color:#374151">${agencyInfo?.contact || '-'}</div></div>
-                    <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">연락처</div><div style="font-weight:600;color:#374151">${agencyInfo?.phone || '-'}</div></div>
-                    ${agencyInfo?.email ? `<div style="grid-column:span 3"><div style="font-size:10px;color:#6B7280;margin-bottom:3px">이메일</div><div style="font-weight:600;color:#374151">${agencyInfo.email}</div></div>` : ''}
-                  </div>`}
+              <div class="tsa-form-group" style="margin:0">
+                <label class="tsa-label" style="font-size:11px">등록 에이전시</label>
+                <select id="ad-agency" class="tsa-input" ${lockAttr} onchange="updateAdAgencyPreview()">
+                  <option value="직접 등록" ${currentAgencyName === '직접 등록' ? 'selected' : ''}>🏢 직접 등록 (에이전시 미경유)</option>
+                  ${agencyOptions.map(a => `<option value="${a.name}" ${currentAgencyName === a.name ? 'selected' : ''}>${a.flag || ''} ${a.name} · ${a.contact}</option>`).join('')}
+                </select>
+              </div>
+              <div id="ad-agency-preview" style="margin-top:10px"></div>
             </div>
           `;
         })()}
@@ -4910,10 +4926,33 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   }
 
   container.innerHTML = html;
+  if (tab === 'basic') {
+    setTimeout(updateAdAgencyPreview, 0);
+  }
   if (tab === 'settle') {
     setTimeout(() => renderAgencyInlineDocument(s.id, 'invoice'), 0);
     setTimeout(() => { if (typeof renderRemitItemChecklist === 'function') renderRemitItemChecklist(s.id); }, 0);
   }
+}
+
+function updateAdAgencyPreview() {
+  const sel = document.getElementById('ad-agency');
+  const preview = document.getElementById('ad-agency-preview');
+  if (!sel || !preview) return;
+  const agencyName = sel.value;
+  if (agencyName === '직접 등록') {
+    preview.innerHTML = `<div style="font-size:12px;color:#6B7280">직접 등록 (에이전시 미경유)</div>`;
+    return;
+  }
+  const agencyInfo = (typeof MOCK_AGENCIES !== 'undefined') ? MOCK_AGENCIES.find(a => a.name === agencyName) : null;
+  preview.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px">
+      <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">에이전시명</div><div style="font-weight:700;color:#111827">${agencyName}</div></div>
+      <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">담당자</div><div style="font-weight:600;color:#374151">${agencyInfo?.contact || '-'}</div></div>
+      <div><div style="font-size:10px;color:#6B7280;margin-bottom:3px">연락처</div><div style="font-weight:600;color:#374151">${agencyInfo?.phone || '-'}</div></div>
+      ${agencyInfo?.email ? `<div style="grid-column:span 3"><div style="font-size:10px;color:#6B7280;margin-bottom:3px">이메일</div><div style="font-weight:600;color:#374151">${agencyInfo.email}</div></div>` : ''}
+    </div>
+  `;
 }
 
 // 결제 항목(등록금/수강료/기숙사비/기타)별로 지금까지 승인된 납부 합계
@@ -5232,6 +5271,9 @@ function saveAgencyStudentDetails() {
     s.nick = nick;
     s.gender = gender;
     s.nationality = nationality;
+
+    const agencyEl = document.getElementById('ad-agency');
+    if (agencyEl) s.agency = agencyEl.value;
 
     // 생년월일 → age 자동 계산
     const dobEl = document.getElementById('ad-dob');
@@ -6554,6 +6596,7 @@ function renderCourseList() {
 
     return `
       <tr${c.active === false ? ' style="opacity:0.55"' : ''}>
+        <td style="text-align:center;color:#9CA3AF;font-size:11px">${idx + 1}</td>
         <td>
           <div style="font-weight:700;font-size:13px;color:#1A1D23">${c.name}</div>
           ${c.active === false ? '<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin-top:2px">비활성</span>' : ''}
@@ -7154,7 +7197,8 @@ function saveMasterClassType() {
     showToast('수업 유형 정보가 수정되었습니다.', 'success');
   } else {
     const newId = 'CT_' + String(MOCK_MASTER_CLASS_TYPES.length + 1).padStart(2, '0');
-    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code: newId, name, classMode, minStudents: 1, maxStudents, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
+    const code = classMode === 'individual' ? '1:1' : `1:${maxStudents}`;
+    MOCK_MASTER_CLASS_TYPES.push({ id: newId, code, name, classMode, minStudents: 1, maxStudents, order: MOCK_MASTER_CLASS_TYPES.length + 1, visible: true });
     showToast('신규 수업 유형이 추가되었습니다.', 'success');
   }
 

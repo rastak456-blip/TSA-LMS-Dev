@@ -2,23 +2,48 @@
    TEACHER MANAGEMENT
    ============================================= */
 let _teacherTagFilter = '전체';
+let _teacherStatusFilter = 'all';
+let _teacherSearchField = 'name';
+let _teacherSearchText = '';
 
 function setTeacherTagFilter(tag) {
   _teacherTagFilter = tag;
   document.querySelectorAll('.teacher-tag-filter-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tag === tag);
   });
-  const filtered = MOCK_TEACHERS.filter(t => {
-    if (_teacherTagFilter === '전체') return true;
-    return (t.preferredCourses || []).includes(_teacherTagFilter);
-  });
-  renderTeacherList(filtered);
+  applyTeacherFilters();
+}
+
+function searchTeacherList() {
+  const fieldEl = document.getElementById('teacher-search-field');
+  const textEl = document.getElementById('teacher-search');
+  _teacherSearchField = fieldEl ? fieldEl.value : 'name';
+  _teacherSearchText = textEl ? textEl.value.trim().toLowerCase() : '';
+  applyTeacherFilters();
+}
+
+function applyTeacherFilters() {
+  let list = [...MOCK_TEACHERS];
+  if (_teacherStatusFilter === 'active') list = list.filter(t => t.status === 'active');
+  else if (_teacherStatusFilter === 'leave') list = list.filter(t => t.status === 'leave');
+  else if (_teacherStatusFilter === 'resigned') list = list.filter(t => t.status === 'resigned');
+
+  if (_teacherTagFilter !== '전체') list = list.filter(t => (t.preferredCourses || []).includes(_teacherTagFilter));
+
+  if (_teacherSearchText) {
+    list = list.filter(t => {
+      const value = _teacherSearchField === 'nick' ? (t.nick || '') : (t.name || '');
+      return value.toLowerCase().includes(_teacherSearchText);
+    });
+  }
+
+  renderTeacherList(list);
 }
 
 function renderTeacherTagFilters() {
   const wrap = document.getElementById('teacher-tag-filter-wrap');
   if (!wrap) return;
-  const tags = ['전체', ...MOCK_ASSIGNMENT_TAGS.filter(t => t.visible && (t.type || 'strength') === 'strength').map(t => t.name)];
+  const tags = ['전체', ...MOCK_ASSIGNMENT_TAGS.filter(t => t.visible).map(t => t.name)];
   wrap.innerHTML = tags.map(tag => `
     <button class="tsa-dorm-filter-chip teacher-tag-filter-btn ${tag === '전체' ? 'active' : ''}"
       data-tag="${tag}" onclick="setTeacherTagFilter('${tag}')">${tag}</button>
@@ -27,6 +52,8 @@ function renderTeacherTagFilters() {
 
 function initTeacherList() {
   _teacherTagFilter = '전체';
+  _teacherStatusFilter = 'all';
+  _teacherSearchText = '';
   renderTeacherTagFilters();
   renderTeacherKPIs();
   renderTeacherList(MOCK_TEACHERS);
@@ -89,6 +116,8 @@ function saveTeacherDetailInline() {
   const capableSubjects = [...document.querySelectorAll('input[name="td-capable-subject"]:checked')].map(cb => cb.value);
   const capableLevels = [...document.querySelectorAll('input[name="td-capable-level"]:checked')].map(cb => cb.value);
   const teachingModes = [...document.querySelectorAll('input[name="td-teaching-mode"]:checked')].map(cb => cb.value);
+  const prefTags = [...document.querySelectorAll('input[name="pref-tag"]:checked')].map(cb => cb.value);
+  const exclTags = [...document.querySelectorAll('input[name="excl-tag"]:checked')].map(cb => cb.value);
 
   if (teachingModes.length === 0) {
     showToast('수업 가능 방식을 하나 이상 선택하세요.', 'danger');
@@ -108,6 +137,10 @@ function saveTeacherDetailInline() {
     online: teachingModes.includes('online')
   };
   t.videoCapable = t.teachingModes.online;
+  t.preferredCourses = prefTags;
+  t.prohibitedCourses = exclTags;
+  const allTagNames = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.map(tag => tag.name) : [];
+  t.basicCourses = allTagNames.filter(name => !prefTags.includes(name) && !exclTags.includes(name));
 
   // 시간표 강의실 동기화
   const ttRow = MOCK_TIMETABLE.find(r => r.teacher === t.nick);
@@ -120,6 +153,35 @@ function saveTeacherDetailInline() {
   if (metaEl) metaEl.textContent = `${t.gender}성 · ${t.contract} · ${status==='active'?'재직':status==='leave'?'휴가':'퇴사'}`;
   showToast(`✓ ${t.nick} 강사 어학원 운영 정보가 저장되었습니다.`, 'success');
   renderTeacherList(MOCK_TEACHERS);
+  if (APP.isTeacherDetailPopup && typeof syncTeacherPopupChangesToOpener === 'function') syncTeacherPopupChangesToOpener();
+}
+
+function saveTeacherProfileInline(id) {
+  const t = MOCK_TEACHERS.find(x => x.id === id);
+  if (!t) return;
+  const getVal = idAttr => { const el = document.getElementById(idAttr); return el ? el.value.trim() : ''; };
+
+  t.name       = getVal('tp-name') || t.name;
+  t.gender     = getVal('tp-gender') || t.gender;
+  t.birthday   = getVal('tp-birthday');
+  t.joinDate   = getVal('tp-joindate');
+  t.email      = getVal('tp-email');
+  t.phone      = getVal('tp-phone');
+  t.jobGrade   = getVal('tp-jobgrade');
+  t.talkStatus = getVal('tp-talkstatus');
+  t.greeting   = getVal('tp-greeting');
+  t.intro      = getVal('tp-intro');
+  t.education  = getVal('tp-education');
+  t.hobby      = getVal('tp-hobby');
+
+  const nameEl = document.getElementById('modal-teacher-name');
+  const metaEl = document.getElementById('modal-teacher-meta');
+  if (nameEl) nameEl.textContent = `${t.name} (${t.nick})`;
+  if (metaEl) metaEl.textContent = `${t.gender}성 · ${t.type} · ${t.contract}`;
+
+  showToast(`✓ ${t.nick} 강사 기본정보가 저장되었습니다.`, 'success');
+  renderTeacherList(MOCK_TEACHERS);
+  if (APP.isTeacherDetailPopup && typeof syncTeacherPopupChangesToOpener === 'function') syncTeacherPopupChangesToOpener();
 }
 
 function renderTeacherKPIs() {
@@ -132,6 +194,16 @@ function renderTeacherKPIs() {
   setKpi('kpi-teacher-preferred', withPreferred.length + '명');
   setKpi('kpi-teacher-excluded',  withExcluded.length + '명');
   setKpi('kpi-teacher-leave',     onLeave.length + '명');
+}
+
+function getTeacherAge(t) {
+  if (!t.birthday) return null;
+  const today = new Date();
+  const birth = new Date(t.birthday);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
 }
 
 function renderTeacherList(list) {
@@ -166,7 +238,8 @@ function renderTeacherList(list) {
             <img class="tsa-avatar" src="${avatarSrc}" style="width:34px;height:34px;object-fit:cover;border-radius:50%;border:1px solid #E5E7EB;" alt="${t.nick}"/>
             <div>
               <div style="font-weight:700;font-size:13px;color:#1A1D23">${t.name}</div>
-              <div style="font-size:11px;color:#6B7280">${t.joinDate ? '입사 ' + t.joinDate : '입사일 미등록'} · 평점 ⭐ ${t.rating}</div>
+              <div style="font-size:11px;color:#6B7280">${t.gender}성 · ${getTeacherAge(t) != null ? getTeacherAge(t) + '세' : '나이 미등록'}</div>
+              <div style="font-size:11px;color:#6B7280">${t.joinDate ? '입사 ' + t.joinDate : '입사일 미등록'}</div>
             </div>
           </div>
         </td>
@@ -176,12 +249,12 @@ function renderTeacherList(list) {
             ? (t.preferredCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#D1FAE5;color:#065F46;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
             : '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
-        <td>
+        <td style="white-space:nowrap">
           ${(t.excludedCourses||[]).length > 0
             ? (t.excludedCourses||[]).map(tag=>`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#FEE2E2;color:#991B1B;font-weight:600;display:inline-block;margin:1px">${tag}</span>`).join('')
             : '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
-        <td>
+        <td style="white-space:nowrap">
           ${(t.classTypes||[]).map(ct => {
             const ctBg = ct==='1:1'?'#EEF2FF':ct==='1:4'?'#FEF3C7':'#D1FAE5';
             const ctColor = ct==='1:1'?'#3730A3':ct==='1:4'?'#92400E':'#065F46';
@@ -196,17 +269,16 @@ function renderTeacherList(list) {
           ${capableLevels.map(l => `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#F3E8FF;color:#7E22CE;font-weight:600;display:inline-block;margin:1px">${l.name}</span>`).join('')
             || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
-        <td style="font-size:12px;font-weight:500">Room ${t.room}</td>
-        <td><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
-        <td style="font-size:12px"><strong style="color:#374151">${t.todaySlots}</strong><span style="color:#9CA3AF">/8 교시</span></td>
-        <td><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
+        <td style="font-size:12px;font-weight:500;white-space:nowrap">Room ${t.room}</td>
         <td style="text-align:center;white-space:nowrap">${renderTeacherTeachingModes(t)}</td>
+        <td style="white-space:nowrap"><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
+        <td style="white-space:nowrap"><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
         <td style="text-align:center">
           <div style="display:flex;gap:6px;justify-content:center">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetailPopup(${t.id})" style="border-color:#5E5CE6;color:#5E5CE6">
               <i data-lucide="pencil" style="font-size:11px"></i> 상세/수정
             </button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetail(${t.id}, 'weekly')" style="border-color:#0EA5E9;color:#0EA5E9">
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTeacherDetailPopup(${t.id}, 'weekly')" style="border-color:#0EA5E9;color:#0EA5E9">
               <i data-lucide="calendar" style="font-size:11px"></i> 스케줄
             </button>
           </div>
@@ -331,6 +403,7 @@ function openTeacherScheduleModal(nick) {
 }
 
 function filterTeacherList(status) {
+  _teacherStatusFilter = status;
   document.querySelectorAll('#teacher-filter-pills .tsa-pill').forEach(p => {
     const text = p.textContent.toLowerCase();
     if (status === 'all' && text.includes('전체')) p.classList.add('active');
@@ -340,12 +413,7 @@ function filterTeacherList(status) {
     else p.classList.remove('active');
   });
 
-  let list = [...MOCK_TEACHERS];
-  if (status === 'active') list = list.filter(t => t.status === 'active');
-  else if (status === 'leave') list = list.filter(t => t.status === 'leave');
-  else if (status === 'resigned') list = list.filter(t => t.status === 'resigned');
-
-  renderTeacherList(list);
+  applyTeacherFilters();
 }
 
 /* =============================================
@@ -614,6 +682,31 @@ function saveTeacherForm() {
   renderTimetable(APP.conflictMode);
 }
 
+function openTeacherDetailPopup(id, activeTab) {
+  const popupUrl = new URL(window.location.href);
+  popupUrl.search = ''; popupUrl.hash = '';
+  popupUrl.searchParams.set('teacherPopup', id);
+  if (activeTab) popupUrl.searchParams.set('tab', activeTab);
+  const popup = window.open(popupUrl.toString(), 'tsa-teacher-detail-' + id, 'popup=yes,width=1180,height=880,resizable=yes,scrollbars=yes');
+  if (!popup) { if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해줘.', 'warning'); return; }
+  popup.focus();
+}
+
+// 강사 상세 팝업에서 수정한 내용(운영정보/가용성/역량 태그 등)을 부모 창의 MOCK_TEACHERS에 반영하고 관련 화면을 새로고침한다.
+function syncTeacherPopupChangesToOpener() {
+  if (!(window.opener && !window.opener.closed)) return;
+  try {
+    const t = APP.currentTeacher;
+    if (!t) return;
+    const idx = window.opener.MOCK_TEACHERS.findIndex(x => x.id === t.id);
+    if (idx > -1) window.opener.MOCK_TEACHERS[idx] = t;
+    if (typeof window.opener.renderTeacherList === 'function') window.opener.renderTeacherList(window.opener.MOCK_TEACHERS);
+    if (typeof window.opener.renderTeacherKPIs === 'function') window.opener.renderTeacherKPIs();
+    if (typeof window.opener.renderTimetable === 'function') window.opener.renderTimetable(window.opener.APP?.conflictMode);
+    if (typeof window.opener.showToast === 'function') window.opener.showToast(`✓ ${t.nick} 강사 정보가 반영되었습니다.`, 'success');
+  } catch (e) { /* 팝업 차단·접근 불가 시 무시 */ }
+}
+
 function openTeacherDetail(id, activeTab = 'profile') {
   APP.currentTeacher = MOCK_TEACHERS.find(t => t.id === id);
   if (!APP.currentTeacher) return;
@@ -621,7 +714,7 @@ function openTeacherDetail(id, activeTab = 'profile') {
   document.getElementById('modal-teacher-name').textContent = `${t.name} (${t.nick})`;
   document.getElementById('modal-teacher-meta').textContent = `${t.gender}성 · ${t.type} · ${t.contract}`;
   
-  const tabNames = ['profile', 'school', 'schedule', 'weekly', 'tags'];
+  const tabNames = ['profile', 'school', 'schedule', 'weekly'];
   const activeIndex = tabNames.indexOf(activeTab);
 
   // Activate basic tab
@@ -686,18 +779,28 @@ function switchTeacherTab(tab, el) {
   const container = document.getElementById('teacher-modal-tab-content');
   if (!t || !container) return;
   const operationSaveBtn = document.getElementById('teacher-operation-save-btn');
-  if (operationSaveBtn) operationSaveBtn.style.display = tab === 'school' ? '' : 'none';
+  if (operationSaveBtn) {
+    const tabSaveConfig = {
+      profile: { label: '기본정보 저장', onclick: `saveTeacherProfileInline(${t.id})` },
+      school: { label: '운영정보 저장', onclick: 'saveTeacherDetailInline()' },
+      schedule: { label: '가용성 저장', onclick: `saveTeacherAvailability(${t.id})` },
+    };
+    const cfg = tabSaveConfig[tab];
+    if (cfg) {
+      operationSaveBtn.style.display = '';
+      operationSaveBtn.innerHTML = `<i data-lucide="check"></i> ${cfg.label}`;
+      operationSaveBtn.setAttribute('onclick', cfg.onclick);
+      if (typeof refreshIcons === 'function') refreshIcons();
+    } else {
+      operationSaveBtn.style.display = 'none';
+    }
+  }
 
   switch (tab) {
     case 'profile': {
-      const ro = 'background:#F9FAFB;color:#6B7280;cursor:not-allowed;border-color:#E5E7EB';
       const tLbl = `<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:#EEF2FF;color:#5E5CE6;font-weight:600;margin-left:4px">LMS 연동</span>`;
       const photoSrc = t.photoUrl || (t.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png');
       container.innerHTML = `
-        <div style="background:#EEF2FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#3730A3;display:flex;align-items:center;gap:8px">
-          🔗 <span>아래 항목은 <b>토크스테이션 LMS</b>에서 관리됩니다. 수정이 필요하면 토크스테이션에서 변경 후 다시 불러오세요.</span>
-        </div>
-
         <div style="display:flex;gap:20px;align-items:start;margin-bottom:20px">
           <!-- 사진 -->
           <div style="flex-shrink:0;text-align:center">
@@ -711,25 +814,30 @@ function switchTeacherTab(tab, el) {
 
           <!-- 인적 정보 -->
           <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">영문 성명 ${tLbl}</label><input class="tsa-input" value="${t.name||''}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">성별 ${tLbl}</label><input class="tsa-input" value="${t.gender==='여'?'여성':'남성'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">생년월일 ${tLbl}</label><input class="tsa-input" value="${t.birthday||'-'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">입사일 ${tLbl}</label><input class="tsa-input" value="${t.joinDate||'-'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">이메일 ${tLbl}</label><input class="tsa-input" value="${t.email||'-'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">전화번호 ${tLbl}</label><input class="tsa-input" value="${t.phone||'-'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">직급 ${tLbl}</label><input class="tsa-input" value="${t.jobGrade||'-'}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label">톡스 재직 상태 ${tLbl}</label><input class="tsa-input" value="${t.talkStatus||'Employed'}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label">영문 성명 ${tLbl}</label><input id="tp-name" class="tsa-input" value="${t.name||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">성별 ${tLbl}</label>
+              <select id="tp-gender" class="tsa-input">
+                <option value="여" ${t.gender==='여'?'selected':''}>여성</option>
+                <option value="남" ${t.gender==='남'?'selected':''}>남성</option>
+              </select>
+            </div>
+            <div class="tsa-form-group"><label class="tsa-label">생년월일 ${tLbl}</label><input id="tp-birthday" type="date" class="tsa-input" value="${t.birthday||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">입사일 ${tLbl}</label><input id="tp-joindate" type="date" class="tsa-input" value="${t.joinDate||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">이메일 ${tLbl}</label><input id="tp-email" class="tsa-input" value="${t.email||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">전화번호 ${tLbl}</label><input id="tp-phone" class="tsa-input" value="${t.phone||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">직급 ${tLbl}</label><input id="tp-jobgrade" class="tsa-input" value="${t.jobGrade||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label">톡스 재직 상태 ${tLbl}</label><input id="tp-talkstatus" class="tsa-input" value="${t.talkStatus||'Employed'}"/></div>
           </div>
         </div>
 
         <!-- 프로필 콘텐츠 -->
         <div style="border-top:1px solid #E5E7EB;padding-top:14px;display:flex;flex-direction:column;gap:10px">
           <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">프로필 콘텐츠 ${tLbl}</div>
-          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">인사말</label><textarea class="tsa-input" rows="2" style="${ro};resize:none" readonly>${t.greeting||''}</textarea></div>
-          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">소개</label><textarea class="tsa-input" rows="2" style="${ro};resize:none" readonly>${t.intro||''}</textarea></div>
+          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">인사말</label><textarea id="tp-greeting" class="tsa-input" rows="2" style="resize:none">${t.greeting||''}</textarea></div>
+          <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">소개</label><textarea id="tp-intro" class="tsa-input" rows="2" style="resize:none">${t.intro||''}</textarea></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">학력</label><input class="tsa-input" value="${t.education||''}" style="${ro}" readonly/></div>
-            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">취미 / 특기</label><input class="tsa-input" value="${t.hobby||''}" style="${ro}" readonly/></div>
+            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">학력</label><input id="tp-education" class="tsa-input" value="${t.education||''}"/></div>
+            <div class="tsa-form-group"><label class="tsa-label" style="font-size:11px">취미 / 특기</label><input id="tp-hobby" class="tsa-input" value="${t.hobby||''}"/></div>
           </div>
         </div>
       `;
@@ -737,16 +845,32 @@ function switchTeacherTab(tab, el) {
     }
 
     case 'school': {
-      const ctColors = {'1:1':['#EEF2FF','#3730A3'], '1:4':['#FEF3C7','#92400E'], '1:8':['#D1FAE5','#065F46']};
       const selectedSubjects = getTeacherCapableSubjectIds(t);
       const selectedLevels = getTeacherCapableLevelIds(t);
+      // 배정 태그는 단일 목록으로 관리되며(설정 화면 참고), 장점/제외 구분은 강사별로 이 화면에서 지정한다.
+      const allMasterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
+      const preferredHtml = allMasterTags.map(tag => {
+        const checked = (t.preferredCourses || []).includes(tag.name) ? 'checked' : '';
+        return `
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" name="pref-tag" value="${tag.name}" ${checked} onchange="handleTeacherTagCheckChange()"/>
+            <span>${tag.name}</span>
+          </label>
+        `;
+      }).join('');
+      const excludedHtml = allMasterTags.map(tag => {
+        const checked = (t.prohibitedCourses || []).includes(tag.name) ? 'checked' : '';
+        return `
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" name="excl-tag" value="${tag.name}" ${checked} onchange="handleTeacherTagCheckChange()"/>
+            <span>${tag.name}</span>
+          </label>
+        `;
+      }).join('');
       container.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
-            <div class="tsa-form-group"><label class="tsa-label">어학원 평점</label>
-              <input id="td-rating" class="tsa-input" type="number" step="0.1" min="0" max="5" value="${t.rating||''}"/>
-            </div>
             <div class="tsa-form-group"><label class="tsa-label">근무 시작 시간</label>
               <input id="td-work-start" type="time" class="tsa-input" value="${t.workHours ? t.workHours.start : '08:00'}"/>
             </div>
@@ -754,17 +878,13 @@ function switchTeacherTab(tab, el) {
               <input id="td-work-end" type="time" class="tsa-input" value="${t.workHours ? t.workHours.end : '17:00'}"/>
             </div>
           </div>
-          <div style="background:#F8F9FF;border:0.5px solid #C7D2FE;border-radius:8px;padding:10px 14px;font-size:12px;color:#3730A3;margin-top:8px">
-            🔗 재직 상태: <strong>${t.talkStatus||'Employed'}</strong> (톡스 기준) &nbsp;·&nbsp; 어학원 상태: <strong>${t.status==='active'?'재직':t.status==='leave'?'휴가':'퇴사'}</strong>
-          </div>
           <div>
             <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 유형</label>
-            <div style="display:flex;gap:10px">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F9FAFB">
               ${['1:1','1:4','1:8'].map(ct => {
-                const [bg,c] = ctColors[ct];
                 const chk = (t.classTypes||[]).includes(ct) ? 'checked' : '';
-                return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid ${c}30;background:${bg};font-size:13px;font-weight:600;color:${c}">
-                  <input type="checkbox" name="td-classtype" value="${ct}" ${chk} style="accent-color:${c}"/> ${ct} 수업
+                return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" name="td-classtype" value="${ct}" ${chk}/> ${ct} 수업
                 </label>`;
               }).join('')}
             </div>
@@ -791,17 +911,32 @@ function switchTeacherTab(tab, el) {
           </div>
           <div>
             <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 방식</label>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #C7D2FE;background:#EEF2FF;font-size:13px;font-weight:600;color:#3730A3">
-                <input type="checkbox" name="td-teaching-mode" value="academy" ${getTeacherTeachingModes(t).academy ? 'checked' : ''} style="accent-color:#4F46E5"/> 어학원 수업
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F9FAFB">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                <input type="checkbox" name="td-teaching-mode" value="academy" ${getTeacherTeachingModes(t).academy ? 'checked' : ''}/> 어학원 수업
               </label>
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border-radius:8px;border:0.5px solid #A7F3D0;background:#ECFDF5;font-size:13px;font-weight:600;color:#065F46">
-                <input type="checkbox" name="td-teaching-mode" value="online" ${getTeacherTeachingModes(t).online ? 'checked' : ''} style="accent-color:#059669"/> 화상 수업
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                <input type="checkbox" name="td-teaching-mode" value="online" ${getTeacherTeachingModes(t).online ? 'checked' : ''}/> 화상 수업
               </label>
+            </div>
+          </div>
+          <div style="border-top:1px solid #E5E7EB;padding-top:14px">
+            <div style="margin-bottom:16px">
+              <div style="font-size:11.5px;font-weight:700;color:#1E3A8A;margin-bottom:8px">⭐ 장점 과정 설정</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px" id="pref-tag-container">
+                ${preferredHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 장점 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:#DC2626;margin-bottom:8px">❌ 제외 과정 설정</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px" id="excl-tag-container">
+                ${excludedHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 배정 제외 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
+              </div>
             </div>
           </div>
         </div>
       `;
+      if (typeof handleTeacherTagCheckChange === 'function') handleTeacherTagCheckChange();
       break;
     }
 
@@ -1012,11 +1147,10 @@ function switchTeacherTab(tab, el) {
     }
 
     case 'tags':
+      // 배정 태그는 단일 목록으로 관리되며(설정 화면 참고), 장점/제외 구분은 강사별로 이 화면에서 지정한다.
       const allMasterTags = (typeof MOCK_ASSIGNMENT_TAGS !== 'undefined') ? MOCK_ASSIGNMENT_TAGS.filter(tag => tag.visible) : [];
-      const strengthTags = allMasterTags.filter(tag => (tag.type || 'strength') === 'strength');
-      const exclusionTags = allMasterTags.filter(tag => tag.type === 'exclusion');
 
-      const preferredHtml = strengthTags.map(tag => {
+      const preferredHtml = allMasterTags.map(tag => {
         const checked = (t.preferredCourses || []).includes(tag.name) ? 'checked' : '';
         return `
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
@@ -1026,7 +1160,7 @@ function switchTeacherTab(tab, el) {
         `;
       }).join('');
 
-      const excludedHtml = exclusionTags.map(tag => {
+      const excludedHtml = allMasterTags.map(tag => {
         const checked = (t.prohibitedCourses || []).includes(tag.name) ? 'checked' : '';
         return `
           <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:6px 10px;background:#F8F9FC;border:1px solid #E9EDF4;border-radius:8px">
@@ -1052,14 +1186,9 @@ function switchTeacherTab(tab, el) {
             ${excludedHtml || '<div style="font-size:11px;color:#9CA3AF">등록된 배정 제외 태그가 없습니다. [배정 태그 설정 관리]에서 추가해 주십시오.</div>'}
           </div>
         </div>
-
-        <div style="margin-top:16px;display:flex;justify-content:flex-end">
-          <button class="tsa-btn tsa-btn-primary" onclick="saveTeacherTags(${t.id})">
-            <i data-lucide="check"></i> 역량 태그 및 배정 제약 저장
-          </button>
-        </div>
       `;
       if (typeof refreshIcons === 'function') refreshIcons();
+      if (typeof handleTeacherTagCheckChange === 'function') handleTeacherTagCheckChange();
       break;
   }
 }
@@ -1186,11 +1315,6 @@ function renderTeacherAvailabilityTab() {
         </tbody>
       </table>
     </div>
-    <div style="margin-top:14px;display:flex;justify-content:flex-end">
-      <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="saveTeacherAvailability(${t.id})">
-        <i data-lucide="check"></i> 가용성 저장
-      </button>
-    </div>
   `;
 }
 
@@ -1246,7 +1370,7 @@ function saveTeacherAvailability(id) {
     });
     showToast(`✓ [가용성 연동 완료] ${t.nick} 강사의 요일별 가용성이 업데이트되어 시간표 셀이 동기화되었습니다.`, 'success');
     renderTimetable(APP.conflictMode);
-    closeModal('teacher-detail-modal');
+    closeModalOrTeacherPopup('teacher-detail-modal');
   }
 }
 

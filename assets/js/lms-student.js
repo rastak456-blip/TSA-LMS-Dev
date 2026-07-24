@@ -432,13 +432,24 @@ function getStudentConsultationNotes(student) {
 }
 
 function getStudentPopupCounselorName() {
-  const names = {
+  const roleLabels = {
     admin: '슈퍼 어드민',
     super_admin: '슈퍼 어드민',
-    agency_head: '에이전시 본사',
-    agency_branch: '에이전시 지사',
+    head_teacher: '티칭 헤드',
+    accounting: '회계 담당자',
+    ss_staff: 'SS 스탭',
+    agency_head: '본사 담당자',
+    agency_branch: '지사 담당자',
   };
-  return names[APP.user] || '상담 담당자';
+  const roleLabel = roleLabels[APP.user] || '상담 담당자';
+  let affiliation;
+  if (APP.user === 'agency_head' || APP.user === 'agency_branch') {
+    affiliation = APP.user === 'agency_head' ? '한국 영어마을 본사' : '한국 영어마을 강남지사';
+  } else {
+    const branch = typeof BRANCH_CONFIG !== 'undefined' ? BRANCH_CONFIG[APP.branch] : null;
+    affiliation = branch ? branch.label.replace(/^[^\s]+\s*/, '') : '탈크스테이션 어학원';
+  }
+  return `${affiliation} ${roleLabel}`;
 }
 
 function addStudentConsultationNote(studentId, popupWindow) {
@@ -456,7 +467,7 @@ function addStudentConsultationNote(studentId, popupWindow) {
   notes.unshift({ id: Date.now(), counselor, consultedAt, content });
   student.consultationNotes = notes;
   localStorage.setItem(`tsa_student_consultation_notes_${student.id}`, JSON.stringify(notes));
-  const consultationContainer = doc.getElementById('adetail-page-enrollment-content');
+  const consultationContainer = doc.getElementById('adetail-page-tab-content');
   if (consultationContainer) {
     renderStudentConsultationTab(student, consultationContainer);
   } else {
@@ -496,7 +507,7 @@ function setStudentActivityFilter(studentId, filter) {
   const student = MOCK_STUDENTS.find(item => item.id === studentId);
   if (!student) return;
   student._activityFilter = ['all', 'consultation', 'change'].includes(filter) ? filter : 'all';
-  const container = document.getElementById('adetail-page-enrollment-content');
+  const container = document.getElementById('adetail-page-tab-content');
   if (container) renderStudentConsultationTab(student, container);
 }
 
@@ -515,6 +526,43 @@ function openStudentDetailPopup(id, portal) {
     return;
   }
   popup.focus();
+}
+
+function openStudentRegisterPopup(portal) {
+  const resolvedPortal = portal || ((APP.user === 'agency_head' || APP.user === 'agency_branch') ? 'agency' : 'admin');
+  const popupUrl = new URL(window.location.href);
+  popupUrl.search = '';
+  popupUrl.hash = '';
+  popupUrl.searchParams.set('studentRegisterPopup', '1');
+  popupUrl.searchParams.set('portal', resolvedPortal);
+  const popup = window.open(popupUrl.toString(), 'tsa-student-register', 'popup=yes,width=860,height=920,resizable=yes,scrollbars=yes');
+  if (!popup) {
+    if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해줘.', 'warning');
+    return;
+  }
+  // 같은 이름의 창이 이미 열려 있어 재사용되는 경우 window.open의 width/height가 적용되지 않으므로 강제로 재조정
+  try { popup.resizeTo(860, 920); } catch (e) { /* 브라우저 정책상 막힐 수 있음 — 무시 */ }
+  popup.focus();
+}
+
+// 등록 팝업(신규 학생) 저장 성공 후 부모 창 상태를 갱신하고 팝업을 닫는다
+function finishStudentRegisterPopup(newStudent, portal) {
+  if (window.opener && !window.opener.closed) {
+    try {
+      window.opener.MOCK_STUDENTS.push(newStudent);
+      if (typeof window.opener.enhanceMockStudents === 'function') window.opener.enhanceMockStudents();
+      if (typeof window.opener.updateAdminKPIs === 'function') window.opener.updateAdminKPIs();
+      if (typeof window.opener.updateAgencyKPIs === 'function') window.opener.updateAgencyKPIs();
+      if (portal === 'agency') {
+        if (typeof window.opener.initAgencyStudentList === 'function') window.opener.initAgencyStudentList();
+      } else {
+        if (typeof window.opener.filterStudentList === 'function') window.opener.filterStudentList(window.opener.APP?.activeStudentFilter || 'all');
+      }
+      if (typeof window.opener.renderUnassignedQueue === 'function') window.opener.renderUnassignedQueue();
+      if (typeof window.opener.showToast === 'function') window.opener.showToast(`✓ [학생 등록 완료] ${newStudent.nick} (${newStudent.name})이 등록되었습니다.`, 'success');
+    } catch (e) { /* 팝업 차단·접근 불가 시 무시하고 팝업만 닫는다 */ }
+  }
+  window.close();
 }
 
 function renderStudentConsultationTab(student, container) {
@@ -607,13 +655,16 @@ function openStudentConsultationNoteDetail(studentId, noteId) {
       </div>
       <div style="padding:18px 22px;overflow-y:auto">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">상담자</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(note.counselor || '-')}</div></div>
-          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">상담 일시</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(String(note.consultedAt || '-').replace('T',' '))}</div></div>
+          <div><label class="tsa-label">상담자</label><input id="scnd-counselor" class="tsa-input" value="${esc(note.counselor || '')}"/></div>
+          <div><label class="tsa-label">상담 일시</label><input id="scnd-datetime" type="datetime-local" class="tsa-input" value="${esc(note.consultedAt || '')}"/></div>
         </div>
-        <div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">전체 상담 내용</div>
-        <div style="min-height:220px;padding:16px;border:1px solid #E5E7EB;border-radius:11px;background:#FCFCFD;font-size:13px;color:#1F2937;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere">${esc(note.content || '')}</div>
+        <label class="tsa-label" style="margin-bottom:7px;display:block">전체 상담 내용</label>
+        <textarea id="scnd-content" class="tsa-input" rows="9" style="min-height:220px;font-size:13px;line-height:1.8">${esc(note.content || '')}</textarea>
       </div>
-      <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC"><button class="tsa-btn tsa-btn-primary" onclick="closeStudentConsultationNoteDetail()">확인</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC">
+        <button class="tsa-btn tsa-btn-outline" onclick="closeStudentConsultationNoteDetail()">닫기</button>
+        <button class="tsa-btn tsa-btn-primary" onclick="saveStudentConsultationNoteEdit(${student.id},'${esc(note.id)}')"><i data-lucide="save"></i> 수정 저장</button>
+      </div>
     </div>`;
   modal.style.display = 'flex';
   if (typeof refreshIcons === 'function') refreshIcons();
@@ -622,6 +673,30 @@ function openStudentConsultationNoteDetail(studentId, noteId) {
 function closeStudentConsultationNoteDetail() {
   const modal = document.getElementById('student-consultation-detail-modal');
   if (modal) modal.style.display = 'none';
+}
+
+function saveStudentConsultationNoteEdit(studentId, noteId) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  if (!student) return;
+  const notes = getStudentConsultationNotes(student);
+  const note = notes.find(item => String(item.id) === String(noteId));
+  if (!note) return;
+  const counselor = document.getElementById('scnd-counselor')?.value.trim() || '';
+  const consultedAt = document.getElementById('scnd-datetime')?.value || '';
+  const content = document.getElementById('scnd-content')?.value.trim() || '';
+  if (!counselor || !consultedAt || !content) {
+    if (typeof showToast === 'function') showToast('상담자, 상담 일시, 상담 내용을 모두 입력해줘.', 'warning');
+    return;
+  }
+  note.counselor = counselor;
+  note.consultedAt = consultedAt;
+  note.content = content;
+  student.consultationNotes = notes;
+  localStorage.setItem(`tsa_student_consultation_notes_${student.id}`, JSON.stringify(notes));
+  closeStudentConsultationNoteDetail();
+  const container = document.getElementById('adetail-page-tab-content');
+  if (container) renderStudentConsultationTab(student, container);
+  if (typeof showToast === 'function') showToast('상담 내용이 수정되었습니다.', 'success');
 }
 
 function openStudentChangeHistoryDetail(studentId, changeIndex) {
@@ -650,17 +725,26 @@ function openStudentChangeHistoryDetail(studentId, changeIndex) {
         <button class="tsa-modal-close" onclick="closeStudentChangeHistoryDetail()"><i data-lucide="x"></i></button>
       </div>
       <div style="padding:18px 22px;overflow-y:auto">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 항목</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(change.field || '-')}</div></div>
-          <div style="padding:11px 12px;background:#F8FAFC;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 일시</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(formatStudentActivityDate(changedAt))}</div></div>
-          <div style="padding:11px 12px;background:#FFF7ED;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 전</div><div style="font-size:12.5px;font-weight:800;color:#9A3412;margin-top:4px;overflow-wrap:anywhere">${esc(change.from || '-')}</div></div>
-          <div style="padding:11px 12px;background:#ECFDF5;border-radius:9px"><div style="font-size:10px;color:#9CA3AF">변경 후</div><div style="font-size:12.5px;font-weight:800;color:#047857;margin-top:4px;overflow-wrap:anywhere">${esc(change.to || '-')}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;pointer-events:none;user-select:none">
+          <div style="padding:11px 12px;background:#F3F4F6;border-radius:9px"><div style="font-size:10px;color:#6B7280">변경자 (수정 불가)</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(change.changedBy || '시스템')}</div></div>
+          <div style="padding:11px 12px;background:#F3F4F6;border-radius:9px"><div style="font-size:10px;color:#6B7280">변경 일시 (수정 불가)</div><div style="font-size:12.5px;font-weight:800;color:#1F2937;margin-top:4px">${esc(formatStudentActivityDate(changedAt))}</div></div>
         </div>
-        <div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:7px">변경 사유</div>
-        <div style="min-height:120px;padding:16px;border:1px solid #E5E7EB;border-radius:11px;background:#FCFCFD;font-size:13px;color:#1F2937;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere">${esc(change.reason || '기록된 변경 사유가 없습니다.')}</div>
-        <div style="margin-top:12px;padding:10px 12px;border-radius:9px;background:#FFFBEB;color:#92400E;font-size:10.5px;line-height:1.6">변경자: <b>${esc(change.changedBy || '시스템')}</b> · 이 기록은 시스템 감사 이력으로 수정하거나 삭제할 수 없습니다.</div>
+        <div style="padding:14px 16px;border:1px solid #E5E7EB;border-radius:11px;background:#F3F4F6;margin-bottom:14px;pointer-events:none;user-select:none">
+          <div style="font-size:10px;color:#6B7280;margin-bottom:8px">변경 항목 (수정 불가)</div>
+          <div style="font-size:13.5px;font-weight:800;color:#1F2937;margin-bottom:10px">${esc(change.field || '-')}</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="padding:8px 12px;border-radius:8px;background:#FFF7ED;color:#9A3412;font-size:12.5px;font-weight:700;overflow-wrap:anywhere">${esc(change.from || '-')}</span>
+            <i data-lucide="arrow-right" style="width:16px;height:16px;color:#9CA3AF;flex-shrink:0"></i>
+            <span style="padding:8px 12px;border-radius:8px;background:#ECFDF5;color:#047857;font-size:12.5px;font-weight:700;overflow-wrap:anywhere">${esc(change.to || '-')}</span>
+          </div>
+        </div>
+        <label class="tsa-label" style="margin-bottom:7px;display:block">변경 사유 (수정 가능)</label>
+        <textarea id="schd-reason" class="tsa-input" rows="6" style="min-height:120px;font-size:13px;line-height:1.8">${esc(change.reason || '')}</textarea>
       </div>
-      <div style="display:flex;justify-content:flex-end;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC"><button class="tsa-btn tsa-btn-primary" onclick="closeStudentChangeHistoryDetail()">확인</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid #E5E7EB;background:#F8FAFC">
+        <button class="tsa-btn tsa-btn-outline" onclick="closeStudentChangeHistoryDetail()">닫기</button>
+        <button class="tsa-btn tsa-btn-primary" onclick="saveStudentChangeHistoryReasonEdit(${student.id},${changeIndex})"><i data-lucide="save"></i> 수정 저장</button>
+      </div>
     </div>`;
   modal.style.display = 'flex';
   if (typeof refreshIcons === 'function') refreshIcons();
@@ -669,6 +753,18 @@ function openStudentChangeHistoryDetail(studentId, changeIndex) {
 function closeStudentChangeHistoryDetail() {
   const modal = document.getElementById('student-change-detail-modal');
   if (modal) modal.style.display = 'none';
+}
+
+function saveStudentChangeHistoryReasonEdit(studentId, changeIndex) {
+  const student = MOCK_STUDENTS.find(item => item.id === studentId);
+  const change = student && Array.isArray(student.changeRequests) ? student.changeRequests[changeIndex] : null;
+  if (!student || !change) return;
+  const reason = document.getElementById('schd-reason')?.value.trim() || '';
+  change.reason = reason;
+  closeStudentChangeHistoryDetail();
+  const container = document.getElementById('adetail-page-tab-content');
+  if (container) renderStudentConsultationTab(student, container);
+  if (typeof showToast === 'function') showToast('변경 사유가 수정되었습니다.', 'success');
 }
 
 function renderStudentDetailPopup(student, portal, popup) {
@@ -2269,6 +2365,12 @@ function saveStudentForm() {
       remittanceStatus: 'unpaid',
     };
     MOCK_STUDENTS.push(newStudent);
+
+    if (APP.isRegisterPopup) {
+      finishStudentRegisterPopup(newStudent, 'admin');
+      return;
+    }
+
     showToast(`✓ [학생 등록 완료] 신규 입학생 ${nick} (${name})이 성공적으로 등록되었습니다. 수강·기숙사 정보는 상세/수정에서 이어서 입력해줘.`, 'success');
   }
 

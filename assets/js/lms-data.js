@@ -563,16 +563,14 @@ const MOCK_TALK_LMS_TEACHERS = [
 ];
 
 let MOCK_ASSIGNMENT_TAGS = [
-  { id: "TAG-01", name: "일반 영어 스피킹", visible: true, priority: 1, type: "strength" },
-  { id: "TAG-02", name: "일반 영어 리스닝", visible: true, priority: 2, type: "strength" },
-  { id: "TAG-03", name: "문법", visible: true, priority: 3, type: "strength" },
-  { id: "TAG-04", name: "리딩", visible: true, priority: 4, type: "strength" },
-  { id: "TAG-05", name: "IELTS 전문", visible: true, priority: 5, type: "strength" },
-  { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 6, type: "strength" }
+  { id: "TAG-01", name: "일반 영어 스피킹", visible: true, priority: 1 },
+  { id: "TAG-02", name: "일반 영어 리스닝", visible: true, priority: 2 },
+  { id: "TAG-05", name: "IELTS 전문", visible: true, priority: 3 },
+  { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 4 }
 ];
 
 const MOCK_TEACHERS = [
-  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문','리딩'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1','1:4'],
+  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1','1:4'],
     email: 'sarah.j@talkstation.co', phone: '+63-917-111-1111', birthday: '1990-03-15', joinDate: '2021-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Sarah. I specialize in IELTS and will help you achieve your target band score!',
     intro: 'I am a dedicated English teacher with over 5 years of IELTS coaching experience. I focus on speaking fluency and reading comprehension.',
@@ -584,13 +582,13 @@ const MOCK_TEACHERS = [
     intro: 'I enjoy making English fun and practical. My teaching style focuses on real-life conversations.',
     education: 'Bachelor of Arts in Communication — Cebu Normal University', hobby: 'Basketball, Music, Cooking' },
 
-  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹','문법'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
+  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
     email: 'anna.r@talkstation.co', phone: '+63-932-333-3333', birthday: '1995-01-10', joinDate: '2023-01-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hello everyone! I\'m Teacher Anna. Group classes are my specialty — energy and fun guaranteed!',
     intro: 'I believe learning is better together. I create engaging group activities to build confidence in speaking.',
     education: 'Bachelor of Elementary Education — University of San Jose-Recoletos', hobby: 'Singing, Dancing, Art' },
 
-  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['문법','리딩','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
+  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
     email: 'james.p@talkstation.co', phone: '+63-915-444-4444', birthday: '1985-11-30', joinDate: '2019-06-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hi! I\'m Teacher James. With 7 years of experience, I can guide you to fluency step by step.',
     intro: 'I specialize in grammar and comprehensive English skills. Currently on approved leave and returning soon.',
@@ -614,7 +612,7 @@ const MOCK_TEACHERS = [
     intro: 'Experienced in 1:1 and small group sessions. Focused on listening and speaking improvement.',
     education: 'Bachelor of Arts in English — University of Cebu-Lapu-Lapu and Mandaue', hobby: 'Singing, Hiking, Cooking' },
 
-  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: 'A-105', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹','문법'], excludedCourses: [], classTypes: ['1:1','1:4'],
+  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: 'A-105', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1','1:4'],
     email: 'karen.v@talkstation.co', phone: '+63-919-888-8888', birthday: '1991-06-25', joinDate: '2022-02-07', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Karen. I make sure every student leaves the class smiling and more confident!',
     intro: 'I specialize in helping intermediate learners break through their plateau and reach fluency.',
@@ -626,7 +624,7 @@ const MOCK_TEACHERS = [
     intro: 'I create a comfortable and dynamic environment for group learning. Energy and humor are my teaching tools.',
     education: 'Bachelor of Arts in Mass Communication — Cebu Normal University', hobby: 'Guitar, Volleyball, Photography' },
 
-  { id: 10, name: 'Lisa Fernandez', nick: 'Lisa', gender: '여', type: 'IELTS 전문', room: 'A-106', contract: '정규직', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문','리딩','문법'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 10, name: 'Lisa Fernandez', nick: 'Lisa', gender: '여', type: 'IELTS 전문', room: 'A-106', contract: '정규직', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'lisa.f@talkstation.co', phone: '+63-921-101-0101', birthday: '1988-08-30', joinDate: '2020-01-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Lisa. IELTS is my expertise and I\'ll guide you from Band 5 to Band 7 and beyond!',
     intro: 'With 6 years of IELTS preparation experience, I know exactly what examiners are looking for.',
@@ -800,6 +798,9 @@ let MOCK_MASTER_CLASS_TYPES = [
   { id: 'CT_01', code: '1:1', name: '개인 수업', classMode: 'individual', minStudents: 1, maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
   { id: 'CT_02', code: '1:4', name: '소그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
   { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대그룹 수업', visible: true },
+  { id: 'CT_04', code: '1:2', name: '미니 그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 2, order: 4, desc: '강사 1인 · 학생 최대 2인 그룹 수업', visible: true },
+  { id: 'CT_05', code: '1:6', name: '중그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 6, order: 5, desc: '강사 1인 · 학생 최대 6인 중그룹 수업', visible: true },
+  { id: 'CT_06', code: '1:10', name: '대형 그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 10, order: 6, desc: '강사 1인 · 학생 최대 10인 대형 그룹 수업', visible: true },
 ];
 
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
@@ -814,12 +815,44 @@ const LEVEL_NORMALIZE_MAP = {
   'Band 7.0':            'Advanced',
 };
 
+/* =============================================
+   수업 편성(Scheduling) — 레벨군(G1~G5) / L1~L10 매핑
+   MOCK_MASTER_LEVELS의 5단계(order 1~5)를 레벨군으로,
+   각 레벨의 subLevels(order 1~2)를 L1~L10으로 그대로 사용한다.
+   학생 개인 레벨은 아직 상위 레벨명까지만 저장되므로
+   레벨군 판정만 가능하고, 세부 레벨(L-number) 판정은
+   학생 데이터에 세부 레벨 필드가 추가된 뒤에 가능하다.
+   ============================================= */
+function getLevelGroupForLevelName(levelName) {
+  if (!levelName) return null;
+  const normalized = LEVEL_NORMALIZE_MAP[levelName] || levelName;
+  const level = MOCK_MASTER_LEVELS.find(l => l.name === normalized);
+  return level ? level.order : null;
+}
+
+function getLevelGroupForStudent(student) {
+  return getLevelGroupForLevelName(student?.level);
+}
+
+// 레벨군 번호(1~5)를 화면에 보여줄 실제 레벨명으로 변환 ('G1' 같은 내부 코드 대신 '레벨 설정'과 동일한 명칭 사용)
+function getLevelGroupName(levelOrder) {
+  const level = MOCK_MASTER_LEVELS.find(l => l.order === levelOrder);
+  return level ? level.name : '-';
+}
+
+function getSubLevelRange(levelOrder) {
+  const level = MOCK_MASTER_LEVELS.find(l => l.order === levelOrder);
+  if (!level || !Array.isArray(level.subLevels) || !level.subLevels.length) return [];
+  const sorted = [...level.subLevels].sort((a, b) => a.order - b.order);
+  return sorted.map((sub, idx) => ({ ...sub, lNumber: (levelOrder - 1) * 2 + idx + 1 }));
+}
+
 // subjectsByType: 그룹 수업 유형(1:1/1:4/1:8)별 과목-시수 매핑. oneone/group1on4/group은 각 유형 시수 합계(하위 호환용, saveCourse()에서 자동 재계산됨)
 const MOCK_COURSES = [
   { name: '일반 코스', type: '일반 영어', fee: 800, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
-      '1:4': [], '1:8': [],
+      '1:4': [{ id: 'SUB_02', hours: 1 }], '1:6': [{ id: 'SUB_01', hours: 1 }], '1:8': [{ id: 'SUB_03', hours: 1 }],
     },
     oneone: 4, group1on4: 0, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
@@ -827,8 +860,10 @@ const MOCK_COURSES = [
   { name: 'IELTS 전문 코스', type: 'IELTS', fee: 950, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }],
+      '1:2': [{ id: 'SUB_04', hours: 1 }],
       '1:4': [{ id: 'SUB_01', hours: 1 }],
       '1:8': [{ id: 'SUB_05', hours: 1 }],
+      '1:10': [{ id: 'SUB_05', hours: 1 }],
     },
     oneone: 3, group1on4: 1, group: 1,
     subjects: [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_01', hours: 1 }, { id: 'SUB_05', hours: 1 }],
@@ -836,8 +871,9 @@ const MOCK_COURSES = [
   { name: '주니어 패키지', type: '주니어', fee: 880, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }],
+      '1:2': [{ id: 'SUB_06', hours: 1 }],
       '1:4': [{ id: 'SUB_02', hours: 1 }],
-      '1:8': [],
+      '1:8': [{ id: 'SUB_07', hours: 1 }],
     },
     oneone: 4, group1on4: 1, group: 0,
     subjects: [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }, { id: 'SUB_02', hours: 1 }],
@@ -845,7 +881,7 @@ const MOCK_COURSES = [
   { name: '가디언 코스', type: '가디언', fee: 700, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_08', hours: 2 }],
-      '1:4': [],
+      '1:4': [{ id: 'SUB_08', hours: 1 }],
       '1:8': [{ id: 'SUB_05', hours: 1 }],
     },
     oneone: 2, group1on4: 0, group: 1,
@@ -855,7 +891,8 @@ const MOCK_COURSES = [
     subjectsByType: {
       '1:1': [{ id: 'SUB_09', hours: 2 }],
       '1:4': [{ id: 'SUB_10', hours: 2 }],
-      '1:8': [],
+      '1:6': [{ id: 'SUB_09', hours: 1 }],
+      '1:8': [{ id: 'SUB_10', hours: 1 }],
     },
     oneone: 2, group1on4: 2, group: 0,
     subjects: [{ id: 'SUB_09', hours: 2 }, { id: 'SUB_10', hours: 2 }],

@@ -21,7 +21,6 @@ const VIEW_MAP = {
   'dorm-erp': { el: 'view-dorm-erp', menu: 'menu-dorm-erp', label: '기숙사 배정 관리', sec: '운영' },
   'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', label: '교육 과정 및 과목 레벨 설정', sec: '학사 관리' },
   'tuition-config': { el: 'view-tuition-config', menu: 'menu-tuition-config', label: '수강료 구성', sec: '학사 관리' },
-  'bell-settings': { el: 'view-bell-settings', menu: 'menu-bell-settings', label: '교시 및 벨 설정', sec: '학사 관리' },
   'teacher-dashboard': { el: 'view-teacher-dashboard', menu: 'menu-teacher-dashboard', label: '강사 대시보드', sec: '수업 관리' },
   'teacher-timetable': { el: 'view-teacher-timetable', menu: 'menu-teacher-timetable', label: '주간 시간표', sec: '수업 관리' },
   'student-dashboard': { el: 'view-student-dashboard', menu: 'menu-student-dashboard', label: '학생 대시보드', sec: '학생 서비스' },
@@ -52,7 +51,7 @@ function navigate(view) {
   const submenu = document.getElementById('timetable-submenu');
   const arrow = document.getElementById('timetable-submenu-arrow');
   if (parentMenu) {
-    if (view === 'timetable' || view === 'bell-settings' || view === 'weekly-timetable') {
+    if (view === 'timetable' || view === 'weekly-timetable') {
       parentMenu.classList.add('active');
       if (submenu) {
         submenu.style.display = 'flex';
@@ -78,8 +77,6 @@ function navigate(view) {
     clearAssignWorkspace();
   } else if (view === 'weekly-timetable') {
     renderWeeklyTimetable();
-  } else if (view === 'bell-settings') {
-    if (typeof initBellSettingsView === 'function') initBellSettingsView();
   } else if (view === 'dashboard') {
     updateAdminKPIs();
     currentCalendarFilter = null;
@@ -208,6 +205,24 @@ function openModal(id) {
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = 'none';
+}
+
+// 등록 팝업 창 안에서는 모달을 숨기는 대신 팝업 창 자체를 닫는다 (뒤에 남을 빈 화면이 없도록)
+function closeModalOrRegisterPopup(id) {
+  if (typeof APP !== 'undefined' && APP.isRegisterPopup) {
+    window.close();
+    return;
+  }
+  closeModal(id);
+}
+
+function closeModalOrTeacherPopup(id) {
+  if (typeof APP !== 'undefined' && APP.isTeacherDetailPopup) {
+    if (typeof syncTeacherPopupChangesToOpener === 'function') syncTeacherPopupChangesToOpener();
+    window.close();
+    return;
+  }
+  closeModal(id);
 }
 
 /* =============================================

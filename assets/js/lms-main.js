@@ -2856,6 +2856,7 @@ function saveTeacherTags(id) {
     showToast(`✓ ${t.nick} 강사의 역량 태그 및 배정 제약 설정이 저장되었습니다.`, 'success');
     switchTeacherTab('profile', null);
     initTeacherList();
+    if (APP.isTeacherDetailPopup && typeof syncTeacherPopupChangesToOpener === 'function') syncTeacherPopupChangesToOpener();
   }
 }
 
@@ -2885,16 +2886,15 @@ function handleTeacherTagCheckChange() {
 
 function renderAssignmentTags() {
   MOCK_ASSIGNMENT_TAGS.sort((a, b) => a.priority - b.priority);
-  renderAssignmentTagTable('strength', 'tag-master-list-tbody-strength');
-  renderAssignmentTagTable('exclusion', 'tag-master-list-tbody-exclusion');
+  renderAssignmentTagTable('tag-master-list-tbody');
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-function renderAssignmentTagTable(type, tbodyId) {
+function renderAssignmentTagTable(tbodyId) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  const list = MOCK_ASSIGNMENT_TAGS.filter(tag => (tag.type || 'strength') === type);
+  const list = MOCK_ASSIGNMENT_TAGS;
 
   tbody.innerHTML = list.map((tag, idx) => {
     const visibleBadge = tag.visible
@@ -2902,16 +2902,16 @@ function renderAssignmentTagTable(type, tbodyId) {
       : `<span class="tsa-badge tsa-badge-danger" style="cursor:pointer" onclick="toggleTagVisibility('${tag.id}')">비노출</span>`;
 
     return `
-      <tr>
+      <tr draggable="true" data-tag-idx="${idx}"
+          ondragstart="onTagRowDragStart(event, ${idx})"
+          ondragover="onTagRowDragOver(event)"
+          ondrop="onTagRowDrop(event, ${idx})"
+          ondragend="onTagRowDragEnd(event)"
+          style="cursor:grab">
+        <td style="text-align:center;color:#9CA3AF"><i data-lucide="grip-vertical" style="width:14px;height:14px"></i></td>
+        <td style="font-weight:700;color:#4B5563;font-size:12px;text-align:center">${tag.priority}</td>
         <td style="font-weight:700">${tag.name}</td>
         <td style="text-align:center">${visibleBadge}</td>
-        <td style="text-align:center;font-weight:600">${tag.priority}순위</td>
-        <td style="text-align:center">
-          <div style="display:flex;justify-content:center;gap:4px">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'up')" ${idx === 0 ? 'disabled' : ''}>▲</button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changeTagPriority('${tag.id}', 'down')" ${idx === list.length - 1 ? 'disabled' : ''}>▼</button>
-          </div>
-        </td>
         <td style="text-align:center">
           <div style="display:flex;justify-content:center;gap:6px">
             <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="editAssignmentTag('${tag.id}')">수정</button>
@@ -2923,16 +2923,43 @@ function renderAssignmentTagTable(type, tbodyId) {
   }).join('');
 }
 
+let _tagDragSrcIdx = null;
+
+function onTagRowDragStart(ev, idx) {
+  _tagDragSrcIdx = idx;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.style.opacity = '0.4';
+}
+
+function onTagRowDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+
+function onTagRowDrop(ev, targetIdx) {
+  ev.preventDefault();
+  if (_tagDragSrcIdx === null || _tagDragSrcIdx === targetIdx) return;
+  const [moved] = MOCK_ASSIGNMENT_TAGS.splice(_tagDragSrcIdx, 1);
+  MOCK_ASSIGNMENT_TAGS.splice(targetIdx, 0, moved);
+  MOCK_ASSIGNMENT_TAGS.forEach((t, i) => { t.priority = i + 1; });
+  _tagDragSrcIdx = null;
+  renderAssignmentTags();
+  showToast('✓ 배정 태그 우선순위가 변경되었습니다.', 'success');
+}
+
+function onTagRowDragEnd(ev) {
+  ev.currentTarget.style.opacity = '';
+  _tagDragSrcIdx = null;
+}
+
 function saveAssignmentTag() {
   const idEl = document.getElementById('tag-manage-id');
   const nameEl = document.getElementById('tag-manage-name');
-  const typeEl = document.getElementById('tag-manage-type');
   const visibleEl = document.getElementById('tag-manage-visible');
   const priorityEl = document.getElementById('tag-manage-priority');
 
   const id = idEl.value;
   const name = nameEl.value.trim();
-  const type = typeEl.value === 'exclusion' ? 'exclusion' : 'strength';
   const visible = visibleEl.value === 'true';
   const priority = parseInt(priorityEl.value, 10);
 
@@ -2942,7 +2969,6 @@ function saveAssignmentTag() {
     const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
     if (tag) {
       tag.name = name;
-      tag.type = type;
       tag.visible = visible;
       tag.priority = priority;
       showToast('배정 태그가 수정되었습니다.', 'success');
@@ -2952,7 +2978,6 @@ function saveAssignmentTag() {
     MOCK_ASSIGNMENT_TAGS.push({
       id: newId,
       name: name,
-      type: type,
       visible: visible,
       priority: priority
     });
@@ -2969,7 +2994,6 @@ function editAssignmentTag(id) {
 
   document.getElementById('tag-manage-id').value = tag.id;
   document.getElementById('tag-manage-name').value = tag.name;
-  document.getElementById('tag-manage-type').value = tag.type || 'strength';
   document.getElementById('tag-manage-visible').value = String(tag.visible);
   document.getElementById('tag-manage-priority').value = tag.priority;
   document.getElementById('tag-form-title').innerHTML = `<i data-lucide="edit-3" style="color:#F59E0B"></i> 배정 태그 수정`;
@@ -2978,9 +3002,20 @@ function editAssignmentTag(id) {
 
 function deleteAssignmentTag(id) {
   if (!confirm('정말 이 배정 태그를 삭제하시겠습니까?')) return;
+  const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
   MOCK_ASSIGNMENT_TAGS = MOCK_ASSIGNMENT_TAGS.filter(t => t.id !== id);
+  // 삭제된 태그를 이미 장점/제외로 지정해둔 강사가 있다면 그 목록에서도 함께 제거한다.
+  if (tag && typeof MOCK_TEACHERS !== 'undefined') {
+    MOCK_TEACHERS.forEach(t => {
+      if (Array.isArray(t.preferredCourses)) t.preferredCourses = t.preferredCourses.filter(name => name !== tag.name);
+      if (Array.isArray(t.prohibitedCourses)) t.prohibitedCourses = t.prohibitedCourses.filter(name => name !== tag.name);
+      if (Array.isArray(t.excludedCourses)) t.excludedCourses = t.excludedCourses.filter(name => name !== tag.name);
+      if (Array.isArray(t.basicCourses)) t.basicCourses = t.basicCourses.filter(name => name !== tag.name);
+    });
+  }
   showToast('배정 태그가 삭제되었습니다.', 'success');
   renderAssignmentTags();
+  if (typeof renderTeacherList === 'function' && typeof MOCK_TEACHERS !== 'undefined') renderTeacherList(MOCK_TEACHERS);
 }
 
 function toggleTagVisibility(id) {
@@ -2994,9 +3029,7 @@ function toggleTagVisibility(id) {
 function changeTagPriority(id, direction) {
   const tag = MOCK_ASSIGNMENT_TAGS.find(t => t.id === id);
   if (!tag) return;
-  // 우선순위 이동은 같은 유형(장점/배정 제외) 안에서만 이루어진다
-  const type = tag.type || 'strength';
-  const list = MOCK_ASSIGNMENT_TAGS.filter(t => (t.type || 'strength') === type).sort((a, b) => a.priority - b.priority);
+  const list = [...MOCK_ASSIGNMENT_TAGS].sort((a, b) => a.priority - b.priority);
   const idx = list.findIndex(t => t.id === id);
   if (idx === -1) return;
 
@@ -3015,10 +3048,8 @@ function changeTagPriority(id, direction) {
 function resetTagForm() {
   document.getElementById('tag-manage-id').value = '';
   document.getElementById('tag-manage-name').value = '';
-  document.getElementById('tag-manage-type').value = 'strength';
   document.getElementById('tag-manage-visible').value = 'true';
-  const strengthCount = MOCK_ASSIGNMENT_TAGS.filter(t => (t.type || 'strength') === 'strength').length;
-  document.getElementById('tag-manage-priority').value = String(strengthCount + 1);
+  document.getElementById('tag-manage-priority').value = String(MOCK_ASSIGNMENT_TAGS.length + 1);
   document.getElementById('tag-form-title').innerHTML = `<i data-lucide="plus-circle" style="color:#5E5CE6"></i> 배정 태그 등록/수정`;
   if (typeof refreshIcons === 'function') refreshIcons();
 }
@@ -3145,6 +3176,8 @@ function openStudentSettleDetail(studentId) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TSA LMS v2.5 ready — 로그인 화면에서 시작');
   initializeStudentPopupMode();
+  initializeStudentRegisterPopupMode();
+  initializeTeacherDetailPopupMode();
 });
 
 function initializeStudentPopupMode() {
@@ -3184,5 +3217,78 @@ function initializeStudentPopupMode() {
   });
   const student = MOCK_STUDENTS.find(item => item.id === studentId);
   if (student) document.title = `${student.name} 학생 정보`;
+  setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
+}
+
+// '신규 학생 등록'을 모달 대신 별도 팝업 창으로 여는 모드. studentPopup(상세)과 달리 대상 id가 없으므로
+// studentRegisterPopup 파라미터만 확인하고, 저장 성공 시 finishStudentRegisterPopup()이 부모 창에 반영 후 창을 닫는다.
+function initializeStudentRegisterPopupMode() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('studentRegisterPopup') !== '1') return;
+
+  if (window.opener && !window.opener.closed) {
+    try {
+      const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
+      syncArray(MOCK_STUDENTS, window.opener.MOCK_STUDENTS);
+      if (typeof MOCK_AGENCIES !== 'undefined') syncArray(MOCK_AGENCIES, window.opener.MOCK_AGENCIES);
+    } catch (e) { /* 접근 불가 시(다른 오리진 등) 기본 mock 데이터로 진행 */ }
+  }
+
+  const portal = params.get('portal') === 'agency' ? 'agency' : 'admin';
+  APP.user = portal === 'agency' ? 'agency_head' : 'super_admin';
+  APP.isRegisterPopup = true;
+  if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
+  if (typeof applyRoleUI === 'function') applyRoleUI();
+  document.body.classList.add('student-popup-mode');
+  document.body.classList.add('register-popup-mode');
+  const login = document.getElementById('login-screen');
+  const app = document.getElementById('app-layout');
+  if (login) login.style.display = 'none';
+  if (app) app.style.display = 'block';
+
+  if (portal === 'agency') {
+    if (typeof openAgencyStudentRegisterModal === 'function') openAgencyStudentRegisterModal();
+  } else {
+    if (typeof openStudentRegisterModal === 'function') openStudentRegisterModal();
+  }
+  document.title = '신규 학생 등록';
+  setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
+}
+
+// '강사 상세/수정'을 모달 대신 별도 팝업 창으로 여는 모드. teacherPopup=강사ID(+tab)만 확인하고,
+// 저장 버튼 클릭 시 syncTeacherPopupChangesToOpener()가 부모 창의 MOCK_TEACHERS에 실시간 반영한다.
+function initializeTeacherDetailPopupMode() {
+  const params = new URLSearchParams(window.location.search);
+  const teacherId = parseInt(params.get('teacherPopup'), 10);
+  if (!teacherId) return;
+
+  if (window.opener && !window.opener.closed) {
+    try {
+      const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
+      syncArray(MOCK_TEACHERS, window.opener.MOCK_TEACHERS);
+      if (typeof MOCK_TIMETABLE !== 'undefined') syncArray(MOCK_TIMETABLE, window.opener.MOCK_TIMETABLE);
+      if (typeof MOCK_STUDENTS !== 'undefined') syncArray(MOCK_STUDENTS, window.opener.MOCK_STUDENTS);
+      if (typeof MOCK_CLASS_ROOMS !== 'undefined') syncArray(MOCK_CLASS_ROOMS, window.opener.MOCK_CLASS_ROOMS);
+      if (typeof MOCK_CLASS_SESSIONS !== 'undefined') syncArray(MOCK_CLASS_SESSIONS, window.opener.MOCK_CLASS_SESSIONS);
+      if (typeof MOCK_SUBSTITUTE_LOGS !== 'undefined') syncArray(MOCK_SUBSTITUTE_LOGS, window.opener.MOCK_SUBSTITUTE_LOGS);
+    } catch (e) { /* 접근 불가 시(다른 오리진 등) 기본 mock 데이터로 진행 */ }
+  }
+
+  APP.user = 'super_admin';
+  APP.isTeacherDetailPopup = true;
+  if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
+  if (typeof enhanceMockTeachers === 'function') enhanceMockTeachers();
+  if (typeof applyRoleUI === 'function') applyRoleUI();
+  document.body.classList.add('student-popup-mode');
+  document.body.classList.add('teacher-popup-mode');
+  const login = document.getElementById('login-screen');
+  const app = document.getElementById('app-layout');
+  if (login) login.style.display = 'none';
+  if (app) app.style.display = 'block';
+
+  const tab = params.get('tab') || 'profile';
+  if (typeof openTeacherDetail === 'function') openTeacherDetail(teacherId, tab);
+  const teacher = MOCK_TEACHERS.find(item => item.id === teacherId);
+  if (teacher) document.title = `${teacher.name} 강사 정보`;
   setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
 }
