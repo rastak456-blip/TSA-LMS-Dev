@@ -3481,7 +3481,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
               <div style="font-size:11.5px;color:#6B7280">레벨(Beginner~Advanced) 기준으로 학생을 매칭합니다. 세부 레벨 우선순위는 아직 지원하지 않습니다.</div>
               <div style="display:flex;gap:8px">
-                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="autoMatchAllGroups()"><i data-lucide="wand-2"></i> 전체 자동 매칭</button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-2"></i> 전체 자동 매칭</button>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateModal()"><i data-lucide="plus"></i> 그룹 생성</button>
               </div>
             </div>
@@ -3523,12 +3523,14 @@
                 <input id="gcm-name" class="tsa-input" placeholder="예: Grammar G2 A"/>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과정 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF;font-weight:400">(다중 선택 가능)</span></label>
-                <div id="gcm-course-checks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;border:1px solid #E5E7EB;border-radius:8px;padding:10px;max-height:150px;overflow-y:auto"></div>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과목 <span style="color:#EF4444">*</span></label>
+                <select id="gcm-subject" class="tsa-input" onchange="onGcmSubjectChange()"></select>
+                <div style="font-size:10.5px;color:#6B7280;margin-top:4px">과목을 먼저 선택하면 연결된 과정만 활성화돼.</div>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과목 <span style="color:#EF4444">*</span></label>
-                <select id="gcm-subject" class="tsa-input"></select>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과정 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF;font-weight:400">(다중 선택 가능)</span></label>
+                <div id="gcm-course-checks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;border:1px solid #E5E7EB;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto"></div>
+                <div id="gcm-course-filter-hint" style="font-size:10.5px;color:#4F46E5;margin-top:4px"></div>
               </div>
               <div>
                 <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">레벨 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF;font-weight:400">(다중 선택 가능)</span></label>
@@ -3550,8 +3552,8 @@
                   <input id="gcm-start-date" type="date" class="tsa-input"/>
                 </div>
                 <div>
-                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">주당 수업 횟수 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(제안값, 확정 전)</span></label>
-                  <input id="gcm-weekly-frequency" type="number" min="1" value="1" class="tsa-input"/>
+                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">주당 수업 횟수</label>
+                  <input id="gcm-weekly-frequency" type="number" min="1" value="5" class="tsa-input"/>
                 </div>
               </div>
             </div>
@@ -3586,9 +3588,6 @@
 
           <!-- 탭 1: 강의실 설정 -->
           <div id="cs-panel-rooms">
-            <!-- 유형 현황 -->
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="cs-type-kpi"></div>
-
             <!-- 유형 필터 탭 + 호실 추가 -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
               <div style="display:flex;gap:8px">
@@ -3611,29 +3610,7 @@
 
           <!-- 탭 2: 주간 수업 편성 -->
           <div id="cs-panel-assign" style="display:none">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-              <button onclick="shiftCsWeek(-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
-              <div id="cs-week-label" style="font-size:13px;font-weight:600;color:#111827"></div>
-              <button onclick="shiftCsWeek(1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
-              <div style="margin-left:auto;display:flex;gap:4px" id="cs-day-btns">
-                <button onclick="selectCsDay('월',this)" class="cs-day-btn cs-day-active">월</button>
-                <button onclick="selectCsDay('화',this)" class="cs-day-btn">화</button>
-                <button onclick="selectCsDay('수',this)" class="cs-day-btn">수</button>
-                <button onclick="selectCsDay('목',this)" class="cs-day-btn">목</button>
-                <button onclick="selectCsDay('금',this)" class="cs-day-btn">금</button>
-              </div>
-            </div>
-            <!-- 강의실 유형 필터 -->
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;background:#F9FAFB;padding:8px 12px;border-radius:8px;border:1px solid #E5E7EB">
-              <span style="font-size:12px;font-weight:700;color:#4B5563;display:flex;align-items:center;gap:4px">
-                <i data-lucide="filter" style="width:14px;height:14px;color:#5E5CE6"></i> 강의실 유형 필터:
-              </span>
-              <button onclick="setCsAssignTypeFilter('전체',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary" style="border-radius:6px">전체</button>
-              <button onclick="setCsAssignTypeFilter('1:1',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-radius:6px">1:1 강의실</button>
-              <button onclick="setCsAssignTypeFilter('1:4',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-radius:6px">1:4 그룹 강의실</button>
-              <button onclick="setCsAssignTypeFilter('1:8',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline" style="border-radius:6px">1:8 그룹 강의실</button>
-            </div>
-            <div id="cs-assign-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+            <div id="lesson-scheduling-board"></div>
           </div>
 
           <!-- 탭 3: 주간 현황 -->
@@ -6868,14 +6845,14 @@
 <!-- Toast Notification Container -->
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
-<script src="assets/js/lms-data.js?v=0.6.4"></script>
+<script src="assets/js/lms-data.js?v=0.6.6"></script>
 <script src="assets/js/lms-util.js?v=0.6.1"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.2"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.3"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
     <script src="assets/js/lms-course.js?v=0.6.41"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.7"></script>
-  <script src="assets/js/lms-classroom.js?v=0.6.5"></script>
+  <script src="assets/js/lms-classroom.js?v=0.8.8"></script>
     <script src="assets/js/lms-main.js?v=0.6.9"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>

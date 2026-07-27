@@ -676,6 +676,15 @@ const MOCK_TIMETABLE = [
 
 // Convert databases for Day of the Week availability & timetable slots
 MOCK_TEACHERS.forEach(t => {
+  // 기본 정책: 모든 강사는 1:1, 1:4, 1:8 수업이 가능하다.
+  // 강사별 예외를 명시적으로 저장한 경우에만 해당 설정을 유지한다.
+  if (t.classTypesPolicyCustomized !== true) {
+    t.classTypes = ['1:1', '1:4', '1:8'];
+  }
+  if (!Number.isFinite(t.dailyMaxLessons)) t.dailyMaxLessons = 8;
+  if (!t.dailyTypeLimits) {
+    t.dailyTypeLimits = { '1:1': 8, '1:4': 8, '1:8': 8 };
+  }
   // 기존 화상 수업 가능 여부를 수업 가능 방식 구조로 확장한다.
   if (!t.teachingModes) {
     t.teachingModes = {
@@ -798,9 +807,6 @@ let MOCK_MASTER_CLASS_TYPES = [
   { id: 'CT_01', code: '1:1', name: '개인 수업', classMode: 'individual', minStudents: 1, maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
   { id: 'CT_02', code: '1:4', name: '소그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
   { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대그룹 수업', visible: true },
-  { id: 'CT_04', code: '1:2', name: '미니 그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 2, order: 4, desc: '강사 1인 · 학생 최대 2인 그룹 수업', visible: true },
-  { id: 'CT_05', code: '1:6', name: '중그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 6, order: 5, desc: '강사 1인 · 학생 최대 6인 중그룹 수업', visible: true },
-  { id: 'CT_06', code: '1:10', name: '대형 그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 10, order: 6, desc: '강사 1인 · 학생 최대 10인 대형 그룹 수업', visible: true },
 ];
 
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
@@ -852,7 +858,7 @@ const MOCK_COURSES = [
   { name: '일반 코스', type: '일반 영어', fee: 800, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
-      '1:4': [{ id: 'SUB_02', hours: 1 }], '1:6': [{ id: 'SUB_01', hours: 1 }], '1:8': [{ id: 'SUB_03', hours: 1 }],
+      '1:4': [{ id: 'SUB_02', hours: 1 }], '1:8': [{ id: 'SUB_03', hours: 1 }],
     },
     oneone: 4, group1on4: 0, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
@@ -860,10 +866,8 @@ const MOCK_COURSES = [
   { name: 'IELTS 전문 코스', type: 'IELTS', fee: 950, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }],
-      '1:2': [{ id: 'SUB_04', hours: 1 }],
       '1:4': [{ id: 'SUB_01', hours: 1 }],
       '1:8': [{ id: 'SUB_05', hours: 1 }],
-      '1:10': [{ id: 'SUB_05', hours: 1 }],
     },
     oneone: 3, group1on4: 1, group: 1,
     subjects: [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_01', hours: 1 }, { id: 'SUB_05', hours: 1 }],
@@ -871,7 +875,6 @@ const MOCK_COURSES = [
   { name: '주니어 패키지', type: '주니어', fee: 880, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }],
-      '1:2': [{ id: 'SUB_06', hours: 1 }],
       '1:4': [{ id: 'SUB_02', hours: 1 }],
       '1:8': [{ id: 'SUB_07', hours: 1 }],
     },
@@ -891,7 +894,6 @@ const MOCK_COURSES = [
     subjectsByType: {
       '1:1': [{ id: 'SUB_09', hours: 2 }],
       '1:4': [{ id: 'SUB_10', hours: 2 }],
-      '1:6': [{ id: 'SUB_09', hours: 1 }],
       '1:8': [{ id: 'SUB_10', hours: 1 }],
     },
     oneone: 2, group1on4: 2, group: 0,
@@ -1069,14 +1071,14 @@ const MOCK_CLASS_LOG = [
     const days = ['2026-06-09','2026-06-10','2026-06-11','2026-06-12','2026-06-13','2026-06-14',
                   '2026-06-15','2026-06-16','2026-06-17','2026-06-18','2026-06-19','2026-06-20'];
     const statuses = ['present','present','present','present','late','present','absent','present','present','late','present','present'];
-    const types    = ['1:1','1:4','1:1','1:6','1:1','1:4','1:1','1:1','1:4','1:1','1:6','1:1'];
+    const types    = ['1:1','1:4','1:1','1:8','1:1','1:4','1:1','1:1','1:4','1:1','1:8','1:1'];
     const subjects = ['Speaking','Grammar','Writing','Listening','Speaking','Reading','Writing','Speaking','Grammar','Speaking','Listening','Writing'];
     const notes    = ['발음 교정 집중. 자신감 향상 보임.','시제 오류 반복. 추가 연습 필요.','Essay 구조 지도.','','지각 10분. 집중도 양호.','Reading speed 개선 중.','결석 — 병원','Speaking flow 매우 좋아짐.','분사구문 학습.','','','문장 구조 재점검.'];
     const teachers = ['Sarah','Mike','Sarah','Emily','Sarah','Mike','Sarah','Sarah','Mike','Sarah','Emily','Sarah'];
     days.forEach((d, i) => {
       for (let p = 1; p <= 8; p++) {
         const st = (p === 5 && i === 4) ? 'late' : (p === 3 && i === 6) ? 'absent' : statuses[i % statuses.length];
-        entries.push({ studentId:1, date:d, period:p, type: p<=4 ? types[i%types.length] : (p<=6?'1:4':'1:6'), teacherName: teachers[i%teachers.length], subject: subjects[(i+p)%subjects.length], status: p===3&&i===6?'absent':(p===5&&i===4?'late':st==='absent'&&p!==3?'present':st), note: p===1&&notes[i]?notes[i]:'' });
+        entries.push({ studentId:1, date:d, period:p, type: p<=4 ? types[i%types.length] : (p<=6?'1:4':'1:8'), teacherName: teachers[i%teachers.length], subject: subjects[(i+p)%subjects.length], status: p===3&&i===6?'absent':(p===5&&i===4?'late':st==='absent'&&p!==3?'present':st), note: p===1&&notes[i]?notes[i]:'' });
       }
     });
     return entries;
@@ -1092,7 +1094,7 @@ const MOCK_CLASS_LOG = [
       for (let p = 1; p <= 8; p++) {
         const absent = (i === 2 && p >= 6) || (i === 7 && p === 4);
         const late   = (i === 5 && p === 1);
-        entries.push({ studentId:2, date:d, period:p, type: p<=4?'1:4':(p<=6?'1:1':'1:6'), teacherName:teachers[i%teachers.length], subject:subjects[(i+p)%subjects.length], status: absent?'absent':(late?'late':'present'), note: p===1&&i===0?'문법 기초 점검 완료. 이해 빠름.':'' });
+        entries.push({ studentId:2, date:d, period:p, type: p<=4?'1:4':(p<=6?'1:1':'1:8'), teacherName:teachers[i%teachers.length], subject:subjects[(i+p)%subjects.length], status: absent?'absent':(late?'late':'present'), note: p===1&&i===0?'문법 기초 점검 완료. 이해 빠름.':'' });
       }
     });
     return entries;
@@ -1107,7 +1109,7 @@ const MOCK_CLASS_LOG = [
       for (let p = 1; p <= 8; p++) {
         const earlyLeave = (i === 3 && p >= 7);
         const absent     = (i === 6 && p === 2);
-        entries.push({ studentId:3, date:d, period:p, type:p<=4?'1:6':'1:4', teacherName:'Emily', subject:subjects[(i+p)%subjects.length], status: earlyLeave?'early_leave':(absent?'absent':'present'), note: earlyLeave&&p===7?'부모 요청으로 조기 귀가.':'' });
+        entries.push({ studentId:3, date:d, period:p, type:p<=4?'1:8':'1:4', teacherName:'Emily', subject:subjects[(i+p)%subjects.length], status: earlyLeave?'early_leave':(absent?'absent':'present'), note: earlyLeave&&p===7?'부모 요청으로 조기 귀가.':'' });
       }
     });
     return entries;

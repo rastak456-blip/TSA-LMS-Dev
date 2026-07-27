@@ -113,6 +113,12 @@ function saveTeacherDetailInline() {
   const workStart = getVal('td-work-start', t.workHours ? t.workHours.start : '08:00');
   const workEnd   = getVal('td-work-end',   t.workHours ? t.workHours.end   : '17:00');
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
+  const dailyMaxLessons = Math.max(1, parseInt(getVal('td-daily-max', t.dailyMaxLessons || 8), 10) || 8);
+  const dailyTypeLimits = {
+    '1:1': Math.max(0, parseInt(getVal('td-daily-max-11', t.dailyTypeLimits?.['1:1'] ?? dailyMaxLessons), 10) || 0),
+    '1:4': Math.max(0, parseInt(getVal('td-daily-max-14', t.dailyTypeLimits?.['1:4'] ?? dailyMaxLessons), 10) || 0),
+    '1:8': Math.max(0, parseInt(getVal('td-daily-max-18', t.dailyTypeLimits?.['1:8'] ?? dailyMaxLessons), 10) || 0)
+  };
   const capableSubjects = [...document.querySelectorAll('input[name="td-capable-subject"]:checked')].map(cb => cb.value);
   const capableLevels = [...document.querySelectorAll('input[name="td-capable-level"]:checked')].map(cb => cb.value);
   const teachingModes = [...document.querySelectorAll('input[name="td-teaching-mode"]:checked')].map(cb => cb.value);
@@ -129,7 +135,12 @@ function saveTeacherDetailInline() {
   t.status    = status;
   t.rating    = rating;
   t.workHours = { start: workStart, end: workEnd };
-  if (classTypes.length > 0) t.classTypes = classTypes;
+  if (classTypes.length > 0) {
+    t.classTypes = classTypes;
+    t.classTypesPolicyCustomized = true;
+  }
+  t.dailyMaxLessons = dailyMaxLessons;
+  t.dailyTypeLimits = dailyTypeLimits;
   t.capableSubjects = capableSubjects;
   t.capableLevels = capableLevels;
   t.teachingModes = {
@@ -636,7 +647,8 @@ function saveTeacherForm() {
 
   if (teachingModeValues.length === 0) { showToast('수업 가능 방식을 하나 이상 선택하세요.', 'danger'); return; }
 
-  const teacherType = classTypes.includes('1:8') ? '그룹 수업' : '일반 영어 (1:1)';
+  const normalizedClassTypes = classTypes.length ? classTypes : ['1:1','1:4','1:8'];
+  const teacherType = normalizedClassTypes.includes('1:8') ? '그룹 수업' : '일반 영어 (1:1)';
   const newId = Math.max(...MOCK_TEACHERS.map(tch => tch.id), 0) + 1;
   const newTeacher = {
     id: newId,
@@ -648,7 +660,11 @@ function saveTeacherForm() {
     education: sourceTeacher.education || '',
     photoUrl: sourceTeacher.photoUrl || '',
     preferredCourses: [], excludedCourses: [],
-    classTypes, teachingModes, videoCapable: teachingModes.online, capableSubjects, capableLevels,
+    classTypes: normalizedClassTypes,
+    classTypesPolicyCustomized: classTypes.length > 0,
+    dailyMaxLessons: 8,
+    dailyTypeLimits: { '1:1': 8, '1:4': 8, '1:8': 8 },
+    teachingModes, videoCapable: teachingModes.online, capableSubjects, capableLevels,
     workHours: { start: workStart, end: workEnd },
     availability: {
       '월': [true, true, true, true, true, true, true, true],
@@ -888,6 +904,16 @@ function switchTeacherTab(tab, el) {
                 </label>`;
               }).join('')}
             </div>
+          </div>
+          <div>
+            <label class="tsa-label" style="margin-bottom:8px;display:block">하루 수업 가능 시수</label>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:12px;background:#F9FAFB">
+              <div><label style="font-size:10.5px;color:#6B7280;display:block;margin-bottom:4px">전체 최대</label><input id="td-daily-max" type="number" min="1" max="20" class="tsa-input" value="${t.dailyMaxLessons || 8}"/></div>
+              <div><label style="font-size:10.5px;color:#6B7280;display:block;margin-bottom:4px">1:1 최대</label><input id="td-daily-max-11" type="number" min="0" max="20" class="tsa-input" value="${t.dailyTypeLimits?.['1:1'] ?? 8}"/></div>
+              <div><label style="font-size:10.5px;color:#6B7280;display:block;margin-bottom:4px">1:4 최대</label><input id="td-daily-max-14" type="number" min="0" max="20" class="tsa-input" value="${t.dailyTypeLimits?.['1:4'] ?? 8}"/></div>
+              <div><label style="font-size:10.5px;color:#6B7280;display:block;margin-bottom:4px">1:8 최대</label><input id="td-daily-max-18" type="number" min="0" max="20" class="tsa-input" value="${t.dailyTypeLimits?.['1:8'] ?? 8}"/></div>
+            </div>
+            <div style="font-size:10px;color:#9CA3AF;margin-top:5px">담당 가능 유형과 별도로 하루 업무량 상한을 적용해.</div>
           </div>
           <div>
             <label class="tsa-label" style="margin-bottom:8px;display:block">담당 가능 과목</label>
