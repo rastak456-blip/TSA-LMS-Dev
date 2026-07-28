@@ -2056,6 +2056,7 @@
                 <div style="font-size:10.5px;color:#6B7280;margin-top:3px">날짜를 선택하면 해당일 입국 학생과 담당자 배정 현황을 확인할 수 있습니다.</div>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
+                <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal()"><i data-lucide="clock"></i> 전체 시간 배차표</button>
                 <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(-1)" aria-label="이전 달"><i data-lucide="chevron-left"></i></button>
                 <b id="pickup-calendar-title" style="min-width:110px;text-align:center;font-size:13px;color:#111827"></b>
                 <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(1)" aria-label="다음 달"><i data-lucide="chevron-right"></i></button>
@@ -2068,6 +2069,28 @@
                 <div id="pickup-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
               </div>
               <div id="pickup-date-assignment-panel" style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;min-height:430px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 담당자별 시간 단위 배차표 팝업 -->
+        <div id="pickup-timetable-modal" style="display:none">
+          <div class="tsa-modal-backdrop" onclick="closeModal('pickup-timetable-modal')">
+            <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
+              <div class="tsa-modal-header">
+                <div>
+                  <h3 class="tsa-modal-title" id="pickup-timetable-title"><i data-lucide="clock" style="color:#5E5CE6"></i> 담당자별 시간 단위 배차표</h3>
+                  <p class="tsa-modal-subtitle" id="pickup-timetable-subtitle">10분 단위 · 세로축 시간 · 가로축 담당자</p>
+                </div>
+                <button class="tsa-modal-close" onclick="closeModal('pickup-timetable-modal')"><i data-lucide="x"></i></button>
+              </div>
+              <div style="padding:12px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:8px">
+                <label for="pickup-timetable-date" style="font-size:11.5px;font-weight:700;color:#374151">날짜</label>
+                <input type="date" id="pickup-timetable-date" class="tsa-input" style="width:auto" onchange="changePickupTimetableDate(this.value)"/>
+              </div>
+              <div class="tsa-modal-body" style="padding:0">
+                <div id="pickup-manager-timetable" style="max-height:70vh;overflow:auto"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3115,27 +3138,28 @@
           <!-- 서브 탭 네비게이션 -->
           <div class="tsa-tabs" style="margin-bottom:16px">
             <div class="tsa-tab active" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 커리큘럼 구성</div>
-            <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목 및 레벨 설정</div>
+            <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목 레벨 수업 유형 설정</div>
           </div>
 
           <!-- [탭 B] 수강 과정 및 커리큘럼 구성 -->
           <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 및 주간 커리큘럼 목록</h3>
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 및 커리큘럼 목록</h3>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
                   <i data-lucide="plus-square"></i> 신규 과정 추가
                 </button>
               </div>
-              <div style="overflow:hidden">
-                <table class="tsa-table">
+              <div style="overflow-x:auto">
+                <table class="tsa-table" style="min-width:1320px">
                   <thead>
                     <tr>
                       <th style="text-align:center;width:36px">#</th>
                       <th>과정명</th>
                       <th>추천 레벨</th>
-                      <th>과목</th>
-                      <th>일일 시수</th>
+                      <th>1:1 개인 수업</th>
+                      <th>1:4 그룹 수업</th>
+                      <th>1:8 그룹 수업</th>
                       <th style="text-align:center">노출 여부</th>
                       <th style="text-align:center">관리</th>
                     </tr>
@@ -3240,6 +3264,7 @@
           <div class="tsa-tabs" style="margin-bottom:16px">
             <div class="tsa-tab active" onclick="switchTuitionConfigTab('course', this)">과정별 수강료</div>
             <div class="tsa-tab" onclick="switchTuitionConfigTab('dorm', this)">기숙사 요금</div>
+            <div class="tsa-tab" onclick="switchTuitionConfigTab('registration', this)">등록금</div>
             <div class="tsa-tab" onclick="switchTuitionConfigTab('local', this)">기타</div>
           </div>
 
@@ -3311,6 +3336,31 @@
             </div>
           </div>
 
+          <div id="tuition-config-tab-registration" class="tuition-config-tab-content" style="display:none">
+            <div class="tsa-card">
+              <div class="tsa-card-header">
+                <h3 class="tsa-card-title"><i data-lucide="badge-dollar-sign" style="color:#DC2626"></i> 등록금</h3>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openTuitionExtraItemModal(null, 'required')">
+                  <i data-lucide="plus-square"></i> 등록금 항목 추가
+                </button>
+              </div>
+              <div style="overflow:hidden">
+                <table class="tsa-table">
+                  <thead>
+                    <tr>
+                      <th>항목명</th>
+                      <th style="text-align:center">구분</th>
+                      <th style="text-align:center">커미션 적용</th>
+                      <th style="text-align:right">금액</th>
+                      <th style="text-align:center">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tuition-regfee-list-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div id="tuition-config-tab-local" class="tuition-config-tab-content" style="display:none">
             <div class="tsa-card">
               <div class="tsa-card-header">
@@ -3327,7 +3377,6 @@
                       <th style="text-align:center">구분</th>
                       <th style="text-align:center">커미션 적용</th>
                       <th style="text-align:right">금액</th>
-                      <th>적용 메모</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
@@ -3399,25 +3448,29 @@
                     <select id="bell-settings-total-periods" class="tsa-input" onchange="previewBellSettings()">
                       <option value="6">6교시</option>
                       <option value="7">7교시</option>
-                      <option value="8" selected>8교시</option>
+                      <option value="8">8교시</option>
                       <option value="9">9교시</option>
                       <option value="10">10교시</option>
+                      <option value="11">11교시</option>
+                      <option value="12" selected>12교시</option>
+                      <option value="13">13교시</option>
+                      <option value="14">14교시</option>
+                      <option value="15">15교시</option>
                     </select>
                   </div>
                   <div class="tsa-divider"></div>
                   <div class="tsa-form-group">
-                    <label class="tsa-label">점심시간 시작 교시 (이후 점심시간 배치)</label>
-                    <select id="bell-settings-lunch-after" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="3">3교시 후</option>
-                      <option value="4" selected>4교시 후</option>
-                      <option value="5">5교시 후</option>
-                    </select>
+                    <label class="tsa-label">점심 시작 시간 (Lunch Start Time)</label>
+                    <input type="time" id="bell-settings-lunch-start" class="tsa-input" value="12:05" oninput="previewBellSettings()"/>
+                    <div style="font-size:10.5px;color:#6B7280;margin-top:5px">특정 교시 뒤가 아니라 실제 점심 시작 시간을 직접 설정합니다.</div>
                   </div>
                   <div class="tsa-form-group">
-                    <label class="tsa-label">점심시간 시간 (Lunch Break Duration)</label>
+                    <label class="tsa-label">점심시간 (Lunch Break Duration)</label>
                     <select id="bell-settings-lunch-duration" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="30" selected>30분 점심</option>
-                      <option value="60">60분 점심</option>
+                      <option value="30">30분 점심</option>
+                      <option value="45">45분 점심</option>
+                      <option value="60" selected>60분 점심</option>
+                      <option value="90">90분 점심</option>
                     </select>
                   </div>
                   <div style="margin-top:10px;">
@@ -3486,28 +3539,20 @@
               </div>
             </div>
 
-            <!-- 그룹 목록: 카드 형태로 전부 펼쳐서 표시 (정원 슬롯을 바로 확인 가능) -->
-            <div class="tsa-card" style="margin-bottom:14px">
-              <div class="tsa-card-header"><h3 class="tsa-card-title" style="font-size:12.5px">그룹 목록</h3></div>
-              <div id="cs-group-list" style="padding:14px"></div>
-            </div>
-
-            <!-- 매칭 대상 학생/선택 그룹 패널은 제거됨: 그룹 카드의 "+ 배정하기" 팝업으로 대체 -->
-
-            <!-- 미매칭 학생 -->
-            <div class="tsa-card" style="margin-top:16px">
-              <div class="tsa-card-header">
-                <h3 class="tsa-card-title" style="font-size:12.5px">미매칭 학생 <span id="cs-unmatched-count" style="color:#EF4444;font-weight:800"></span></h3>
-              </div>
-              <div style="overflow:hidden">
-                <table class="tsa-table" style="font-size:12px">
-                  <thead>
-                    <tr><th style="width:36px;text-align:center">#</th><th>학생 정보</th><th style="text-align:center">레벨</th><th>코스</th><th>수강 기간</th><th>주간 그룹 수업 (배정/필요)</th><th>미매칭 사유</th><th style="text-align:center">동작</th></tr>
-                  </thead>
-                  <tbody id="cs-unmatched-tbody"></tbody>
-                </table>
-              </div>
-            </div>
+            <style>
+              .cs-course-section-grid { display:grid;grid-template-columns:minmax(260px,.9fr) minmax(320px,1.15fr) minmax(300px,1fr); }
+              .cs-course-section-column { min-width:0;padding:12px; }
+              .cs-course-section-column + .cs-course-section-column { border-left:1px solid #E5E7EB; }
+              .cs-course-section-title { font-size:11.5px;font-weight:800;color:#374151;margin-bottom:9px; }
+              .cs-course-section-title span { margin-left:5px;color:#9CA3AF;font-size:9.5px;font-weight:600; }
+              .cs-course-section-scroll { display:flex;flex-direction:column;gap:7px;max-height:340px;overflow:auto;padding-right:3px; }
+              @media (max-width:1250px) {
+                .cs-course-section-grid { grid-template-columns:1fr; }
+                .cs-course-section-column + .cs-course-section-column { border-left:0;border-top:1px solid #E5E7EB; }
+                .cs-course-section-scroll { max-height:none; }
+              }
+            </style>
+            <div id="cs-course-workspaces"></div>
           </div>
 
           <!-- 그룹 생성/수정 모달 -->
@@ -3519,16 +3564,15 @@
             </div>
             <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">그룹명 <span style="color:#EF4444">*</span></label>
-                <input id="gcm-name" class="tsa-input" placeholder="예: Grammar G2 A"/>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">그룹 운영 방식 <span style="color:#EF4444">*</span></label>
+                <select id="gcm-mode" class="tsa-input" onchange="onGcmModeChange()">
+                  <option value="course">과정 전용 그룹</option>
+                  <option value="shared">과정 통합 그룹</option>
+                </select>
+                <div style="font-size:10.5px;color:#6B7280;margin-top:4px">통합 그룹은 여러 과정 학생이 공통 과목을 함께 수강해.</div>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과목 <span style="color:#EF4444">*</span></label>
-                <select id="gcm-subject" class="tsa-input" onchange="onGcmSubjectChange()"></select>
-                <div style="font-size:10.5px;color:#6B7280;margin-top:4px">과목을 먼저 선택하면 연결된 과정만 활성화돼.</div>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과정 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF;font-weight:400">(다중 선택 가능)</span></label>
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과정 <span style="color:#EF4444">*</span></label>
                 <div id="gcm-course-checks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;border:1px solid #E5E7EB;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto"></div>
                 <div id="gcm-course-filter-hint" style="font-size:10.5px;color:#4F46E5;margin-top:4px"></div>
               </div>
@@ -3542,6 +3586,7 @@
                 <select id="gcm-class-type" class="tsa-input" onchange="updateGcmCapacityHint()"></select>
               </div>
               <div id="gcm-capacity-hint" style="font-size:11px;color:#6B7280"></div>
+              <div id="gcm-curriculum-preview" style="padding:10px 12px;border-radius:8px;background:#F5F3FF;color:#4338CA;font-size:11px"></div>
               <div>
                 <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">동일 국적 최대 인원 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(수동 지정, 비우면 제안값 자동 적용)</span></label>
                 <input id="gcm-nationality-cap" type="number" min="1" class="tsa-input" placeholder="예: 2"/>
@@ -3601,7 +3646,7 @@
             <div class="tsa-card">
               <table class="tsa-table" style="font-size:12px">
                 <thead>
-                  <tr><th>호실</th><th>수용 인원</th><th>상태</th><th>동작</th></tr>
+                  <tr><th>호실</th><th>수용 인원</th><th>담당 강사</th><th>상태</th><th>동작</th></tr>
                 </thead>
                 <tbody id="cs-rooms-tbody"></tbody>
               </table>
@@ -3655,6 +3700,11 @@
                 </select>
               </div>
               <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label><input id="cs-room-cap" class="tsa-input" type="number" min="1" placeholder="명" style="width:100%"/></div>
+            </div>
+            <div id="cs-room-teacher-row">
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1:1 담당 강사</label>
+              <select id="cs-room-teacher" class="tsa-input" style="width:100%"></select>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 설정에서 담당 강사를 지정해.</div>
             </div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
@@ -4965,11 +5015,11 @@
 <!-- Course Add Modal -->
 <div id="course-add-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('course-add-modal')">
-    <div class="tsa-modal tsa-modal-md" onclick="event.stopPropagation()">
+    <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
           <h3 class="tsa-modal-title" id="course-modal-title">신규 과정 추가</h3>
-          <p class="tsa-modal-subtitle">새로운 수강 과정을 등록합니다</p>
+          <p class="tsa-modal-subtitle" id="course-modal-subtitle">과정명과 1:1·1:4·1:8 수업 구성을 설정해.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('course-add-modal')"><i data-lucide="x"></i></button>
       </div>
@@ -4977,10 +5027,14 @@
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="tsa-form-group">
             <label class="tsa-label">과정명 <span style="color:#EF4444">*</span></label>
-            <input id="add-course-name" type="text" class="tsa-input" placeholder="예: IELTS 집중 코스" required/>
+            <input id="add-course-name" type="text" class="tsa-input" placeholder="예: IELTS 집중 코스" oninput="updateCourseCurriculumPreview()" required/>
           </div>
           <div class="tsa-form-group">
-            <label class="tsa-label">추천 레벨 설정</label>
+            <div style="display:flex;align-items-center;justify-content:space-between;gap:12px">
+              <label class="tsa-label" style="margin:0">추천 레벨</label>
+              <span style="font-size:10px;color:#6B7280">선택하지 않으면 전 레벨 추천</span>
+            </div>
+            <div style="font-size:10.5px;color:#6B7280;margin:5px 0 8px">과정 선택을 돕는 참고 정보야. 선택 여부와 관계없이 모든 레벨 학생이 등록할 수 있어.</div>
             <div id="course-level-checkboxes-container" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#F9FAFB;max-height:160px;overflow-y:auto">
               <!-- Dynamically populated level checkboxes -->
             </div>
@@ -5249,10 +5303,14 @@
         <div style="padding:14px;border:1px solid #C7D2FE;background:#F8FAFF;border-radius:11px">
           <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">담당자 및 차량 배차</div>
           <div style="display:grid;grid-template-columns:1fr 1.35fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">픽업 담당자 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-manager" class="tsa-input"></select></div>
-            <div class="tsa-form-group"><label class="tsa-label">등록 차량 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-vehicle" class="tsa-input" onchange="updatePickupDispatchModalVehicleInfo()"></select></div>
+            <div class="tsa-form-group"><label class="tsa-label">픽업 담당자 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-manager" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"></select></div>
+            <div class="tsa-form-group"><label class="tsa-label">등록 차량 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-vehicle" class="tsa-input"></select></div>
           </div>
-          <div id="pickup-dispatch-modal-vehicle-info" style="padding:9px 11px;margin-top:10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;color:#6B7280"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+            <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 시작 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-start-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
+            <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 종료 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-end-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
+          </div>
+          <div id="pickup-dispatch-modal-manager-availability" style="padding:9px 11px;margin-top:10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;color:#6B7280"></div>
         </div>
       </div>
       <div class="tsa-modal-footer" style="justify-content:space-between">
@@ -6137,16 +6195,16 @@
 <!-- Tuition Course Policy Modal -->
 <div id="tuition-course-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('tuition-course-modal')">
-    <div class="tsa-modal" style="max-width:860px" onclick="event.stopPropagation()">
+    <div class="tsa-modal" style="max-width:1280px" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
           <h3 class="tsa-modal-title" id="tuition-course-modal-title">과정별 수강료 추가</h3>
-          <p class="tsa-modal-subtitle">4주 기준 수강료만 입력하면 1주부터 24주까지 공통 할증·할인 정책으로 자동 계산됩니다.</p>
+          <p class="tsa-modal-subtitle">4주 기준 수강료를 입력하고, 필요하면 이 과정에만 적용되는 할증·할인 공식을 따로 설정할 수 있습니다.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('tuition-course-modal')"><i data-lucide="x"></i></button>
       </div>
 
-      <div class="tsa-modal-body" style="max-height:72vh;overflow-y:auto">
+      <div class="tsa-modal-body" style="max-height:78vh;overflow-y:auto">
         <input type="hidden" id="tuition-course-edit-index" value=""/>
 
         <div style="display:grid;grid-template-columns:1.15fr 0.85fr;gap:18px">
@@ -6171,10 +6229,6 @@
               </div>
             </div>
 
-            <div style="padding:11px 13px;border:1px solid #E5E7EB;border-radius:10px;background:#F9FAFB;color:#6B7280;font-size:11px;line-height:1.6">
-              기간별 금액은 공통 단기 할증·장기 할인 정책으로 자동 계산됩니다. 이 팝업에서는 4주 기준 금액만 입력합니다.
-            </div>
-
             <div class="tsa-form-group">
               <label class="tsa-label">관리 메모</label>
               <textarea id="tuition-course-memo" class="tsa-input" rows="3" placeholder="예: 2026년 세부 캠퍼스 기준 수강료, 시즌 요금 전 기본 정책 등"></textarea>
@@ -6188,6 +6242,23 @@
               <div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#EEF2FF;color:#4B5563;font-size:11px;line-height:1.55">
                 이 금액은 학생 Gross 청구의 <b>수강료</b> 항목으로 사용됩니다. 기숙사, 기타 항목, 에이전시 커미션은 별도 기준에서 계산됩니다.
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #E5E7EB">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#374151;cursor:pointer">
+            <input type="checkbox" id="tuition-course-use-custom-formula" onchange="toggleTuitionCourseCustomFormula()"/>
+            이 과정에만 적용되는 전용 할증·할인 공식 사용 (끄면 공통 정책을 그대로 따릅니다)
+          </label>
+          <div id="tuition-course-formula-section" style="margin-top:12px;display:none">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:10.5px;line-height:1.5">
+              <div style="padding:8px 10px;border-radius:8px;background:#F8FAFC;border:1px solid #E2E8F0"><b>기본 비례</b><br/>(4주 요금 ÷ 4) × N주</div>
+              <div style="padding:8px 10px;border-radius:8px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
+              <div style="padding:8px 10px;border-radius:8px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
+            </div>
+            <div style="overflow-x:auto;padding-bottom:8px">
+              <div id="tuition-course-formula-row" style="display:flex;gap:8px;min-width:max-content"></div>
             </div>
           </div>
         </div>
@@ -6319,10 +6390,6 @@
                 </select>
                 <div style="font-size:10px;color:#9CA3AF;margin-top:4px">없음으로 설정하면 해당 항목은 에이전시 커미션 계산에서 제외됩니다.</div>
               </div>
-              <div class="tsa-form-group">
-                <label class="tsa-label">적용 메모</label>
-                <input id="tuition-extra-item-application-memo" class="tsa-input" placeholder="예: 전체 학생, SSP 필요 국가"/>
-              </div>
             </div>
           </div>
         </div>
@@ -6364,23 +6431,7 @@
           <div id="course-reg-student-summary" style="font-size:14px;font-weight:800;color:#111827">-</div>
         </div>
 
-        <input id="course-reg-mode" type="hidden" value=""/>
-        <div style="padding:14px;border:1px solid #C7D2FE;background:#F8FAFF;border-radius:12px;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:900;color:#111827">수강 형태를 선택해줘</div>
-          <div id="course-reg-mode-help" style="font-size:10.5px;color:#6B7280;margin-top:3px">수강 형태를 먼저 선택해줘.</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px">
-            <button id="course-reg-mode-single" type="button" aria-pressed="false" onclick="setCourseRegMode('single')" style="padding:14px;border:1px solid #DDE3EC;border-radius:10px;background:#fff;text-align:left;cursor:pointer;font-family:inherit">
-              <span style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#111827"><i data-lucide="book-open" style="width:17px;height:17px;color:#4F46E5"></i> 단일 코스 진행</span>
-              <span style="display:block;font-size:10.5px;color:#6B7280;margin-top:5px">하나의 과정과 기간을 선택해 바로 등록합니다.</span>
-            </button>
-            <button id="course-reg-mode-multi" type="button" aria-pressed="false" onclick="setCourseRegMode('multi')" style="padding:14px;border:1px solid #DDE3EC;border-radius:10px;background:#fff;text-align:left;cursor:pointer;font-family:inherit">
-              <span style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#111827"><i data-lucide="layers-3" style="width:17px;height:17px;color:#4F46E5"></i> 멀티 코스 진행</span>
-              <span style="display:block;font-size:10.5px;color:#6B7280;margin-top:5px">기간별로 여러 과정을 연속 등록합니다.</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="course-reg-flow-content" style="display:none;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start">
+        <div id="course-reg-flow-content" style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start">
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="tsa-card" style="box-shadow:none;border:1px solid #C7D2FE">
               <div class="tsa-card-header" style="padding:12px 14px;background:#EEF2FF">
@@ -6391,15 +6442,13 @@
             </div>
 
             <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
-              <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC;display:flex;justify-content:space-between;gap:12px;align-items:center">
-                <div>
-                  <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">2. 시작일 및 과정·수강 기간 선택</h4>
-                  <div style="font-size:11px;color:#6B7280;margin-top:3px">시작일을 먼저 선택한 뒤 과정과 4주·8주 등의 기간을 선택합니다.</div>
-                </div>
-                <div id="course-reg-selection-summary" style="font-size:11.5px;font-weight:800;color:#4338CA;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:999px;padding:6px 10px;white-space:nowrap">선택 필요</div>
+              <div class="tsa-card-header" style="padding:12px 14px;background:#F8F9FC">
+                <h4 style="font-size:13px;font-weight:800;color:#111827;margin:0">2. 시작일 및 과정·수강 기간 선택</h4>
+                <div style="font-size:11px;color:#6B7280;margin-top:3px">시작일을 먼저 선택한 뒤 과정과 4주·8주 등의 기간을 선택합니다.</div>
               </div>
               <div class="tsa-card-body" style="padding:14px">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end;margin-bottom:14px;padding:12px 14px;border:1px solid #C7D2FE;background:#F8FAFF;border-radius:10px">
+                <div id="course-reg-segment-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end;margin-bottom:14px">
                   <div class="tsa-form-group">
                     <label class="tsa-label">① 수강 시작일 <span style="color:#EF4444">*</span></label>
                     <input id="course-reg-start" type="date" class="tsa-input" onchange="handleCourseRegStartChange()"/>
@@ -6412,15 +6461,12 @@
                   </div>
                 </div>
                 <select id="course-reg-course" style="display:none" onchange="updateStudentCourseRegistrationPreview()"></select>
-                <div id="course-reg-course-compare-table" style="overflow-x:auto"></div>
                 <input id="course-reg-duration" type="hidden" value=""/>
-                <div id="course-reg-segment-action" style="display:none;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:11px 12px;border:1px solid #C7D2FE;background:#F8FAFF;border-radius:10px">
-                  <div>
-                    <div style="font-size:11.5px;font-weight:800;color:#374151">선택한 과정과 기간을 수강 구간으로 추가</div>
-                    <div id="course-reg-segment-total" style="font-size:10.5px;color:#6B7280;margin-top:3px">0개 구간 · 요금표에서 선택해줘</div>
-                  </div>
+                <div id="course-reg-segment-action" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                  <div id="course-reg-selection-summary" style="font-size:11.5px;font-weight:800;color:#4338CA;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:999px;padding:6px 10px;white-space:nowrap">선택 필요</div>
                   <button type="button" class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="addCourseRegSegment()"><i data-lucide="plus"></i> 선택 구간 추가</button>
                 </div>
+                <div id="course-reg-course-compare-table" style="overflow-x:auto"></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB">
                 <div class="tsa-form-group">
                   <label class="tsa-label">추천 레벨</label>
@@ -6452,6 +6498,7 @@
                 </label>
               </div>
               <div id="course-reg-dorm-section" class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div id="course-reg-dorm-segment-list" style="grid-column:span 2;display:flex;flex-direction:column;gap:8px"></div>
                 <select id="course-reg-dorm-template" style="display:none" onchange="updateStudentCourseRegistrationPreview()"></select>
                 <input id="course-reg-dorm-duration" type="hidden" value=""/>
                 <div class="tsa-form-group">
@@ -6464,7 +6511,10 @@
                   <input id="course-reg-dorm-out" type="date" class="tsa-input" disabled aria-label="기숙사 이용 기간에 따라 자동 계산되는 퇴실일" style="background:#F3F4F6;color:#6B7280;cursor:not-allowed"/>
                   <div style="font-size:10px;color:#6B7280;margin-top:4px">선택한 입실일과 기숙사 이용 기간을 기준으로 계산돼.</div>
                 </div>
-                <div id="course-reg-dorm-selection-summary" style="grid-column:span 2;font-size:11.5px;font-weight:800;color:#047857;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:999px;padding:6px 10px;width:max-content;max-width:100%">선택 필요</div>
+                <div style="grid-column:span 2;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                  <div id="course-reg-dorm-selection-summary" style="font-size:11.5px;font-weight:800;color:#047857;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:999px;padding:6px 10px;width:max-content;max-width:100%">선택 필요</div>
+                  <button type="button" class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="addCourseRegDormSegment()"><i data-lucide="plus"></i> 기숙사 구간 추가</button>
+                </div>
                 <div id="course-reg-dorm-compare-table" style="grid-column:span 2;overflow-x:auto"></div>
               </div>
               <div id="course-reg-dorm-disabled-note" style="display:none;padding:14px;color:#6B7280;font-size:12px">희망 기숙사를 등록하지 않습니다.</div>
@@ -6845,14 +6895,14 @@
 <!-- Toast Notification Container -->
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
-<script src="assets/js/lms-data.js?v=0.6.6"></script>
+<script src="assets/js/lms-data.js?v=0.6.10"></script>
 <script src="assets/js/lms-util.js?v=0.6.1"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.3"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
-    <script src="assets/js/lms-course.js?v=0.6.41"></script>
-<script src="assets/js/lms-tuition.js?v=0.7.7"></script>
-  <script src="assets/js/lms-classroom.js?v=0.8.8"></script>
+    <script src="assets/js/lms-course.js?v=0.6.45"></script>
+<script src="assets/js/lms-tuition.js?v=0.7.8"></script>
+  <script src="assets/js/lms-classroom.js?v=0.8.30"></script>
     <script src="assets/js/lms-main.js?v=0.6.9"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>

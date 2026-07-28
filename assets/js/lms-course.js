@@ -1108,6 +1108,10 @@ function formatCourseRegMoney(value) {
 
 function getCourseRegPeriodFee(baseAmount, policy, weeks) {
   const base = Number(baseAmount || 0);
+  // 과정(또는 기숙사 템플릿)에 전용 할증·할인 공식이 설정돼 있으면 그걸 우선 사용한다.
+  if (policy?.useCustomFormula && policy?.weeklyRules && typeof computeTuitionRuleAmount === 'function') {
+    return computeTuitionRuleAmount(base, weeks, policy.weeklyRules);
+  }
   if (typeof calculateManagedTuitionFee === 'function') return calculateManagedTuitionFee(base, weeks);
   if (weeks === 4) return Math.round(base / 10) * 10;
   const key = `fee${weeks}`;
@@ -1159,34 +1163,6 @@ function updateCourseRegSegmentEndPreview() {
     : '';
 }
 
-function getCourseRegMode() {
-  return document.getElementById('course-reg-mode')?.value || '';
-}
-
-function updateCourseRegModeUI() {
-  const mode = getCourseRegMode();
-  const flow = document.getElementById('course-reg-flow-content');
-  const action = document.getElementById('course-reg-segment-action');
-  const help = document.getElementById('course-reg-mode-help');
-  if (flow) flow.style.display = mode ? 'grid' : 'none';
-  if (action) action.style.display = mode === 'multi' ? 'flex' : 'none';
-  if (help) help.textContent = mode === 'single'
-    ? '요금표에서 과정과 기간을 선택하면 단일 수강 구간으로 즉시 적용돼.'
-    : mode === 'multi'
-    ? '요금표에서 과정과 기간을 선택한 뒤 구간을 추가해 여러 코스를 연속 등록해.'
-    : '수강 형태를 먼저 선택해줘.';
-
-  ['single', 'multi'].forEach(value => {
-    const button = document.getElementById(`course-reg-mode-${value}`);
-    if (!button) return;
-    const active = mode === value;
-    button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    button.style.borderColor = active ? '#4F46E5' : '#DDE3EC';
-    button.style.background = active ? '#EEF2FF' : '#fff';
-    button.style.boxShadow = active ? '0 0 0 2px rgba(79,70,229,.12)' : 'none';
-  });
-}
-
 function resetCourseRegCourseSelection() {
   APP.courseRegSegments = [];
   const courseEl = document.getElementById('course-reg-course');
@@ -1200,49 +1176,8 @@ function resetCourseRegCourseSelection() {
   renderCourseRegSegments();
 }
 
-function setCourseRegMode(mode) {
-  if (!['single', 'multi'].includes(mode)) return;
-  const modeEl = document.getElementById('course-reg-mode');
-  const currentMode = modeEl?.value || '';
-  const hasSelection = getCourseRegSegments().length > 0
-    || Boolean(document.getElementById('course-reg-course')?.value)
-    || Boolean(document.getElementById('course-reg-start')?.value);
-  if (currentMode && currentMode !== mode && hasSelection
-    && !window.confirm('수강 형태를 변경하면 현재 선택한 수강 구간이 초기화돼. 변경할까?')) return;
-  if (currentMode !== mode) resetCourseRegCourseSelection();
-  if (modeEl) modeEl.value = mode;
-  updateCourseRegModeUI();
-  updateStudentCourseRegistrationPreview();
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-function applySingleCourseRegSegment() {
-  if (getCourseRegMode() !== 'single') return;
-  const course = getCourseRegSelectedCourse();
-  const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
-  const startDate = document.getElementById('course-reg-start')?.value || '';
-  if (!course || !startDate || !COURSE_REG_PERIODS.includes(duration)) {
-    APP.courseRegSegments = [];
-    renderCourseRegSegments();
-    return;
-  }
-  APP.courseRegSegments = [{
-    id: Date.now(),
-    order: 1,
-    course: course.name,
-    courseType: course.type || '',
-    recommendedLevels: getCourseRegRecommendedLevels(course).map(level => level.name),
-    duration,
-    startDate,
-    endDate: calculateCourseRegSegmentEndDate(startDate, duration),
-    tuitionAmount: getCourseRegPeriodFee(course.fee, course.tuitionPolicy, duration),
-  }];
-  renderCourseRegSegments();
-}
-
 function handleCourseRegStartChange() {
   updateCourseRegSegmentEndPreview();
-  applySingleCourseRegSegment();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
 }
@@ -1288,10 +1223,6 @@ function renderCourseRegSegments() {
 }
 
 function addCourseRegSegment() {
-  if (getCourseRegMode() !== 'multi') {
-    showToast('멀티 코스 진행에서만 수강 구간을 추가할 수 있어.', 'warning');
-    return;
-  }
   const course = getCourseRegSelectedCourse();
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const startDate = document.getElementById('course-reg-start')?.value || '';
@@ -1339,17 +1270,6 @@ function addCourseRegSegment() {
 function removeCourseRegSegment(index) {
   if (!Array.isArray(APP.courseRegSegments)) return;
   APP.courseRegSegments.splice(index, 1);
-  if (getCourseRegMode() === 'single') {
-    const courseEl = document.getElementById('course-reg-course');
-    const durationEl = document.getElementById('course-reg-duration');
-    const endEl = document.getElementById('course-reg-end');
-    if (courseEl) courseEl.value = '';
-    if (durationEl) durationEl.value = '';
-    if (endEl) endEl.value = '';
-    renderCourseRegSegments();
-    updateStudentCourseRegistrationPreview();
-    return;
-  }
   APP.courseRegSegments.forEach((segment, segmentIndex) => { segment.order = segmentIndex + 1; });
   const totalWeeks = APP.courseRegSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const dormDurationEl = document.getElementById('course-reg-dorm-duration');
@@ -1378,7 +1298,6 @@ function selectCourseRegOption(courseIndex, weeks) {
   if (durationEl) durationEl.value = String(weeks);
 
   updateCourseRegSegmentEndPreview();
-  applySingleCourseRegSegment();
   syncCourseRegDormDuration();
   updateCourseRegDormDatesFromStart(true);
   updateStudentCourseRegistrationPreview();
@@ -1482,6 +1401,93 @@ function selectCourseRegDormOption(templateIndex, weeks) {
   if (durationEl) durationEl.value = String(weeks);
   updateCourseRegDormCheckout();
   updateStudentCourseRegistrationPreview();
+}
+
+// 기숙사도 수강 구간처럼 여러 건을 쌓아 등록할 수 있게 하는 다중 구간 로직.
+function getCourseRegDormSegments() {
+  return Array.isArray(APP.courseRegDormSegments) ? APP.courseRegDormSegments : [];
+}
+
+function calculateCourseRegDormEndDate(startDate, weeks) {
+  if (!startDate) return '';
+  const date = new Date(`${startDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(weeks || 0) * 7);
+  return date.toISOString().split('T')[0];
+}
+
+function addCourseRegDormSegment() {
+  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
+  const duration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 0;
+  const selection = getCourseRegSelectedDormTemplate();
+  if (!dormIn || !duration || !selection) {
+    showToast('희망 기숙사와 이용 기간을 먼저 선택해줘.', 'warning');
+    return;
+  }
+  const existingSegments = getCourseRegDormSegments();
+  const previousSegment = existingSegments[existingSegments.length - 1];
+  if (previousSegment && dormIn < previousSegment.endDate) {
+    showToast('다음 기숙사 구간은 이전 구간 퇴실일 이후에 시작해야 해.', 'warning');
+    return;
+  }
+  const endDate = calculateCourseRegDormEndDate(dormIn, duration);
+  const t = selection.template;
+  if (!Array.isArray(APP.courseRegDormSegments)) APP.courseRegDormSegments = [];
+  APP.courseRegDormSegments.push({
+    id: Date.now(),
+    templateIdx: selection.idx,
+    accomType: t.accomType || '-',
+    capacity: t.capacity || '-',
+    condition: t.condition || '-',
+    duration,
+    startDate: dormIn,
+    endDate,
+    cost: getCourseRegPeriodFee(t.cost, t.tuitionPolicy, duration),
+  });
+
+  const dormInEl = document.getElementById('course-reg-dorm-in');
+  const templateEl = document.getElementById('course-reg-dorm-template');
+  const durationEl = document.getElementById('course-reg-dorm-duration');
+  const dormOutEl = document.getElementById('course-reg-dorm-out');
+  if (dormInEl) dormInEl.value = endDate;
+  if (templateEl) templateEl.value = '';
+  if (durationEl) durationEl.value = '';
+  if (dormOutEl) dormOutEl.value = '';
+
+  renderCourseRegDormSegments();
+  renderCourseRegDormComparison();
+  updateStudentCourseRegistrationPreview();
+  showToast('기숙사 구간을 추가했어. 이어서 다음 구간도 선택할 수 있어.', 'success');
+}
+
+function removeCourseRegDormSegment(index) {
+  if (!Array.isArray(APP.courseRegDormSegments)) return;
+  APP.courseRegDormSegments.splice(index, 1);
+  renderCourseRegDormSegments();
+  updateStudentCourseRegistrationPreview();
+}
+
+function renderCourseRegDormSegments() {
+  const target = document.getElementById('course-reg-dorm-segment-list');
+  if (!target) return;
+  const segments = getCourseRegDormSegments();
+  if (!segments.length) {
+    target.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:11.5px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:10px">기숙사와 기간을 선택한 뒤 기숙사 구간을 추가해줘.</div>`;
+    return;
+  }
+  target.innerHTML = segments.map((segment, index) => `
+    <div style="display:grid;grid-template-columns:34px minmax(0,1fr) 90px 150px 88px;gap:10px;align-items:center;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
+      <div style="width:26px;height:26px;border-radius:50%;background:#ECFDF5;color:#047857;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
+      <div>
+        <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.accomType} · ${segment.capacity}인실 · ${segment.condition}</div>
+      </div>
+      <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration}주</div>
+      <div style="font-size:10.5px;color:#6B7280">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
+      <div style="text-align:right">
+        <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.cost)}</div>
+        <button type="button" onclick="removeCourseRegDormSegment(${index})" style="margin-top:3px;border:0;background:none;color:#EF4444;font-size:10px;cursor:pointer">삭제</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 function renderCourseRegDormComparison() {
@@ -1662,29 +1668,37 @@ function updateStudentCourseRegistrationPreview() {
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const segments = getCourseRegSegments();
   const dormEnabled = !document.getElementById('course-reg-dorm-enabled')?.checked;
-  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || 0;
-  const dormSelection = getCourseRegSelectedDormTemplate();
-  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
-  const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
+  const dormSegments = getCourseRegDormSegments();
   const extras = getSelectedCourseRegExtras();
 
   renderCourseRegCourseComparison();
   renderCourseRegRecommendedLevels(course);
   renderCourseRegDormComparison();
+  renderCourseRegDormSegments();
   renderCourseRegSegments();
 
   const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
-  const dormAmount = dormEnabled && dormIn && dormSelection && dormDuration ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const dormAmount = dormEnabled ? dormSegments.reduce((sum, segment) => sum + Number(segment.cost || 0), 0) : 0;
   const extrasTotal = extras.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const total = tuitionAmount + dormAmount + extrasTotal;
 
   const preview = document.getElementById('course-reg-fee-preview');
   if (!preview) return;
-  const dormLabel = dormEnabled && dormIn && dormSelection
-    ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
-    : dormEnabled ? '미선택' : '미사용';
+
+  const registrationItems = extras.filter(item => item.type === 'required');
+  const optionalExtras = extras.filter(item => item.type !== 'required');
+  const registrationTotal = registrationItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   preview.innerHTML = `
+    ${registrationItems.length ? `
+    <div style="padding:12px;border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px">
+      <div style="font-size:11px;color:#3730A3;font-weight:700;margin-bottom:7px">등록금</div>
+      ${registrationItems.map(item => `
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;color:#111827">
+          <span>${item.name}</span><span>${formatCourseRegMoney(item.amount)}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
       <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:7px">수강료</div>
       ${segments.length ? segments.map((segment, index) => `
@@ -1702,25 +1716,31 @@ function updateStudentCourseRegistrationPreview() {
       <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px"><b>수강료 소계</b><b>${formatCourseRegMoney(tuitionAmount)}</b></div>
     </div>
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
-      <div style="display:flex;justify-content:space-between;gap:10px">
-        <div>
-          <div style="font-size:11px;color:#6B7280;font-weight:700">희망 기숙사</div>
-          <div style="font-size:12px;color:#111827;font-weight:800;margin-top:2px">${dormLabel}${dormEnabled && dormIn && dormSelection && dormDuration ? ` / ${dormDuration}주` : ''}</div>
-          ${dormEnabled ? `<div style="font-size:10.5px;color:${dormIn && dormOut ? '#6B7280' : '#DC2626'};margin-top:4px">${dormIn && dormOut ? `입실 ${fmtDate(dormIn)} · 퇴실 ${fmtDate(dormOut)}` : '입실일을 선택해줘'}</div>` : ''}
+      <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:7px">희망 기숙사</div>
+      ${!dormEnabled ? `<div style="font-size:12px;color:#9CA3AF">미사용</div>` : dormSegments.length ? dormSegments.map((segment, index) => `
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:${index ? '8px' : '0'};padding:${index ? '8px 0 0' : '0'};border-top:${index ? '1px solid #EEF0F4' : '0'}">
+          <div style="min-width:0">
+            <div style="font-size:11.5px;color:#111827;font-weight:800">${index + 1}. ${segment.accomType} · ${segment.capacity}인실 · ${segment.condition} / ${segment.duration}주</div>
+            <div style="font-size:10px;color:#6B7280;margin-top:3px">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:12.5px;font-weight:900;color:#111827">${formatCourseRegMoney(segment.cost)}</div>
+            <button type="button" onclick="removeCourseRegDormSegment(${index})" style="margin-top:3px;border:0;background:none;color:#EF4444;font-size:10px;cursor:pointer">삭제</button>
+          </div>
         </div>
-        <div style="font-size:15px;font-weight:900;color:#111827">${formatCourseRegMoney(dormAmount)}</div>
-      </div>
+      `).join('') : `<div style="font-size:12px;color:#9CA3AF">추가된 기숙사 구간 없음</div>`}
+      <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px"><b>기숙사 소계</b><b>${formatCourseRegMoney(dormAmount)}</b></div>
     </div>
     <div style="padding:12px;border:1px solid #E5E7EB;background:#fff;border-radius:10px">
       <div style="font-size:11px;color:#6B7280;font-weight:700;margin-bottom:8px">기타 항목</div>
-      ${extras.length ? extras.map(item => `
+      ${optionalExtras.length ? optionalExtras.map(item => `
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:5px">
           <span style="color:#374151">${item.name}</span>
           <b>${formatCourseRegMoney(item.amount)}</b>
         </div>
       `).join('') : `<div style="font-size:12px;color:#9CA3AF">선택된 기타 항목 없음</div>`}
       <div style="display:flex;justify-content:space-between;border-top:1px dashed #D1D5DB;margin-top:8px;padding-top:8px;font-size:12px">
-        <b>소계</b><b>${formatCourseRegMoney(extrasTotal)}</b>
+        <b>소계</b><b>${formatCourseRegMoney(extrasTotal - registrationTotal)}</b>
       </div>
     </div>
     <div style="padding:14px;border-radius:12px;background:#4F46E5;color:#fff;display:flex;justify-content:space-between;align-items:center">
@@ -1749,9 +1769,8 @@ function openStudentCourseRegistration(studentId) {
   if (!student) return;
   APP.currentCourseRegistrationStudent = student;
   APP.courseRegSegments = [];
+  APP.courseRegDormSegments = [];
   APP.courseRegUploadedFiles = { ...(student.requiredFiles || {}) };
-  const modeEl = document.getElementById('course-reg-mode');
-  if (modeEl) modeEl.value = '';
 
   const activeCourses = getCourseRegActiveCourses().map(row => row.course);
   const courseEl = document.getElementById('course-reg-course');
@@ -1824,7 +1843,6 @@ function openStudentCourseRegistration(studentId) {
 
   renderCourseRegistrationExtras([]);
   renderCourseRegSegments();
-  updateCourseRegModeUI();
   toggleCourseRegDormSection();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
@@ -1849,45 +1867,33 @@ function saveStudentCourseRegistration() {
   const remittanceRoute = document.getElementById('course-reg-remittance-route')?.value || 'agency';
   const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
   const dormEnabled = !document.getElementById('course-reg-dorm-enabled')?.checked;
-  const dormDuration = parseInt(document.getElementById('course-reg-dorm-duration')?.value, 10) || duration;
-  const dormSelection = getCourseRegSelectedDormTemplate();
-  const dormIn = document.getElementById('course-reg-dorm-in')?.value || '';
-  const dormOut = document.getElementById('course-reg-dorm-out')?.value || '';
+  const dormSegments = getCourseRegDormSegments().map((segment, index) => ({ ...segment, order: index + 1 }));
+  const firstDorm = dormSegments[0] || null;
+  const lastDorm = dormSegments[dormSegments.length - 1] || null;
   const extraItems = getSelectedCourseRegExtras();
   const getOptionalValue = id => document.getElementById(id)?.value.trim() || '';
-
-  const courseMode = getCourseRegMode();
-  if (!courseMode) {
-    showToast('단일 코스 진행 또는 멀티 코스 진행을 먼저 선택해줘.', 'warning');
-    return;
-  }
 
   if (!segments.length || !course || !startDate) {
     showToast('등록할 수강 구간을 1개 이상 추가해줘.', 'warning');
     return;
   }
 
-  if (dormEnabled && !dormSelection) {
-    showToast('희망 기숙사와 이용 기간을 선택해줘.', 'warning');
-    return;
-  }
-
-  if (dormEnabled && (!dormIn || !dormOut)) {
-    showToast('기숙사 입실일을 선택해줘. 퇴실일은 이용 기간에 맞춰 자동 계산돼.', 'warning');
-    document.getElementById('course-reg-dorm-in')?.focus();
+  if (dormEnabled && !dormSegments.length) {
+    showToast('희망 기숙사 구간을 1개 이상 추가해줘.', 'warning');
     return;
   }
 
   const tuitionAmount = segments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
-  const dormAmount = dormEnabled && dormIn && dormSelection && dormDuration ? getCourseRegPeriodFee(dormSelection.template.cost, dormSelection.template.tuitionPolicy, dormDuration) : 0;
+  const dormAmount = dormEnabled ? dormSegments.reduce((sum, segment) => sum + Number(segment.cost || 0), 0) : 0;
+  const dormDuration = dormEnabled ? dormSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0) : 0;
   const extrasTotal = extraItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const registrationAmount = extraItems
     .filter(item => /등록금|Registration/i.test(item.name || ''))
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const otherExtrasTotal = Math.max(0, extrasTotal - registrationAmount);
   const totalGross = tuitionAmount + dormAmount + extrasTotal;
-  const dormLabel = dormEnabled && dormIn && dormSelection
-    ? `${dormSelection.template.accomType || '-'} · ${dormSelection.template.capacity || '-'}인실 · ${dormSelection.template.condition || '-'}`
+  const dormLabel = dormEnabled && dormSegments.length
+    ? dormSegments.map(segment => `${segment.accomType} · ${segment.capacity}인실 · ${segment.condition}`).join(' → ')
     : dormEnabled ? '미선택' : '미사용';
 
   if (!student.enrollments) student.enrollments = [];
@@ -1903,12 +1909,13 @@ function saveStudentCourseRegistration() {
     tuitionAmount,
     dorm: dormLabel,
     dormEnabled,
+    dormSegments,
     dormDuration: dormEnabled ? dormDuration : 0,
-    dormIn: dormEnabled ? dormIn : '',
-    dormOut: dormEnabled ? dormOut : '',
-    dormAccomType: dormEnabled && dormSelection ? dormSelection.template.accomType || null : null,
-    dormType: dormEnabled && dormSelection ? dormSelection.template.capacity || null : null,
-    dormGrade: dormEnabled && dormSelection ? dormSelection.template.condition || null : null,
+    dormIn: dormEnabled && firstDorm ? firstDorm.startDate : '',
+    dormOut: dormEnabled && lastDorm ? lastDorm.endDate : '',
+    dormAccomType: dormEnabled && firstDorm ? firstDorm.accomType || null : null,
+    dormType: dormEnabled && firstDorm ? firstDorm.capacity || null : null,
+    dormGrade: dormEnabled && firstDorm ? firstDorm.condition || null : null,
     dormAmount,
     extraItems,
     extrasTotal,
@@ -1939,12 +1946,13 @@ function saveStudentCourseRegistration() {
   student.remittanceStatus = 'unpaid';
   student.remittanceRoute = remittanceRoute;
   student.dorm = dormLabel;
-  if (dormEnabled && dormSelection) {
-    student.dormAccomType = dormSelection.template.accomType || null;
-    student.dormType = dormSelection.template.capacity || null;
-    student.dormGrade = dormSelection.template.condition || null;
-    student.dormIn = dormIn;
-    student.dormOut = dormOut;
+  student.dormSegments = dormSegments;
+  if (dormEnabled && firstDorm) {
+    student.dormAccomType = firstDorm.accomType || null;
+    student.dormType = firstDorm.capacity || null;
+    student.dormGrade = firstDorm.condition || null;
+    student.dormIn = firstDorm.startDate;
+    student.dormOut = lastDorm.endDate;
   } else {
     student.dormAccomType = null;
     student.dormType = null;
@@ -1983,7 +1991,7 @@ function saveStudentCourseRegistration() {
   const agencyPayload = {
     name: `${student.name} (${student.nick})`,
     course,
-    dorm: dormEnabled && dormSelection ? `${dormSelection.template.capacity || '-'}인실` : '미사용',
+    dorm: dormEnabled && firstDorm ? `${firstDorm.capacity || '-'}인실` : '미사용',
     duration: `${duration}주`,
     status,
     total: formatCourseRegMoney(totalGross),
@@ -3303,7 +3311,7 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산/입학서류관리</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
@@ -4543,6 +4551,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
 
           <div style="border-left:1px solid #CBD5E1;padding:0 0 0 18px;min-width:0">
+            <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">입학서류관리</div>
             <div style="display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin-bottom:12px;overflow-x:auto" id="agency-inline-doc-tabs">
               <button type="button" data-inline-doc-tab="invoice" onclick="renderAgencyInlineDocument(${s.id}, 'invoice')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공식 인보이스 (Invoice)</button>
               <button type="button" data-inline-doc-tab="loa" onclick="renderAgencyInlineDocument(${s.id}, 'loa')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">입학 허가서 (LOA)</button>
@@ -5078,7 +5087,11 @@ function submitRemittanceReceipt(studentId, editIdx) {
     showToast(`✅ ${itemLabels} 납부 $${amount.toLocaleString()}이(가) 등록되었습니다.`, 'success');
   }
 
-  switchAdetailTab('settle');
+  if (document.getElementById('adetail-page-enrollment-content')) {
+    switchAgencyEnrollmentHubTab('settle');
+  } else {
+    switchAdetailTab('settle');
+  }
 }
 
 function editRemittanceReceipt(studentId, localIdx) {
@@ -5525,7 +5538,10 @@ function renderPickupManagerCards() {
         <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${manager.gender || '-'}성 · ${manager.age ? manager.age + '세' : '나이 미등록'}</div>
         <div style="font-size:10px;color:#9CA3AF;margin-top:3px">${manager.messenger || '-'}</div>
       </div>
-      <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal(${manager.id})"><i data-lucide="clock"></i> 배차표</button>
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
+      </div>
     </div>
   `).join('');
   if (typeof refreshIcons === 'function') refreshIcons();
@@ -5591,7 +5607,15 @@ function renderPickupCalendar() {
     cells.push(`
       <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:82px;padding:8px;border:0;border-right:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.42' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
         <span style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800;background:${isToday ? '#5E5CE6' : 'transparent'};color:${isToday ? '#fff' : '#374151'}">${cellDate.getDate()}</span>
-        ${arrivals.length ? `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned || pendingDispatches ? '#FFF7ED' : '#ECFDF5'};color:${unassigned || pendingDispatches ? '#C2410C' : '#047857'};font-size:9.5px;font-weight:800">입국 ${arrivals.length}명 · 픽업 ${pickupArrivals.length}명${noPickupArrivals.length ? ` · 불필요 ${noPickupArrivals.length}` : ''}${unassigned ? ` · 미편성 ${unassigned}` : pendingDispatches ? ` · 배차 확인 ${pendingDispatches}` : pickupArrivals.length ? ' · 배차 완료' : ''}</div>` : ''}
+        ${arrivals.length ? (() => {
+          const scheduled = pickupArrivals.length - unassigned;
+          const rowStyle = 'display:flex;justify-content:space-between;gap:4px';
+          return `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned || pendingDispatches ? '#FFF7ED' : '#ECFDF5'};color:${unassigned || pendingDispatches ? '#C2410C' : '#047857'};font-size:9px;font-weight:700;line-height:1.5">
+            <div style="${rowStyle}"><b>입국</b><span>${arrivals.length}명 (픽업 ${pickupArrivals.length}·불필요 ${noPickupArrivals.length})</span></div>
+            <div style="${rowStyle}"><b>픽업 대기</b><span style="color:${unassigned ? '#C2410C' : '#047857'}">${unassigned}명</span></div>
+            <div style="${rowStyle}"><b>편성 완료</b><span>${scheduled}명</span></div>
+          </div>`;
+        })() : ''}
       </button>`);
   }
   grid.innerHTML = cells.join('');
@@ -5614,7 +5638,11 @@ function renderPickupDateAssignments() {
   const pendingGroups = groups.filter(group => group.status !== 'dispatched');
   panel.innerHTML = `
     <div style="padding:15px 16px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <div><b style="font-size:13px;color:#111827">${dateLabel}</b><div style="font-size:10px;color:#9CA3AF;margin-top:3px">입국 ${students.length}명 · 픽업 필요 ${pickupStudents.length}명 · 픽업 불필요 ${noPickupStudents.length}명 · 미편성 ${unassigned.length}명</div></div>
+      <div><b style="font-size:13px;color:#111827">${dateLabel}</b>${students.length ? `<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px;font-size:10px;color:#6B7280">
+        <div><b>입국</b> ${students.length}명 (픽업 ${pickupStudents.length}·불필요 ${noPickupStudents.length})</div>
+        <div><b>픽업 대기</b> <span style="color:${unassigned.length ? '#C2410C' : '#047857'}">${unassigned.length}명</span></div>
+        <div><b>편성 완료</b> <span style="color:#047857">${pickupStudents.length - unassigned.length}명</span></div>
+      </div>` : ''}</div>
       ${students.length ? `<span class="tsa-badge ${unassigned.length || pendingGroups.length ? 'tsa-badge-warning' : 'tsa-badge-success'}">${unassigned.length ? '편성 필요' : pendingGroups.length ? '배차 정보 필요' : pickupStudents.length ? '배차 완료' : '픽업 불필요'}</span>` : ''}
     </div>
     ${students.length ? `<div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
@@ -5624,6 +5652,151 @@ function renderPickupDateAssignments() {
     </div>
     ${groups.length ? `<div style="padding:12px 16px"><div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:8px">배차 현황</div><div style="display:grid;gap:7px">${groups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div></div>` : ''}` : `<div style="padding:90px 20px;text-align:center;color:#9CA3AF"><i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i><div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div></div>`}`;
   if (typeof refreshIcons === 'function') refreshIcons();
+  renderPickupManagerTimetable();
+}
+
+// 담당자별 시간 단위(10분 간격) 배차표. 세로축=시간, 가로축=담당자.
+// 배차 그룹 자체에는 시간이 저장돼 있지 않아서, 그룹에 속한 학생들의 flightTime(+PICKUP_SLOT_MINUTES)을 모아
+// 최소 시작~최대 종료 구간을 그 배차 건의 점유 시간으로 계산한다.
+const PICKUP_TIMETABLE_SLOT_MIN = 10;
+const PICKUP_TIMETABLE_DAY_START = 6 * 60;  // 06:00
+const PICKUP_TIMETABLE_DAY_END = 24 * 60;   // 24:00
+
+function openPickupTimetableModal(managerId) {
+  APP.pickupTimetableManagerId = managerId != null ? Number(managerId) : null;
+  if (!APP.pickupSelectedDate) APP.pickupSelectedDate = toPickupDateKey(new Date());
+  const dateInput = document.getElementById('pickup-timetable-date');
+  if (dateInput) dateInput.value = APP.pickupSelectedDate;
+  renderPickupManagerTimetable(APP.pickupTimetableManagerId);
+  openModal('pickup-timetable-modal');
+  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+function changePickupTimetableDate(dateKey) {
+  if (!dateKey) return;
+  APP.pickupSelectedDate = dateKey;
+  const selected = new Date(`${dateKey}T00:00:00`);
+  if (selected.getFullYear() !== APP.pickupCalendarMonth.getFullYear() || selected.getMonth() !== APP.pickupCalendarMonth.getMonth()) {
+    APP.pickupCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+  }
+  renderPickupCalendar();
+  renderPickupManagerTimetable(APP.pickupTimetableManagerId);
+}
+
+function renderPickupManagerTimetable(managerId) {
+  const container = document.getElementById('pickup-manager-timetable');
+  if (!container) return;
+  const dateKey = APP.pickupSelectedDate;
+  const titleEl = document.getElementById('pickup-timetable-title');
+  const subtitleEl = document.getElementById('pickup-timetable-subtitle');
+  const focusedManager = managerId != null ? MOCK_PICKUP_MANAGERS.find(m => m.id === Number(managerId)) : null;
+  const managers = focusedManager
+    ? [focusedManager]
+    : MOCK_PICKUP_MANAGERS.filter(m => m.visible !== false);
+  const groups = getPickupDispatchGroups(dateKey);
+  const slotCount = (PICKUP_TIMETABLE_DAY_END - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN;
+
+  if (titleEl) titleEl.innerHTML = `<i data-lucide="clock" style="color:#5E5CE6"></i> ${focusedManager ? `${focusedManager.name} 배차표` : '담당자별 시간 단위 배차표'}`;
+  if (subtitleEl) {
+    const dateLabel = dateKey ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 선택';
+    subtitleEl.textContent = `10분 단위 · 세로축 시간${focusedManager ? '' : ' · 가로축 담당자'} · ${dateLabel} 기준`;
+  }
+
+  const buildBlock = (studentIds, label, extra) => {
+    const windows = studentIds
+      .map(id => MOCK_STUDENTS.find(s => s.id === id))
+      .map(getPickupTimeWindowMinutes)
+      .filter(Boolean);
+    if (!windows.length) return null;
+    return {
+      start: Math.min(...windows.map(w => w.start)),
+      end: Math.max(...windows.map(w => w.end)),
+      label,
+      extra: extra || '',
+    };
+  };
+
+  // 담당자별(및 미배정) 블록 목록
+  const columns = managers.map(m => ({ id: m.id, name: m.name, blocks: [] }));
+  const unassignedColumn = { id: 'unassigned', name: '미배정', blocks: [] };
+
+  groups.forEach(group => {
+    const students = group.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
+    const label = students.map(s => s.nick || s.name).join(', ');
+    const window = getPickupGroupTimeWindowMinutes(group);
+    if (!window) return;
+    const block = { ...window, label, extra: group.vehiclePlate || group.vehicleModel || '' };
+    const col = columns.find(c => Number(c.id) === Number(group.managerId));
+    (col || unassignedColumn).blocks.push(block);
+  });
+
+  if (!focusedManager) {
+    const assignedIds = new Set(groups.flatMap(g => g.studentIds));
+    getPickupStudents()
+      .filter(s => (s.arrivalDate || s.startDate) === dateKey && isPickupRequired(s) && !assignedIds.has(s.id))
+      .forEach(s => {
+        const block = buildBlock([s.id], s.nick || s.name, '배차 미정');
+        if (block) unassignedColumn.blocks.push(block);
+      });
+  }
+
+  const allColumns = focusedManager ? columns : [...columns, unassignedColumn];
+
+  if (!allColumns.some(c => c.blocks.length)) {
+    container.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#9CA3AF;font-size:12px">이 날짜에 표시할 픽업 일정이 없습니다.</div>`;
+    return;
+  }
+
+  // 각 컬럼별로 10분 슬롯 배열을 만들어 rowspan 렌더링에 사용
+  const grid = allColumns.map(col => {
+    const slots = new Array(slotCount).fill(null);
+    col.blocks.forEach(block => {
+      const startSlot = Math.max(0, Math.floor((block.start - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN));
+      const endSlot = Math.min(slotCount, Math.ceil((block.end - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN));
+      const span = Math.max(1, endSlot - startSlot);
+      if (startSlot >= slotCount || span <= 0) return;
+      if (slots[startSlot]) return; // 이미 다른 블록이 점유 중이면 스킵(중복 방지)
+      slots[startSlot] = { span, block };
+      for (let i = startSlot + 1; i < startSlot + span && i < slotCount; i++) slots[i] = 'occupied';
+    });
+    return slots;
+  });
+
+  const formatMinutes = min => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+  let rowsHtml = '';
+  for (let slotIdx = 0; slotIdx < slotCount; slotIdx++) {
+    const minute = PICKUP_TIMETABLE_DAY_START + slotIdx * PICKUP_TIMETABLE_SLOT_MIN;
+    const isHour = minute % 60 === 0;
+    rowsHtml += `<tr>
+      <th style="position:sticky;left:0;background:#F8FAFC;border-right:1px solid #E5E7EB;border-bottom:1px solid #F3F4F6;padding:2px 8px;font-size:${isHour ? '10.5px' : '9.5px'};font-weight:${isHour ? '800' : '500'};color:${isHour ? '#111827' : '#9CA3AF'};text-align:right;white-space:nowrap">${formatMinutes(minute)}</th>`;
+    allColumns.forEach((col, colIdx) => {
+      const cell = grid[colIdx][slotIdx];
+      if (cell === 'occupied') return; // 상위 rowspan 셀에 이미 포함됨
+      if (!cell) {
+        rowsHtml += `<td style="border-bottom:1px solid #F3F4F6;border-right:1px solid #F3F4F6;height:20px"></td>`;
+        return;
+      }
+      const isUnassigned = col.id === 'unassigned';
+      rowsHtml += `<td rowspan="${cell.span}" style="border:1px solid ${isUnassigned ? '#FCA5A5' : '#C7D2FE'};background:${isUnassigned ? '#FEF2F2' : '#EEF2FF'};padding:4px 6px;vertical-align:top">
+        <div style="font-size:10.5px;font-weight:800;color:${isUnassigned ? '#B91C1C' : '#3730A3'}">${cell.block.label}</div>
+        <div style="font-size:9px;color:#6B7280;margin-top:2px">${formatMinutes(cell.block.start)}~${formatMinutes(cell.block.end)}${cell.block.extra ? ` · ${cell.block.extra}` : ''}</div>
+      </td>`;
+    });
+    rowsHtml += `</tr>`;
+  }
+
+  container.innerHTML = `
+    <table style="border-collapse:collapse;width:100%;font-family:inherit">
+      <thead>
+        <tr>
+          <th style="position:sticky;top:0;left:0;z-index:2;background:#F8FAFC;border-right:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;padding:6px 8px;font-size:10px;color:#6B7280">시간</th>
+          ${allColumns.map(col => `<th style="position:sticky;top:0;z-index:1;background:${col.id === 'unassigned' ? '#FEF2F2' : '#F8FAFC'};border-bottom:1px solid #E5E7EB;padding:6px 8px;font-size:11px;font-weight:800;color:${col.id === 'unassigned' ? '#B91C1C' : '#111827'};white-space:nowrap">${col.name}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
 }
 
 function isPickupRequired(student) {
@@ -5641,7 +5814,7 @@ function isPickupRequired(student) {
 
 function renderPickupPassengerOption(student, selectable = true) {
   const checked = pickupSelectedStudentIds.includes(student.id);
-  const time = student.flightTime || '시간 미정';
+  const time = student.flightTime ? student.flightTime : '<span style="color:#DC2626;font-weight:800">시간 미정 — 학생 상세에서 입력 필요</span>';
   const avatar = student.profilePhoto || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
   const agency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(item => item.name === student.agency) : null;
   return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:${selectable ? (checked ? '#F5F3FF' : '#fff') : '#F9FAFB'};border:1px solid ${selectable && checked ? '#818CF8' : '#E5E7EB'};border-radius:9px;cursor:${selectable ? 'pointer' : 'default'};opacity:${selectable ? '1' : '.82'}">
@@ -5680,6 +5853,61 @@ function renderPickupDispatchSummary(dateKey, group, index) {
   </div>`;
 }
 
+// 항공편 도착 시각 기준 편도 이동+대기로 한 건당 90분(1.5시간)을 점유한다고 가정하고 배차 시간대를 계산한다.
+// 담당자별 시간 단위 배차표는 아직 없고, 우선 같은 날짜 내 다른 배차 건과의 시간 겹침만으로 가능/불가를 판단한다.
+const PICKUP_SLOT_MINUTES = 90;
+
+function getPickupTimeWindowMinutes(student) {
+  const time = student?.flightTime;
+  if (!time || !/^\d{2}:\d{2}$/.test(time)) return null;
+  const [h, m] = time.split(':').map(Number);
+  const start = h * 60 + m;
+  return { start, end: start + PICKUP_SLOT_MINUTES };
+}
+
+function pickupTimeStrToMinutes(str) {
+  if (!str || !/^\d{2}:\d{2}$/.test(str)) return null;
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function pickupMinutesToTimeStr(minutes) {
+  if (minutes == null) return '';
+  const wrapped = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(wrapped % 60).padStart(2, '0')}`;
+}
+
+// 여러 학생의 flightTime 기준 window를 모아 최소 시작~최대 종료 구간을 계산(개별 stored 시간이 없을 때의 기본값 산출용)
+function getPickupStudentsTimeWindow(studentIds) {
+  const windows = (studentIds || [])
+    .map(id => MOCK_STUDENTS.find(s => s.id === id))
+    .map(getPickupTimeWindowMinutes)
+    .filter(Boolean);
+  if (!windows.length) return null;
+  return { start: Math.min(...windows.map(w => w.start)), end: Math.max(...windows.map(w => w.end)) };
+}
+
+// 배차 그룹에 수동 설정된 startTime/endTime이 있으면 그걸 우선 사용하고, 없으면 학생 flightTime 기준으로 산출한다.
+function getPickupGroupTimeWindowMinutes(group) {
+  const start = pickupTimeStrToMinutes(group?.startTime);
+  const end = pickupTimeStrToMinutes(group?.endTime);
+  if (start != null && end != null && end > start) return { start, end };
+  return getPickupStudentsTimeWindow(group?.studentIds);
+}
+
+function pickupWindowsOverlap(a, b) {
+  return Boolean(a && b && a.start < b.end && b.start < a.end);
+}
+
+// targetWindow가 주어지면 그 시간대 기준으로, 아니면 학생들의 flightTime 기준으로 겹침 여부를 판단한다.
+// 시간 정보가 없으면 겹침 여부를 판단할 수 없으니 '가능'으로 표시(보수적으로 막지 않음).
+function isPickupManagerAvailable(managerId, dateKey, studentIds, excludeGroupId, targetWindow) {
+  const window = targetWindow || getPickupStudentsTimeWindow(studentIds);
+  if (!window) return true;
+  const otherGroups = getPickupDispatchGroups(dateKey).filter(group => Number(group.managerId) === Number(managerId) && group.id !== excludeGroupId);
+  return !otherGroups.some(group => pickupWindowsOverlap(getPickupGroupTimeWindowMinutes(group), window));
+}
+
 function openPickupDispatchModal(dateKey, groupId) {
   const group = groupId ? getPickupDispatchGroups(dateKey).find(item => item.id === Number(groupId)) : null;
   const studentIds = group ? [...group.studentIds] : [...pickupSelectedStudentIds];
@@ -5690,19 +5918,39 @@ function openPickupDispatchModal(dateKey, groupId) {
   document.getElementById('pickup-dispatch-student-ids').value = studentIds.join(',');
   document.getElementById('pickup-dispatch-modal-title').textContent = group ? `배차 ${getPickupDispatchGroups(dateKey).indexOf(group) + 1} 정보 수정` : `선택 인원 배차 · ${students.length}명`;
   document.getElementById('pickup-dispatch-selected-students').innerHTML = students.map(student => renderPickupDispatchStudentInfo(student)).join('');
-  document.getElementById('pickup-dispatch-modal-manager').innerHTML = `<option value="">담당자 선택</option>${MOCK_PICKUP_MANAGERS.map(manager => `<option value="${manager.id}" ${Number(group?.managerId) === manager.id ? 'selected' : ''}>${manager.name} · ${manager.phone}</option>`).join('')}`;
   document.getElementById('pickup-dispatch-modal-vehicle').innerHTML = `<option value="">등록 차량 선택</option>${MOCK_PICKUP_VEHICLES.filter(vehicle => vehicle.active !== false).map(vehicle => `<option value="${vehicle.id}" ${Number(group?.vehicleId) === vehicle.id ? 'selected' : ''} ${Number(vehicle.capacity) < students.length ? 'disabled' : ''}>${vehicle.model} · ${vehicle.plate} · ${vehicle.capacity}인승${Number(vehicle.capacity) < students.length ? ' (정원 부족)' : ''}</option>`).join('')}`;
   document.getElementById('pickup-dispatch-delete-btn').style.display = group ? '' : 'none';
-  updatePickupDispatchModalVehicleInfo();
+  const defaultWindow = group ? getPickupGroupTimeWindowMinutes(group) : getPickupStudentsTimeWindow(studentIds);
+  document.getElementById('pickup-dispatch-start-time').value = defaultWindow ? pickupMinutesToTimeStr(defaultWindow.start) : '';
+  document.getElementById('pickup-dispatch-end-time').value = defaultWindow ? pickupMinutesToTimeStr(defaultWindow.end) : '';
+  updatePickupDispatchModalManagerAvailability(group?.managerId);
   openModal('pickup-dispatch-modal');
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-function updatePickupDispatchModalVehicleInfo() {
-  const vehicleId = Number(document.getElementById('pickup-dispatch-modal-vehicle')?.value || 0);
-  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId);
-  const info = document.getElementById('pickup-dispatch-modal-vehicle-info');
-  if (info) info.innerHTML = vehicle ? `<b>${vehicle.model}</b> · ${vehicle.plate} · ${vehicle.capacity}인승${vehicle.memo ? ` · ${vehicle.memo}` : ''}` : '차량 관리에서 사전 등록한 차량을 선택해줘.';
+// 픽업 시작·종료 시간 입력값 기준으로 담당자 목록의 가능/불가 표시를 갱신한다.
+function updatePickupDispatchModalManagerAvailability(preselectManagerId) {
+  const managerSelect = document.getElementById('pickup-dispatch-modal-manager');
+  if (!managerSelect) return;
+  const dateKey = document.getElementById('pickup-dispatch-date')?.value;
+  const groupId = Number(document.getElementById('pickup-dispatch-group-id')?.value || 0) || null;
+  const studentIds = (document.getElementById('pickup-dispatch-student-ids')?.value || '').split(',').map(Number).filter(Boolean);
+  const startTime = document.getElementById('pickup-dispatch-start-time')?.value;
+  const endTime = document.getElementById('pickup-dispatch-end-time')?.value;
+  const startMin = pickupTimeStrToMinutes(startTime);
+  const endMin = pickupTimeStrToMinutes(endTime);
+  const targetWindow = (startMin != null && endMin != null && endMin > startMin) ? { start: startMin, end: endMin } : null;
+  const selectedId = preselectManagerId != null ? String(preselectManagerId) : managerSelect.value;
+  managerSelect.innerHTML = `<option value="">담당자 선택</option>${MOCK_PICKUP_MANAGERS.filter(manager => manager.visible !== false).map(manager => {
+    const available = isPickupManagerAvailable(manager.id, dateKey, studentIds, groupId, targetWindow);
+    return `<option value="${manager.id}" ${String(manager.id) === selectedId ? 'selected' : ''}>${manager.name} · ${manager.phone}${targetWindow ? ` · ${available ? '✅ 가능' : '❌ 불가(시간 겹침)'}` : ''}</option>`;
+  }).join('')}`;
+  const note = document.getElementById('pickup-dispatch-modal-manager-availability');
+  if (note) {
+    note.textContent = targetWindow
+      ? `설정한 픽업 시간(${startTime}~${endTime}) 기준으로 담당자 가능 여부를 표시합니다.`
+      : (startTime || endTime ? '종료 시간은 시작 시간보다 이후여야 담당자 가능 여부를 확인할 수 있어.' : '픽업 시작·종료 시간을 입력하면 담당자별 가능 여부를 확인할 수 있어.');
+  }
 }
 
 function savePickupDispatchModal() {
@@ -5711,8 +5959,12 @@ function savePickupDispatchModal() {
   const studentIds = document.getElementById('pickup-dispatch-student-ids').value.split(',').map(Number).filter(Boolean);
   const managerId = Number(document.getElementById('pickup-dispatch-modal-manager').value || 0);
   const vehicleId = Number(document.getElementById('pickup-dispatch-modal-vehicle').value || 0);
+  const startTime = document.getElementById('pickup-dispatch-start-time').value;
+  const endTime = document.getElementById('pickup-dispatch-end-time').value;
   const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId && item.active !== false);
   if (!managerId || !vehicle) return showToast('픽업 담당자와 등록 차량을 선택해줘.', 'warning');
+  if (!startTime || !endTime) return showToast('픽업 시작·종료 시간을 입력해줘.', 'warning');
+  if (endTime <= startTime) return showToast('종료 시간은 시작 시간보다 이후여야 해.', 'warning');
   if (Number(vehicle.capacity) < studentIds.length) return showToast(`탑승 ${studentIds.length}명보다 큰 정원의 차량을 선택해줘.`, 'warning');
   const groups = getPickupDispatchGroups(dateKey);
   let group = groupId ? groups.find(item => item.id === groupId) : null;
@@ -5721,7 +5973,7 @@ function savePickupDispatchModal() {
     groups.push(group);
     PICKUP_DISPATCH_GROUPS[dateKey] = groups;
   }
-  Object.assign(group, { studentIds, managerId, vehicleId, vehicleCapacity: Number(vehicle.capacity), vehicleModel: vehicle.model, vehiclePlate: vehicle.plate, status: 'dispatched' });
+  Object.assign(group, { studentIds, managerId, vehicleId, vehicleCapacity: Number(vehicle.capacity), vehicleModel: vehicle.model, vehiclePlate: vehicle.plate, startTime, endTime, status: 'dispatched' });
   pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => !studentIds.includes(id));
   closeModal('pickup-dispatch-modal');
   renderPickupCalendar();
@@ -5762,7 +6014,7 @@ function renderPickupDispatchCard(dateKey, group, index) {
 function renderPickupDispatchStudentInfo(student) {
   const avatar = student.profilePhoto || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
   const agency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(item => item.name === student.agency) : null;
-  const time = student.flightTime || '시간 미정';
+  const time = student.flightTime ? student.flightTime : '<span style="color:#DC2626;font-weight:800">시간 미정</span>';
   return `<div style="display:flex;align-items:flex-start;gap:9px;padding:9px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px">
     <img src="${avatar}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
     <div style="flex:1;min-width:0">
@@ -6576,16 +6828,45 @@ function renderCourseList() {
 
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
     const subjectIds = getCourseSubjectIds(c);
-    const subjectsBadge = subjectIds.map(id => {
-      const sub = MOCK_MASTER_SUBJECTS.find(m => m.id === id);
-      return `<span class="tsa-badge tsa-badge-outline" style="font-size:10px;margin:1px">${sub ? sub.name : id}</span>`;
-    }).join('') || '<span style="color:#D1D5DB">과목 미설정</span>';
-    const classHours = getCourseClassHours(c);
-    const classHoursBadge = [...MOCK_MASTER_CLASS_TYPES]
+    const types = [...MOCK_MASTER_CLASS_TYPES]
       .filter(t => t.visible !== false)
-      .sort((a, b) => a.order - b.order)
-      .map(t => `<span style="white-space:nowrap">${t.code} ${classHours[t.code] || 0}시간</span>`)
-      .join(' · ');
+      .sort((a, b) => a.order - b.order);
+    const typeColors = {
+      '1:1': { bg: '#ECFDF5', color: '#047857' },
+      '1:4': { bg: '#FFF7ED', color: '#C2410C' },
+      '1:8': { bg: '#EEF2FF', color: '#4338CA' },
+    };
+    const hasTypeMapping = c.subjectsByType && Object.keys(c.subjectsByType).length > 0;
+    const classHours = getCourseClassHours(c);
+    const curriculumCells = types.map(type => {
+      const refs = hasTypeMapping
+        ? (c.subjectsByType[type.code] || [])
+        : (type.code === '1:1' ? subjectIds.map(id => ({ id, hours: 1 })) : []);
+      if (!refs.length || !classHours[type.code]) {
+        return `
+          <td style="min-width:170px">
+            <span style="display:inline-flex;background:#F3F4F6;color:#9CA3AF;border-radius:6px;padding:5px 8px;font-size:10.5px;font-weight:700">미운영</span>
+          </td>
+        `;
+      }
+      const color = typeColors[type.code] || { bg: '#F3F4F6', color: '#4B5563' };
+      const subjectItems = refs.map(ref => {
+        const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
+        return `
+          <span style="display:inline-flex;align-items:center;gap:3px;border:1px solid #E5E7EB;background:#fff;border-radius:5px;padding:3px 5px;font-size:9.5px;color:#4B5563;white-space:nowrap">
+            ${subject?.name || ref.id} <strong style="color:${color.color}">${ref.hours}교시</strong>
+          </span>
+        `;
+      }).join('');
+      return `
+        <td style="min-width:190px;vertical-align:middle">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+            <span style="background:${color.bg};color:${color.color};border-radius:6px;padding:4px 7px;font-size:10.5px;font-weight:900">${classHours[type.code]}교시</span>
+          </div>
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${subjectItems}</div>
+        </td>
+      `;
+    }).join('');
 
     // 추천 레벨 배지
     const levelsBadge = (c.levels || [])
@@ -6602,8 +6883,7 @@ function renderCourseList() {
           ${c.active === false ? '<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin-top:2px">비활성</span>' : ''}
         </td>
         <td>${levelsBadge}</td>
-        <td style="font-size:11.5px">${subjectsBadge}</td>
-        <td style="font-size:11.5px;color:#6B7280">${classHoursBadge}</td>
+        ${curriculumCells}
         <td style="text-align:center">
           <button type="button"
             onclick="toggleCourseVisibility(${idx})"
@@ -6631,8 +6911,27 @@ function openCourseModal() {
   document.getElementById('add-course-name').value = '';
 
   renderCourseLevelCheckboxes([]);
-  renderCourseClassTypeSections({ subjects: [], classHours: {} });
+  renderCourseClassTypeSections({
+    subjectsByType: {
+      '1:1': [
+        { id: 'SUB_01', hours: 1 },
+        { id: 'SUB_03', hours: 1 },
+        { id: 'SUB_05', hours: 1 },
+        { id: 'SUB_04', hours: 1 },
+      ],
+      '1:4': [
+        { id: 'SUB_01', hours: 1 },
+        { id: 'SUB_03', hours: 1 },
+      ],
+      '1:8': [
+        { id: 'SUB_05', hours: 1 },
+        { id: 'SUB_04', hours: 1 },
+      ],
+    },
+    classHours: { '1:1': 4, '1:4': 2, '1:8': 2 },
+  });
   openModal('course-add-modal');
+  updateCourseCurriculumPreview();
 }
 
 function openEditCourseModal(idx) {
@@ -6646,6 +6945,7 @@ function openEditCourseModal(idx) {
   renderCourseLevelCheckboxes(c.levels || []);
   renderCourseClassTypeSections(c);
   openModal('course-add-modal');
+  updateCourseCurriculumPreview();
 }
 
 function renderCourseLevelCheckboxes(selectedLevels) {
@@ -6655,7 +6955,7 @@ function renderCourseLevelCheckboxes(selectedLevels) {
       const isChecked = selectedLevels.includes(l.id) ? 'checked' : '';
       return `
         <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin:0">
-          <input type="checkbox" name="course-levels-cb" value="${l.id}" ${isChecked}/>
+          <input type="checkbox" name="course-levels-cb" value="${l.id}" ${isChecked} onchange="updateCourseCurriculumPreview()"/>
           <span>${l.name}</span>
         </label>
       `;
@@ -6676,10 +6976,14 @@ function getCourseSubjectIds(course) {
 }
 
 function getCourseClassHours(course) {
+  const mappedHours = {};
+  Object.entries(course.subjectsByType || {}).forEach(([type, refs]) => {
+    mappedHours[type] = (refs || []).reduce((sum, ref) => sum + Math.max(0, Number(ref?.hours) || 0), 0);
+  });
   return {
-    '1:1': Number(course.classHours?.['1:1'] ?? course.oneone) || 0,
-    '1:4': Number(course.classHours?.['1:4'] ?? course.group1on4) || 0,
-    '1:8': Number(course.classHours?.['1:8'] ?? course.group) || 0,
+    '1:1': Number(mappedHours['1:1'] ?? course.classHours?.['1:1'] ?? course.oneone) || 0,
+    '1:4': Number(mappedHours['1:4'] ?? course.classHours?.['1:4'] ?? course.group1on4) || 0,
+    '1:8': Number(mappedHours['1:8'] ?? course.classHours?.['1:8'] ?? course.group) || 0,
   };
 }
 
@@ -6906,35 +7210,164 @@ function renderCourseClassTypeSections(course) {
   const container = document.getElementById('course-classtype-sections');
   if (!container) return;
 
-  const selectedSubjectIds = getCourseSubjectIds(course);
-  const classHours = getCourseClassHours(course);
   const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
-  const subjectCheckboxes = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).map(s => `
-    <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer;margin:0">
-      <input type="checkbox" name="course-subjects-cb" value="${s.id}" ${selectedSubjectIds.includes(s.id) ? 'checked' : ''}/>
-      <span>${s.name}</span>
-    </label>
-  `).join('');
-  const classHourInputs = types.map(t => `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #E5E7EB;border-radius:9px;background:#FAFAFA">
-      <label class="tsa-label" style="margin:0">${getClassTypeDisplayName(t)}</label>
-      <div style="display:flex;align-items:center;gap:6px">
-        <input type="number" class="tsa-input course-class-hours" data-code="${t.code}" value="${classHours[t.code] || 0}" min="0" max="12" step="1" style="width:82px;text-align:center"/>
-        <span style="font-size:12px;color:#6B7280">시간/일</span>
+  const visibleSubjects = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false);
+  const legacySubjectIds = getCourseSubjectIds(course);
+  const hasTypeMapping = course.subjectsByType && Object.keys(course.subjectsByType).length > 0;
+
+  const subjectRows = visibleSubjects.map(subject => {
+    const cells = types.map(t => {
+      const savedRefs = course.subjectsByType?.[t.code] || [];
+      const savedRef = savedRefs.find(ref => ref.id === subject.id);
+      const legacySelected = !hasTypeMapping && t.code === '1:1' && legacySubjectIds.includes(subject.id);
+      const selected = Boolean(savedRef || legacySelected);
+      const legacySubject = (course.subjects || []).find(ref => (typeof ref === 'string' ? ref : ref.id) === subject.id);
+      const periods = Math.max(1, Number(savedRef?.hours ?? legacySubject?.hours) || 1);
+      return `
+        <td class="course-curriculum-cell" data-type="${t.code}" data-subject="${subject.id}" style="padding:7px 8px;border-top:1px solid #EEF0F4;border-left:1px solid #EEF0F4;text-align:center">
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+            <input type="checkbox" class="course-subject-type-check" data-type="${t.code}" data-subject="${subject.id}"
+              ${selected ? 'checked' : ''} onchange="toggleCourseCurriculumRow(this)"/>
+            <input type="number" class="tsa-input course-subject-periods" data-type="${t.code}" data-subject="${subject.id}"
+              value="${periods}" min="1" max="12" step="1" ${selected ? '' : 'disabled'}
+              oninput="updateCourseCurriculumPreview()" style="width:50px;height:30px;text-align:center;padding:4px"/>
+            <span style="font-size:10.5px;color:#6B7280;white-space:nowrap">교시</span>
+          </div>
+        </td>
+      `;
+    }).join('');
+    return `
+      <tr>
+        <td style="padding:8px 10px;border-top:1px solid #EEF0F4;font-size:12px;font-weight:600;color:#1F2937;white-space:nowrap">${subject.name}</td>
+        ${cells}
+      </tr>
+    `;
+  }).join('');
+
+  const typeCards = `
+    <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;background:#fff">
+      <div style="padding:11px 12px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+        <div style="font-size:12.5px;font-weight:800;color:#1F2937">과목별 수업 유형 및 교시</div>
+        <div style="font-size:10.5px;color:#6B7280;margin-top:2px">과목마다 제공할 수업 유형과 학생 1명 기준 일일 교시를 선택해. (월~금 공통)</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:560px">
+          <thead>
+            <tr>
+              <th style="padding:8px 10px;font-size:11px;color:#6B7280;text-align:left;white-space:nowrap">과목</th>
+              ${types.map(t => `<th style="padding:8px 10px;font-size:11px;font-weight:800;color:#374151;border-left:1px solid #EEF0F4;white-space:nowrap">${getClassTypeDisplayName(t)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${subjectRows || `<tr><td colspan="${types.length + 1}" style="padding:14px;color:#9CA3AF;font-size:12px;text-align:center">등록된 과목이 없어.</td></tr>`}
+          </tbody>
+        </table>
       </div>
     </div>
-  `).join('');
+  `;
 
   container.innerHTML = `
     <div class="tsa-form-group">
-      <label class="tsa-label">과목 설정</label>
-      <div style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px;background:#F9FAFB;max-height:180px;overflow-y:auto">
-        ${subjectCheckboxes || '<div style="color:#9CA3AF;font-size:12px">등록된 과목이 없습니다.</div>'}
+      <label class="tsa-label">일일 수업 구성</label>
+      <div style="font-size:10.5px;color:#6B7280;margin:3px 0 8px">과정명과 별도로 관리되는 학생 1명 기준 일일 교시야.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="border:1px solid #A7F3D0;background:#ECFDF5;border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10.5px;color:#047857">1:1 개인 수업</div>
+          <div style="font-size:20px;font-weight:900;color:#065F46;margin-top:3px"><span id="course-total-1-1">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
+        </div>
+        <div style="border:1px solid #FED7AA;background:#FFF7ED;border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10.5px;color:#C2410C">1:4 그룹 수업</div>
+          <div style="font-size:20px;font-weight:900;color:#9A3412;margin-top:3px"><span id="course-total-1-4">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
+        </div>
+        <div style="border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px;padding:11px;text-align:center">
+          <div style="font-size:10.5px;color:#4338CA">1:8 그룹 수업</div>
+          <div style="font-size:20px;font-weight:900;color:#3730A3;margin-top:3px"><span id="course-total-1-8">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
+        </div>
       </div>
     </div>
     <div class="tsa-form-group">
-      <label class="tsa-label">수업별 일일 시수</label>
-      <div style="display:flex;flex-direction:column;gap:8px">${classHourInputs}</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:8px">
+        <div>
+          <label class="tsa-label" style="margin:0">수업 구성 <span style="color:#EF4444">*</span></label>
+          <div style="font-size:10.5px;color:#6B7280;margin-top:3px">
+            과정 구성은 <strong>[1:1 / 1:4 그룹 / 1:8 그룹]</strong> 순서로 표시돼. 과목별 교시 합계가 각 숫자가 돼.
+          </div>
+        </div>
+        <span style="font-size:10.5px;color:#2563EB;background:#EFF6FF;padding:5px 8px;border-radius:6px">현재 모든 수업 주 5회 고정</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">${typeCards}</div>
+    </div>
+    <div id="course-curriculum-preview" style="border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px;padding:13px">
+    </div>
+  `;
+}
+
+function toggleCourseCurriculumRow(checkbox) {
+  const cell = checkbox.closest('.course-curriculum-cell');
+  const periodInput = cell?.querySelector('.course-subject-periods');
+  if (periodInput) periodInput.disabled = !checkbox.checked;
+  updateCourseCurriculumPreview();
+}
+
+function getCourseCurriculumDraft() {
+  const subjectsByType = {};
+  const classHours = {};
+  document.querySelectorAll('.course-subject-type-check:checked').forEach(checkbox => {
+    const type = checkbox.dataset.type;
+    const subjectId = checkbox.dataset.subject;
+    const periodInput = document.querySelector(`.course-subject-periods[data-type="${type}"][data-subject="${subjectId}"]`);
+    const hours = Math.max(1, parseInt(periodInput?.value, 10) || 1);
+    if (!subjectsByType[type]) subjectsByType[type] = [];
+    subjectsByType[type].push({ id: subjectId, hours });
+    classHours[type] = (classHours[type] || 0) + hours;
+  });
+  return { subjectsByType, classHours };
+}
+
+function updateCourseCurriculumPreview() {
+  const preview = document.getElementById('course-curriculum-preview');
+  if (!preview) return;
+  const courseName = document.getElementById('add-course-name')?.value.trim() || '과정명 미입력';
+  const { subjectsByType, classHours } = getCourseCurriculumDraft();
+  const selectedLevels = [...document.querySelectorAll('input[name="course-levels-cb"]:checked')]
+    .map(cb => MOCK_MASTER_LEVELS.find(level => level.id === cb.value)?.name)
+    .filter(Boolean);
+  const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
+  const totalDaily = Object.values(classHours).reduce((sum, value) => sum + value, 0);
+  const compositionCode = `[${classHours['1:1'] || 0}/${classHours['1:4'] || 0}/${classHours['1:8'] || 0}]`;
+  const totalOneToOne = document.getElementById('course-total-1-1');
+  const totalOneToFour = document.getElementById('course-total-1-4');
+  const totalOneToEight = document.getElementById('course-total-1-8');
+  if (totalOneToOne) totalOneToOne.textContent = classHours['1:1'] || 0;
+  if (totalOneToFour) totalOneToFour.textContent = classHours['1:4'] || 0;
+  if (totalOneToEight) totalOneToEight.textContent = classHours['1:8'] || 0;
+  const typeSummary = types.map(type => {
+    const refs = subjectsByType[type.code] || [];
+    if (!refs.length) return '';
+    const subjectText = refs.map(ref => {
+      const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
+      return `${subject?.name || ref.id} ${ref.hours}교시`;
+    }).join(', ');
+    return `<div style="margin-top:5px"><strong>${getClassTypeDisplayName(type)}</strong> · ${subjectText}</div>`;
+  }).filter(Boolean).join('');
+  preview.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+      <div>
+        <div style="font-size:11px;color:#4F46E5;font-weight:800">등록 결과 미리보기</div>
+        <div style="font-size:13px;font-weight:800;color:#1F2937;margin-top:3px">${courseName}</div>
+        <div style="font-size:10.5px;color:#4F46E5;font-weight:700;margin-top:4px">
+          수업 구성 ${compositionCode} · 1:1 ${classHours['1:1'] || 0}교시 · 1:4 ${classHours['1:4'] || 0}교시 · 1:8 ${classHours['1:8'] || 0}교시
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:800;color:#4338CA">일 ${totalDaily}교시 · 주 ${totalDaily * 5}교시</div>
+        <div style="font-size:10px;color:#6B7280;margin-top:2px">월~금 동일 적용</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#4B5563;margin-top:7px">
+      추천 레벨: ${selectedLevels.length ? selectedLevels.join(', ') : '전 레벨 추천'}
+      <span style="color:#6B7280"> · 추천과 무관하게 모든 레벨 등록 가능</span>
+      ${typeSummary || '<div style="margin-top:6px;color:#B45309">수업 구성을 한 개 이상 선택해.</div>'}
     </div>
   `;
 }
@@ -6952,12 +7385,13 @@ function saveCourse() {
     levels.push(cb.value);
   });
 
-  const subjects = [...document.querySelectorAll('input[name="course-subjects-cb"]:checked')]
-    .map(cb => ({ id: cb.value }));
-  const classHours = {};
-  document.querySelectorAll('.course-class-hours').forEach(input => {
-    classHours[input.dataset.code] = Math.max(0, parseInt(input.value, 10) || 0);
-  });
+  const { subjectsByType, classHours } = getCourseCurriculumDraft();
+  const curriculumRefs = Object.values(subjectsByType).flat();
+  if (!curriculumRefs.length) {
+    showToast('수업 구성을 한 개 이상 선택해줘.', 'warning');
+    return;
+  }
+  const subjects = [...new Set(curriculumRefs.map(ref => ref.id))].map(id => ({ id }));
 
   const existingCourse = _editingCourseIdx !== null ? MOCK_COURSES[_editingCourseIdx] : null;
   const type = existingCourse ? existingCourse.type : '일반 영어';
@@ -6966,7 +7400,7 @@ function saveCourse() {
 
   const courseData = {
     name, type, fee,
-    active, subjects, subjectsByType: null, classHours, levels,
+    active, subjects, subjectsByType, classHours, levels,
     oneone: classHours['1:1'] || 0,
     group1on4: classHours['1:4'] || 0,
     group: classHours['1:8'] || 0,
