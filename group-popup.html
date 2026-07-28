@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>그룹 관리 팝업</title>
+  <style>
+    body{margin:0;display:grid;place-items:center;min-height:100vh;font-family:Arial,"Noto Sans KR",sans-serif;background:#f8fafc;color:#64748b}
+  </style>
+</head>
+<body>
+  <div>그룹 관리 화면을 불러오는 중...</div>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const view = params.get('view');
+      if (!window.opener || window.opener.closed) {
+        document.body.innerHTML = '<div>원래 LMS 화면에서 다시 열어줘.</div>';
+        return;
+      }
+      if (view === 'detail') {
+        window.opener.openGroupManagementBrowserPopup(Number(params.get('row')), window);
+      } else if (view === 'students') {
+        window.opener.openGroupAssignmentBrowserPopup(Number(params.get('group')), Number(params.get('row')), window);
+      } else if (view === 'settings') {
+        window.opener.openGroupEditBrowserPopup(Number(params.get('group')), Number(params.get('row')), window);
+      } else if (view === 'create') {
+        window.opener.openGroupCreateBrowserPopup(
+          params.get('subject') || '',
+          params.get('type') || '1:4',
+          Number(params.get('level')) || 1,
+          window
+        );
+      } else {
+        document.body.innerHTML = '<div>지원하지 않는 그룹 관리 화면이야.</div>';
+      }
+    })();
+  </script>
+</body>
+</html>

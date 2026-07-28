@@ -1573,6 +1573,10 @@
           <i data-lucide="calendar-check"></i>
           수업 배정 관리
         </a>
+        <a class="tsa-nav-item admin-only" id="menu-group-management" onclick="navigate('group-management')">
+          <i data-lucide="users-round"></i>
+          그룹 관리
+        </a>
         <a class="tsa-nav-item" id="menu-timetable-parent" onclick="toggleTimetableSubmenu()">
           <i data-lucide="calendar"></i>
           기존 시간표
@@ -3394,6 +3398,27 @@
 
 
         <!-- ================================================ -->
+        <!--  VIEW: GROUP MANAGEMENT                          -->
+        <!-- ================================================ -->
+        <div id="view-group-management" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">👥 그룹 관리</h2>
+              <p class="tsa-page-subtitle">그룹 생성 대상 확인 · 운영 그룹 관리 · 미배정 학생 확인</p>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateBrowserPopup()"><i data-lucide="plus"></i> 그룹 생성</button>
+            </div>
+          </div>
+          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
+            <button id="gm-tab-unmatched" onclick="switchGroupManagementTab('unmatched')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">미배정 학생</button>
+            <button id="gm-tab-list" onclick="switchGroupManagementTab('list')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 관리</button>
+          </div>
+          <div id="group-management-content"></div>
+        </div>
+
+        <!-- ================================================ -->
         <!--  VIEW: CLASS SCHEDULE                            -->
         <!-- ================================================ -->
         <div id="view-class-schedule" class="tsa-view">
@@ -3535,7 +3560,7 @@
               <div style="font-size:11.5px;color:#6B7280">레벨(Beginner~Advanced) 기준으로 학생을 매칭합니다. 세부 레벨 우선순위는 아직 지원하지 않습니다.</div>
               <div style="display:flex;gap:8px">
                 <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-2"></i> 전체 자동 매칭</button>
-                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateModal()"><i data-lucide="plus"></i> 그룹 생성</button>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateBrowserPopup()"><i data-lucide="plus"></i> 그룹 생성</button>
               </div>
             </div>
 
@@ -6896,13 +6921,13 @@
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script src="assets/js/lms-data.js?v=0.6.10"></script>
-<script src="assets/js/lms-util.js?v=0.6.1"></script>
+<script src="assets/js/lms-util.js?v=0.6.2"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.3"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
     <script src="assets/js/lms-course.js?v=0.6.45"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.8"></script>
-  <script src="assets/js/lms-classroom.js?v=0.8.30"></script>
+  <script src="assets/js/lms-classroom.js?v=0.8.55"></script>
     <script src="assets/js/lms-main.js?v=0.6.9"></script>
 <script src="assets/js/lucide.min.js"></script>
 <script>

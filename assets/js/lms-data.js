@@ -793,8 +793,8 @@ let MOCK_MASTER_SUBJECTS = [
 let MOCK_MASTER_LEVELS = [
   { id: 'LV_01', name: 'Beginner', order: 1, desc: '입문 기초 레벨', visible: true,
     subLevels: [{ id: 'LV_01_1', name: 'Beginner-1', order: 1, visible: true }, { id: 'LV_01_2', name: 'Beginner-2', order: 2, visible: true }] },
-  { id: 'LV_02', name: 'Elementary', order: 2, desc: '초급 기초 회화 레벨', visible: true,
-    subLevels: [{ id: 'LV_02_1', name: 'Elementary-1', order: 1, visible: true }, { id: 'LV_02_2', name: 'Elementary-2', order: 2, visible: true }] },
+  { id: 'LV_02', name: 'Low-Inter', order: 2, desc: '초급 기초 회화 레벨', visible: true,
+    subLevels: [{ id: 'LV_02_1', name: 'Low-Inter-1', order: 1, visible: true }, { id: 'LV_02_2', name: 'Low-Inter-2', order: 2, visible: true }] },
   { id: 'LV_03', name: 'Intermediate', order: 3, desc: '중급 프리토킹 준비 레벨', visible: true,
     subLevels: [{ id: 'LV_03_1', name: 'Intermediate-1', order: 1, visible: true }, { id: 'LV_03_2', name: 'Intermediate-2', order: 2, visible: true }] },
   { id: 'LV_04', name: 'Upper-Int', order: 4, desc: '중상급 프리토킹 심화 레벨', visible: true,
@@ -809,10 +809,11 @@ let MOCK_MASTER_CLASS_TYPES = [
   { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대그룹 수업', visible: true },
 ];
 
-// 구버전/IELTS Band 등 표준 5단계(Beginner/Elementary/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
+// 구버전/IELTS Band 등 표준 5단계(Beginner/Low-Inter/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
 const LEVEL_NORMALIZE_MAP = {
-  'Upper-Beginner':      'Elementary',
-  'Pre-Intermediate':    'Elementary',
+  'Elementary':          'Low-Inter',
+  'Upper-Beginner':      'Low-Inter',
+  'Pre-Intermediate':    'Low-Inter',
   'Upper-Intermediate':  'Upper-Int',
   'Band 5.0':            'Intermediate',
   'Band 5.5':            'Upper-Int',
