@@ -3428,7 +3428,7 @@
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
               <h2 class="tsa-page-title">📅 수업 배정 관리</h2>
-              <p class="tsa-page-subtitle">공통 교시 · 강의실 관리 · 주간 수업 편성 · 현황 조회</p>
+              <p class="tsa-page-subtitle">공통 교시 · 강의실 관리 · 그룹/1:1 배정 · 시간표 현황</p>
             </div>
           </div>
 
@@ -3437,8 +3437,35 @@
             <button id="cs-tab-period" onclick="switchClassScheduleTab('period')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">⏰ 공통 교시 설정</button>
             <button id="cs-tab-group" onclick="switchClassScheduleTab('group')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">🧩 그룹 수업 관리</button>
             <button id="cs-tab-rooms" onclick="switchClassScheduleTab('rooms')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">🏫 강의실 관리</button>
+            <button id="cs-tab-students" onclick="switchClassScheduleTab('students')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">🧑‍🎓 학생 수업 배정</button>
             <button id="cs-tab-assign" onclick="switchClassScheduleTab('assign')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📋 주간 수업 편성</button>
-            <button id="cs-tab-view" onclick="switchClassScheduleTab('view')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📊 주간 현황</button>
+            <button id="cs-tab-view" onclick="switchClassScheduleTab('view')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📊 시간표 현황</button>
+          </div>
+
+          <!-- 탭: 학생 수업 배정 (PRD v3.0 §9) -->
+          <div id="cs-panel-students" style="display:none">
+            <div class="tsa-card">
+              <div class="tsa-card-header">
+                <h3 class="tsa-card-title">🧑‍🎓 학생 수업 배정</h3>
+                <div style="font-size:11px;color:#6B7280">과정 교시 템플릿에서 생성된 학생별 수업 요구사항을 그룹 또는 1:1 강사에게 배정해</div>
+              </div>
+              <div style="overflow-x:auto">
+                <table class="tsa-table">
+                  <thead>
+                    <tr>
+                      <th style="text-align:center;width:36px">#</th>
+                      <th>학생 정보</th>
+                      <th>과정 및 수강 기간</th>
+                      <th>레벨</th>
+                      <th>배정 현황</th>
+                      <th>미배정 수업</th>
+                      <th style="text-align:center">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cs-student-assign-body"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- 탭 0: 공통 교시 관리 (구 '교시 및 벨 설정' 화면을 편입) -->
@@ -3688,18 +3715,14 @@
 
           <!-- 탭 3: 주간 현황 -->
           <div id="cs-panel-view" style="display:none">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-              <button onclick="shiftCsWeek(-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
-              <div id="cs-week-label-2" style="font-size:13px;font-weight:600;color:#111827"></div>
-              <button onclick="shiftCsWeek(1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
-              <div style="margin-left:auto;display:flex;gap:6px">
-                <button onclick="setCsViewMode('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary">강의실 기준</button>
-                <button onclick="setCsViewMode('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사 기준</button>
-                <button onclick="setCsViewMode('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생 기준</button>
-              </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+              <button id="ft-tab-all" onclick="setFinalTimetableView('all',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary">전체</button>
+              <button id="ft-tab-student" onclick="setFinalTimetableView('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생별</button>
+              <button id="ft-tab-teacher" onclick="setFinalTimetableView('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사별</button>
+              <button id="ft-tab-room" onclick="setFinalTimetableView('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강의실별</button>
+              <select id="ft-entity-select" style="display:none;height:32px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11.5px;margin-left:8px" onchange="renderFinalTimetableView()"></select>
             </div>
-            <div id="cs-view-filter-bar" style="margin-bottom:16px"></div>
-            <div id="cs-view-table-wrap"></div>
+            <div id="cs-final-timetable-body"></div>
           </div>
         </div>
 
