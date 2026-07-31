@@ -1575,23 +1575,8 @@
         </a>
         <a class="tsa-nav-item admin-only" id="menu-group-management" onclick="navigate('group-management')">
           <i data-lucide="users-round"></i>
-          그룹 관리
+          그룹 수업 관리
         </a>
-        <a class="tsa-nav-item" id="menu-timetable-parent" onclick="toggleTimetableSubmenu()">
-          <i data-lucide="calendar"></i>
-          기존 시간표
-          <i data-lucide="arrow-down" id="timetable-submenu-arrow" style="font-size:11px;margin-left:auto;width:auto;transition:transform 0.15s ease;transform:rotate(180deg)"></i>
-        </a>
-        <div id="timetable-submenu" style="display:flex;flex-direction:column;gap:1px;padding-left:8px;">
-          <a class="tsa-nav-sub-item" id="menu-timetable" onclick="navigate('timetable')">
-            <i data-lucide="check-check" style="font-size:12px;width:14px;"></i>
-            시간표 그리드 배정
-          </a>
-          <a class="tsa-nav-sub-item" id="menu-weekly-timetable" onclick="navigate('weekly-timetable')">
-            <i data-lucide="calendar" style="font-size:12px;width:14px;"></i>
-            주간 시간표 보기
-          </a>
-        </div>
       </div>
       <a class="tsa-nav-item admin-only" id="menu-students" onclick="navigate('students')">
         <i data-lucide="users"></i>
@@ -2122,11 +2107,19 @@
                   <label class="tsa-label">코스 유형</label>
                   <select id="sf-course" class="tsa-input" onchange="applyStudentFilters()">
                     <option value="">전체 코스</option>
-                    <option value="일반 코스">일반 코스</option>
-                    <option value="IELTS 전문 코스">IELTS 전문 코스</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Regular +">Regular +</option>
+                    <option value="Intensive">Intensive</option>
+                    <option value="Power Speaking 6">Power Speaking 6</option>
+                    <option value="Power Speaking 8">Power Speaking 8</option>
+                    <option value="6Hrs Regular">6Hrs Regular</option>
+                    <option value="6Hrs Intensive">6Hrs Intensive</option>
+                    <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
+                    <option value="IELTS Intensive">IELTS Intensive</option>
+                    <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
+                    <option value="Junior ESL">Junior ESL</option>
+                    <option value="Junior Camp">Junior Camp</option>
                     <option value="가디언 코스">가디언 코스</option>
-                    <option value="주니어 패키지">주니어 패키지</option>
-                    <option value="비즈니스 영어">비즈니스 영어</option>
                   </select>
                 </div>
                 <div class="tsa-form-group">
@@ -2554,9 +2547,18 @@
                   <label class="tsa-label">코스 유형</label>
                   <select id="filter-agency-course" class="tsa-input" onchange="filterAgencyStudentList()">
                     <option value="all">전체 코스</option>
-                    <option value="일반 코스">일반 코스</option>
-                    <option value="IELTS 전문 코스">IELTS 전문 코스</option>
-                    <option value="주니어 패키지">주니어 패키지</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Regular +">Regular +</option>
+                    <option value="Intensive">Intensive</option>
+                    <option value="Power Speaking 6">Power Speaking 6</option>
+                    <option value="Power Speaking 8">Power Speaking 8</option>
+                    <option value="6Hrs Regular">6Hrs Regular</option>
+                    <option value="6Hrs Intensive">6Hrs Intensive</option>
+                    <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
+                    <option value="IELTS Intensive">IELTS Intensive</option>
+                    <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
+                    <option value="Junior ESL">Junior ESL</option>
+                    <option value="Junior Camp">Junior Camp</option>
                     <option value="가디언 코스">가디언 코스</option>
                   </select>
                 </div>
@@ -3149,21 +3151,20 @@
           <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 등록 과정 및 커리큘럼 목록</h3>
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 및 커리큘럼 목록</h3>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
                   <i data-lucide="plus-square"></i> 신규 과정 추가
                 </button>
               </div>
               <div style="overflow-x:auto">
-                <table class="tsa-table" style="min-width:1320px">
+                <table class="tsa-table" style="min-width:1180px">
                   <thead>
                     <tr>
                       <th style="text-align:center;width:36px">#</th>
                       <th>과정명</th>
                       <th>추천 레벨</th>
-                      <th>1:1 개인 수업</th>
-                      <th>1:4 그룹 수업</th>
-                      <th>1:8 그룹 수업</th>
+                      <th style="text-align:center;width:90px">총 교시</th>
+                      <th style="min-width:520px">교시별 기본 시간표</th>
                       <th style="text-align:center">노출 여부</th>
                       <th style="text-align:center">관리</th>
                     </tr>
@@ -3261,7 +3262,7 @@
               <p class="tsa-page-subtitle">학생 청구 기준 관리 · 과정별 수강료, 기숙사 요금, 기타 항목 설정</p>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTuitionFormulaPolicyModal()"><i data-lucide="calculator"></i> 할증·할인 공식 관리</button>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTuitionFormulaPolicyModal()"><i data-lucide="calendar-range"></i> 수강 기간 관리</button>
             </div>
           </div>
 
@@ -3295,6 +3296,7 @@
                       <th style="text-align:right">16주</th>
                       <th style="text-align:right">20주</th>
                       <th style="text-align:right">24주</th>
+                      <th id="tuition-course-list-head-extra" style="display:none"></th>
                       <th style="text-align:center">노출 여부</th>
                       <th style="text-align:center">관리</th>
                     </tr>
@@ -3330,6 +3332,7 @@
                       <th style="text-align:right">16주</th>
                       <th style="text-align:right">20주</th>
                       <th style="text-align:right">24주</th>
+                      <th id="tuition-dorm-list-head-extra" style="display:none"></th>
                       <th style="text-align:center">노출 여부</th>
                       <th style="text-align:center">관리</th>
                     </tr>
@@ -3403,7 +3406,7 @@
         <div id="view-group-management" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
-              <h2 class="tsa-page-title">👥 그룹 관리</h2>
+              <h2 class="tsa-page-title">👥 그룹 수업 관리</h2>
               <p class="tsa-page-subtitle">그룹 생성 대상 확인 · 운영 그룹 관리 · 미배정 학생 확인</p>
             </div>
             <div style="display:flex;gap:8px">
@@ -3425,15 +3428,15 @@
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
               <h2 class="tsa-page-title">📅 수업 배정 관리</h2>
-              <p class="tsa-page-subtitle">공통 교시 · 강의실 설정 · 주간 수업 편성 · 현황 조회</p>
+              <p class="tsa-page-subtitle">공통 교시 · 강의실 관리 · 주간 수업 편성 · 현황 조회</p>
             </div>
           </div>
 
           <!-- 탭 -->
           <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
-            <button id="cs-tab-period" onclick="switchClassScheduleTab('period')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">⏰ 공통 교시 관리</button>
+            <button id="cs-tab-period" onclick="switchClassScheduleTab('period')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">⏰ 공통 교시 설정</button>
             <button id="cs-tab-group" onclick="switchClassScheduleTab('group')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">🧩 그룹 수업 관리</button>
-            <button id="cs-tab-rooms" onclick="switchClassScheduleTab('rooms')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">🏫 강의실 설정</button>
+            <button id="cs-tab-rooms" onclick="switchClassScheduleTab('rooms')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">🏫 강의실 관리</button>
             <button id="cs-tab-assign" onclick="switchClassScheduleTab('assign')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📋 주간 수업 편성</button>
             <button id="cs-tab-view" onclick="switchClassScheduleTab('view')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📊 주간 현황</button>
           </div>
@@ -3444,7 +3447,7 @@
               <!-- Left: Settings Card -->
               <div class="tsa-card">
                 <div class="tsa-card-header" style="background:#F0F1FE">
-                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 벨 시스템 변수 설정</h3>
+                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 공통 교시 설정</h3>
                 </div>
                 <div class="tsa-card-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
                   <div class="tsa-form-group">
@@ -3729,7 +3732,7 @@
             <div id="cs-room-teacher-row">
               <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1:1 담당 강사</label>
               <select id="cs-room-teacher" class="tsa-input" style="width:100%"></select>
-              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 설정에서 담당 강사를 지정해.</div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 관리에서 담당 강사를 지정해.</div>
             </div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
@@ -3758,9 +3761,18 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">코스</label>
                 <select id="cs-assign-course" class="tsa-input" style="width:100%">
-                  <option value="일반 코스">일반 코스</option>
-                  <option value="IELTS 전문 코스">IELTS 전문 코스</option>
-                  <option value="주니어 패키지">주니어 패키지</option>
+                  <option value="Regular">Regular</option>
+                  <option value="Regular +">Regular +</option>
+                  <option value="Intensive">Intensive</option>
+                  <option value="Power Speaking 6">Power Speaking 6</option>
+                  <option value="Power Speaking 8">Power Speaking 8</option>
+                  <option value="6Hrs Regular">6Hrs Regular</option>
+                  <option value="6Hrs Intensive">6Hrs Intensive</option>
+                  <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
+                  <option value="IELTS Intensive">IELTS Intensive</option>
+                  <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
+                  <option value="Junior ESL">Junior ESL</option>
+                  <option value="Junior Camp">Junior Camp</option>
                   <option value="가디언 코스">가디언 코스</option>
                 </select>
               </div>
@@ -5043,8 +5055,8 @@
     <div class="tsa-modal tsa-modal-xl" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
-          <h3 class="tsa-modal-title" id="course-modal-title">신규 과정 추가</h3>
-          <p class="tsa-modal-subtitle" id="course-modal-subtitle">과정명과 1:1·1:4·1:8 수업 구성을 설정해.</p>
+          <h3 class="tsa-modal-title" id="course-modal-title">신규 과정 및 기본 시간표 추가</h3>
+          <p class="tsa-modal-subtitle" id="course-modal-subtitle">과정 정보와 교시별 수업 유형·과목 순서를 설정해.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('course-add-modal')"><i data-lucide="x"></i></button>
       </div>
@@ -5056,16 +5068,14 @@
           </div>
           <div class="tsa-form-group">
             <div style="display:flex;align-items-center;justify-content:space-between;gap:12px">
-              <label class="tsa-label" style="margin:0">추천 레벨</label>
-              <span style="font-size:10px;color:#6B7280">선택하지 않으면 전 레벨 추천</span>
+              <label class="tsa-label" style="margin:0">추천레벨 선택</label>
             </div>
-            <div style="font-size:10.5px;color:#6B7280;margin:5px 0 8px">과정 선택을 돕는 참고 정보야. 선택 여부와 관계없이 모든 레벨 학생이 등록할 수 있어.</div>
-            <div id="course-level-checkboxes-container" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#F9FAFB;max-height:160px;overflow-y:auto">
+            <div id="course-level-checkboxes-container" style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#F9FAFB">
               <!-- Dynamically populated level checkboxes -->
             </div>
           </div>
           <div id="course-classtype-sections" style="display:flex;flex-direction:column;gap:14px">
-            <!-- 그룹 수업 유형(1:1/1:4/1:8)별 시수 + 과목 매핑 섹션이 동적으로 렌더링됨 -->
+            <!-- 교시별 수업 유형·과목 템플릿이 동적으로 렌더링됨 -->
           </div>
         </div>
       </div>
@@ -5248,7 +5258,7 @@
           <div>대상 강사: <strong id="sub-teacher-name">Sarah</strong></div>
           <div>수업 교시: <strong id="sub-period-num">3교시</strong></div>
           <div>배정 학생: <strong id="sub-student-name">Sophie</strong></div>
-          <div>수강 코스: <strong id="sub-course-name">IELTS 전문 코스</strong></div>
+          <div>수강 코스: <strong id="sub-course-name">IELTS Intensive</strong></div>
         </div>
 
         <!-- Attendance Action -->
@@ -5655,7 +5665,7 @@
                 <div class="tsa-card-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
                   <div class="tsa-form-group"><label class="tsa-label">코스 유형 <span style="color:#EF4444">*</span></label>
                     <select id="sf-reg-course" class="tsa-input">
-                      <option value="일반 코스">일반 코스</option><option value="IELTS 전문 코스">IELTS 전문 코스</option><option value="주니어 패키지">주니어 패키지</option><option value="가디언 코스">가디언 코스</option><option value="비즈니스 영어">비즈니스 영어</option>
+                      <option value="Regular">Regular</option><option value="Regular +">Regular +</option><option value="Intensive">Intensive</option><option value="Power Speaking 6">Power Speaking 6</option><option value="Power Speaking 8">Power Speaking 8</option><option value="6Hrs Regular">6Hrs Regular</option><option value="6Hrs Intensive">6Hrs Intensive</option><option value="6Hrs Power Speaking">6Hrs Power Speaking</option><option value="IELTS Intensive">IELTS Intensive</option><option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option><option value="Junior ESL">Junior ESL</option><option value="Junior Camp">Junior Camp</option><option value="가디언 코스">가디언 코스</option>
                     </select>
                   </div>
                   <div class="tsa-form-group"><label class="tsa-label">수강 기간 <span style="color:#EF4444">*</span></label>
@@ -6042,9 +6052,18 @@
                 <div class="tsa-form-group">
                   <label class="tsa-label">코스 유형 <span style="color:#EF4444">*</span></label>
                   <select id="areg-course" class="tsa-input" onchange="calculateAregExpectedFees()">
-                    <option value="일반 코스">일반 코스</option>
-                    <option value="IELTS 전문 코스">IELTS 전문 코스</option>
-                    <option value="주니어 패키지">주니어 패키지</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Regular +">Regular +</option>
+                    <option value="Intensive">Intensive</option>
+                    <option value="Power Speaking 6">Power Speaking 6</option>
+                    <option value="Power Speaking 8">Power Speaking 8</option>
+                    <option value="6Hrs Regular">6Hrs Regular</option>
+                    <option value="6Hrs Intensive">6Hrs Intensive</option>
+                    <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
+                    <option value="IELTS Intensive">IELTS Intensive</option>
+                    <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
+                    <option value="Junior ESL">Junior ESL</option>
+                    <option value="Junior Camp">Junior Camp</option>
                     <option value="가디언 코스">가디언 코스</option>
                   </select>
                 </div>
@@ -6186,33 +6205,36 @@
   </div>
 </div>
 
-<!-- Tuition Shared Premium / Discount Formula Policy Modal -->
+<!-- Tuition Duration Management Modal -->
 <div id="tuition-formula-policy-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('tuition-formula-policy-modal')">
-    <div class="tsa-modal" style="max-width:1280px" onclick="event.stopPropagation()">
+    <div class="tsa-modal" style="max-width:760px" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
-        <div><h3 class="tsa-modal-title">기간별 할증·할인 공식 관리</h3><p class="tsa-modal-subtitle">1주부터 24주까지 주차별 계산 방식과 비율을 한 화면에서 설정합니다.</p></div>
+        <div>
+          <h3 class="tsa-modal-title">수강 기간 관리</h3>
+          <p class="tsa-modal-subtitle">수강료표에서 사용할 기간을 추가합니다. 기간별 금액과 할증·할인은 각 과정의 수정 화면에서 설정합니다.</p>
+        </div>
         <button class="tsa-modal-close" onclick="closeModal('tuition-formula-policy-modal')"><i data-lucide="x"></i></button>
       </div>
       <div class="tsa-modal-body">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;font-size:11px;line-height:1.55">
-          <div style="padding:10px 12px;border-radius:9px;background:#F8FAFC;border:1px solid #E2E8F0"><b>기본 비례</b><br/>(4주 요금 ÷ 4) × N주</div>
-          <div style="padding:10px 12px;border-radius:9px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
-          <div style="padding:10px 12px;border-radius:9px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
+        <div style="padding:12px 14px;border-radius:10px;background:#EEF2FF;border:1px solid #C7D2FE;color:#3730A3;font-size:11px;line-height:1.6;margin-bottom:18px">
+          추가한 기간은 과정별 수강료와 기숙사 요금표에 공통으로 표시됩니다. 이미 제공 중인 기본 기간은 삭제할 수 없습니다.
         </div>
-        <div style="font-size:10.5px;color:#6B7280;margin-bottom:8px">4주는 기준 요금으로 고정됩니다. 아래 행은 좌우로 이동해 모든 주차를 설정할 수 있습니다.</div>
-        <div style="overflow-x:auto;padding-bottom:8px">
-          <div id="tuition-formula-policy-row" style="display:flex;gap:8px;min-width:max-content"></div>
-        </div>
-        <div style="margin-top:18px;padding-top:16px;border-top:1px solid #E5E7EB">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
-            <b style="font-size:12.5px;color:#111827">공식 변경 히스토리</b>
-            <span style="font-size:10.5px;color:#6B7280">최신 저장 순</span>
+        <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">사용 중인 수강 기간</div>
+        <div id="tuition-formula-policy-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px"></div>
+        <div style="margin-top:20px;padding-top:18px;border-top:1px solid #E5E7EB">
+          <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">새 기간 추가</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="position:relative;flex:1">
+              <input id="tuition-formula-add-input" type="number" min="1" placeholder="예: 36" class="tsa-input" style="height:42px;padding-right:38px">
+              <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;color:#6B7280">주</span>
+            </div>
+            <button type="button" class="tsa-btn tsa-btn-primary" onclick="handleAddFormulaPeriodClick()"><i data-lucide="plus"></i> 기간 추가</button>
           </div>
-          <div id="tuition-formula-history" style="display:grid;gap:8px"></div>
+          <div style="font-size:10.5px;color:#6B7280;margin-top:8px">기간을 추가한 뒤 각 과정의 수정 화면에서 해당 기간의 수강료를 설정해 주세요.</div>
         </div>
       </div>
-      <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeModal('tuition-formula-policy-modal')">취소</button><button class="tsa-btn tsa-btn-primary" onclick="saveTuitionFormulaPolicy()"><i data-lucide="check"></i> 공식 저장</button></div>
+      <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-primary" onclick="closeModal('tuition-formula-policy-modal')">확인</button></div>
     </div>
   </div>
 </div>
@@ -6232,60 +6254,42 @@
       <div class="tsa-modal-body" style="max-height:78vh;overflow-y:auto">
         <input type="hidden" id="tuition-course-edit-index" value=""/>
 
-        <div style="display:grid;grid-template-columns:1.15fr 0.85fr;gap:18px">
-          <div style="display:flex;flex-direction:column;gap:14px">
-            <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
-              <div class="tsa-card-body" style="padding:16px">
-                <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:12px">기본 정책</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">과정 선택 <span style="color:#EF4444">*</span></label>
-                    <select id="tuition-course-name" class="tsa-input" onchange="handleTuitionCourseSelectChange()"></select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">기준 기간</label>
-                    <input id="tuition-base-period" class="tsa-input" value="4주" disabled/>
-                  </div>
-                  <div class="tsa-form-group" style="grid-column:span 2">
-                    <label class="tsa-label">4주 수강료 (USD) <span style="color:#EF4444">*</span></label>
-                    <input id="tuition-base-fee" type="number" min="0" class="tsa-input" placeholder="예: 800" oninput="previewTuitionCourseModal()"/>
-                  </div>
-                </div>
+        <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB;margin-bottom:14px">
+          <div class="tsa-card-body" style="padding:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="tsa-form-group">
+                <label class="tsa-label">과정 선택 <span style="color:#EF4444">*</span></label>
+                <select id="tuition-course-name" class="tsa-input" onchange="handleTuitionCourseSelectChange()"></select>
               </div>
-            </div>
-
-            <div class="tsa-form-group">
-              <label class="tsa-label">관리 메모</label>
-              <textarea id="tuition-course-memo" class="tsa-input" rows="3" placeholder="예: 2026년 세부 캠퍼스 기준 수강료, 시즌 요금 전 기본 정책 등"></textarea>
-            </div>
-          </div>
-
-          <div class="tsa-card" style="box-shadow:none;border:1px solid #C7D2FE;background:#F8FAFF">
-            <div class="tsa-card-body" style="padding:16px">
-              <div style="font-size:13px;font-weight:800;color:#1E3A8A;margin-bottom:12px">미리보기</div>
-              <div id="tuition-course-preview" style="display:flex;flex-direction:column;gap:8px"></div>
-              <div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#EEF2FF;color:#4B5563;font-size:11px;line-height:1.55">
-                이 금액은 학생 Gross 청구의 <b>수강료</b> 항목으로 사용됩니다. 기숙사, 기타 항목, 에이전시 커미션은 별도 기준에서 계산됩니다.
+              <div class="tsa-form-group">
+                <label class="tsa-label">4주 수강료 (USD) <span style="color:#EF4444">*</span></label>
+                <input id="tuition-base-fee" type="number" min="0" class="tsa-input" placeholder="예: 800" oninput="previewTuitionCourseModal()"/>
               </div>
             </div>
           </div>
         </div>
 
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;font-size:11px;line-height:1.55">
+          <div style="padding:10px 12px;border-radius:9px;background:#F8FAFC;border:1px solid #E2E8F0"><b>기본 비례</b><br/>(4주 요금 ÷ 4) × N주</div>
+          <div style="padding:10px 12px;border-radius:9px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
+          <div style="padding:10px 12px;border-radius:9px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
+        </div>
+        <div style="font-size:10.5px;color:#6B7280;margin-bottom:8px">4주는 기준 요금으로 고정됩니다. 아래 행은 좌우로 이동해 모든 주차를 설정할 수 있습니다.</div>
+        <div style="overflow-x:auto;padding-bottom:8px">
+          <div id="tuition-course-formula-row" style="display:flex;gap:8px;min-width:max-content"></div>
+        </div>
+
+        <div class="tsa-form-group" style="margin-top:14px">
+          <label class="tsa-label">관리 메모</label>
+          <textarea id="tuition-course-memo" class="tsa-input" rows="2" placeholder="예: 2026년 세부 캠퍼스 기준 수강료, 시즌 요금 전 기본 정책 등"></textarea>
+        </div>
+
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid #E5E7EB">
-          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#374151;cursor:pointer">
-            <input type="checkbox" id="tuition-course-use-custom-formula" onchange="toggleTuitionCourseCustomFormula()"/>
-            이 과정에만 적용되는 전용 할증·할인 공식 사용 (끄면 공통 정책을 그대로 따릅니다)
-          </label>
-          <div id="tuition-course-formula-section" style="margin-top:12px;display:none">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:10.5px;line-height:1.5">
-              <div style="padding:8px 10px;border-radius:8px;background:#F8FAFC;border:1px solid #E2E8F0"><b>기본 비례</b><br/>(4주 요금 ÷ 4) × N주</div>
-              <div style="padding:8px 10px;border-radius:8px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
-              <div style="padding:8px 10px;border-radius:8px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
-            </div>
-            <div style="overflow-x:auto;padding-bottom:8px">
-              <div id="tuition-course-formula-row" style="display:flex;gap:8px;min-width:max-content"></div>
-            </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+            <b style="font-size:12.5px;color:#111827">공식 변경 히스토리</b>
+            <span style="font-size:10.5px;color:#6B7280">최신 저장 순</span>
           </div>
+          <div id="tuition-course-formula-history" style="display:grid;gap:8px"></div>
         </div>
       </div>
 
@@ -6925,10 +6929,22 @@
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.3"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
-    <script src="assets/js/lms-course.js?v=0.6.45"></script>
-<script src="assets/js/lms-tuition.js?v=0.7.8"></script>
-  <script src="assets/js/lms-classroom.js?v=0.8.55"></script>
-    <script src="assets/js/lms-main.js?v=0.6.9"></script>
+    <script src="assets/js/lms-course.js?v=0.6.48"></script>
+<script src="assets/js/lms-tuition.js?v=0.7.11"></script>
+  <script src="assets/js/lms-classroom.js?v=0.8.65"></script>
+    <script src="assets/js/lms-main.js?v=0.6.10"></script>
+<script>
+  // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.
+  if (new URLSearchParams(window.location.search).has('groupPopup')) {
+    try {
+      if (typeof initializeGroupPopupMode === 'function') initializeGroupPopupMode();
+    } catch (error) {
+      document.open();
+      document.write('<!doctype html><html lang="ko"><head><meta charset="UTF-8"><title>그룹 화면 오류</title></head><body style="font-family:Arial,sans-serif;padding:30px"><h2>그룹 화면을 열지 못했어.</h2><p style="color:#6B7280">부모 LMS 화면을 새로고침한 다음 다시 시도해줘.</p><pre style="white-space:pre-wrap;color:#DC2626">' + String(error && error.message ? error.message : error) + '</pre></body></html>');
+      document.close();
+    }
+  }
+</script>
 <script src="assets/js/lucide.min.js"></script>
 <script>
   // 정적 아이콘 초기화

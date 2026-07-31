@@ -3175,6 +3175,10 @@ function openStudentSettleDetail(studentId) {
    ============================================= */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TSA LMS v2.5 ready — 로그인 화면에서 시작');
+  if (typeof initializeGroupPopupMode === 'function') {
+    initializeGroupPopupMode();
+    if (new URLSearchParams(window.location.search).has('groupPopup')) return;
+  }
   initializeStudentPopupMode();
   initializeStudentRegisterPopupMode();
   initializeTeacherDetailPopupMode();

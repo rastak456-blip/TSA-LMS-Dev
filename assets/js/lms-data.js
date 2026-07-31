@@ -33,7 +33,7 @@ const APP = {
 const MOCK_STUDENTS = [
   {
     id: 1, name: 'HONG GILDONG', nick: 'Kevin', gender: '남', age: 24, nationality: '한국', flag: '🇰🇷',
-    course: 'IELTS 전문 코스', level: 'Band 6.0', duration: 8, dorm: 'Room 101 / Bed A', visaExpiry: '2026-07-25', sspExpiry: '면제',
+    course: 'IELTS Intensive', level: 'Band 6.0', duration: 8, dorm: 'Room 101 / Bed A', visaExpiry: '2026-07-25', sspExpiry: '면제',
     departureDate: '2026-07-27', startDate: '2026-06-01', arrivalDate: '2026-06-01',
     attendance: 96.4, status: 'current', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [88, 92, 85, 90, 94],
@@ -52,7 +52,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 2, name: 'LEE YOUNGEOH', nick: 'James', gender: '남', age: 22, nationality: '한국', flag: '🇰🇷',
-    course: '일반 코스', level: 'Intermediate', duration: 4, dorm: 'Room 101 / Bed B', visaExpiry: '2026-07-06', sspExpiry: '면제',
+    course: 'Regular', level: 'Intermediate', duration: 4, dorm: 'Room 101 / Bed B', visaExpiry: '2026-07-06', sspExpiry: '면제',
     departureDate: '2026-07-06', startDate: '2026-06-08', arrivalDate: '2026-06-08',
     attendance: 88.2, status: 'current', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 1,
     quiz: [70, 76, 80, 74, 78],
@@ -69,7 +69,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 3, name: 'CHOI HANGSON', nick: 'Amy', gender: '여', age: 20, nationality: '한국', flag: '🇰🇷', 
-    course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: 'Room 102 / Bed A', visaExpiry: '2026-07-01', sspExpiry: '면제', 
+    course: 'Junior ESL', level: 'Beginner', duration: 4, dorm: 'Room 102 / Bed A', visaExpiry: '2026-07-01', sspExpiry: '면제', 
     departureDate: '2026-06-29',
     attendance: 100, status: 'current', agency: '서울 유학원', warning: 0, 
     quiz: [95, 98, 96, 99, 100],
@@ -85,7 +85,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 4, name: 'TANAKA YUKI', nick: 'Yuki', gender: '여', age: 19, nationality: '일본', flag: '🇯🇵', 
-    course: '일반 코스', level: 'Intermediate', duration: 4, dorm: 'Room 102 / Bed B', visaExpiry: '2026-06-22', sspExpiry: '면제', 
+    course: 'Regular', level: 'Intermediate', duration: 4, dorm: 'Room 102 / Bed B', visaExpiry: '2026-06-22', sspExpiry: '면제', 
     departureDate: '2026-07-06',
     attendance: 91.7, status: 'current', agency: 'Tokyo Language', warning: 0, 
     quiz: [82, 85, 88, 84, 90],
@@ -101,7 +101,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 5, name: 'PARK SOYEON', nick: 'Sophie', gender: '여', age: 26, nationality: '베트남', flag: '🇻🇳', 
-    course: 'IELTS 전문 코스', level: 'Band 5.5', duration: 12, dorm: 'Room 201 / Bed A', visaExpiry: '2026-06-13', sspExpiry: '2026-06-13', 
+    course: 'IELTS Intensive', level: 'Band 5.5', duration: 12, dorm: 'Room 201 / Bed A', visaExpiry: '2026-06-13', sspExpiry: '2026-06-13', 
     departureDate: '2026-08-07',
     attendance: 94.1, status: 'current', remittanceStatus: 'unpaid', agency: 'VN Academy', warning: 2,
     quiz: [78, 80, 82, 86, 88],
@@ -118,7 +118,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 6, name: 'WANG LEI', nick: 'Leo', gender: '남', age: 28, nationality: '중국', flag: '🇨🇳', 
-    course: '비즈니스 영어', level: 'Advanced', duration: 8, dorm: 'Room 102 / Bed C', visaExpiry: '2026-06-15', sspExpiry: '2026-06-15', 
+    course: 'Special English(TOEIC, Business)', level: 'Advanced', duration: 8, dorm: 'Room 102 / Bed C', visaExpiry: '2026-06-15', sspExpiry: '2026-06-15', 
     departureDate: '2026-07-27',
     attendance: 82.3, status: 'current', agency: 'Beijing Partner', warning: 3, 
     quiz: [65, 70, 68, 72, 75],
@@ -134,7 +134,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 7, name: 'KIM MINSU', nick: 'Tom', gender: '남', age: 16, nationality: '한국', flag: '🇰🇷', 
-    course: '주니어 패키지', level: 'Beginner', duration: 2, dorm: 'Room 103 / Bed A', visaExpiry: '2026-06-22', sspExpiry: '면제', 
+    course: 'Junior ESL', level: 'Beginner', duration: 2, dorm: 'Room 103 / Bed A', visaExpiry: '2026-06-22', sspExpiry: '면제', 
     departureDate: '2026-06-22',
     attendance: 98.5, status: 'current', agency: '직접 등록', warning: 0, 
     quiz: [92, 95, 97],
@@ -149,7 +149,7 @@ const MOCK_STUDENTS = [
   },
   { 
     id: 8, name: 'SATO KENJI', nick: 'Ken', gender: '남', age: 30, nationality: '일본', flag: '🇯🇵', 
-    course: '비즈니스 영어', level: 'Advanced', duration: 4, dorm: 'Room 102 / Bed D', visaExpiry: '2026-06-29', sspExpiry: '면제', 
+    course: 'Special English(TOEIC, Business)', level: 'Advanced', duration: 4, dorm: 'Room 102 / Bed D', visaExpiry: '2026-06-29', sspExpiry: '면제', 
     departureDate: '2026-06-29',
     attendance: 87.5, status: 'completed', agency: 'Osaka Study', warning: 0, 
     quiz: [85, 88, 90, 87, 92, 94, 91, 89],
@@ -164,7 +164,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 9, name: 'KIM MINJUN', nick: 'Minjun', gender: '남', age: 21, nationality: '한국', flag: '🇰🇷',
-    course: 'IELTS 전문 코스', level: 'Band 6.0', duration: 8, dorm: 'Room 304 / Bed A', visaExpiry: '2026-08-15', sspExpiry: '면제',
+    course: 'IELTS Intensive', level: 'Band 6.0', duration: 8, dorm: 'Room 304 / Bed A', visaExpiry: '2026-08-15', sspExpiry: '면제',
     departureDate: '2026-08-20', startDate: '2026-06-01', arrivalDate: '2026-06-01',
     attendance: 88.0, status: 'current', remittanceStatus: 'unpaid', remittanceMemo: '환율 변동으로 금액 재확인 중 — 이체 예정일 6/20', remittanceReceipt: '영수증_Minjun_임시.pdf', agency: '한국 영어마을', warning: 1,
     quiz: [80, 85, 82, 88, 90],
@@ -182,7 +182,7 @@ const MOCK_STUDENTS = [
   // ── 한국 영어마을 소속 추가 학생 (모든 상태 커버) ──
   {
     id: 10, name: 'LEE SUBIN', nick: 'Subin', gender: '여', age: 23, nationality: '한국', flag: '🇰🇷',
-    course: 'IELTS 전문 코스', level: 'Band 6.5', duration: 12, dorm: 'Room 202 / Bed A', visaExpiry: '2026-04-20', sspExpiry: '면제',
+    course: 'IELTS Intensive', level: 'Band 6.5', duration: 12, dorm: 'Room 202 / Bed A', visaExpiry: '2026-04-20', sspExpiry: '면제',
     departureDate: '2026-04-20', startDate: '2026-01-20', arrivalDate: '2026-01-20',
     attendance: 94.2, status: 'completed', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [90, 92, 95, 94, 96, 97],
@@ -198,7 +198,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 11, name: 'JUNG TAEHWAN', nick: 'Tae', gender: '남', age: 27, nationality: '한국', flag: '🇰🇷',
-    course: '일반 코스', level: 'Intermediate', duration: 4, dorm: '미배정', dormRequested: false, visaExpiry: '2026-05-10', sspExpiry: '면제',
+    course: 'Regular', level: 'Intermediate', duration: 4, dorm: '미배정', dormRequested: false, visaExpiry: '2026-05-10', sspExpiry: '면제',
     departureDate: '2026-05-10', startDate: '2026-04-10', arrivalDate: '2026-04-10',
     attendance: 61.0, status: 'resigned', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 4,
     quiz: [55, 60, 48],
@@ -231,7 +231,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 13, name: 'PHAM MINH DUC', nick: 'Duc', gender: '남', age: 25, nationality: '베트남', flag: '🇻🇳',
-    course: 'IELTS 전문 코스', level: 'Band 5.0', duration: 12, dorm: 'Room 303 / Bed A', visaExpiry: '2026-09-01', sspExpiry: '2026-08-01',
+    course: 'IELTS Intensive', level: 'Band 5.0', duration: 12, dorm: 'Room 303 / Bed A', visaExpiry: '2026-09-01', sspExpiry: '2026-08-01',
     departureDate: '2026-09-01', startDate: '2026-06-15', arrivalDate: '2026-06-15',
     attendance: 0, status: 'current', remittanceStatus: 'unpaid', remittanceMemo: '', remittanceReceipt: '영수증_Duc.pdf', agency: '한국 영어마을', warning: 0,
     quiz: [],
@@ -244,7 +244,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 14, name: 'OH HYUNJIN', nick: 'Jenny', gender: '여', age: 15, nationality: '한국', flag: '🇰🇷',
-    course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: 'Room 104 / Bed A', visaExpiry: '2026-07-01', sspExpiry: '면제',
+    course: 'Junior ESL', level: 'Beginner', duration: 4, dorm: 'Room 104 / Bed A', visaExpiry: '2026-07-01', sspExpiry: '면제',
     departureDate: '2026-07-01', startDate: '2026-06-01', arrivalDate: '2026-06-01',
     attendance: 100, status: 'current', agency: '한국 영어마을', warning: 0,
     quiz: [95, 98, 97],
@@ -275,7 +275,7 @@ const MOCK_STUDENTS = [
   // ── 추가 목업 데이터 ──
   {
     id: 16, name: 'YAMAMOTO HANA', nick: 'Hana', gender: '여', age: 20, nationality: '일본', flag: '🇯🇵',
-    course: '일반 코스', level: 'Upper-Intermediate', duration: 8, dorm: 'Room 204 / Bed A', visaExpiry: '2026-08-05', sspExpiry: '면제',
+    course: 'Regular', level: 'Upper-Intermediate', duration: 8, dorm: 'Room 204 / Bed A', visaExpiry: '2026-08-05', sspExpiry: '면제',
     departureDate: '2026-08-05', startDate: '2026-06-09', arrivalDate: '2026-06-09',
     attendance: 91.0, status: 'current', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [84, 87, 89, 91],
@@ -291,7 +291,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 17, name: 'CHEN XIAOYU', nick: 'Lily', gender: '여', age: 22, nationality: '중국', flag: '🇨🇳',
-    course: 'IELTS 전문 코스', level: 'Band 5.5', duration: 16, dorm: 'Room 205 / Bed A', visaExpiry: '2026-06-14', sspExpiry: '2026-06-14',
+    course: 'IELTS Intensive', level: 'Band 5.5', duration: 16, dorm: 'Room 205 / Bed A', visaExpiry: '2026-06-14', sspExpiry: '2026-06-14',
     departureDate: '2026-10-01', startDate: '2026-06-01', arrivalDate: '2026-06-01',
     attendance: 88.5, status: 'current', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 1,
     quiz: [76, 80, 83, 85],
@@ -308,7 +308,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 18, name: 'BATKHUU ENKHJIN', nick: 'Enkhee', gender: '여', age: 24, nationality: '몽골', flag: '🇲🇳',
-    course: '일반 코스', level: 'Intermediate', duration: 8, dorm: 'Room 206 / Bed A', visaExpiry: '2026-07-20', sspExpiry: '2026-07-20',
+    course: 'Regular', level: 'Intermediate', duration: 8, dorm: 'Room 206 / Bed A', visaExpiry: '2026-07-20', sspExpiry: '2026-07-20',
     departureDate: '2026-07-20', startDate: '2026-05-25', arrivalDate: '2026-05-25',
     attendance: 93.3, status: 'current', agency: '한국 영어마을', warning: 0,
     quiz: [79, 82, 85, 83],
@@ -325,7 +325,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 19, name: 'PARK JIHO', nick: 'Jiho', gender: '남', age: 19, nationality: '한국', flag: '🇰🇷',
-    course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: 'Room 104 / Bed B', visaExpiry: '2026-07-08', sspExpiry: '면제',
+    course: 'Junior ESL', level: 'Beginner', duration: 4, dorm: 'Room 104 / Bed B', visaExpiry: '2026-07-08', sspExpiry: '면제',
     departureDate: '2026-07-08', startDate: '2026-06-08', arrivalDate: '2026-06-08',
     attendance: 100, status: 'current', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [90, 93],
@@ -341,7 +341,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 20, name: 'NGUYEN VAN LONG', nick: 'Long', gender: '남', age: 26, nationality: '베트남', flag: '🇻🇳',
-    course: 'IELTS 전문 코스', level: 'Band 5.0', duration: 12, dorm: 'Room 306 / Bed A', visaExpiry: '2026-09-15', sspExpiry: '2026-09-01',
+    course: 'IELTS Intensive', level: 'Band 5.0', duration: 12, dorm: 'Room 306 / Bed A', visaExpiry: '2026-09-15', sspExpiry: '2026-09-01',
     departureDate: '2026-09-15', startDate: '2026-06-15', arrivalDate: '2026-06-15',
     attendance: 0, status: 'waiting', agency: '한국 영어마을', warning: 0,
     quiz: [],
@@ -370,7 +370,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 22, name: 'TANAKA RYOTA', nick: 'Ryota', gender: '남', age: 23, nationality: '일본', flag: '🇯🇵',
-    course: '일반 코스', level: 'Intermediate', duration: 8, dorm: 'Room 105 / Bed A', visaExpiry: '2026-05-20', sspExpiry: '면제',
+    course: 'Regular', level: 'Intermediate', duration: 8, dorm: 'Room 105 / Bed A', visaExpiry: '2026-05-20', sspExpiry: '면제',
     departureDate: '2026-05-20', startDate: '2026-03-20', arrivalDate: '2026-03-20',
     attendance: 79.0, status: 'completed', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 2,
     quiz: [68, 71, 74, 70, 73, 76, 72, 75],
@@ -386,7 +386,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 23, name: 'OH SEUNGMIN', nick: 'Sean', gender: '남', age: 25, nationality: '한국', flag: '🇰🇷',
-    course: 'IELTS 전문 코스', level: 'Band 5.5', duration: 8, dorm: '미배정', visaExpiry: '2026-04-15', sspExpiry: '면제',
+    course: 'IELTS Intensive', level: 'Band 5.5', duration: 8, dorm: '미배정', visaExpiry: '2026-04-15', sspExpiry: '면제',
     departureDate: '2026-04-15', startDate: '2026-02-15', arrivalDate: '2026-02-15',
     attendance: 55.0, status: 'resigned', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 5,
     quiz: [60, 55, 58],
@@ -402,7 +402,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 24, name: 'LI JIAYI', nick: 'Joy', gender: '여', age: 21, nationality: '중국', flag: '🇨🇳',
-    course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: 'Room 208 / Bed A', visaExpiry: '2026-08-20', sspExpiry: '2026-08-20',
+    course: 'Junior ESL', level: 'Beginner', duration: 4, dorm: 'Room 208 / Bed A', visaExpiry: '2026-08-20', sspExpiry: '2026-08-20',
     departureDate: '2026-08-20', startDate: '2026-07-20', arrivalDate: '2026-07-20',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     quiz: [],
@@ -419,7 +419,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 25, name: 'SHIN EUNSOO', nick: 'Erin', gender: '여', age: 17, nationality: '한국', flag: '🇰🇷',
-    course: '주니어 패키지', level: 'Upper-Beginner', duration: 8, dorm: 'Room 106 / Bed A',
+    course: 'Junior ESL', level: 'Upper-Beginner', duration: 8, dorm: 'Room 106 / Bed A',
     dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미',
     dormIn: '2026-05-31', dormOut: '2026-08-01',
     visaExpiry: '2026-08-01', sspExpiry: '면제',
@@ -450,7 +450,7 @@ const MOCK_STUDENTS = [
   // 대기생 (입금 및 서류 확인 중, 수강 시작 전)
   {
     id: 26, name: 'PARK SOOYEON', nick: 'Sue', gender: '여', age: 22, nationality: '한국', flag: '🇰🇷',
-    course: '일반 코스', level: 'Intermediate', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-09-01', sspExpiry: '면제',
+    course: 'Regular', level: 'Intermediate', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-09-01', sspExpiry: '면제',
     departureDate: '2026-09-01', startDate: '2026-07-01', arrivalDate: '2026-07-01',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     passportNum: 'M10000026', passportStatus: '미보관', flightInfo: 'KE501 | 07-01 입국 예정', flightTime: '10:20', pickupRequired: true, dietType: '일반식', healthNotes: '',
@@ -462,7 +462,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 27, name: 'NGUYEN MINH TU', nick: 'Tu', gender: '남', age: 24, nationality: '베트남', flag: '🇻🇳',
-    course: 'IELTS 전문 코스', level: 'Band 5.0', duration: 12, dorm: '미배정', dormAccomType: '기숙사', dormType: '1인실', dormGrade: '스탠다드', visaExpiry: '2026-10-15', sspExpiry: '미취득',
+    course: 'IELTS Intensive', level: 'Band 5.0', duration: 12, dorm: '미배정', dormAccomType: '기숙사', dormType: '1인실', dormGrade: '스탠다드', visaExpiry: '2026-10-15', sspExpiry: '미취득',
     departureDate: '2026-10-15', startDate: '2026-07-15', arrivalDate: '2026-07-14',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     passportNum: 'M10000027', passportStatus: '미보관', flightInfo: 'VN810 | 07-14 입국 예정', flightTime: '16:45', pickupRequired: true, dietType: '일반식', healthNotes: 'SSP 신청 예정',
@@ -470,7 +470,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 28, name: 'WANG FANG', nick: 'Fang', gender: '여', age: 20, nationality: '중국', flag: '🇨🇳',
-    course: '주니어 패키지', level: 'Beginner', duration: 4, dorm: '미배정', dormAccomType: '기숙사', dormType: '4인실', dormGrade: '스탠다드', visaExpiry: '2026-08-20', sspExpiry: '미취득',
+    course: 'Junior ESL', level: 'Beginner', duration: 4, dorm: '미배정', dormAccomType: '기숙사', dormType: '4인실', dormGrade: '스탠다드', visaExpiry: '2026-08-20', sspExpiry: '미취득',
     departureDate: '2026-08-20', startDate: '2026-07-20', arrivalDate: '2026-07-20',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     passportNum: 'G10000028', passportStatus: '미보관', flightInfo: 'CZ302 | 07-20 입국 예정', flightTime: '18:10', pickupRequired: false, dietType: '일반식', healthNotes: '',
@@ -494,7 +494,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 30, name: 'TANAKA KENJI', nick: 'Kenji', gender: '남', age: 25, nationality: '일본', flag: '🇯🇵',
-    course: '일반 코스', level: 'Pre-Intermediate', duration: 6, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-10-01', sspExpiry: '면제',
+    course: 'Regular', level: 'Pre-Intermediate', duration: 6, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-10-01', sspExpiry: '면제',
     departureDate: '2026-10-01', startDate: '2026-08-15', arrivalDate: '2026-08-15',
     attendance: 0, status: 'waiting', remittanceStatus: 'paid', agency: '한국 영어마을', warning: 0,
     passportNum: 'TJ10000030', passportStatus: '미보관', flightInfo: 'JL744 | 08-15 입국 예정', dietType: '일반식', healthNotes: '',
@@ -503,7 +503,7 @@ const MOCK_STUDENTS = [
   // 미납 대기생 추가
   {
     id: 31, name: 'SANTOS MARIA', nick: 'Maria', gender: '여', age: 23, nationality: '필리핀', flag: '🇵🇭',
-    course: '일반 코스', level: 'Beginner', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-10-10', sspExpiry: '미취득',
+    course: 'Regular', level: 'Beginner', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-10-10', sspExpiry: '미취득',
     departureDate: '2026-10-10', startDate: '2026-08-10', arrivalDate: '2026-08-10',
     attendance: 0, status: 'waiting', remittanceStatus: 'unpaid', agency: '한국 영어마을', warning: 0,
     passportNum: 'P10000031', passportStatus: '미보관', flightInfo: 'PR105 | 08-10 입국 예정', dietType: '일반식', healthNotes: '',
@@ -512,7 +512,7 @@ const MOCK_STUDENTS = [
   },
   {
     id: 32, name: 'NAKAMURA RYO', nick: 'Ryo', gender: '남', age: 22, nationality: '일본', flag: '🇯🇵',
-    course: 'IELTS 전문 코스', level: 'Band 5.0', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-11-01', sspExpiry: '면제',
+    course: 'IELTS Intensive', level: 'Band 5.0', duration: 8, dorm: '미배정', dormAccomType: '기숙사', dormType: '2인실', dormGrade: '이코노미', visaExpiry: '2026-11-01', sspExpiry: '면제',
     departureDate: '2026-11-01', startDate: '2026-09-01', arrivalDate: '2026-09-01',
     attendance: 0, status: 'waiting', remittanceStatus: 'unpaid', agency: '한국 영어마을', warning: 0,
     passportNum: 'TJ10000032', passportStatus: '미보관', flightInfo: 'NH821 | 09-01 입국 예정', dietType: '일반식', healthNotes: '',
@@ -694,18 +694,22 @@ MOCK_TEACHERS.forEach(t => {
   }
   // 기존 화면과의 호환을 위해 화상 가능 필드도 함께 유지한다.
   t.videoCapable = t.teachingModes.online === true;
-  if (Array.isArray(t.availability)) {
-    const defaultAvail = [...t.availability];
-    t.availability = {
-      '월': [...defaultAvail],
-      '화': [...defaultAvail],
-      '수': [...defaultAvail],
-      '목': [...defaultAvail],
-      '금': [...defaultAvail],
-      '토': [false, false, false, false, false, false, false, false],
-      '일': [false, false, false, false, false, false, false, false],
-    };
-  }
+  // 퇴사 강사만 시간표 배정 대상에서 제외한다.
+  // 그 외 강사는 현재 지원하는 최대 15교시까지 월~금 전체 가용으로 연다.
+  const isSchedulable = t.status !== 'resigned';
+  const weekdayAvailability = Array(15).fill(isSchedulable);
+  const weekendAvailability = Array(15).fill(false);
+  t.available = isSchedulable;
+  t.todaySlots = isSchedulable ? 15 : 0;
+  t.availability = {
+    '월': [...weekdayAvailability],
+    '화': [...weekdayAvailability],
+    '수': [...weekdayAvailability],
+    '목': [...weekdayAvailability],
+    '금': [...weekdayAvailability],
+    '토': [...weekendAvailability],
+    '일': [...weekendAvailability],
+  };
 });
 
 // Ensure every active teacher in MOCK_TEACHERS has a row in MOCK_TIMETABLE
@@ -766,14 +770,14 @@ if (!MOCK_TIMETABLE[0]?.slots[0]?.day) {
 
 const MOCK_AGENCY_STUDENTS = [
   { name: 'HONG GILDONG (Kevin)',   course: 'IELTS 전문',   dorm: '2인실', duration: '8주',  status: 'current',   total: '$2,890', branch: '강남지사', agencyStatus: 'active' },
-  { name: 'LEE YOUNGEOH (James)',   course: '일반 코스',    dorm: '2인실', duration: '4주',  status: 'current',   total: '$1,360', branch: '강남지사', agencyStatus: 'waiting' },
-  { name: 'CHOI HANGSON (Amy)',     course: '주니어 패키지',dorm: '2인실', duration: '4주',  status: 'completed', total: '$1,720', branch: '부산지사', agencyStatus: 'active' },
+  { name: 'LEE YOUNGEOH (James)',   course: 'Regular',    dorm: '2인실', duration: '4주',  status: 'current',   total: '$1,360', branch: '강남지사', agencyStatus: 'waiting' },
+  { name: 'CHOI HANGSON (Amy)',     course: 'Junior ESL',dorm: '2인실', duration: '4주',  status: 'completed', total: '$1,720', branch: '부산지사', agencyStatus: 'active' },
   { name: 'KIM MINJUN (Minjun)',    course: 'IELTS 전문',   dorm: '1인실', duration: '8주',  status: 'current',   total: '$2,890', branch: '강남지사', agencyStatus: 'waiting' },
   { name: 'LEE SUBIN (Subin)',      course: 'IELTS 전문',   dorm: '2인실', duration: '12주', status: 'completed', total: '$4,200', branch: '강남지사', agencyStatus: 'active' },
-  { name: 'JUNG TAEHWAN (Tae)',     course: '일반 코스',    dorm: '미배정',duration: '4주',  status: 'resigned',  total: '$1,360', branch: '강남지사', agencyStatus: 'active' },
+  { name: 'JUNG TAEHWAN (Tae)',     course: 'Regular',    dorm: '미배정',duration: '4주',  status: 'resigned',  total: '$1,360', branch: '강남지사', agencyStatus: 'active' },
   { name: 'NGUYEN THI LAN (Lan)',   course: '가디언 코스',  dorm: '2인실', duration: '8주',  status: 'current',   total: '$2,400', branch: '강남지사', agencyStatus: 'active' },
   { name: 'PHAM MINH DUC (Duc)',    course: 'IELTS 전문',   dorm: '1인실', duration: '12주', status: 'current',   total: '$4,200', branch: '강남지사', agencyStatus: 'current' },
-  { name: 'OH HYUNJIN (Jenny)',     course: '주니어 패키지',dorm: '4인실', duration: '4주',  status: 'current',   total: '$1,720', branch: '강남지사', agencyStatus: 'waiting' },
+  { name: 'OH HYUNJIN (Jenny)',     course: 'Junior ESL',dorm: '4인실', duration: '4주',  status: 'current',   total: '$1,720', branch: '강남지사', agencyStatus: 'waiting' },
   { name: 'BAE JONGHO (John)',      course: '가디언 코스',  dorm: '1인실', duration: '8주',  status: 'current',   total: '$2,400', branch: '강남지사', agencyStatus: 'current' },
 ];
 
@@ -803,10 +807,11 @@ let MOCK_MASTER_LEVELS = [
     subLevels: [{ id: 'LV_05_1', name: 'Advanced-1', order: 1, visible: true }, { id: 'LV_05_2', name: 'Advanced-2', order: 2, visible: true }] }
 ];
 
+// 그룹 수업은 중그룹/대그룹 규모로 운영한다. (초과 정원 허용은 이번 단계 범위 밖 — 보류)
 let MOCK_MASTER_CLASS_TYPES = [
   { id: 'CT_01', code: '1:1', name: '개인 수업', classMode: 'individual', minStudents: 1, maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
-  { id: 'CT_02', code: '1:4', name: '소그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
-  { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 대그룹 수업', visible: true },
+  { id: 'CT_02', code: '1:4', name: '중그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
+  { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 그룹 수업', visible: true },
 ];
 
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Low-Inter/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
@@ -854,86 +859,136 @@ function getSubLevelRange(levelOrder) {
   return sorted.map((sub, idx) => ({ ...sub, lNumber: (levelOrder - 1) * 2 + idx + 1 }));
 }
 
-// subjectsByType: 그룹 수업 유형(1:1/1:4/1:8)별 과목-시수 매핑. oneone/group1on4/group은 각 유형 시수 합계(하위 호환용, saveCourse()에서 자동 재계산됨)
+// subjectsByType: 그룹 수업 유형(1:1/Small Group=1:4/Midium Group=1:8)별 과목-시수 매핑. oneone/group1on4/group은 각 유형 시수 합계(하위 호환용, saveCourse()에서 자동 재계산됨)
+// 2026-07-30 실제 운영 시수표 기준 재정렬(박정완 실장 데이터). 1:1은 스피킹/라이팅을 기본 포함.
 const MOCK_COURSES = [
-  { name: '일반 코스', type: '일반 영어', fee: 800, active: true,
+  { name: 'Regular', type: '일반 영어', fee: 700, active: true,
     subjectsByType: {
-      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
-      '1:4': [
-        { id: 'SUB_01', hours: 1 }, { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 }, { id: 'SUB_04', hours: 1 },
-      ], '1:8': [{ id: 'SUB_03', hours: 1 }],
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [{ id: 'SUB_03', hours: 1 }, { id: 'SUB_02', hours: 1 }],
     },
-    oneone: 4, group1on4: 4, group: 0,
-    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_02', hours: 1 }, { id: 'SUB_03', hours: 1 }],
-    levels: ['LV_01', 'LV_03', 'LV_04'] },
-  { name: 'Regular +', type: '일반 영어', fee: 900, active: true,
+    classHours: { '1:1': 4, '1:4': 2, '1:8': 2 },
+    oneone: 4, group1on4: 2, group: 2,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Regular +', type: '일반 영어', fee: 800, active: true,
     subjectsByType: {
-      '1:1': [
-        { id: 'SUB_01', hours: 1 },
-        { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 },
-        { id: 'SUB_04', hours: 1 },
-      ],
-      '1:4': [
-        { id: 'SUB_01', hours: 1 },
-        { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 },
-        { id: 'SUB_04', hours: 1 },
-      ],
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }, { id: 'SUB_09', hours: 1 }, { id: 'SUB_02', hours: 1 }],
       '1:8': [],
     },
     classHours: { '1:1': 4, '1:4': 4, '1:8': 0 },
     oneone: 4, group1on4: 4, group: 0,
-    subjects: [
-      { id: 'SUB_01', hours: 1 },
-      { id: 'SUB_03', hours: 1 },
-      { id: 'SUB_05', hours: 1 },
-      { id: 'SUB_04', hours: 1 },
-    ],
-    levels: [] },
-  { name: 'IELTS 전문 코스', type: 'IELTS', fee: 950, active: true,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Intensive', type: '일반 영어', fee: 850, active: true,
     subjectsByType: {
-      '1:1': [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }],
-      '1:4': [
-        { id: 'SUB_01', hours: 1 }, { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 }, { id: 'SUB_04', hours: 1 },
-      ],
-      '1:8': [{ id: 'SUB_05', hours: 1 }],
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [{ id: 'SUB_03', hours: 1 }],
     },
-    oneone: 3, group1on4: 4, group: 1,
-    subjects: [{ id: 'SUB_03', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_01', hours: 1 }, { id: 'SUB_05', hours: 1 }],
-    levels: ['LV_04', 'LV_05'] },
-  { name: '주니어 패키지', type: '주니어', fee: 880, active: true,
+    classHours: { '1:1': 5, '1:4': 2, '1:8': 1 },
+    oneone: 5, group1on4: 2, group: 1,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Power Speaking 6', type: '일반 영어', fee: 900, active: true,
     subjectsByType: {
-      '1:1': [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }],
-      '1:4': [
-        { id: 'SUB_01', hours: 1 }, { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 }, { id: 'SUB_04', hours: 1 },
-      ],
-      '1:8': [{ id: 'SUB_07', hours: 1 }],
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [],
     },
+    classHours: { '1:1': 6, '1:4': 2, '1:8': 0 },
+    oneone: 6, group1on4: 2, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Power Speaking 8', type: '일반 영어', fee: 980, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
+      '1:4': [], '1:8': [],
+    },
+    classHours: { '1:1': 8, '1:4': 0, '1:8': 0 },
+    oneone: 8, group1on4: 0, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
+    levels: ['LV_03', 'LV_04', 'LV_05'] },
+  { name: '6Hrs Regular', type: '일반 영어', fee: 600, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [],
+    },
+    classHours: { '1:1': 4, '1:4': 2, '1:8': 0 },
+    oneone: 4, group1on4: 2, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: '6Hrs Intensive', type: '일반 영어', fee: 650, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }],
+      '1:8': [],
+    },
+    classHours: { '1:1': 5, '1:4': 1, '1:8': 0 },
+    oneone: 5, group1on4: 1, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_03', 'LV_04', 'LV_05'] },
+  { name: '6Hrs Power Speaking', type: '일반 영어', fee: 700, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [], '1:8': [],
+    },
+    classHours: { '1:1': 6, '1:4': 0, '1:8': 0 },
+    oneone: 6, group1on4: 0, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: 'IELTS Intensive', type: 'IELTS', fee: 950, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
+      '1:4': [], '1:8': [],
+    },
+    classHours: { '1:1': 8, '1:4': 0, '1:8': 0 },
+    oneone: 8, group1on4: 0, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
+    levels: ['LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Special English(TOEIC, Business)', type: '비즈니스', fee: 900, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }, { id: 'SUB_09', hours: 1 }, { id: 'SUB_02', hours: 1 }],
+      '1:8': [],
+    },
+    classHours: { '1:1': 4, '1:4': 4, '1:8': 0 },
     oneone: 4, group1on4: 4, group: 0,
-    subjects: [{ id: 'SUB_06', hours: 3 }, { id: 'SUB_07', hours: 1 }, { id: 'SUB_02', hours: 1 }],
-    levels: ['LV_01', 'LV_02'] },
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Junior ESL', type: '주니어', fee: 880, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [{ id: 'SUB_03', hours: 1 }, { id: 'SUB_02', hours: 1 }],
+    },
+    classHours: { '1:1': 4, '1:4': 2, '1:8': 2 },
+    oneone: 4, group1on4: 2, group: 2,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
+  { name: 'Junior Camp', type: '주니어', fee: 650, active: true,
+    subjectsByType: {
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
+      '1:8': [],
+    },
+    classHours: { '1:1': 4, '1:4': 2, '1:8': 0 },
+    oneone: 4, group1on4: 2, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
   { name: '가디언 코스', type: '가디언', fee: 700, active: true,
     subjectsByType: {
-      '1:1': [{ id: 'SUB_08', hours: 2 }],
-      '1:4': [{ id: 'SUB_08', hours: 1 }],
-      '1:8': [{ id: 'SUB_05', hours: 1 }],
+      '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+      '1:4': [],
+      '1:8': [],
     },
-    oneone: 2, group1on4: 0, group: 1,
-    subjects: [{ id: 'SUB_08', hours: 2 }, { id: 'SUB_05', hours: 1 }],
-    levels: ['LV_01', 'LV_03'] },
-  { name: '비즈니스 영어', type: '비즈니스', fee: 900, active: true,
-    subjectsByType: {
-      '1:1': [{ id: 'SUB_09', hours: 2 }],
-      '1:4': [{ id: 'SUB_10', hours: 2 }],
-      '1:8': [{ id: 'SUB_10', hours: 1 }],
-    },
-    oneone: 2, group1on4: 2, group: 0,
-    subjects: [{ id: 'SUB_09', hours: 2 }, { id: 'SUB_10', hours: 2 }],
-    levels: ['LV_03', 'LV_04'] },
+    classHours: { '1:1': 4, '1:4': 0, '1:8': 0 },
+    oneone: 4, group1on4: 0, group: 0,
+    subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
+    levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
 ];
 
 // 기숙사 템플릿 (인실 x 컨디션 x 총개수 x 비용)
@@ -1149,7 +1204,7 @@ const MOCK_CLASS_LOG = [
     });
     return entries;
   })(),
-  // Erin (id:25) — 주니어 패키지 06-01~06-20
+  // Erin (id:25) — Junior ESL 06-01~06-20
   ...(() => {
     const entries = [];
     const days = ['2026-06-01','2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-08',

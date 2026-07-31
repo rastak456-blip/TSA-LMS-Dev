@@ -2,39 +2,120 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>그룹 관리 팝업</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>그룹 관리</title>
   <style>
-    body{margin:0;display:grid;place-items:center;min-height:100vh;font-family:Arial,"Noto Sans KR",sans-serif;background:#f8fafc;color:#64748b}
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f8fafc;
+      color: #64748b;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+    }
+    .loading { text-align: center; }
+    .loading strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #111827;
+      font-size: 18px;
+    }
+    .loading span { font-size: 13px; }
   </style>
 </head>
 <body>
-  <div>그룹 관리 화면을 불러오는 중...</div>
+  <div class="loading">
+    <strong>그룹 관리 화면을 여는 중...</strong>
+    <span id="popup-status">잠시만 기다려줘.</span>
+  </div>
+  <script src="assets/js/lms-data.js?v=0.6.10"></script>
+  <script src="assets/js/lms-util.js?v=0.6.2"></script>
+  <script src="assets/js/lms-auth.js?v=0.6.1"></script>
+  <script src="assets/js/lms-teacher.js?v=0.6.3"></script>
+  <script src="assets/js/lms-student.js?v=0.6.6"></script>
+  <script src="assets/js/lms-course.js?v=0.6.45"></script>
+  <script src="assets/js/lms-tuition.js?v=0.7.8"></script>
+  <script src="assets/js/lms-classroom.js?v=0.8.65"></script>
   <script>
-    (() => {
-      const params = new URLSearchParams(location.search);
+    function showPopupError(message) {
+      const status = document.getElementById('popup-status');
+      if (status) {
+        status.textContent = message;
+        status.style.color = '#dc2626';
+      }
+    }
+
+    function syncPopupArray(local, remote) {
+      if (!Array.isArray(local) || !Array.isArray(remote)) return;
+      local.length = 0;
+      local.push(...remote);
+    }
+
+    function renderPopupFromRequest() {
+      const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
-      if (!window.opener || window.opener.closed) {
-        document.body.innerHTML = '<div>원래 LMS 화면에서 다시 열어줘.</div>';
+      const row = Number.parseInt(params.get('row'), 10);
+      const groupId = Number.parseInt(params.get('groupId'), 10);
+
+      if (view === 'create') {
+        const seedStudentId = Number.parseInt(params.get('student'), 10);
+        let curriculumParam = [];
+        try { curriculumParam = JSON.parse(params.get('curriculum') || '[]'); } catch (error) { curriculumParam = []; }
+        openGroupCreateBrowserPopup(
+          curriculumParam,
+          params.get('type') || '1:4',
+          Number.parseInt(params.get('level'), 10) || 1,
+          window,
+          Number.isFinite(seedStudentId) ? seedStudentId : undefined
+        );
         return;
       }
-      if (view === 'detail') {
-        window.opener.openGroupManagementBrowserPopup(Number(params.get('row')), window);
-      } else if (view === 'students') {
-        window.opener.openGroupAssignmentBrowserPopup(Number(params.get('group')), Number(params.get('row')), window);
-      } else if (view === 'settings') {
-        window.opener.openGroupEditBrowserPopup(Number(params.get('group')), Number(params.get('row')), window);
-      } else if (view === 'create') {
-        window.opener.openGroupCreateBrowserPopup(
-          params.get('subject') || '',
-          params.get('type') || '1:4',
-          Number(params.get('level')) || 1,
-          window
-        );
-      } else {
-        document.body.innerHTML = '<div>지원하지 않는 그룹 관리 화면이야.</div>';
+      if (view === 'detail' && Number.isFinite(row)) {
+        openGroupManagementBrowserPopup(row, window);
+        return;
       }
-    })();
+      if (view === 'assignment' && Number.isFinite(groupId)) {
+        openGroupAssignmentBrowserPopup(groupId, Number.isFinite(row) ? row : null, window);
+        return;
+      }
+      if (view === 'edit' && Number.isFinite(groupId)) {
+        openGroupEditBrowserPopup(groupId, Number.isFinite(row) ? row : null, window);
+        return;
+      }
+      if (view === 'size-assign' || view === 'badge-assign') {
+        const studentId = Number.parseInt(params.get('student'), 10);
+        if (Number.isFinite(studentId)) {
+          openSizeAssignPopup(studentId, params.get('subject') || '', params.get('type') || '1:4', window);
+          return;
+        }
+      }
+      showPopupError('팝업 요청 정보를 확인할 수 없어.');
+    }
+
+    function initializePopup() {
+      if (!window.opener || window.opener.closed) {
+        showPopupError('기존 LMS 화면에서 다시 열어줘.');
+        return;
+      }
+
+      window.addEventListener('message', event => {
+        const message = event.data;
+        if (!message || message.channel !== 'tsa-group-popup' || message.action !== 'initialize') return;
+        try {
+          syncPopupArray(MOCK_STUDENTS, message.payload && message.payload.students);
+          syncPopupArray(MOCK_GROUP_CLASSES, message.payload && message.payload.groups);
+          renderPopupFromRequest();
+        } catch (error) {
+          showPopupError('그룹 화면을 열지 못했어: ' + (error && error.message ? error.message : error));
+        }
+      }, { once: true });
+
+      window.opener.postMessage({ channel: 'tsa-group-popup', action: 'ready' }, '*');
+    }
+
+    window.addEventListener('DOMContentLoaded', initializePopup, { once: true });
   </script>
 </body>
 </html>

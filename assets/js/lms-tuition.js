@@ -3,8 +3,61 @@
    수강료 구성
    ============================================= */
 
-const TUITION_RATE_TABLE_WEEKS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
+const TUITION_RATE_TABLE_BASE_WEEKS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
+let TUITION_RATE_TABLE_EXTRA_WEEKS = Array.isArray(window.MOCK_TUITION_EXTRA_DURATIONS) ? window.MOCK_TUITION_EXTRA_DURATIONS : (window.MOCK_TUITION_EXTRA_DURATIONS = []);
 const TUITION_LONG_DISCOUNT_WEEKS = [17, 18, 19, 20, 21, 22, 23, 24];
+
+// 기간 옵션(주차) 관리: 실제 선택 가능한 기간(기본 9개 + 추가된 옵션)만 다룬다.
+// 수강 기간 관리 화면에서는 기간만 관리하고, 가격 규칙은 과정 수정 화면에서 관리한다.
+function getTuitionDurationWeeks() {
+  return [...TUITION_RATE_TABLE_BASE_WEEKS, ...TUITION_RATE_TABLE_EXTRA_WEEKS].sort((a, b) => a - b);
+}
+
+function addTuitionDurationWeeks(weeksInput) {
+  const weeks = Math.round(Number(weeksInput));
+  if (!Number.isFinite(weeks) || weeks <= 0) {
+    showToast('올바른 주차 수를 입력해줘.', 'warning');
+    return false;
+  }
+  if (getTuitionDurationWeeks().includes(weeks)) {
+    showToast(`${weeks}주는 이미 있는 기간이야.`, 'warning');
+    return false;
+  }
+  TUITION_RATE_TABLE_EXTRA_WEEKS.push(weeks);
+  TUITION_RATE_TABLE_EXTRA_WEEKS.sort((a, b) => a - b);
+  renderTuitionDurationOptions();
+  renderTuitionCourseList();
+  renderTuitionDormList();
+  showToast(`${weeks}주 기간 옵션을 추가했어.`, 'success');
+  return true;
+}
+
+function removeTuitionDurationWeeks(weeks) {
+  const idx = TUITION_RATE_TABLE_EXTRA_WEEKS.indexOf(Number(weeks));
+  if (idx === -1) return;
+  TUITION_RATE_TABLE_EXTRA_WEEKS.splice(idx, 1);
+  renderTuitionDurationOptions();
+  renderTuitionCourseList();
+  renderTuitionDormList();
+  showToast(`${weeks}주 기간 옵션을 삭제했어.`, 'success');
+}
+
+// 추가 기간 헤더는 숨은 기준 셀 앞에 형제 요소로 삽입한다.
+// <th> 안에 다시 <th>를 넣으면 브라우저가 표 구조를 임의로 보정해
+// 헤더와 데이터 열이 어긋나므로 중첩하지 않는다.
+function renderTuitionDurationOptions() {
+  ['tuition-course-list-head-extra', 'tuition-dorm-list-head-extra'].forEach(markerId => {
+    const marker = document.getElementById(markerId);
+    if (!marker) return;
+    marker.parentElement?.querySelectorAll(`[data-tuition-extra-head="${markerId}"]`).forEach(node => node.remove());
+    marker.insertAdjacentHTML(
+      'beforebegin',
+      TUITION_RATE_TABLE_EXTRA_WEEKS
+        .map(weeks => `<th data-tuition-extra-head="${markerId}" style="text-align:right;white-space:nowrap">${weeks}주</th>`)
+        .join('')
+    );
+  });
+}
 
 function getTuitionRatePolicy() {
   if (!window.MOCK_TUITION_RATE_POLICY) {
@@ -66,7 +119,7 @@ function calculateManagedTuitionFee(baseAmount, weeks, course) {
 
 function renderTuitionRateCells(baseFee, course) {
   const weeklyRules = getEffectiveTuitionWeeklyRules(course);
-  return TUITION_RATE_TABLE_WEEKS.map(weeks => {
+  return getTuitionDurationWeeks().map(weeks => {
     const amount = computeTuitionRuleAmount(baseFee, weeks, weeklyRules);
     const rule = weeklyRules?.[weeks] || { type: 'proportional', rate: 0 };
     const rate = Number(rule.rate || 0);
@@ -76,32 +129,34 @@ function renderTuitionRateCells(baseFee, course) {
 }
 
 function openTuitionFormulaPolicyModal() {
-  const policy = getTuitionRatePolicy();
   const row = document.getElementById('tuition-formula-policy-row');
   if (!row) return;
-  row.innerHTML = Array.from({ length: 24 }, (_, index) => index + 1).map(weeks => {
-    const rule = policy.weeklyRules?.[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
-    const locked = weeks === 4;
+  row.innerHTML = getTuitionDurationWeeks().map(weeks => {
+    const isBase = TUITION_RATE_TABLE_BASE_WEEKS.includes(weeks);
     return `
-      <div style="min-width:174px;border:1px solid ${locked ? '#C7D2FE' : '#E5E7EB'};background:${locked ? '#EEF2FF' : '#fff'};border-radius:10px;padding:10px">
-        <div style="font-weight:900;color:${locked ? '#4338CA' : '#111827'};margin-bottom:8px">${weeks}주${locked ? ' · 기준' : ''}</div>
-        <select id="tuition-formula-type-${weeks}" class="tsa-input" style="height:36px;font-size:11px;margin-bottom:7px" ${locked ? 'disabled' : ''} onchange="handleTuitionFormulaTypeChange(${weeks})">
-          <option value="proportional" ${rule.type === 'proportional' ? 'selected' : ''}>기본 비례</option>
-          <option value="premium" ${rule.type === 'premium' ? 'selected' : ''}>할증</option>
-          <option value="discount" ${rule.type === 'discount' ? 'selected' : ''}>할인</option>
-          ${locked ? '<option value="base" selected>4주 기준</option>' : ''}
-        </select>
-        <div style="display:flex;align-items:center;gap:5px">
-          <input id="tuition-formula-rate-${weeks}" type="number" min="0" max="100" step="1" class="tsa-input" style="height:36px;font-size:11px" value="${Number(rule.rate || 0)}" ${locked || rule.type === 'proportional' ? 'disabled' : ''} oninput="previewTuitionFormulaPolicy()" />
-          <span style="font-size:11px;color:#6B7280">%</span>
+      <div style="height:64px;border:1px solid ${isBase ? '#E5E7EB' : '#C7D2FE'};background:${isBase ? '#F9FAFB' : '#EEF2FF'};border-radius:10px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:14px;font-weight:900;color:${isBase ? '#111827' : '#4338CA'}">${weeks}주</div>
+          <div style="font-size:10px;color:#6B7280;margin-top:3px">${isBase ? '기본 기간' : '추가 기간'}</div>
         </div>
-        <div id="tuition-formula-preview-${weeks}" style="font-size:11px;font-weight:800;margin-top:8px;color:#374151"></div>
+        ${isBase
+          ? '<span style="font-size:10px;color:#9CA3AF">고정</span>'
+          : `<button type="button" onclick="handleRemoveFormulaPeriod(${weeks})" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="color:#DC2626;border-color:#FECACA" title="기간 삭제">삭제</button>`}
       </div>`;
   }).join('');
-  previewTuitionFormulaPolicy();
-  renderTuitionFormulaHistory();
   openModal('tuition-formula-policy-modal');
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
+}
+
+function handleAddFormulaPeriodClick() {
+  const input = document.getElementById('tuition-formula-add-input');
+  if (!input) return;
+  if (addTuitionDurationWeeks(input.value)) openTuitionFormulaPolicyModal();
+}
+
+function handleRemoveFormulaPeriod(weeks) {
+  removeTuitionDurationWeeks(weeks);
+  openTuitionFormulaPolicyModal();
 }
 
 function handleTuitionFormulaTypeChange(weeks) {
@@ -115,7 +170,7 @@ function handleTuitionFormulaTypeChange(weeks) {
 }
 
 function readTuitionFormulaRulesFromForm() {
-  return Object.fromEntries(Array.from({ length: 24 }, (_, index) => index + 1).map(weeks => {
+  return Object.fromEntries(getTuitionDurationWeeks().map(weeks => {
     const type = weeks === 4 ? 'base' : (document.getElementById(`tuition-formula-type-${weeks}`)?.value || 'proportional');
     const rate = type === 'premium' || type === 'discount'
       ? Math.min(100, Math.max(0, Number(document.getElementById(`tuition-formula-rate-${weeks}`)?.value || 0)))
@@ -155,7 +210,7 @@ function saveTuitionFormulaPolicy() {
   const policy = getTuitionRatePolicy();
   const previousRules = JSON.parse(JSON.stringify(policy.weeklyRules || {}));
   const nextRules = readTuitionFormulaRulesFromForm();
-  const changes = Array.from({ length: 24 }, (_, index) => index + 1).filter(weeks => {
+  const changes = getTuitionDurationWeeks().filter(weeks => {
     const before = previousRules[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
     const after = nextRules[weeks];
     return before.type !== after.type || Number(before.rate || 0) !== Number(after.rate || 0);
@@ -213,6 +268,7 @@ function renderTuitionFormulaHistory() {
 }
 
 function initTuitionConfig() {
+  renderTuitionDurationOptions();
   renderTuitionCourseList();
   renderTuitionDormList();
   renderTuitionRegistrationFeeList();
@@ -280,12 +336,10 @@ function openTuitionCourseModal(idx = null) {
   setTuitionVal('tuition-base-fee', targetCourse ? Number(targetCourse.fee || 0) : '');
   setTuitionVal('tuition-course-memo', course?.tuitionPolicy?.memo || '');
 
-  const useCustom = !!course?.tuitionPolicy?.useCustomFormula;
-  const customToggle = document.getElementById('tuition-course-use-custom-formula');
-  if (customToggle) customToggle.checked = useCustom;
   const seedRules = (course?.tuitionPolicy?.weeklyRules) || getTuitionRatePolicy().weeklyRules;
   renderTuitionCourseFormulaGrid(seedRules);
-  toggleTuitionCourseCustomFormula();
+  previewTuitionCourseModal();
+  renderTuitionCourseFormulaHistory(course);
 
   openModal('tuition-course-modal');
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
@@ -297,20 +351,26 @@ function handleTuitionCourseSelectChange() {
   if (!course) return;
   const baseFeeEl = document.getElementById('tuition-base-fee');
   if (baseFeeEl) baseFeeEl.value = Number(course.fee || 0);
+  const seedRules = course.tuitionPolicy?.weeklyRules || getTuitionRatePolicy().weeklyRules;
+  renderTuitionCourseFormulaGrid(seedRules);
+  renderTuitionCourseFormulaHistory(course);
   previewTuitionCourseModal();
 }
 
-// 과정 전용 할증·할인 그리드. 전역 "기간별 할증·할인 공식 관리"와 같은 형태지만,
-// id에 tuition-course- 접두사를 붙여서 두 모달이 동시에 DOM에 있어도 서로 간섭하지 않게 한다.
+// 과정 전용 할증·할인 그리드.
+// 수강 기간의 추가·삭제는 별도 "수강 기간 관리"에서만 처리하고,
+// 이 화면에서는 등록된 기간의 과정별 가격 규칙만 편집한다.
 function renderTuitionCourseFormulaGrid(weeklyRules) {
   const row = document.getElementById('tuition-course-formula-row');
   if (!row) return;
-  row.innerHTML = Array.from({ length: 24 }, (_, index) => index + 1).map(weeks => {
+  row.innerHTML = getTuitionDurationWeeks().map(weeks => {
     const rule = weeklyRules?.[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
     const locked = weeks === 4;
     return `
       <div style="min-width:150px;border:1px solid ${locked ? '#C7D2FE' : '#E5E7EB'};background:${locked ? '#EEF2FF' : '#fff'};border-radius:10px;padding:9px">
-        <div style="font-weight:900;font-size:11px;color:${locked ? '#4338CA' : '#111827'};margin-bottom:7px">${weeks}주${locked ? ' · 기준' : ''}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <div style="font-weight:900;font-size:11px;color:${locked ? '#4338CA' : '#111827'}">${weeks}주${locked ? ' · 기준' : ''}</div>
+        </div>
         <select id="tuition-course-formula-type-${weeks}" class="tsa-input" style="height:32px;font-size:10.5px;margin-bottom:6px" ${locked ? 'disabled' : ''} onchange="handleTuitionCourseFormulaTypeChange(${weeks})">
           <option value="proportional" ${rule.type === 'proportional' ? 'selected' : ''}>기본 비례</option>
           <option value="premium" ${rule.type === 'premium' ? 'selected' : ''}>할증</option>
@@ -321,6 +381,7 @@ function renderTuitionCourseFormulaGrid(weeklyRules) {
           <input id="tuition-course-formula-rate-${weeks}" type="number" min="0" max="100" step="1" class="tsa-input" style="height:32px;font-size:10.5px" value="${Number(rule.rate || 0)}" ${locked || rule.type === 'proportional' ? 'disabled' : ''} oninput="previewTuitionCourseModal()"/>
           <span style="font-size:10.5px;color:#6B7280">%</span>
         </div>
+        <div id="tuition-course-formula-preview-${weeks}" style="font-size:10px;font-weight:800;margin-top:8px;color:#374151"></div>
       </div>`;
   }).join('');
 }
@@ -336,7 +397,7 @@ function handleTuitionCourseFormulaTypeChange(weeks) {
 }
 
 function readTuitionCourseFormulaRulesFromForm() {
-  return Object.fromEntries(Array.from({ length: 24 }, (_, index) => index + 1).map(weeks => {
+  return Object.fromEntries(getTuitionDurationWeeks().map(weeks => {
     const type = weeks === 4 ? 'base' : (document.getElementById(`tuition-course-formula-type-${weeks}`)?.value || 'proportional');
     const rate = type === 'premium' || type === 'discount'
       ? Math.min(100, Math.max(0, Number(document.getElementById(`tuition-course-formula-rate-${weeks}`)?.value || 0)))
@@ -345,27 +406,56 @@ function readTuitionCourseFormulaRulesFromForm() {
   }));
 }
 
-function toggleTuitionCourseCustomFormula() {
-  const enabled = !!document.getElementById('tuition-course-use-custom-formula')?.checked;
-  const section = document.getElementById('tuition-course-formula-section');
-  if (section) section.style.display = enabled ? '' : 'none';
-  previewTuitionCourseModal();
-}
-
+// 4주 수강료 입력에 맞춰 각 주차 카드의 원 금액·조정 금액·최종 금액을 갱신한다.
 function previewTuitionCourseModal() {
   const base = parseInt(document.getElementById('tuition-base-fee')?.value, 10) || 0;
-  const useCustom = !!document.getElementById('tuition-course-use-custom-formula')?.checked;
-  const weeklyRules = useCustom ? readTuitionCourseFormulaRulesFromForm() : getTuitionRatePolicy().weeklyRules;
-  const preview = document.getElementById('tuition-course-preview');
-  if (preview) {
-    const rows = TUITION_RATE_TABLE_WEEKS.map(weeks => ({ label: `${weeks}주`, value: computeTuitionRuleAmount(base, weeks, weeklyRules), active: weeks === 4 }));
-    preview.innerHTML = rows.map(row => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;background:${row.active ? '#EEF2FF' : '#fff'};border:1px solid ${row.active ? '#C7D2FE' : '#E5E7EB'}">
-        <div style="font-size:12px;font-weight:700;color:${row.active ? '#4338CA' : '#374151'}">${row.label}</div>
-        <div style="font-size:14px;font-weight:900;color:#111827">$${Number(row.value || 0).toLocaleString()}</div>
-      </div>
-    `).join('');
-  }
+  const rules = readTuitionCourseFormulaRulesFromForm();
+  Object.entries(rules).forEach(([weeksKey, rule]) => {
+    const weeks = Number(weeksKey);
+    const regular = (base / 4) * weeks;
+    const amount = rule.type === 'premium'
+      ? roundTuitionAmount(regular * (1 + rule.rate / 100))
+      : rule.type === 'discount'
+        ? roundTuitionAmount(regular * (1 - rule.rate / 100))
+        : roundTuitionAmount(regular);
+    const originalAmount = roundTuitionAmount(regular);
+    const adjustment = Math.abs(amount - originalAmount);
+    const target = document.getElementById(`tuition-course-formula-preview-${weeks}`);
+    if (target) {
+      const sign = rule.type === 'premium' ? `+${rule.rate}%` : rule.type === 'discount' ? `-${rule.rate}%` : '비례';
+      const adjustmentLabel = rule.type === 'premium' ? '할증 금액' : rule.type === 'discount' ? '할인 금액' : '조정 금액';
+      const adjustmentColor = rule.type === 'premium' ? '#C2410C' : rule.type === 'discount' ? '#047857' : '#9CA3AF';
+      const adjustmentSign = rule.type === 'premium' ? '+' : rule.type === 'discount' ? '-' : '';
+      target.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:9.5px;color:#6B7280"><span>원 금액</span><b style="color:#374151">$${originalAmount.toLocaleString()}</b></div>
+        <div style="display:flex;justify-content:space-between;gap:6px;margin-top:3px;font-size:9.5px;color:${adjustmentColor}"><span>${adjustmentLabel} <b>${sign}</b></span><b>${adjustmentSign}$${adjustment.toLocaleString()}</b></div>
+        <div style="display:flex;justify-content:space-between;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed #CBD5E1;font-size:10.5px"><span style="color:#111827">최종 금액</span><b style="font-size:13px;color:#111827">$${amount.toLocaleString()}</b></div>`;
+    }
+  });
+}
+
+function formatTuitionCourseFormulaHistoryChanges(changes) {
+  return changes.map(change => `
+    <div style="display:grid;grid-template-columns:44px 1fr 18px 1fr;gap:8px;align-items:center;font-size:10.5px">
+      <b style="color:#374151">${change.weeks}주</b>
+      <span style="padding:5px 7px;border-radius:6px;background:#F8FAFC;color:#64748B">${formatTuitionFormulaRule(change.before)}</span>
+      <span style="text-align:center;color:#9CA3AF">→</span>
+      <span style="padding:5px 7px;border-radius:6px;background:${change.after.type === 'premium' ? '#FFF7ED' : change.after.type === 'discount' ? '#ECFDF5' : '#EEF2FF'};color:${change.after.type === 'premium' ? '#C2410C' : change.after.type === 'discount' ? '#047857' : '#4338CA'};font-weight:800">${formatTuitionFormulaRule(change.after)}</span>
+    </div>`).join('');
+}
+
+function renderTuitionCourseFormulaHistory(course) {
+  const target = document.getElementById('tuition-course-formula-history');
+  if (!target) return;
+  const history = course?.tuitionPolicy?.formulaHistory || [];
+  target.innerHTML = history.length ? history.map((entry, index) => `
+    <details ${index === 0 ? 'open' : ''} style="border:1px solid #E5E7EB;border-radius:10px;background:#fff;overflow:hidden">
+      <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;cursor:pointer;list-style:none">
+        <div><b style="font-size:11.5px;color:#111827">${entry.savedBy}</b><span style="font-size:10.5px;color:#6B7280;margin-left:8px">${entry.savedAt}</span></div>
+        <span class="tsa-badge tsa-badge-primary">${entry.changes.length}개 주차 변경</span>
+      </summary>
+      <div style="border-top:1px solid #E5E7EB;padding:8px 13px 11px;display:grid;gap:6px">${formatTuitionCourseFormulaHistoryChanges(entry.changes)}</div>
+    </details>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:10px;color:#94A3B8;font-size:11px">아직 저장된 공식 변경 이력이 없습니다.</div>';
 }
 
 function saveTuitionCoursePolicy() {
@@ -381,25 +471,44 @@ function saveTuitionCoursePolicy() {
     return;
   }
 
-  const useCustom = !!document.getElementById('tuition-course-use-custom-formula')?.checked;
-  const customWeeklyRules = useCustom ? readTuitionCourseFormulaRulesFromForm() : null;
-  const weeklyRules = useCustom ? customWeeklyRules : getTuitionRatePolicy().weeklyRules;
+  const previousRules = course.tuitionPolicy?.weeklyRules || getTuitionRatePolicy().weeklyRules;
+  const nextRules = readTuitionCourseFormulaRulesFromForm();
+  const changes = getTuitionDurationWeeks().filter(weeks => {
+    const before = previousRules[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
+    const after = nextRules[weeks];
+    return before.type !== after.type || Number(before.rate || 0) !== Number(after.rate || 0);
+  }).map(weeks => ({ weeks, before: previousRules[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 }, after: nextRules[weeks] }));
+
+  if (!Array.isArray(course.tuitionPolicy?.formulaHistory)) {
+    course.tuitionPolicy = { ...(course.tuitionPolicy || {}), formulaHistory: [] };
+  }
+  if (changes.length) {
+    const roleKey = typeof APP !== 'undefined' ? APP.user : null;
+    const savedBy = roleKey && typeof ROLE_CONFIG !== 'undefined' && ROLE_CONFIG[roleKey] ? ROLE_CONFIG[roleKey].label : '슈퍼 어드민';
+    course.tuitionPolicy.formulaHistory.unshift({
+      id: Date.now(),
+      savedAt: new Date().toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      savedBy,
+      changes,
+    });
+  }
 
   course.fee = baseFee;
   course.tuitionPolicy = {
+    ...course.tuitionPolicy,
     basePeriod: 4,
     baseFee,
     calcMode: 'managed',
-    useCustomFormula: useCustom,
-    weeklyRules: useCustom ? customWeeklyRules : undefined,
-    ...Object.fromEntries(TUITION_RATE_TABLE_WEEKS.map(weeks => [`fee${weeks}`, computeTuitionRuleAmount(baseFee, weeks, weeklyRules)])),
+    useCustomFormula: true,
+    weeklyRules: nextRules,
+    ...Object.fromEntries(getTuitionDurationWeeks().map(weeks => [`fee${weeks}`, computeTuitionRuleAmount(baseFee, weeks, nextRules)])),
     memo: document.getElementById('tuition-course-memo')?.value.trim() || '',
   };
 
   closeModal('tuition-course-modal');
   renderTuitionCourseList();
   if (typeof renderCourseList === 'function') renderCourseList();
-  showToast(`과정별 수강료가 저장되었습니다.${useCustom ? ' (이 과정 전용 할증·할인 공식 적용)' : ''}`, 'success');
+  showToast('과정별 수강료가 저장되었습니다.', 'success');
 }
 
 function renderTuitionDormList() {
@@ -676,7 +785,7 @@ function previewTuitionDormModal() {
   const base = parseInt(document.getElementById('tuition-dorm-base-fee')?.value, 10) || 0;
   const preview = document.getElementById('tuition-dorm-preview');
   if (preview) {
-    const rows = TUITION_RATE_TABLE_WEEKS.map(weeks => ({ label: `${weeks}주`, value: calculateManagedTuitionFee(base, weeks), active: weeks === 4 }));
+    const rows = getTuitionDurationWeeks().map(weeks => ({ label: `${weeks}주`, value: calculateManagedTuitionFee(base, weeks), active: weeks === 4 }));
     preview.innerHTML = rows.map(row => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;background:${row.active ? '#ECFDF5' : '#fff'};border:1px solid ${row.active ? '#A7F3D0' : '#E5E7EB'}">
         <div style="font-size:12px;font-weight:700;color:${row.active ? '#047857' : '#374151'}">${row.label}</div>
@@ -725,7 +834,7 @@ function saveTuitionDormPolicy() {
       basePeriod: 4,
       baseFee,
       calcMode: 'managed',
-      ...Object.fromEntries(TUITION_RATE_TABLE_WEEKS.map(weeks => [`fee${weeks}`, calculateManagedTuitionFee(baseFee, weeks)])),
+      ...Object.fromEntries(getTuitionDurationWeeks().map(weeks => [`fee${weeks}`, calculateManagedTuitionFee(baseFee, weeks)])),
       memo: document.getElementById('tuition-dorm-memo')?.value.trim() || '',
     },
   };

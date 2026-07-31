@@ -31,9 +31,18 @@ function initAgencyStudentDB() {
 // 6-KPI metrics calculation
 function calculatePrices(s) {
   const coursePrices = {
-    '일반 코스': 800,
-    'IELTS 전문 코스': 950,
-    '주니어 패키지': 880,
+    'Regular +': 800,
+    'Regular': 700,
+    'Intensive': 850,
+    'Power Speaking 6': 900,
+    'Power Speaking 8': 980,
+    '6Hrs Regular': 600,
+    '6Hrs Intensive': 650,
+    '6Hrs Power Speaking': 700,
+    'IELTS Intensive': 950,
+    'Special English(TOEIC, Business)': 900,
+    'Junior ESL': 880,
+    'Junior Camp': 650,
     '가디언 코스': 700
   };
 
@@ -69,9 +78,18 @@ function calculatePrices(s) {
   const generalPrice = generalCourseInput ? parseFloat(generalCourseInput.value) : matchedCoursePrice;
   
   const coursePricesMap = {
-    '일반 코스': generalPrice,
-    'IELTS 전문 코스': generalPrice + 150,
-    '주니어 패키지': generalPrice + 80,
+    'Regular +': generalPrice,
+    'Regular': generalPrice - 100,
+    'Intensive': generalPrice + 50,
+    'Power Speaking 6': generalPrice + 100,
+    'Power Speaking 8': generalPrice + 180,
+    '6Hrs Regular': generalPrice - 200,
+    '6Hrs Intensive': generalPrice - 150,
+    '6Hrs Power Speaking': generalPrice - 100,
+    'IELTS Intensive': generalPrice + 150,
+    'Special English(TOEIC, Business)': generalPrice + 100,
+    'Junior ESL': generalPrice + 80,
+    'Junior Camp': generalPrice - 150,
     '가디언 코스': generalPrice - 100
   };
   
@@ -252,13 +270,13 @@ function renderAgencyNotifications() {
 
 // ── 업무 요청함 목업 데이터 ──────────────────────────────────
 const MOCK_REMIT_REQUESTS = [
-  { id:1, studentId:1,  studentName:'HONG GILDONG (Kevin)',  course:'IELTS 전문 코스', net:2080, remitDate:'2026-05-10', submittedAt:'2026-05-10', receipt:'영수증_Kevin.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
-  { id:2, studentId:2,  studentName:'LEE YOUNGEOH (James)',  course:'일반 코스',        net:1138, remitDate:'2026-06-08', submittedAt:'2026-06-08', receipt:'영수증_James.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
-  { id:3, studentId:9,  studentName:'KIM MINJUN (Minjun)',   course:'IELTS 전문 코스', net:2240, remitDate:'2026-06-12', submittedAt:'2026-06-12', receipt:'영수증_Minjun_임시.pdf', status:'pending', note:'환율 변동으로 금액 재확인 중 — 이체 예정일 6/20', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'' },
+  { id:1, studentId:1,  studentName:'HONG GILDONG (Kevin)',  course:'IELTS Intensive', net:2080, remitDate:'2026-05-10', submittedAt:'2026-05-10', receipt:'영수증_Kevin.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:2, studentId:2,  studentName:'LEE YOUNGEOH (James)',  course:'Regular',        net:1138, remitDate:'2026-06-08', submittedAt:'2026-06-08', receipt:'영수증_James.pdf',  status:'approved', note:'송금 확인 완료. 등록 확정 처리.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:3, studentId:9,  studentName:'KIM MINJUN (Minjun)',   course:'IELTS Intensive', net:2240, remitDate:'2026-06-12', submittedAt:'2026-06-12', receipt:'영수증_Minjun_임시.pdf', status:'pending', note:'환율 변동으로 금액 재확인 중 — 이체 예정일 6/20', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'' },
   { id:4, studentId:12, studentName:'NGUYEN THI LAN (Lan)',  course:'가디언 코스',      net:1600, remitDate:'2026-05-28', submittedAt:'2026-05-28', receipt:'영수증_Lan.pdf',    status:'approved', note:'에이전시 선납 확인 완료.', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
-  { id:5, studentId:13, studentName:'PHAM MINH DUC (Duc)',   course:'IELTS 전문 코스', net:3360, remitDate:'2026-06-14', submittedAt:'2026-06-14', receipt:'영수증_Duc.pdf',    status:'pending',  note:'', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'' },
-  { id:6, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'주니어 패키지',    net:2261, remitDate:'2026-05-25', submittedAt:'2026-05-25', receipt:'영수증_Erin_1차.pdf', status:'approved', note:'1차 송금 확인 완료. 등록 확정 처리.', bank:'국민은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
-  { id:7, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'주니어 패키지',    net:150,  remitDate:'2026-06-01', submittedAt:'2026-06-01', receipt:'영수증_Erin_보증금.pdf', status:'approved', note:'보증금 입금 확인 완료.', bank:'신한은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:5, studentId:13, studentName:'PHAM MINH DUC (Duc)',   course:'IELTS Intensive', net:3360, remitDate:'2026-06-14', submittedAt:'2026-06-14', receipt:'영수증_Duc.pdf',    status:'pending',  note:'', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'' },
+  { id:6, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'Junior ESL',    net:2261, remitDate:'2026-05-25', submittedAt:'2026-05-25', receipt:'영수증_Erin_1차.pdf', status:'approved', note:'1차 송금 확인 완료. 등록 확정 처리.', bank:'국민은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
+  { id:7, studentId:25, studentName:'SHIN EUNSOO (Erin)',    course:'Junior ESL',    net:150,  remitDate:'2026-06-01', submittedAt:'2026-06-01', receipt:'영수증_Erin_보증금.pdf', status:'approved', note:'보증금 입금 확인 완료.', bank:'신한은행', agency:'한국 영어마을', submittedBy:'김에이전트', approvedBy:'본사 슈퍼어드민' },
 ];
 let MOCK_DORM_BOOK_REQUESTS = [];
 
@@ -1100,7 +1118,12 @@ function initAgencyStudentList() {
   if (typeof handleColumnToggle === 'function') handleColumnToggle();
 }
 
-const COURSE_REG_PERIODS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
+const COURSE_REG_PERIODS_BASE = [1, 2, 3, 4, 8, 12, 16, 20, 24];
+// 수강료 구성 화면의 "기간 옵션 관리"에서 추가한 장기 옵션(예: 36주, 48주)이 있으면 등록 기간 선택지에도 반영한다.
+function getCourseRegPeriods() {
+  const extra = typeof TUITION_RATE_TABLE_EXTRA_WEEKS !== 'undefined' && Array.isArray(TUITION_RATE_TABLE_EXTRA_WEEKS) ? TUITION_RATE_TABLE_EXTRA_WEEKS : [];
+  return [...COURSE_REG_PERIODS_BASE, ...extra].sort((a, b) => a - b);
+}
 
 function formatCourseRegMoney(value) {
   return `$${Number(value || 0).toLocaleString()}`;
@@ -1158,7 +1181,7 @@ function updateCourseRegSegmentEndPreview() {
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const endEl = document.getElementById('course-reg-end');
   if (!endEl) return;
-  endEl.value = startDate && COURSE_REG_PERIODS.includes(duration)
+  endEl.value = startDate && getCourseRegPeriods().includes(duration)
     ? calculateCourseRegSegmentEndDate(startDate, duration)
     : '';
 }
@@ -1226,7 +1249,7 @@ function addCourseRegSegment() {
   const course = getCourseRegSelectedCourse();
   const duration = parseInt(document.getElementById('course-reg-duration')?.value, 10) || 0;
   const startDate = document.getElementById('course-reg-start')?.value || '';
-  if (!course || !startDate || !COURSE_REG_PERIODS.includes(duration)) {
+  if (!course || !startDate || !getCourseRegPeriods().includes(duration)) {
     showToast('위 금액표에서 과정과 수강 기간을 선택하고 구간 시작일을 확인해줘.', 'warning');
     return;
   }
@@ -1290,7 +1313,7 @@ function selectCourseRegOption(courseIndex, weeks) {
     return;
   }
   const course = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES[courseIndex] : null;
-  if (!course || course.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
+  if (!course || course.active === false || !getCourseRegPeriods().includes(Number(weeks))) return;
 
   const courseEl = document.getElementById('course-reg-course');
   const durationEl = document.getElementById('course-reg-duration');
@@ -1332,19 +1355,19 @@ function renderCourseRegCourseComparison() {
 
   target.innerHTML = `
     <div style="min-width:1080px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:180px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+      <div style="display:grid;grid-template-columns:180px repeat(${getCourseRegPeriods().length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">과정명</div>
-        ${COURSE_REG_PERIODS.map(weeks => `
+        ${getCourseRegPeriods().map(weeks => `
           <div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
         `).join('')}
       </div>
       ${rows.map(({ course, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:180px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:180px repeat(${getCourseRegPeriods().length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourse?.name === course.name ? '#F8FAFF' : '#fff'}">
             <b style="font-size:12px;color:#111827">${course.name}</b>
             <span style="font-size:10px;color:#9CA3AF;margin-top:2px">${course.type || '과정'}</span>
           </div>
-          ${COURSE_REG_PERIODS.map(weeks => {
+          ${getCourseRegPeriods().map(weeks => {
             const active = hasStartDate && selectedCourse?.name === course.name && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
             return `
@@ -1394,7 +1417,7 @@ function selectCourseRegDormOption(templateIndex, weeks) {
     return;
   }
   const template = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES[templateIndex] : null;
-  if (!template || template.active === false || !COURSE_REG_PERIODS.includes(Number(weeks))) return;
+  if (!template || template.active === false || !getCourseRegPeriods().includes(Number(weeks))) return;
   const templateEl = document.getElementById('course-reg-dorm-template');
   const durationEl = document.getElementById('course-reg-dorm-duration');
   if (templateEl) templateEl.value = String(templateIndex);
@@ -1517,17 +1540,17 @@ function renderCourseRegDormComparison() {
 
   target.innerHTML = `
     <div style="min-width:1120px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:220px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+      <div style="display:grid;grid-template-columns:220px repeat(${getCourseRegPeriods().length},minmax(96px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:9px 12px;font-size:11px;font-weight:800;color:#4B5563">숙소 유형 · 인실 · 등급</div>
-        ${COURSE_REG_PERIODS.map(weeks => `<div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${hasDormIn && selected && weeks === selectedWeeks ? '#047857' : '#4B5563'};background:${hasDormIn && selected && weeks === selectedWeeks ? '#ECFDF5' : 'transparent'}">${weeks}주</div>`).join('')}
+        ${getCourseRegPeriods().map(weeks => `<div style="padding:9px 6px;text-align:center;font-size:11px;font-weight:800;color:${hasDormIn && selected && weeks === selectedWeeks ? '#047857' : '#4B5563'};background:${hasDormIn && selected && weeks === selectedWeeks ? '#ECFDF5' : 'transparent'}">${weeks}주</div>`).join('')}
       </div>
       ${rows.map(({ template, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:220px repeat(${COURSE_REG_PERIODS.length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:220px repeat(${getCourseRegPeriods().length},minmax(96px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:center;background:${selected?.idx === index ? '#F0FDFA' : '#fff'}">
             <b style="font-size:12px;color:#111827">${template.accomType || '-'}</b>
             <span style="font-size:10px;color:#6B7280;margin-top:2px">${template.capacity || '-'}인실 · ${template.condition || '-'}</span>
           </div>
-          ${COURSE_REG_PERIODS.map(weeks => {
+          ${getCourseRegPeriods().map(weeks => {
             const active = hasDormIn && selected?.idx === index && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
             return `<button type="button" onclick="selectCourseRegDormOption(${index}, ${weeks})" aria-pressed="${active}" ${hasDormIn ? '' : 'disabled'} style="min-height:54px;padding:7px 5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#059669' : hasDormIn ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasDormIn ? '#111827' : '#9CA3AF'};cursor:${hasDormIn ? 'pointer' : 'not-allowed'};font-family:inherit;opacity:${hasDormIn ? '1' : '.72'}"><span style="display:block;font-size:12px;font-weight:900">${formatCourseRegMoney(amount)}</span><span style="display:block;font-size:9.5px;font-weight:700;margin-top:2px;color:${active ? '#D1FAE5' : '#9CA3AF'}">${active ? '선택됨' : hasDormIn ? '선택' : '입실일 먼저'}</span></button>`;
@@ -2529,10 +2552,10 @@ function requestBulkCourseChange() {
     return;
   }
 
-  const newCourse = prompt("변경을 요청할 신규 과정을 입력하세요:\n(일반 코스, IELTS 전문 코스, 주니어 패키지, 가디언 코스 중 택 1)");
+  const newCourse = prompt("변경을 요청할 신규 과정을 입력하세요:\n(Regular, Regular +, Intensive, Power Speaking 6, Power Speaking 8, 6Hrs Regular, 6Hrs Intensive, 6Hrs Power Speaking, IELTS Intensive, Special English(TOEIC, Business), Junior ESL, Junior Camp, 가디언 코스 중 택 1)");
   if (!newCourse) return;
 
-  const validCourses = ["일반 코스", "IELTS 전문 코스", "주니어 패키지", "가디언 코스"];
+  const validCourses = ["Regular", "Regular +", "Intensive", "Power Speaking 6", "Power Speaking 8", "6Hrs Regular", "6Hrs Intensive", "6Hrs Power Speaking", "IELTS Intensive", "Special English(TOEIC, Business)", "Junior ESL", "Junior Camp", "가디언 코스"];
   if (!validCourses.includes(newCourse)) {
     showToast("⚠ 유효하지 않은 과정명입니다.", "danger");
     return;
@@ -3500,18 +3523,18 @@ function renderSegmentEditCourseComparison() {
 
   target.innerHTML = `
     <div style="min-width:680px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:150px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+      <div style="display:grid;grid-template-columns:150px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:8px 10px;font-size:10.5px;font-weight:800;color:#4B5563">과정명</div>
-        ${COURSE_REG_PERIODS.map(weeks => `
+        ${getCourseRegPeriods().map(weeks => `
           <div style="padding:8px 5px;text-align:center;font-size:10.5px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
         `).join('')}
       </div>
       ${rows.map(({ course, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:150px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:150px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourseName === course.name ? '#F8FAFF' : '#fff'}">
             <b style="font-size:11px;color:#111827">${course.name}</b>
           </div>
-          ${COURSE_REG_PERIODS.map(weeks => {
+          ${getCourseRegPeriods().map(weeks => {
             const active = hasStartDate && selectedCourseName === course.name && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
             return `
@@ -3673,7 +3696,7 @@ function getDreSelectedTemplate() {
   return MOCK_DORM_TEMPLATES.find(t => t.accomType === accom && t.capacity === cap && t.condition === grade) || null;
 }
 
-// 수강 구간 수정 모달의 과정별 비교표와 동일한 패턴 — 숙소 마스터 템플릿(MOCK_DORM_TEMPLATES) × 기간(COURSE_REG_PERIODS)으로 비용 비교
+// 수강 구간 수정 모달의 과정별 비교표와 동일한 패턴 — 숙소 마스터 템플릿(MOCK_DORM_TEMPLATES) × 기간(getCourseRegPeriods())으로 비용 비교
 function renderDormRequestCompareTable() {
   const target = document.getElementById('dre-compare-table');
   if (!target) return;
@@ -3696,21 +3719,21 @@ function renderDormRequestCompareTable() {
 
   target.innerHTML = `
     <div style="min-width:680px;border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:190px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+      <div style="display:grid;grid-template-columns:190px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));background:#F8FAFC;border-bottom:1px solid #E5E7EB">
         <div style="padding:8px 10px;font-size:10.5px;font-weight:800;color:#4B5563">숙소</div>
-        ${COURSE_REG_PERIODS.map(weeks => `
+        ${getCourseRegPeriods().map(weeks => `
           <div style="padding:8px 5px;text-align:center;font-size:10.5px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
         `).join('')}
       </div>
       ${rows.map((template, rowIndex) => {
         const isSelectedRow = selectedAccom === template.accomType && selectedCap === template.capacity && selectedGrade === template.condition;
         return `
-        <div style="display:grid;grid-template-columns:190px repeat(${COURSE_REG_PERIODS.length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
+        <div style="display:grid;grid-template-columns:190px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
           <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${isSelectedRow ? '#F8FAFF' : '#fff'}">
             <b style="font-size:11px;color:#111827">${template.accomType}</b>
             <span style="font-size:9.5px;color:#9CA3AF;margin-top:2px">${template.capacity}인실 · ${template.condition}</span>
           </div>
-          ${COURSE_REG_PERIODS.map(weeks => {
+          ${getCourseRegPeriods().map(weeks => {
             const active = hasStartDate && isSelectedRow && weeks === selectedWeeks;
             const amount = getCourseRegPeriodFee(template.cost, template.tuitionPolicy, weeks);
             return `
@@ -5174,9 +5197,19 @@ function onCrFieldChanged() {
     container.innerHTML = `
       <label class="tsa-label">변경 요청 값</label>
       <select id="cr-new-val" class="tsa-input">
-        <option value="일반 코스">일반 코스</option>
-        <option value="IELTS 전문 코스">IELTS 전문 코스</option>
-        <option value="주니어 패키지">주니어 패키지</option>
+        <option value="Regular">Regular</option>
+        <option value="Regular +">Regular +</option>
+        <option value="Intensive">Intensive</option>
+        <option value="Power Speaking 6">Power Speaking 6</option>
+        <option value="Power Speaking 8">Power Speaking 8</option>
+        <option value="6Hrs Regular">6Hrs Regular</option>
+        <option value="6Hrs Intensive">6Hrs Intensive</option>
+        <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
+        <option value="IELTS Intensive">IELTS Intensive</option>
+        <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
+        <option value="Junior ESL">Junior ESL</option>
+        <option value="Junior Camp">Junior Camp</option>
+        <option value="가디언 코스">가디언 코스</option>
         <option value="가디언 코스">가디언 코스</option>
       </select>
     `;
@@ -6827,44 +6860,24 @@ function renderCourseList() {
   if (!tbody) return;
 
   tbody.innerHTML = MOCK_COURSES.map((c, idx) => {
-    const subjectIds = getCourseSubjectIds(c);
-    const types = [...MOCK_MASTER_CLASS_TYPES]
-      .filter(t => t.visible !== false)
-      .sort((a, b) => a.order - b.order);
     const typeColors = {
-      '1:1': { bg: '#ECFDF5', color: '#047857' },
-      '1:4': { bg: '#FFF7ED', color: '#C2410C' },
-      '1:8': { bg: '#EEF2FF', color: '#4338CA' },
+      '1:1': { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+      '1:4': { bg: '#FFF7ED', color: '#C2410C', border: '#FED7AA' },
+      '1:8': { bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
     };
-    const hasTypeMapping = c.subjectsByType && Object.keys(c.subjectsByType).length > 0;
-    const classHours = getCourseClassHours(c);
-    const curriculumCells = types.map(type => {
-      const refs = hasTypeMapping
-        ? (c.subjectsByType[type.code] || [])
-        : (type.code === '1:1' ? subjectIds.map(id => ({ id, hours: 1 })) : []);
-      if (!refs.length || !classHours[type.code]) {
-        return `
-          <td style="min-width:170px">
-            <span style="display:inline-flex;background:#F3F4F6;color:#9CA3AF;border-radius:6px;padding:5px 8px;font-size:10.5px;font-weight:700">미운영</span>
-          </td>
-        `;
-      }
-      const color = typeColors[type.code] || { bg: '#F3F4F6', color: '#4B5563' };
-      const subjectItems = refs.map(ref => {
-        const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
-        return `
-          <span style="display:inline-flex;align-items:center;gap:3px;border:1px solid #E5E7EB;background:#fff;border-radius:5px;padding:3px 5px;font-size:9.5px;color:#4B5563;white-space:nowrap">
-            ${subject?.name || ref.id} <strong style="color:${color.color}">${ref.hours}교시</strong>
-          </span>
-        `;
-      }).join('');
+    const timetableTemplate = getCourseTimetableTemplate(c);
+    const timetableItems = timetableTemplate.map((item, periodIndex) => {
+      const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === item.subjectId);
+      const type = MOCK_MASTER_CLASS_TYPES.find(typeItem => typeItem.code === item.classType);
+      const color = typeColors[item.classType] || { bg: '#F3F4F6', color: '#4B5563', border: '#E5E7EB' };
       return `
-        <td style="min-width:190px;vertical-align:middle">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
-            <span style="background:${color.bg};color:${color.color};border-radius:6px;padding:4px 7px;font-size:10.5px;font-weight:900">${classHours[type.code]}교시</span>
-          </div>
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">${subjectItems}</div>
-        </td>
+        <span style="display:inline-flex;align-items:center;overflow:hidden;border:1px solid ${color.border};background:#fff;border-radius:7px;white-space:nowrap">
+          <strong style="align-self:stretch;display:inline-flex;align-items:center;padding:4px 6px;background:${color.bg};color:${color.color};font-size:10px">${periodIndex + 1}교시</strong>
+          <span style="padding:4px 6px;font-size:10px;color:#374151">
+            <strong style="color:${color.color}">${type?.code || item.classType}</strong>
+            · ${subject?.name || item.subjectId || '과목 미선택'}
+          </span>
+        </span>
       `;
     }).join('');
 
@@ -6883,7 +6896,14 @@ function renderCourseList() {
           ${c.active === false ? '<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin-top:2px">비활성</span>' : ''}
         </td>
         <td>${levelsBadge}</td>
-        ${curriculumCells}
+        <td style="text-align:center">
+          <span style="font-weight:900;font-size:13px;color:#111827">${timetableTemplate.length}</span><span style="font-size:10.5px;color:#6B7280">교시</span>
+        </td>
+        <td style="min-width:520px">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px">
+            ${timetableItems || '<span style="color:#9CA3AF;font-size:11px">등록된 교시 없음</span>'}
+          </div>
+        </td>
         <td style="text-align:center">
           <button type="button"
             onclick="toggleCourseVisibility(${idx})"
@@ -6907,28 +6927,22 @@ let _editingCourseIdx = null;
 
 function openCourseModal() {
   _editingCourseIdx = null;
-  document.getElementById('course-modal-title').textContent = '신규 과정 및 커리큘럼 추가';
+  document.getElementById('course-modal-title').textContent = '신규 과정 및 기본 시간표 추가';
+  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 교시별 수업 유형·과목 순서를 설정해.';
   document.getElementById('add-course-name').value = '';
 
   renderCourseLevelCheckboxes([]);
   renderCourseClassTypeSections({
-    subjectsByType: {
-      '1:1': [
-        { id: 'SUB_01', hours: 1 },
-        { id: 'SUB_03', hours: 1 },
-        { id: 'SUB_05', hours: 1 },
-        { id: 'SUB_04', hours: 1 },
-      ],
-      '1:4': [
-        { id: 'SUB_01', hours: 1 },
-        { id: 'SUB_03', hours: 1 },
-      ],
-      '1:8': [
-        { id: 'SUB_05', hours: 1 },
-        { id: 'SUB_04', hours: 1 },
-      ],
-    },
-    classHours: { '1:1': 4, '1:4': 2, '1:8': 2 },
+    timetableTemplate: [
+      { classType: '1:1', subjectId: 'SUB_01' },
+      { classType: '1:1', subjectId: 'SUB_03' },
+      { classType: '1:1', subjectId: 'SUB_04' },
+      { classType: '1:1', subjectId: 'SUB_05' },
+      { classType: '1:4', subjectId: 'SUB_08' },
+      { classType: '1:4', subjectId: 'SUB_10' },
+      { classType: '1:8', subjectId: 'SUB_02' },
+      { classType: '1:8', subjectId: 'SUB_03' },
+    ],
   });
   openModal('course-add-modal');
   updateCourseCurriculumPreview();
@@ -6939,7 +6953,8 @@ function openEditCourseModal(idx) {
   const c = MOCK_COURSES[idx];
   if (!c) return;
 
-  document.getElementById('course-modal-title').textContent = '과정 및 커리큘럼 정보 수정';
+  document.getElementById('course-modal-title').textContent = '과정 및 기본 시간표 수정';
+  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 교시별 수업 유형·과목 순서를 수정해.';
   document.getElementById('add-course-name').value = c.name;
 
   renderCourseLevelCheckboxes(c.levels || []);
@@ -6965,6 +6980,9 @@ function renderCourseLevelCheckboxes(selectedLevels) {
 
 function getCourseSubjectIds(course) {
   const ids = new Set();
+  (course.timetableTemplate || []).forEach(item => {
+    if (item?.subjectId) ids.add(item.subjectId);
+  });
   (course.subjects || []).forEach(subject => {
     const id = typeof subject === 'string' ? subject : subject.id;
     if (id) ids.add(id);
@@ -6976,6 +6994,13 @@ function getCourseSubjectIds(course) {
 }
 
 function getCourseClassHours(course) {
+  if (Array.isArray(course.timetableTemplate) && course.timetableTemplate.length) {
+    return course.timetableTemplate.reduce((result, item) => {
+      const type = item?.classType;
+      if (type) result[type] = (result[type] || 0) + 1;
+      return result;
+    }, { '1:1': 0, '1:4': 0, '1:8': 0 });
+  }
   const mappedHours = {};
   Object.entries(course.subjectsByType || {}).forEach(([type, refs]) => {
     mappedHours[type] = (refs || []).reduce((sum, ref) => sum + Math.max(0, Number(ref?.hours) || 0), 0);
@@ -7211,65 +7236,12 @@ function renderCourseClassTypeSections(course) {
   if (!container) return;
 
   const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
-  const visibleSubjects = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false);
-  const legacySubjectIds = getCourseSubjectIds(course);
-  const hasTypeMapping = course.subjectsByType && Object.keys(course.subjectsByType).length > 0;
-
-  const subjectRows = visibleSubjects.map(subject => {
-    const cells = types.map(t => {
-      const savedRefs = course.subjectsByType?.[t.code] || [];
-      const savedRef = savedRefs.find(ref => ref.id === subject.id);
-      const legacySelected = !hasTypeMapping && t.code === '1:1' && legacySubjectIds.includes(subject.id);
-      const selected = Boolean(savedRef || legacySelected);
-      const legacySubject = (course.subjects || []).find(ref => (typeof ref === 'string' ? ref : ref.id) === subject.id);
-      const periods = Math.max(1, Number(savedRef?.hours ?? legacySubject?.hours) || 1);
-      return `
-        <td class="course-curriculum-cell" data-type="${t.code}" data-subject="${subject.id}" style="padding:7px 8px;border-top:1px solid #EEF0F4;border-left:1px solid #EEF0F4;text-align:center">
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-            <input type="checkbox" class="course-subject-type-check" data-type="${t.code}" data-subject="${subject.id}"
-              ${selected ? 'checked' : ''} onchange="toggleCourseCurriculumRow(this)"/>
-            <input type="number" class="tsa-input course-subject-periods" data-type="${t.code}" data-subject="${subject.id}"
-              value="${periods}" min="1" max="12" step="1" ${selected ? '' : 'disabled'}
-              oninput="updateCourseCurriculumPreview()" style="width:50px;height:30px;text-align:center;padding:4px"/>
-            <span style="font-size:10.5px;color:#6B7280;white-space:nowrap">교시</span>
-          </div>
-        </td>
-      `;
-    }).join('');
-    return `
-      <tr>
-        <td style="padding:8px 10px;border-top:1px solid #EEF0F4;font-size:12px;font-weight:600;color:#1F2937;white-space:nowrap">${subject.name}</td>
-        ${cells}
-      </tr>
-    `;
-  }).join('');
-
-  const typeCards = `
-    <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;background:#fff">
-      <div style="padding:11px 12px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
-        <div style="font-size:12.5px;font-weight:800;color:#1F2937">과목별 수업 유형 및 교시</div>
-        <div style="font-size:10.5px;color:#6B7280;margin-top:2px">과목마다 제공할 수업 유형과 학생 1명 기준 일일 교시를 선택해. (월~금 공통)</div>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;min-width:560px">
-          <thead>
-            <tr>
-              <th style="padding:8px 10px;font-size:11px;color:#6B7280;text-align:left;white-space:nowrap">과목</th>
-              ${types.map(t => `<th style="padding:8px 10px;font-size:11px;font-weight:800;color:#374151;border-left:1px solid #EEF0F4;white-space:nowrap">${getClassTypeDisplayName(t)}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${subjectRows || `<tr><td colspan="${types.length + 1}" style="padding:14px;color:#9CA3AF;font-size:12px;text-align:center">등록된 과목이 없어.</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+  const timetableTemplate = getCourseTimetableTemplate(course);
 
   container.innerHTML = `
     <div class="tsa-form-group">
-      <label class="tsa-label">일일 수업 구성</label>
-      <div style="font-size:10.5px;color:#6B7280;margin:3px 0 8px">과정명과 별도로 관리되는 학생 1명 기준 일일 교시야.</div>
+      <label class="tsa-label">기본 시간표 구성</label>
+      <div style="font-size:10.5px;color:#6B7280;margin:3px 0 8px">학생 1명 기준으로 적용할 교시 순서와 수업 유형, 과목을 등록해.</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
         <div style="border:1px solid #A7F3D0;background:#ECFDF5;border-radius:10px;padding:11px;text-align:center">
           <div style="font-size:10.5px;color:#047857">1:1 개인 수업</div>
@@ -7288,47 +7260,149 @@ function renderCourseClassTypeSections(course) {
     <div class="tsa-form-group">
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:8px">
         <div>
-          <label class="tsa-label" style="margin:0">수업 구성 <span style="color:#EF4444">*</span></label>
+          <label class="tsa-label" style="margin:0">교시별 수업 템플릿 <span style="color:#EF4444">*</span></label>
           <div style="font-size:10.5px;color:#6B7280;margin-top:3px">
-            과정 구성은 <strong>[1:1 / 1:4 그룹 / 1:8 그룹]</strong> 순서로 표시돼. 과목별 교시 합계가 각 숫자가 돼.
+            교시 순서대로 수업 유형과 과목을 선택해. 실제 요일·시간·강사·그룹·강의실은 배정 단계에서 정해.
           </div>
         </div>
-        <span style="font-size:10.5px;color:#2563EB;background:#EFF6FF;padding:5px 8px;border-radius:6px">현재 모든 수업 주 5회 고정</span>
+        <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addCourseTemplateRow()">+ 교시 추가</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:9px">${typeCards}</div>
+      <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;background:#fff">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:560px">
+            <thead>
+              <tr style="background:#F8FAFC">
+                <th style="width:80px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:center">순서</th>
+                <th style="width:180px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:left">수업 유형</th>
+                <th style="width:200px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:left">과목</th>
+                <th style="width:80px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="course-template-rows"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <div id="course-curriculum-preview" style="border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px;padding:13px">
     </div>
   `;
+  timetableTemplate.forEach(item => addCourseTemplateRow(item, false));
+  if (!timetableTemplate.length) addCourseTemplateRow({}, false);
 }
 
-function toggleCourseCurriculumRow(checkbox) {
-  const cell = checkbox.closest('.course-curriculum-cell');
-  const periodInput = cell?.querySelector('.course-subject-periods');
-  if (periodInput) periodInput.disabled = !checkbox.checked;
+function getCourseTimetableTemplate(course) {
+  if (Array.isArray(course?.timetableTemplate) && course.timetableTemplate.length) {
+    return course.timetableTemplate.map(item => ({
+      classType: item.classType || item.type || '1:1',
+      subjectId: item.subjectId || item.subject || '',
+    }));
+  }
+  const rows = [];
+  Object.entries(course?.subjectsByType || {}).forEach(([classType, refs]) => {
+    (refs || []).forEach(ref => {
+      const hours = Math.max(1, Number(ref?.hours) || 1);
+      for (let index = 0; index < hours; index += 1) rows.push({ classType, subjectId: ref.id });
+    });
+  });
+  if (!rows.length) {
+    (course?.subjects || []).forEach(subject => {
+      const subjectId = typeof subject === 'string' ? subject : subject.id;
+      if (subjectId) rows.push({ classType: '1:1', subjectId });
+    });
+  }
+  return rows;
+}
+
+function addCourseTemplateRow(item = {}, shouldUpdate = true) {
+  const body = document.getElementById('course-template-rows');
+  if (!body) return;
+  const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
+  const subjects = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false);
+  const row = document.createElement('tr');
+  row.className = 'course-template-row';
+  row.draggable = true;
+  row.innerHTML = `
+    <td style="padding:8px 10px;border-top:1px solid #EEF0F4;text-align:center">
+      <span class="course-template-drag" title="드래그해서 순서 변경" style="cursor:grab;color:#9CA3AF;margin-right:7px">⋮⋮</span>
+      <strong class="course-template-order" style="font-size:12px;color:#374151"></strong>
+    </td>
+    <td style="padding:8px 10px;border-top:1px solid #EEF0F4">
+      <select class="tsa-input course-template-type" onchange="refreshCourseTemplateRows()" style="height:34px;padding:4px 8px">
+        ${types.map(type => `<option value="${type.code}" ${type.code === (item.classType || '1:1') ? 'selected' : ''}>${getClassTypeDisplayName(type)}</option>`).join('')}
+      </select>
+    </td>
+    <td style="padding:8px 10px;border-top:1px solid #EEF0F4">
+      <select class="tsa-input course-template-subject" onchange="updateCourseCurriculumPreview()" style="height:34px;padding:4px 8px">
+        <option value="">과목 선택</option>
+        ${subjects.map(subject => `<option value="${subject.id}" ${subject.id === item.subjectId ? 'selected' : ''}>${subject.name}</option>`).join('')}
+      </select>
+    </td>
+    <td style="padding:8px 10px;border-top:1px solid #EEF0F4;text-align:center;white-space:nowrap">
+      <button type="button" class="tsa-btn tsa-btn-xs" onclick="deleteCourseTemplateRow(this)" title="삭제" style="background:#FEE2E2;color:#DC2626;border:0">삭제</button>
+    </td>
+  `;
+  row.addEventListener('dragstart', event => {
+    row.classList.add('course-template-row-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+  });
+  row.addEventListener('dragend', () => {
+    row.classList.remove('course-template-row-dragging');
+    refreshCourseTemplateRows();
+  });
+  row.addEventListener('dragover', event => {
+    event.preventDefault();
+    const dragging = body.querySelector('.course-template-row-dragging');
+    if (dragging && dragging !== row) {
+      const rect = row.getBoundingClientRect();
+      body.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
+    }
+  });
+  body.appendChild(row);
+  refreshCourseTemplateRows(shouldUpdate);
+}
+
+function deleteCourseTemplateRow(button) {
+  const body = document.getElementById('course-template-rows');
+  button.closest('.course-template-row')?.remove();
+  if (body && !body.children.length) addCourseTemplateRow({}, false);
+  refreshCourseTemplateRows();
+}
+
+function refreshCourseTemplateRows(shouldUpdate = true) {
+  [...document.querySelectorAll('.course-template-row')].forEach((row, index) => {
+    const order = row.querySelector('.course-template-order');
+    if (order) order.textContent = `${index + 1}교시`;
+  });
+  if (shouldUpdate) updateCourseCurriculumPreview();
+}
+
+function toggleCourseCurriculumRow() {
   updateCourseCurriculumPreview();
 }
 
 function getCourseCurriculumDraft() {
   const subjectsByType = {};
-  const classHours = {};
-  document.querySelectorAll('.course-subject-type-check:checked').forEach(checkbox => {
-    const type = checkbox.dataset.type;
-    const subjectId = checkbox.dataset.subject;
-    const periodInput = document.querySelector(`.course-subject-periods[data-type="${type}"][data-subject="${subjectId}"]`);
-    const hours = Math.max(1, parseInt(periodInput?.value, 10) || 1);
-    if (!subjectsByType[type]) subjectsByType[type] = [];
-    subjectsByType[type].push({ id: subjectId, hours });
-    classHours[type] = (classHours[type] || 0) + hours;
+  const classHours = { '1:1': 0, '1:4': 0, '1:8': 0 };
+  const timetableTemplate = [];
+  document.querySelectorAll('.course-template-row').forEach((row, index) => {
+    const classType = row.querySelector('.course-template-type')?.value || '';
+    const subjectId = row.querySelector('.course-template-subject')?.value || '';
+    if (!classType || !subjectId) return;
+    timetableTemplate.push({ order: index + 1, classType, subjectId });
+    classHours[classType] = (classHours[classType] || 0) + 1;
+    if (!subjectsByType[classType]) subjectsByType[classType] = [];
+    const existing = subjectsByType[classType].find(ref => ref.id === subjectId);
+    if (existing) existing.hours += 1;
+    else subjectsByType[classType].push({ id: subjectId, hours: 1 });
   });
-  return { subjectsByType, classHours };
+  return { subjectsByType, classHours, timetableTemplate };
 }
 
 function updateCourseCurriculumPreview() {
   const preview = document.getElementById('course-curriculum-preview');
   if (!preview) return;
   const courseName = document.getElementById('add-course-name')?.value.trim() || '과정명 미입력';
-  const { subjectsByType, classHours } = getCourseCurriculumDraft();
+  const { subjectsByType, classHours, timetableTemplate } = getCourseCurriculumDraft();
   const selectedLevels = [...document.querySelectorAll('input[name="course-levels-cb"]:checked')]
     .map(cb => MOCK_MASTER_LEVELS.find(level => level.id === cb.value)?.name)
     .filter(Boolean);
@@ -7341,33 +7415,30 @@ function updateCourseCurriculumPreview() {
   if (totalOneToOne) totalOneToOne.textContent = classHours['1:1'] || 0;
   if (totalOneToFour) totalOneToFour.textContent = classHours['1:4'] || 0;
   if (totalOneToEight) totalOneToEight.textContent = classHours['1:8'] || 0;
-  const typeSummary = types.map(type => {
-    const refs = subjectsByType[type.code] || [];
-    if (!refs.length) return '';
-    const subjectText = refs.map(ref => {
-      const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
-      return `${subject?.name || ref.id} ${ref.hours}교시`;
-    }).join(', ');
-    return `<div style="margin-top:5px"><strong>${getClassTypeDisplayName(type)}</strong> · ${subjectText}</div>`;
-  }).filter(Boolean).join('');
+  const typeSummary = timetableTemplate.map((item, index) => {
+    const type = types.find(typeItem => typeItem.code === item.classType);
+    const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === item.subjectId);
+    return `<span style="display:inline-flex;align-items:center;gap:4px;margin:5px 6px 0 0;padding:4px 7px;border-radius:6px;background:#fff;border:1px solid #DDE4FF">
+      <strong>${index + 1}교시</strong> ${getClassTypeDisplayName(type || { code: item.classType, name: item.classType })} · ${subject?.name || item.subjectId}
+    </span>`;
+  }).join('');
   preview.innerHTML = `
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
       <div>
         <div style="font-size:11px;color:#4F46E5;font-weight:800">등록 결과 미리보기</div>
         <div style="font-size:13px;font-weight:800;color:#1F2937;margin-top:3px">${courseName}</div>
         <div style="font-size:10.5px;color:#4F46E5;font-weight:700;margin-top:4px">
-          수업 구성 ${compositionCode} · 1:1 ${classHours['1:1'] || 0}교시 · 1:4 ${classHours['1:4'] || 0}교시 · 1:8 ${classHours['1:8'] || 0}교시
+          기본형 ${compositionCode} · 1:1 ${classHours['1:1'] || 0}교시 · 1:4 ${classHours['1:4'] || 0}교시 · 1:8 ${classHours['1:8'] || 0}교시
         </div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:12px;font-weight:800;color:#4338CA">일 ${totalDaily}교시 · 주 ${totalDaily * 5}교시</div>
-        <div style="font-size:10px;color:#6B7280;margin-top:2px">월~금 동일 적용</div>
+        <div style="font-size:12px;font-weight:800;color:#4338CA">일 ${totalDaily}교시 · 템플릿 완성</div>
+        <div style="font-size:10px;color:#6B7280;margin-top:2px">실제 시간과 자원은 추후 배정</div>
       </div>
     </div>
     <div style="font-size:11px;color:#4B5563;margin-top:7px">
-      추천 레벨: ${selectedLevels.length ? selectedLevels.join(', ') : '전 레벨 추천'}
-      <span style="color:#6B7280"> · 추천과 무관하게 모든 레벨 등록 가능</span>
-      ${typeSummary || '<div style="margin-top:6px;color:#B45309">수업 구성을 한 개 이상 선택해.</div>'}
+      추천레벨: ${selectedLevels.length ? selectedLevels.join(', ') : '-'}
+      <div style="margin-top:4px">${typeSummary || '<span style="color:#B45309">교시별 수업 구성을 한 개 이상 선택해.</span>'}</div>
     </div>
   `;
 }
@@ -7385,10 +7456,11 @@ function saveCourse() {
     levels.push(cb.value);
   });
 
-  const { subjectsByType, classHours } = getCourseCurriculumDraft();
+  const { subjectsByType, classHours, timetableTemplate } = getCourseCurriculumDraft();
   const curriculumRefs = Object.values(subjectsByType).flat();
-  if (!curriculumRefs.length) {
-    showToast('수업 구성을 한 개 이상 선택해줘.', 'warning');
+  const rowCount = document.querySelectorAll('.course-template-row').length;
+  if (!timetableTemplate.length || timetableTemplate.length !== rowCount) {
+    showToast('모든 교시의 수업 유형과 과목을 선택해줘.', 'warning');
     return;
   }
   const subjects = [...new Set(curriculumRefs.map(ref => ref.id))].map(id => ({ id }));
@@ -7400,7 +7472,7 @@ function saveCourse() {
 
   const courseData = {
     name, type, fee,
-    active, subjects, subjectsByType, classHours, levels,
+    active, subjects, subjectsByType, classHours, levels, timetableTemplate,
     oneone: classHours['1:1'] || 0,
     group1on4: classHours['1:4'] || 0,
     group: classHours['1:8'] || 0,
@@ -7882,4 +7954,3 @@ function createNewBranch() {
   `;
   showToast(`신규 지점 "${name}" 생성 완료 — 라우팅: /${code}/admin/`, 'success');
 }
-

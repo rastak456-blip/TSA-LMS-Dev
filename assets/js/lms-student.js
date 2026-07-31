@@ -2145,7 +2145,7 @@ function openStudentRegisterModal() {
   setVal('sf-flight-out-time', '');
   setVal('sf-visa', '');
   setVal('sf-ssp', '면제');
-  setVal('sf-reg-course', '일반 코스');
+  setVal('sf-reg-course', 'Regular');
   setVal('sf-duration', '4');
   setVal('sf-startDate', '');
   setVal('sf-endDate', '');
@@ -2191,7 +2191,7 @@ function openStudentEditModal(id) {
   document.getElementById('sf-gender').value = s.gender || "남";
   document.getElementById('sf-age').value = s.age || "";
   document.getElementById('sf-reg-nationality').value = s.nationality || "한국";
-  document.getElementById('sf-reg-course').value = s.course || "일반 코스";
+  document.getElementById('sf-reg-course').value = s.course || "Regular";
   document.getElementById('sf-duration').value = s.duration || "4";
   document.getElementById('sf-endDate').value = s.endDate || "";
   document.getElementById('sf-level').value = s.level || "";
