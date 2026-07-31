@@ -33,11 +33,11 @@
   <script src="assets/js/lms-data.js?v=0.6.10"></script>
   <script src="assets/js/lms-util.js?v=0.6.2"></script>
   <script src="assets/js/lms-auth.js?v=0.6.1"></script>
-  <script src="assets/js/lms-teacher.js?v=0.6.3"></script>
+  <script src="assets/js/lms-teacher.js?v=0.6.4"></script>
   <script src="assets/js/lms-student.js?v=0.6.6"></script>
   <script src="assets/js/lms-course.js?v=0.6.45"></script>
   <script src="assets/js/lms-tuition.js?v=0.7.8"></script>
-  <script src="assets/js/lms-classroom.js?v=0.8.65"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.79"></script>
   <script>
     function showPopupError(message) {
       const status = document.getElementById('popup-status');
@@ -61,6 +61,7 @@
 
       if (view === 'create') {
         const seedStudentId = Number.parseInt(params.get('student'), 10);
+        const sequence = Number.parseInt(params.get('sequence'), 10);
         let curriculumParam = [];
         try { curriculumParam = JSON.parse(params.get('curriculum') || '[]'); } catch (error) { curriculumParam = []; }
         openGroupCreateBrowserPopup(
@@ -68,7 +69,8 @@
           params.get('type') || '1:4',
           Number.parseInt(params.get('level'), 10) || 1,
           window,
-          Number.isFinite(seedStudentId) ? seedStudentId : undefined
+          Number.isFinite(seedStudentId) ? seedStudentId : undefined,
+          Number.isFinite(sequence) ? sequence : undefined
         );
         return;
       }
@@ -91,6 +93,13 @@
           return;
         }
       }
+      if (view === 'student-assign') {
+        const studentId = Number.parseInt(params.get('student'), 10);
+        if (Number.isFinite(studentId)) {
+          openStudentLessonAssignment(studentId, window, params.get('type') || '');
+          return;
+        }
+      }
       showPopupError('팝업 요청 정보를 확인할 수 없어.');
     }
 
@@ -106,6 +115,8 @@
         try {
           syncPopupArray(MOCK_STUDENTS, message.payload && message.payload.students);
           syncPopupArray(MOCK_GROUP_CLASSES, message.payload && message.payload.groups);
+          syncPopupArray(MOCK_TEACHERS, message.payload && message.payload.teachers);
+          syncPopupArray(MOCK_CLASS_ROOMS, message.payload && message.payload.rooms);
           renderPopupFromRequest();
         } catch (error) {
           showPopupError('그룹 화면을 열지 못했어: ' + (error && error.message ? error.message : error));

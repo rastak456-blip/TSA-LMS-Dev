@@ -915,32 +915,36 @@ let MOCK_CLASS_ROOMS = [
   { id: 1, roomNo: 'A-101', type: '1:1', capacity: 1, teacherNick: 'Sarah', status: 'active' },
   { id: 2, roomNo: 'A-102', type: '1:1', capacity: 1, teacherNick: 'Mike',  status: 'active' },
   { id: 3, roomNo: 'A-103', type: '1:1', capacity: 1, teacherNick: 'David', status: 'active' },
-  { id: 4, roomNo: 'B-201', type: '1:4', capacity: 4, teacherNick: 'Anna',  status: 'active' },
-  { id: 5, roomNo: 'C-301', type: '1:8', capacity: 8, teacherNick: 'Emily', status: 'active' },
+  { id: 4, roomNo: 'B-201', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
+  { id: 5, roomNo: 'C-301', type: '1:8', capacity: 8, teacherNick: '',      status: 'active' },
   { id: 6, roomNo: 'A-105', type: '1:1', capacity: 1, teacherNick: 'Karen', status: 'active' },
-  { id: 7, roomNo: 'B-203', type: '1:4', capacity: 4, teacherNick: 'Mark',  status: 'active' },
+  { id: 7, roomNo: 'B-203', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
   { id: 8, roomNo: 'A-106', type: '1:1', capacity: 1, teacherNick: 'Lisa',  status: 'active' },
-  { id: 9, roomNo: 'B-202', type: '1:4', capacity: 4, teacherNick: 'James', status: 'active' },
+  { id: 9, roomNo: 'B-202', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
   { id: 10, roomNo: 'A-104', type: '1:1', capacity: 1, teacherNick: '',     status: 'unassigned' },
+  { id: 11, roomNo: 'C-302', type: '1:8', capacity: 8, teacherNick: '',     status: 'active' },
+  { id: 12, roomNo: 'C-303', type: '1:8', capacity: 8, teacherNick: '',     status: 'active' },
 ];
-let _csRoomNextId = 11;
+let _csRoomNextId = 13;
 let _csRoomTypeFilter = '전체';
-let _csAssignTypeFilter = '전체';
+
+// 강사 목록과 1:1 자동 배정은 강의실 관리의 1:1 담당 강사 설정을 단일 원천으로 사용한다.
+function syncTeacherRoomsFromClassroomSettings() {
+  MOCK_TEACHERS.forEach(teacher => { teacher.room = ''; });
+  MOCK_CLASS_ROOMS
+    .filter(room => room.type === '1:1' && room.status === 'active' && room.roomNo && room.teacherNick)
+    .forEach(room => {
+      const teacher = MOCK_TEACHERS.find(item => item.nick === room.teacherNick && item.status !== 'resigned');
+      if (teacher) teacher.room = room.roomNo;
+    });
+}
+syncTeacherRoomsFromClassroomSettings();
 
 function setCsRoomTypeFilter(type, btn) {
   _csRoomTypeFilter = type;
   document.querySelectorAll('[id^="cs-rtype-"]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderCsRooms();
-}
-
-function setCsAssignTypeFilter(type, btn) {
-  _csAssignTypeFilter = type;
-  btn.parentNode.querySelectorAll('button').forEach(b => {
-    b.className = 'tsa-btn tsa-btn-xs tsa-btn-outline';
-  });
-  btn.className = 'tsa-btn tsa-btn-xs tsa-btn-primary';
-  renderCsAssignGrid();
 }
 
 // 주간 수업 세션: { id, roomId, day, periods:[], studentIds:[], course, level, weekOf }
@@ -1036,23 +1040,33 @@ const CS_TYPE_COLOR = { '1:1':'#EEF2FF|#3730A3', '1:4':'#FEF3C7|#92400E', '1:8':
    과정은 해당 학생이 과목을 수강할 수 있는지 확인하는 자격 정보로만 사용한다.
    시간·강사·강의실은 이후 '주간 수업 편성' 탭에서 별도로 배정한다.
    ============================================= */
+// 2026-07-31: 각 그룹의 course/subjectId/classType이 그 과정의 시간표 템플릿(교육 과정 및 과목 레벨 설정)에
+// 실제로 존재하는 조합인지 재검증해 맞춰놓음(예: IELTS Intensive·가디언 코스는 커리큘럼상 그룹 수업이 전혀 없어 다른 과정으로 재배정,
+// 문법/토론은 애초에 반대 수업 유형으로 잘못 들어가 있어 바로잡음). 요일·교시·담당강사·강의실도 신규 그룹 생성 화면과
+// 동일한 필수 항목이라 비어 있던 값을 실제 강사·강의실 후보와 충돌 없이 채워넣음. 교시는 과정 템플릿 기준 1시간짜리라
+// 그룹당 실제 교시도 1개만 갖는다(요일마다 같은 1교시에 반복해서 만남).
 let MOCK_GROUP_CLASSES = [
-  { id: 1, name: 'IELTS 스피킹 G4', course: 'IELTS Intensive', subjectId: 'SUB_01', levelGroup: 4, classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-01' },
-  { id: 2, name: 'IELTS 리스닝 G3', course: 'IELTS Intensive', subjectId: 'SUB_05', levelGroup: 3, classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-01' },
-  { id: 5, name: '일반 문법 G3', course: 'Regular', subjectId: 'SUB_02', levelGroup: 3, classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
-  { id: 6, name: '일반 리딩 G3', course: 'Regular', subjectId: 'SUB_03', levelGroup: 3, classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
-  { id: 9, name: '주니어 단어 G1', course: 'Junior ESL', subjectId: 'SUB_07', levelGroup: 1, classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
-  { id: 10, name: '가디언 회화 G3', course: '가디언 코스', subjectId: 'SUB_08', levelGroup: 3, classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
-  { id: 11, name: '가디언 리스닝 G4', course: '가디언 코스', subjectId: 'SUB_05', levelGroup: 4, classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
-  { id: 12, name: '비즈니스 토론 G5', course: 'Special English(TOEIC, Business)', subjectId: 'SUB_10', levelGroup: 5, classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
+  { id: 1, name: '일상회화 G4', course: 'Regular', subjectId: 'SUB_08', levelGroup: 4, levelGroups: [4], classType: '1:4',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 3, roomId: 4,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-01' },
+  { id: 2, name: '리딩 G3', course: 'Regular', subjectId: 'SUB_03', levelGroup: 3, levelGroups: [3], classType: '1:8',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 9, roomId: 5,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-01' },
+  { id: 5, name: '일반 문법 G3', course: 'Regular', subjectId: 'SUB_02', levelGroup: 3, levelGroups: [3], classType: '1:8',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [8], teacherId: 8, roomId: 5,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
+  { id: 9, name: '주니어 리딩 G1', course: 'Junior ESL', subjectId: 'SUB_03', levelGroup: 1, levelGroups: [1], classType: '1:8',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 5, roomId: 11,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
+  { id: 10, name: '일상회화 G3', course: 'Regular', subjectId: 'SUB_08', levelGroup: 3, levelGroups: [3], classType: '1:4',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 10, roomId: 4,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
+  { id: 11, name: '리딩 G4', course: 'Regular', subjectId: 'SUB_03', levelGroup: 4, levelGroups: [4], classType: '1:8',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 1, roomId: 12,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
+  { id: 12, name: '비즈니스 토론 G5', course: 'Special English(TOEIC, Business)', subjectId: 'SUB_10', levelGroup: 5, levelGroups: [5], classType: '1:4',
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [6], teacherId: 2, roomId: 7,
+    studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-02' },
 ];
 let _csGroupNextId = 14;
 let _csSelectedGroupId = null;
@@ -1136,6 +1150,20 @@ function getGroupRoomCandidates(classType, days, periods, capacityNeeded, exclud
   }).sort((a, b) => (a.type === classType ? 0 : 1) - (b.type === classType ? 0 : 1) || a.capacity - b.capacity);
 }
 
+const LESSON_DAYS = ['월', '화', '수', '목', '금'];
+
+function lessonTeacherAvailableAt(teacher, day, period) {
+  if (!teacher?.availability) return true;
+  const dailyAvailability = Array.isArray(teacher.availability)
+    ? teacher.availability
+    : teacher.availability[day];
+  return Array.isArray(dailyAvailability) && dailyAvailability[period - 1] !== false;
+}
+
+function lessonEsc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
 // ── 학생 수업 배정 (PRD v3.0 §8~9, §12) ──────────────────────
 // 과정의 교시 템플릿을 학생별로 순서대로 복제해, 각 항목이 그룹/1:1로 실제 배정됐는지 매번 파생 계산한다(별도 저장 없음).
 function getStudentLessonRequirements(student) {
@@ -1156,7 +1184,9 @@ function getStudentLessonRequirements(student) {
     }
     const group = MOCK_GROUP_CLASSES.find(g =>
       g.status === 'active' && g.classType === item.classType &&
-      getGroupSubjectId(g) === item.subjectId && g.studentIds.includes(student.id)
+      getGroupSubjectId(g) === item.subjectId &&
+      Array.isArray(g.periods) && g.periods.includes(index + 1) &&
+      g.studentIds.includes(student.id)
     );
     return {
       sequence: index + 1, classType: item.classType, subjectId: item.subjectId, subjectName,
@@ -1179,149 +1209,299 @@ function getCandidateGroupsForStudentRequirement(student, requirement) {
   return MOCK_GROUP_CLASSES.filter(g =>
     g.status === 'active' && g.classType === requirement.classType &&
     getGroupSubjectId(g) === requirement.subjectId &&
+    Array.isArray(g.periods) && g.periods.includes(requirement.sequence) &&
     level != null && getGroupLevelSet(g).includes(level) &&
     g.studentIds.length < getGroupClassCapacity(g.classType) &&
     !g.studentIds.includes(student.id)
   );
 }
 
+function planStudentOneToOneSchedule(student, teacher, requirements) {
+  const oneToOneReqs = (requirements || getStudentLessonRequirements(student)).filter(r => r.classType === '1:1');
+  if (!teacher || teacher.status === 'resigned' || !(teacher.classTypes || []).includes('1:1')) {
+    return { ok: false, message: '1:1 수업이 가능한 재직 강사가 아니야.' };
+  }
+  if (!teacher.room) {
+    return { ok: false, message: '담당 1:1 강의실이 없어.' };
+  }
+  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const planned = [];
+  for (const requirement of oneToOneReqs) {
+    let slot = null;
+    for (const day of LESSON_DAYS) {
+      for (let period = 1; period <= totalPeriods; period += 1) {
+        if (!lessonTeacherAvailableAt(teacher, day, period)) continue;
+        const teacherBusyOneToOne = MOCK_STUDENTS.some(s =>
+          s.id !== student.id && (s.oneToOneSchedule || []).some(o =>
+            o.teacherId === teacher.id && o.dayOfWeek === day && o.period === period
+          )
+        );
+        const teacherBusyGroup = MOCK_GROUP_CLASSES.some(g =>
+          g.status === 'active' && g.teacherId === teacher.id &&
+          Array.isArray(g.dayOfWeek) && g.dayOfWeek.includes(day) &&
+          Array.isArray(g.periods) && g.periods.includes(period)
+        );
+        const studentBusyGroup = MOCK_GROUP_CLASSES.some(g =>
+          g.status === 'active' && g.studentIds.includes(student.id) &&
+          Array.isArray(g.dayOfWeek) && g.dayOfWeek.includes(day) &&
+          Array.isArray(g.periods) && g.periods.includes(period)
+        );
+        const plannedCollision = planned.some(o => o.dayOfWeek === day && o.period === period);
+        if (!teacherBusyOneToOne && !teacherBusyGroup && !studentBusyGroup && !plannedCollision) {
+          slot = { subjectId: requirement.subjectId, teacherId: teacher.id, dayOfWeek: day, period };
+          break;
+        }
+      }
+      if (slot) break;
+    }
+    if (!slot) {
+      return { ok: false, message: `${requirement.subjectName} 수업을 배치할 가용 시간이 부족해.` };
+    }
+    planned.push(slot);
+  }
+  return { ok: true, schedule: planned };
+}
+
 function renderCsStudentAssignmentList() {
-  const body = document.getElementById('cs-student-assign-body');
+  renderStudentAssignmentTable('cs-student-assign-body', 'oneToOne');
+  renderStudentAssignmentTable('gm-student-assign-body', 'group');
+}
+
+function renderStudentAssignmentTable(bodyId, mode) {
+  const body = document.getElementById(bodyId);
   if (!body) return;
+  const allowedTypes = mode === 'oneToOne' ? ['1:1'] : ['1:4', '1:8'];
   const students = MOCK_STUDENTS.filter(s => ['current', 'waiting', 'extended'].includes(s.status));
-  const rows = students.map(student => ({ student, summary: getStudentAssignmentSummary(student) }))
+  const rows = students.map(student => {
+    const requirements = getStudentLessonRequirements(student).filter(req => allowedTypes.includes(req.classType));
+    return {
+      student,
+      requirements,
+      summary: {
+        total: requirements.length,
+        assigned: requirements.filter(req => req.status === 'ASSIGNED').length,
+        unassigned: requirements.filter(req => req.status !== 'ASSIGNED')
+      }
+    };
+  })
     .filter(row => row.summary.total > 0)
     .sort((a, b) => {
-      const unassignedDiff = b.summary.unassigned.length - a.summary.unassigned.length;
-      if (unassignedDiff !== 0) return unassignedDiff;
-      return String(a.student.startDate || '').localeCompare(String(b.student.startDate || ''));
+      const startDateDiff = String(b.student.startDate || '').localeCompare(String(a.student.startDate || ''));
+      if (startDateDiff !== 0) return startDateDiff;
+      return Number(b.student.id || 0) - Number(a.student.id || 0);
     });
-  body.innerHTML = rows.map(({ student, summary }, idx) => {
+  body.innerHTML = rows.map(({ student, requirements, summary }, idx) => {
     const period = [student.startDate, student.departureDate].filter(Boolean).join(' ~ ') || '-';
     const tags = summary.unassigned.map(req => `<span class="tsa-badge tsa-badge-gray" style="font-size:9.5px;margin:1px">${lessonEsc(req.classType)}·${lessonEsc(req.subjectName)}</span>`).join('') || '<span class="tsa-badge tsa-badge-success" style="font-size:9.5px">배정 완료</span>';
+    const assignmentButtonLabels = { '1:1': '1:1 수업 배정', '1:4': '중그룹 수업 배정', '1:8': '대그룹 수업 배정' };
+    const assignmentButtons = allowedTypes.map(classType => {
+      const isRequired = requirements.some(req => req.classType === classType);
+      const canAssign = summary.unassigned.some(req => req.classType === classType);
+      const canEdit = isRequired && !canAssign;
+      const buttonColor = classType === '1:1' ? '#5E5CE6' : classType === '1:4' ? '#2563EB' : '#0F766E';
+      const style = canAssign
+        ? `background:${buttonColor};color:#fff;border-color:${buttonColor}`
+        : canEdit
+          ? `background:#fff;color:${buttonColor};border-color:${buttonColor}`
+          : 'background:#F3F4F6;color:#9CA3AF;border-color:#E5E7EB;cursor:default';
+      const label = canEdit ? assignmentButtonLabels[classType].replace('수업 배정', '배정 수정') : assignmentButtonLabels[classType];
+      const interactive = canAssign || canEdit;
+      return `<button class="tsa-btn tsa-btn-xs" style="${style};min-width:82px;height:25px;padding:3px 7px;font-size:9.5px;line-height:1;white-space:nowrap" ${interactive ? `onclick="openStudentLessonAssignment(${student.id},null,'${classType}')"` : 'disabled'}>${label}</button>`;
+    }).join('');
     return `<tr>
-      <td style="text-align:center;color:#9CA3AF;font-size:11px">${idx + 1}</td>
+      <td style="text-align:center;color:#9CA3AF;font-size:11px">${rows.length - idx}</td>
       <td><b>${lessonEsc(student.nick || student.name)}</b><div style="font-size:10px;color:#9CA3AF">${lessonEsc(student.name || '')}</div></td>
       <td style="font-size:11px;color:#4B5563">${lessonEsc(student.course || '-')}<div style="font-size:10px;color:#9CA3AF">${lessonEsc(period)}</div></td>
       <td style="font-size:11px">${lessonEsc(student.level || '-')}</td>
       <td style="font-size:11px;font-weight:700;color:${summary.assigned === summary.total ? '#059669' : '#B45309'}">${summary.assigned}/${summary.total}교시</td>
       <td>${tags}</td>
-      <td style="text-align:center"><button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openStudentLessonAssignment(${student.id})">수업 배정</button></td>
+      <td style="text-align:center"><div style="display:flex;justify-content:center;gap:4px;flex-wrap:nowrap">${assignmentButtons}</div></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" style="padding:30px;text-align:center;color:#9CA3AF">배정할 수업 요구사항이 있는 학생이 없어.</td></tr>';
+  }).join('') || `<tr><td colspan="7" style="padding:30px;text-align:center;color:#9CA3AF">배정할 ${mode === 'oneToOne' ? '1:1' : '그룹'} 수업 요구사항이 있는 학생이 없어.</td></tr>`;
 }
 
-function openStudentLessonAssignment(studentId) {
-  closeStudentLessonAssignment();
+function openStudentLessonAssignment(studentId, popupTarget, focusClassType) {
+  if (!popupTarget) {
+    const popupUrl = createGroupPopupUrl('student-assign');
+    popupUrl.searchParams.set('student', studentId);
+    if (focusClassType) popupUrl.searchParams.set('type', focusClassType);
+    const openedPopup = window.open(popupUrl.href, `tsa-student-assign-${studentId}`, 'popup=yes,width=820,height=800,resizable=yes,scrollbars=yes');
+    if (!openedPopup) {
+      showToast('팝업이 차단됐어. 브라우저에서 팝업을 허용해줘.', 'warning');
+    }
+    return;
+  }
+  const popup = popupTarget;
+  try { popup.stop(); } catch (error) {}
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[char]));
   const student = MOCK_STUDENTS.find(s => s.id === studentId);
-  if (!student) return;
+  if (!student) { popup.close(); return; }
   const requirements = getStudentLessonRequirements(student);
-  const groupReqs = requirements.filter(r => r.classType !== '1:1');
-  const oneToOneReqs = requirements.filter(r => r.classType === '1:1');
+  const groupReqs = requirements.filter(r => r.classType !== '1:1' && (!focusClassType || r.classType === focusClassType));
+  const oneToOneReqs = requirements.filter(r => r.classType === '1:1' && (!focusClassType || focusClassType === '1:1'));
   const level = getLevelGroupForStudent(student);
   const primaryTeacher = student.primaryTeacherId != null ? MOCK_TEACHERS.find(t => t.id === student.primaryTeacherId) : null;
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
 
   const groupRows = groupReqs.map(req => {
     if (req.status === 'ASSIGNED') {
       const group = MOCK_GROUP_CLASSES.find(g => g.id === req.groupId);
-      return `<div style="padding:11px;border:1px solid #D1FAE5;background:#ECFDF5;border-radius:10px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:11.5px">${req.sequence}교시 · ${req.classType} · ${lessonEsc(req.subjectName)}</b><span class="tsa-badge tsa-badge-success" style="font-size:9.5px">배정 완료</span></div>
-        <div style="font-size:10.5px;color:#4B5563;margin-top:5px">${group ? lessonEsc(getGroupDisplayName(group)) : '-'}</div>
+      const alternatives = getCandidateGroupsForStudentRequirement(student, req).filter(candidate => candidate.id !== req.groupId);
+      return `<div class="req-card done">
+        <div class="req-head"><b>${req.sequence}교시 · ${req.classType} · ${esc(req.subjectName)}</b><span class="badge ok">배정 완료</span></div>
+        <div class="req-sub">${group ? esc(getGroupDisplayName(group)) : '-'}</div>
+        ${alternatives.length ? `<div class="candidates"><div class="empty-hint">다른 그룹으로 변경</div>${alternatives.map(candidate => {
+          const teacher = candidate.teacherId != null ? MOCK_TEACHERS.find(t => t.id === candidate.teacherId) : null;
+          const room = candidate.roomId != null ? MOCK_CLASS_ROOMS.find(r => r.id === candidate.roomId) : null;
+          return `<div class="candidate-row"><div class="candidate-info"><b>${esc(getGroupDisplayName(candidate))}</b><div class="candidate-meta">${esc((candidate.dayOfWeek || []).join(','))} ${esc((candidate.periods || []).join(','))}교시 · ${esc(teacher?.nick || '-')} · ${esc(room?.roomNo || '-')}</div></div><button class="btn primary xs" onclick="changeAssignedGroup(${req.groupId},${candidate.id})">이 그룹으로 변경</button></div>`;
+        }).join('')}</div>` : '<div class="empty-hint" style="margin-top:7px">현재 변경 가능한 다른 그룹이 없어.</div>'}
       </div>`;
     }
     const candidates = getCandidateGroupsForStudentRequirement(student, req);
-    return `<div style="padding:11px;border:1px solid #FED7AA;background:#FFF7ED;border-radius:10px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:11.5px">${req.sequence}교시 · ${req.classType} · ${lessonEsc(req.subjectName)}</b><span class="tsa-badge tsa-badge-warning" style="font-size:9.5px">미배정</span></div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+    return `<div class="req-card pending">
+      <div class="req-head"><b>${req.sequence}교시 · ${req.classType} · ${esc(req.subjectName)}</b><span class="badge warn">미배정</span></div>
+      <div class="candidates">
         ${candidates.length ? candidates.map(g => {
           const cap = getGroupClassCapacity(g.classType);
           const teacher = g.teacherId != null ? MOCK_TEACHERS.find(t => t.id === g.teacherId) : null;
           const room = g.roomId != null ? MOCK_CLASS_ROOMS.find(r => r.id === g.roomId) : null;
-          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;background:#fff;border:1px solid #E5E7EB;border-radius:8px">
-            <div style="font-size:10.5px"><b>${lessonEsc(getGroupDisplayName(g))}</b><div style="color:#6B7280;margin-top:2px">${(g.dayOfWeek || []).join(',')} ${(g.periods || []).join(',')}교시 · ${lessonEsc(teacher?.nick || '-')} · ${lessonEsc(room?.roomNo || '-')} · ${g.studentIds.length}/${cap}명</div></div>
-            <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="handleAssignStudentToGroupRequirement(${student.id},${g.id})">이 그룹에 배정</button>
+          return `<div class="candidate-row">
+            <div class="candidate-info"><b>${esc(getGroupDisplayName(g))}</b><div class="candidate-meta">${esc((g.dayOfWeek || []).join(','))} ${esc((g.periods || []).join(','))}교시 · ${esc(teacher?.nick || '-')} · ${esc(room?.roomNo || '-')} · ${g.studentIds.length}/${cap}명</div></div>
+            <button class="btn primary xs" onclick="assignToGroup(${g.id})">이 그룹에 배정</button>
           </div>`;
-        }).join('') : '<div style="font-size:10.5px;color:#9CA3AF">배정 가능한 그룹이 없어.</div>'}
-        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="closeStudentLessonAssignment();openGroupCreateBrowserPopup(${curriculumJsLiteral([{ id: req.subjectId, hours: 1 }])},'${req.classType}',${level},undefined,${student.id})">+ 새 그룹 만들기</button>
+        }).join('') : '<div class="empty-hint">배정 가능한 그룹이 없어.</div>'}
+        <button class="btn outline xs" onclick="window.openGroupCreateBrowserPopup(${curriculumJsLiteral([{ id: req.subjectId, hours: 1 }])},'${req.classType}',${level},window,${student.id},${req.sequence})">+ 새 그룹 만들기</button>
       </div>
     </div>`;
-  }).join('') || '<div style="font-size:11px;color:#9CA3AF">그룹 수업 요구사항이 없어.</div>';
+  }).join('') || '<div class="empty-hint">그룹 수업 요구사항이 없어.</div>';
 
-  const oneToOneUnassigned = oneToOneReqs.filter(r => r.status !== 'ASSIGNED');
   const oneToOneAssigned = oneToOneReqs.filter(r => r.status === 'ASSIGNED');
-  const dayOptions = LESSON_DAYS.map(d => `<option value="${d}">${d}</option>`).join('');
-  const periodOptions = Array.from({ length: totalPeriods }, (_, i) => i + 1).map(p => `<option value="${p}">${p}교시</option>`).join('');
-  const teacherCandidates = MOCK_TEACHERS.filter(t => t.status !== 'resigned' && (t.classTypes || []).includes('1:1'));
+  const teacherCandidates = MOCK_TEACHERS
+    .filter(t => t.status !== 'resigned' && (t.classTypes || []).includes('1:1'))
+    .map(teacher => ({ teacher, plan: planStudentOneToOneSchedule(student, teacher, oneToOneReqs) }));
 
   const oneToOneSection = `
-    <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <b style="font-size:12px">담당 1:1 강사</b>
-        ${primaryTeacher ? `<span style="font-size:11px;color:#4338CA;font-weight:800">${lessonEsc(primaryTeacher.nick || primaryTeacher.name)}</span>` : ''}
-      </div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        <select id="sla-primary-teacher" style="flex:1;height:34px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11px">
-          <option value="">담당 강사 선택</option>
-          ${teacherCandidates.map(t => `<option value="${t.id}" ${primaryTeacher?.id === t.id ? 'selected' : ''}>${lessonEsc(t.nick || t.name)}</option>`).join('')}
-        </select>
-        <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="handleSaveStudentPrimaryTeacher(${student.id})">지정</button>
-      </div>
-      <div class="hint" style="font-size:9.5px;color:#6B7280;margin-top:5px">한 학생의 모든 1:1 수업은 담당 강사 1명이 우선 담당해.</div>
-    </div>
-    ${oneToOneUnassigned.length ? `<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-      ${oneToOneUnassigned.map(req => `
-        <div style="padding:10px;border:1px solid #FED7AA;background:#FFF7ED;border-radius:9px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <b style="font-size:11px;flex:1;min-width:110px">${req.sequence}교시 · ${lessonEsc(req.subjectName)}</b>
-          <select id="sla-day-${req.subjectId}" style="height:32px;border:1px solid #D1D5DB;border-radius:6px;font-size:10.5px"><option value="">요일</option>${dayOptions}</select>
-          <select id="sla-period-${req.subjectId}" style="height:32px;border:1px solid #D1D5DB;border-radius:6px;font-size:10.5px"><option value="">교시</option>${periodOptions}</select>
-          <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="handleSaveStudentOneToOne(${student.id},'${req.subjectId}')" ${primaryTeacher ? '' : 'disabled'}>배정</button>
+    <div class="req-card">
+      <div class="req-head"><b>담당 1:1 강사</b>${primaryTeacher ? `<span class="primary-teacher-name">${esc(primaryTeacher.nick || primaryTeacher.name)}</span>` : ''}</div>
+      <div class="inline-teacher-picker">
+        <div class="picker-filters">
+          <input id="sla-teacher-search" class="teacher-search" type="search" placeholder="이름 또는 강의실 검색" oninput="filterTeachers()">
+          <select id="sla-teacher-type" onchange="filterTeachers()">
+            <option value="">수업 유형 전체</option>
+            <option value="1:1">1:1</option>
+          </select>
+          <select id="sla-teacher-grade" onchange="filterTeachers()">
+            <option value="">등급 전체</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
         </div>
-      `).join('')}
-    </div>` : ''}
-    ${oneToOneAssigned.length ? `<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+        <div id="sla-teacher-list" class="teacher-list">
+        ${teacherCandidates.filter(({ plan }) => plan.ok).map(({ teacher }) => {
+          const teacherName = teacher.nick || teacher.name;
+          const searchText = `${teacherName} ${teacher.name || ''} ${teacher.fullName || ''} ${teacher.room || ''}`.toLowerCase();
+          const grade = String(teacher.grade4ms || '').charAt(0).toUpperCase();
+          return `<div class="teacher-option" data-teacher-id="${teacher.id}" data-teacher-name="${esc(teacherName)}" data-room="${esc(teacher.room || '담당 강의실 없음')}" data-search="${esc(searchText)}" data-type="${esc((teacher.classTypes || []).join(','))}" data-grade="${esc(grade)}">
+            <span class="teacher-avatar">${esc(String(teacherName).charAt(0))}</span>
+            <span class="teacher-copy"><b>${esc(teacherName)} <small>(${teacher.gender === '여' ? 'F' : 'M'})</small></b><small>${esc(teacher.room || '담당 강의실 없음')} · ${esc(teacher.type || '일반')}</small></span>
+            <span class="teacher-fit ok">자동 배치 가능 · ${oneToOneReqs.length}교시</span>
+            <button class="btn primary xs" type="button" onclick="assignPrimaryTeacher(this)">선택 및 자동 배정</button>
+          </div>`;
+        }).join('') || '<div class="empty-hint">배정 가능한 1:1 강사가 없어.</div>'}
+          <div id="sla-teacher-empty" class="empty-hint" style="display:none">검색 조건에 맞는 담당 가능 강사가 없어.</div>
+        </div>
+      </div>
+      <div class="hint">강사를 선택하면 가용 시간과 학생·강사·그룹 수업 중복을 확인한 뒤 모든 1:1 수업을 바로 자동 배치해.</div>
+    </div>
+    ${oneToOneReqs.length && !oneToOneAssigned.length ? `<div class="req-card pending"><b>자동 배치 대기</b><div class="req-sub">${oneToOneReqs.map(req => `${req.sequence}교시 · ${esc(req.subjectName)}`).join(' / ')}</div></div>` : ''}
+    ${oneToOneAssigned.length ? `<div class="stack">
       ${oneToOneAssigned.map(req => {
         const teacher = req.teacherId != null ? MOCK_TEACHERS.find(t => t.id === req.teacherId) : null;
         const room = teacher?.room || '-';
-        return `<div style="padding:9px 11px;border:1px solid #D1FAE5;background:#ECFDF5;border-radius:9px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div style="font-size:10.5px"><b>${req.sequence}교시 · ${lessonEsc(req.subjectName)}</b><div style="color:#6B7280;margin-top:2px">${lessonEsc(req.dayOfWeek || '')} ${req.period || ''}교시 · ${lessonEsc(teacher?.nick || '-')} · ${lessonEsc(room)}</div></div>
-          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="handleUnassignStudentOneToOne(${student.id},'${req.subjectId}')">해제</button>
+        return `<div class="req-card done row">
+          <div class="candidate-info"><b>${req.sequence}교시 · ${esc(req.subjectName)}</b><div class="candidate-meta">${esc(req.dayOfWeek || '')} ${req.period || ''}교시 · ${esc(teacher?.nick || '-')} · ${esc(room)}</div></div>
+          <button class="btn outline xs" onclick="unassignOneToOne('${req.subjectId}')">해제</button>
         </div>`;
       }).join('')}
     </div>` : ''}
   `;
 
-  const overlay = document.createElement('div');
-  overlay.id = 'student-lesson-assignment-modal';
-  overlay.style.display = 'flex';
-  overlay.innerHTML = `
-    <div class="tsa-modal-backdrop" onclick="closeStudentLessonAssignment()">
-      <div class="tsa-modal" style="max-width:760px" onclick="event.stopPropagation()">
-        <div class="tsa-modal-header">
-          <div><h3 class="tsa-modal-title">${lessonEsc(student.nick || student.name)} 수업 배정</h3><div style="font-size:11px;color:#6B7280;margin-top:4px">${lessonEsc(student.course || '-')} · ${lessonEsc(student.level || '-')}</div></div>
-          <button class="tsa-modal-close" onclick="closeStudentLessonAssignment()">×</button>
-        </div>
-        <div class="tsa-modal-body">
-          <h4 style="font-size:12px;margin:0 0 8px">그룹 수업</h4>
-          ${groupRows}
-          <h4 style="font-size:12px;margin:14px 0 8px">1:1 수업</h4>
-          ${oneToOneReqs.length ? oneToOneSection : '<div style="font-size:11px;color:#9CA3AF">1:1 수업 요구사항이 없어.</div>'}
-        </div>
-        <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeStudentLessonAssignment()">닫기</button></div>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-function closeStudentLessonAssignment() {
-  document.getElementById('student-lesson-assignment-modal')?.remove();
-}
-
-function handleAssignStudentToGroupRequirement(studentId, groupId) {
-  const result = assignStudentToGroupFromBrowserPopup(studentId, groupId);
-  showToast(result.message, result.ok ? 'success' : 'warning');
-  if (result.ok) { renderCsGroupPanel(); renderCsStudentAssignmentList(); openStudentLessonAssignment(studentId); }
+  popup.document.open();
+  const assignmentTitle = focusClassType ? `${focusClassType} 수업 배정` : '수업 배정';
+  popup.document.write(`<!doctype html><html lang="ko"><head><meta charset="UTF-8"><title>${esc(student.nick || student.name)} ${assignmentTitle}</title>
+    <style>
+      *{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans KR",sans-serif;color:#111827;background:#F8FAFC}
+      header{padding:18px 20px;background:#fff;border-bottom:1px solid #E5E7EB}h1{font-size:16px;margin:0}.meta{font-size:11px;color:#6B7280;margin-top:4px}
+      main{padding:16px 20px 30px}h2{font-size:12px;margin:0 0 8px}
+      .req-card{padding:11px;border:1px solid #E5E7EB;background:#fff;border-radius:10px;margin-bottom:8px}
+      .req-card.pending{border-color:#FED7AA;background:#FFF7ED}.req-card.done{border-color:#D1FAE5;background:#ECFDF5}
+      .req-card.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .req-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px}
+      .req-sub{font-size:10.5px;color:#4B5563;margin-top:5px}
+      .req-title{font-size:11px;flex:1;min-width:110px}
+      .badge{border-radius:6px;padding:2px 7px;font-size:9.5px;font-weight:800}.badge.ok{background:#D1FAE5;color:#047857}.badge.warn{background:#FED7AA;color:#C2410C}
+      .candidates{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+      .candidate-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;background:#fff;border:1px solid #E5E7EB;border-radius:8px}
+      .candidate-info{font-size:10.5px}.candidate-meta{color:#6B7280;margin-top:2px}
+      .empty-hint{font-size:10.5px;color:#9CA3AF}
+      .primary-teacher-name{font-size:11px;color:#4338CA;font-weight:800}
+      select,input{height:34px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11px}
+      .inline-teacher-picker{margin-top:9px}.teacher-search{width:100%}
+      .picker-filters{display:grid;grid-template-columns:minmax(220px,1fr) 150px 130px;gap:8px;margin-bottom:8px}
+      .teacher-list{display:flex;flex-direction:column;gap:0;min-height:150px;max-height:360px;overflow:auto;border:1px solid #E5E7EB;border-radius:9px}
+      .teacher-option{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;cursor:pointer}
+      .teacher-list .teacher-option{border:0;border-bottom:1px solid #E5E7EB;border-radius:0;padding:13px 15px}.teacher-list .teacher-option:last-of-type{border-bottom:0}
+      .teacher-avatar{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:#EEF2FF;color:#4F46E5;font-weight:900}
+      .teacher-copy{display:flex;flex-direction:column;flex:1;font-size:11px}.teacher-copy small{color:#6B7280;margin-top:2px}
+      .teacher-fit{font-size:9.5px;font-weight:800}.teacher-fit.ok{color:#047857}.teacher-fit.no{color:#B45309}
+      .hint{font-size:9.5px;color:#6B7280;margin-top:5px}
+      .stack{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+      .btn{padding:7px 11px;border:1px solid #D1D5DB;border-radius:7px;background:#fff;cursor:pointer;font-size:11px}
+      .btn.primary{background:#5E5CE6;color:#fff;border-color:#5E5CE6}.btn.outline{background:#fff}.btn.xs{padding:6px 9px;font-size:10.5px}
+      footer{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;background:#fff;border-top:1px solid #E5E7EB}
+      @media(max-width:700px){.picker-filters{grid-template-columns:1fr}.teacher-option{flex-wrap:wrap}.teacher-fit{margin-left:42px}}
+    </style></head><body>
+    <header><h1>${esc(student.nick || student.name)} ${assignmentTitle}</h1><div class="meta">${esc(student.course || '-')} · ${esc(student.level || '-')}</div></header>
+    <main>
+      ${focusClassType !== '1:1' ? `<h2>${focusClassType || '그룹'} 수업</h2>${groupRows}` : ''}
+      ${!focusClassType || focusClassType === '1:1' ? `<h2${focusClassType ? '' : ' style="margin-top:14px"'}>1:1 수업</h2>${oneToOneReqs.length ? oneToOneSection : '<div class="empty-hint">1:1 수업 요구사항이 없어.</div>'}` : ''}
+    </main>
+    <footer><button class="btn outline" onclick="window.close()">닫기</button></footer>
+    <script>
+      function notifyOpener(payload){
+        if(!window.opener||window.opener.closed){window.alert('기존 LMS 화면에서 다시 열어줘.');return false;}
+        window.opener.postMessage(Object.assign({channel:'tsa-group-popup'},payload),'*');
+        return true;
+      }
+      function assignToGroup(groupId){
+        if(notifyOpener({action:'assign-student-to-group',studentId:${student.id},groupId:groupId})) window.close();
+      }
+      function changeAssignedGroup(fromGroupId,toGroupId){
+        if(notifyOpener({action:'change-student-group',studentId:${student.id},fromGroupId:fromGroupId,toGroupId:toGroupId})) window.close();
+      }
+      function assignPrimaryTeacher(button){
+        var teacherId=Number(button.closest('.teacher-option').dataset.teacherId);
+        if(notifyOpener({action:'save-primary-teacher',studentId:${student.id},teacherId:teacherId})) window.close();
+      }
+      function filterTeachers(){
+        var query=(document.getElementById('sla-teacher-search').value||'').trim().toLowerCase();
+        var type=document.getElementById('sla-teacher-type').value;
+        var grade=document.getElementById('sla-teacher-grade').value;
+        var visible=0;
+        document.querySelectorAll('.teacher-option').forEach(function(row){
+          var matches=(!query||row.dataset.search.indexOf(query)>-1)&&(!type||row.dataset.type.split(',').indexOf(type)>-1)&&(!grade||row.dataset.grade===grade);
+          row.style.display=matches?'flex':'none';
+          if(matches) visible++;
+        });
+        document.getElementById('sla-teacher-empty').style.display=visible?'none':'block';
+      }
+      function unassignOneToOne(subjectId){
+        if(notifyOpener({action:'unassign-one-to-one',studentId:${student.id},subjectId:subjectId})) window.close();
+      }
+    <\/script>
+    </body></html>`);
+  popup.document.close();
+  popup.focus();
 }
 
 function saveStudentPrimaryTeacher(studentId, teacherId) {
@@ -1329,17 +1509,29 @@ function saveStudentPrimaryTeacher(studentId, teacherId) {
   if (!student) return { ok: false, message: '학생 정보를 찾을 수 없어.' };
   const teacher = MOCK_TEACHERS.find(t => t.id === Number(teacherId));
   if (!teacher) return { ok: false, message: '강사 정보를 찾을 수 없어.' };
+  const plan = planStudentOneToOneSchedule(student, teacher);
+  if (!plan.ok) return plan;
   student.primaryTeacherId = teacher.id;
-  return { ok: true, message: '담당 1:1 강사를 지정했어.' };
+  student.oneToOneSchedule = plan.schedule;
+  return { ok: true, message: `담당 강사를 지정하고 1:1 수업 ${plan.schedule.length}교시를 자동 배치했어.` };
 }
 
-function handleSaveStudentPrimaryTeacher(studentId) {
-  const select = document.getElementById('sla-primary-teacher');
-  const teacherId = select?.value;
-  if (!teacherId) { showToast('담당 강사를 선택해.', 'warning'); return; }
-  const result = saveStudentPrimaryTeacher(studentId, teacherId);
-  showToast(result.message, result.ok ? 'success' : 'warning');
-  if (result.ok) openStudentLessonAssignment(studentId);
+// 그룹 배정이 바뀌면 해당 학생의 1:1 수업을 현재 과정 템플릿과 새 그룹 시간표를 기준으로 다시 배치한다.
+// 실패 시 호출부가 그룹 변경을 되돌릴 수 있도록 기존 시간표는 그대로 복구한다.
+function replanStudentOneToOneAfterGroupChange(student) {
+  if (!student || student.primaryTeacherId == null || !(student.oneToOneSchedule || []).length) return { ok: true };
+  const teacher = MOCK_TEACHERS.find(item => item.id === Number(student.primaryTeacherId));
+  if (!teacher) return { ok: false, message: '담당 1:1 강사 정보를 찾을 수 없어.' };
+  const previousSchedule = (student.oneToOneSchedule || []).map(item => ({ ...item }));
+  student.oneToOneSchedule = [];
+  const requirements = getStudentLessonRequirements(student).filter(item => item.classType === '1:1');
+  const plan = planStudentOneToOneSchedule(student, teacher, requirements);
+  if (!plan.ok) {
+    student.oneToOneSchedule = previousSchedule;
+    return plan;
+  }
+  student.oneToOneSchedule = plan.schedule;
+  return { ok: true };
 }
 
 // 강사·강의실·학생의 요일·교시 충돌을 저장 전에 차단한다(PRD §14).
@@ -1375,26 +1567,10 @@ function saveStudentOneToOneSchedule(studentId, subjectId, teacherId, day, perio
   return { ok: true, message: '1:1 수업을 배정했어.' };
 }
 
-function handleSaveStudentOneToOne(studentId, subjectId) {
-  const student = MOCK_STUDENTS.find(s => s.id === studentId);
-  if (!student?.primaryTeacherId) { showToast('먼저 담당 1:1 강사를 지정해.', 'warning'); return; }
-  const day = document.getElementById(`sla-day-${subjectId}`)?.value;
-  const period = document.getElementById(`sla-period-${subjectId}`)?.value;
-  const result = saveStudentOneToOneSchedule(studentId, subjectId, student.primaryTeacherId, day, period);
-  showToast(result.message, result.ok ? 'success' : 'warning');
-  if (result.ok) { renderCsStudentAssignmentList(); openStudentLessonAssignment(studentId); }
-}
-
 function unassignStudentOneToOne(studentId, subjectId) {
   const student = MOCK_STUDENTS.find(s => s.id === studentId);
   if (!student || !Array.isArray(student.oneToOneSchedule)) return;
   student.oneToOneSchedule = student.oneToOneSchedule.filter(o => o.subjectId !== subjectId);
-}
-
-function handleUnassignStudentOneToOne(studentId, subjectId) {
-  unassignStudentOneToOne(studentId, subjectId);
-  renderCsStudentAssignmentList();
-  openStudentLessonAssignment(studentId);
 }
 
 // ── 최종 시간표 및 현황 (PRD v3.0 §13) ──────────────────────
@@ -1482,19 +1658,52 @@ function renderFinalTimetableView() {
     return;
   }
   const typeColor = { '1:1': { bg: '#ECFDF5', color: '#047857' }, '1:4': { bg: '#FFF7ED', color: '#C2410C' }, '1:8': { bg: '#EEF2FF', color: '#4338CA' } };
-  body.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">${filtered.map(e => {
-    const color = typeColor[e.classType] || { bg: '#F3F4F6', color: '#4B5563' };
+  const periods = getPeriodList();
+  const cellKey = (day, period) => `${day}__${period}`;
+  const byCell = new Map();
+  filtered.forEach(e => {
+    const key = cellKey(e.dayOfWeek, e.period);
+    if (!byCell.has(key)) byCell.set(key, []);
+    byCell.get(key).push(e);
+  });
+
+  const dayCols = LESSON_DAYS.map(day => `<th style="padding:8px;text-align:center;background:#F3F4F6;min-width:150px">${lessonEsc(day)}</th>`).join('');
+
+  const rows = periods.map(p => {
+    const cells = LESSON_DAYS.map(day => {
+      const entries = byCell.get(cellKey(day, p.order)) || [];
+      if (!entries.length) return `<td style="border:1px solid #F0F1F3;vertical-align:top;padding:4px"></td>`;
+      const cellHtml = entries.map(e => {
+        const color = typeColor[e.classType] || { bg: '#F3F4F6', color: '#4B5563' };
+        return `
+        <div style="padding:6px 7px;border-radius:7px;background:${color.bg};margin-bottom:3px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+            <b style="font-size:10.5px;color:${color.color}">${lessonEsc(e.subjectName)}</b>
+            <span style="font-size:8.5px;font-weight:800;color:${color.color}">${e.classType}</span>
+          </div>
+          <div style="font-size:9.5px;color:#4B5563;margin-top:2px">${lessonEsc(e.studentLabel)}</div>
+          <div style="font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(e.teacherName)} · ${lessonEsc(e.roomLabel)}</div>
+        </div>`;
+      }).join('');
+      return `<td style="border:1px solid #F0F1F3;vertical-align:top;padding:4px">${cellHtml}</td>`;
+    }).join('');
     return `
-    <div style="padding:11px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-        <b style="font-size:11.5px">${lessonEsc(e.dayOfWeek)} ${e.period}교시</b>
-        <span style="background:${color.bg};color:${color.color};border-radius:6px;padding:2px 7px;font-size:9.5px;font-weight:800">${e.classType}</span>
-      </div>
-      <div style="font-size:11.5px;font-weight:700;margin-top:6px;color:#111827">${lessonEsc(e.subjectName)}</div>
-      <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${lessonEsc(e.studentLabel)}</div>
-      <div style="font-size:10px;color:#9CA3AF;margin-top:4px">${lessonEsc(e.teacherName)} · ${lessonEsc(e.roomLabel)}</div>
-    </div>`;
-  }).join('')}</div>`;
+    <tr>
+      <td style="border:1px solid #F0F1F3;padding:8px;text-align:center;background:#FAFAFB;white-space:nowrap">
+        <div style="font-size:11px;font-weight:800;color:#111827">${p.order}교시</div>
+        <div style="font-size:9px;color:#9CA3AF;margin-top:2px">${p.startTime}-${p.endTime}</div>
+      </td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+  <div style="overflow-x:auto">
+    <table class="tsa-table" style="width:100%;border-collapse:collapse">
+      <thead><tr><th style="padding:8px;text-align:center;background:#F3F4F6;min-width:80px">교시</th>${dayCols}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
 // 그룹이 매칭 대상으로 지정한 레벨군 목록(체크박스 다중 선택)을 반환한다.
@@ -1546,14 +1755,20 @@ function studentCanTakeGroupSubject(student, subjectId, classType) {
   return getStudentGroupSubjectRefs(student, classType).some(ref => ref.id === subjectId);
 }
 
+// 학생 과정의 교시별 기준 시간표에서 과목·유형·교시가 모두 일치하는지 확인한다.
+function studentCanTakeGroupAtTemplatePeriod(student, subjectId, classType, periods) {
+  const course = MOCK_COURSES.find(item => item.name === student?.course && item.active !== false);
+  const template = course ? getCourseTimetableTemplate(course) : [];
+  const groupPeriods = Array.isArray(periods) ? periods.map(Number) : [];
+  return template.some((item, index) =>
+    item.subjectId === subjectId && item.classType === classType && groupPeriods.includes(index + 1)
+  );
+}
+
 // 그룹 목록 화면 분류용 — 정원 6명까지는 중그룹, 7명 이상은 대그룹으로 묶어서 보여준다
 function getGroupSizeCategory(classType) {
   const cap = getGroupClassCapacity(classType);
   return cap > 6 ? 'large' : 'medium';
-}
-
-function getGroupSizeLabel(group) {
-  return getGroupSizeCategory(group.classType) === 'large' ? '대그룹 수업' : '중그룹 수업';
 }
 
 // row.curriculum(과목+교시 배열)을 HTML onclick 속성 안에 안전하게 심을 수 있는 JS 배열 리터럴 문자열로 변환한다.
@@ -1581,10 +1796,6 @@ function getGroupCurriculumRefs(group) {
   if (subjectId) return [{ id: subjectId, hours: group.subjectHours || 1 }];
   const course = MOCK_COURSES.find(item => getGroupCourses(group).includes(item.name));
   return course?.subjectsByType?.[group.classType] || [];
-}
-
-function getAssignedGroupStudentIds() {
-  return new Set(MOCK_GROUP_CLASSES.flatMap(g => g.studentIds));
 }
 
 function isGroupNationalityLimitExceeded(group, student) {
@@ -1627,7 +1838,7 @@ function getGroupCandidateStudents(group) {
       getGroupSubjectId(item) === subjectId &&
       item.studentIds.includes(s.id)
     );
-    return studentCanTakeGroupSubject(s, subjectId, group.classType) &&
+    return studentCanTakeGroupAtTemplatePeriod(s, subjectId, group.classType, group.periods) &&
       lvl != null && levels.includes(lvl) &&
       !group.studentIds.includes(s.id) &&
       !alreadyAssignedToSameSubject &&
@@ -1636,10 +1847,6 @@ function getGroupCandidateStudents(group) {
 }
 
 function renderCsGroupPanel() {
-  renderCsCourseWorkspaces();
-  renderCsGroupCandidates();
-  renderCsGroupDetail();
-  renderCsManualAddResults();
   if (document.getElementById('group-management-content')) renderGroupManagement();
 }
 
@@ -1658,9 +1865,12 @@ function buildCsGroupDemandRows() {
     if (!course || levelGroup == null) return;
 
     ['1:4', '1:8'].forEach(classType => {
-      const curriculum = course.subjectsByType?.[classType] || [];
-      curriculum.forEach(ref => {
-        const key = [ref.id, levelGroup, classType].join('|');
+      const template = getCourseTimetableTemplate(course);
+      template.forEach((item, templateIndex) => {
+        if (item.classType !== classType) return;
+        const ref = { id: item.subjectId, hours: 1 };
+        const sequence = templateIndex + 1;
+        const key = [ref.id, levelGroup, classType, sequence].join('|');
         if (!buckets.has(key)) {
           buckets.set(key, {
             key,
@@ -1668,6 +1878,7 @@ function buildCsGroupDemandRows() {
             subjectName: MOCK_MASTER_SUBJECTS.find(subject => subject.id === ref.id)?.name || ref.id,
             levelGroup,
             classType,
+            sequence,
             curriculum: [{ id: ref.id, hours: ref.hours || 1 }],
             studentIds: [],
             courseNames: []
@@ -1681,12 +1892,14 @@ function buildCsGroupDemandRows() {
   });
 
   return [...buckets.values()].map(bucket => {
+    const sequence = bucket.sequence;
     const capacity = getGroupClassCapacity(bucket.classType);
     const baseCapacity = getGroupBaseCapacity(bucket.classType);
     const matchingGroups = MOCK_GROUP_CLASSES.filter(group =>
       group.status === 'active' &&
       group.classType === bucket.classType &&
       getGroupSubjectId(group) === bucket.subjectId &&
+      Array.isArray(group.periods) && group.periods.includes(sequence) &&
       getGroupLevelSet(group).includes(bucket.levelGroup)
     );
     const assignedIds = new Set(matchingGroups.flatMap(group => group.studentIds));
@@ -1699,7 +1912,7 @@ function buildCsGroupDemandRows() {
       sum + Math.max(0, capacity - group.studentIds.length), 0
     );
     return {
-      ...bucket, capacity, baseCapacity, totalStudents, waitingCount, requiredGroups,
+      ...bucket, sequence, capacity, baseCapacity, totalStudents, waitingCount, requiredGroups,
       existingGroups, additionalGroups, openSeats
     };
   }).sort((a, b) =>
@@ -1709,192 +1922,14 @@ function buildCsGroupDemandRows() {
     a.levelGroup - b.levelGroup
   );
 }
-
-function renderCsCourseWorkspaces(targetId = 'cs-course-workspaces') {
-  const wrap = document.getElementById(targetId);
-  if (!wrap) return;
-
-  const demandRows = buildCsGroupDemandRows();
-  const activeStudents = MOCK_STUDENTS.filter(student =>
-    ['current', 'waiting', 'extended'].includes(student.status)
-  );
-  const courses = MOCK_COURSES.filter(course =>
-    course.active !== false &&
-    (demandRows.some(row => row.courseNames.includes(course.name)) ||
-      MOCK_GROUP_CLASSES.some(group => (course.subjectsByType?.[group.classType] || []).some(ref => ref.id === getGroupSubjectId(group))) ||
-      activeStudents.some(student => student.course === course.name))
-  );
-
-  const subjectName = subjectId =>
-    MOCK_MASTER_SUBJECTS.find(subject => subject.id === subjectId)?.name || subjectId || '-';
-
-  const demandHtml = rows => rows.length ? rows.map(row => {
-    const shortage = row.additionalGroups > 0;
-    const curriculumLabel = row.curriculum.map(ref => {
-      const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
-      return `${subject?.name || ref.id} ${ref.hours}교시`;
-    }).join(' · ');
-    return `
-      <div style="padding:10px;border:1px solid ${shortage ? '#FECACA' : '#E5E7EB'};border-radius:9px;background:${shortage ? '#FFF7ED' : '#fff'}">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <b style="font-size:11.5px;color:#111827">${lessonEsc(row.subjectName)} · ${lessonEsc(getLevelGroupName(row.levelGroup))}</b>
-          <span class="tsa-badge ${row.classType === '1:4' ? 'tsa-badge-warning' : 'tsa-badge-primary'}" style="font-size:9px">${row.classType}</span>
-        </div>
-        <div style="font-size:9.5px;color:#6B7280;margin-top:5px;line-height:1.5">${lessonEsc(curriculumLabel)}</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px;text-align:center">
-          <div><span style="display:block;font-size:9px;color:#9CA3AF">학생</span><b style="font-size:11.5px">${row.totalStudents}명</b></div>
-          <div><span style="display:block;font-size:9px;color:#9CA3AF">필요/현재</span><b style="font-size:11.5px">${row.requiredGroups}/${row.existingGroups}개</b></div>
-          <div><span style="display:block;font-size:9px;color:#9CA3AF">추가</span><b style="font-size:11.5px;color:${shortage ? '#DC2626' : '#047857'}">${shortage ? `+${row.additionalGroups}개` : '충족'}</b></div>
-        </div>
-        ${shortage ? `
-          <div style="display:flex;justify-content:flex-end;margin-top:8px">
-            <button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})"><i data-lucide="plus"></i> 그룹 생성</button>
-          </div>
-        ` : ''}
-      </div>`;
-  }).join('') : '<div style="padding:20px;text-align:center;color:#9CA3AF;font-size:11px">필요 그룹이 없어.</div>';
-
-  const groupHtml = groups => groups.length ? groups.map(group => {
-    const capacity = getGroupClassCapacity(group.classType);
-    const students = group.studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
-    const selected = group.id === _csSelectedGroupId;
-    return `
-      <div onclick="selectCsGroup(${group.id})" style="padding:11px;border:1.5px solid ${selected ? '#6366F1' : '#E5E7EB'};border-radius:10px;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div>
-            <b style="font-size:11.5px;color:#111827">${lessonEsc(getGroupDisplayName(group))}</b>
-            <div style="font-size:10px;color:#6B7280;margin-top:3px">${lessonEsc(getGroupCurriculumRefs(group).map(ref => `${subjectName(ref.id)} ${ref.hours}교시`).join(' · '))}</div>
-          </div>
-          <div style="display:flex;gap:4px;align-items:center">
-            ${group.groupMode === 'shared' || getGroupCourses(group).length > 1 ? '<span class="tsa-badge tsa-badge-primary" style="font-size:9px">과정 통합</span>' : ''}
-            <span class="tsa-badge tsa-badge-success" style="font-size:9px;white-space:nowrap">${group.classType} · ${students.length}/${capacity}</span>
-          </div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-          ${students.length ? students.map(student => `<span style="padding:3px 6px;border-radius:999px;background:#F3F4F6;color:#374151;font-size:9.5px">${lessonEsc(student.nick || student.name)}</span>`).join('') : '<span style="font-size:10px;color:#9CA3AF">배정 학생 없음</span>'}
-        </div>
-        <div style="display:flex;gap:5px;margin-top:9px">
-          <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="event.stopPropagation();openGroupAssignPopup(${group.id})">학생 수정</button>
-          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="event.stopPropagation();openGroupEditBrowserPopup(${group.id})">수정</button>
-          <button class="tsa-btn tsa-btn-xs" style="color:#DC2626;background:#FEE2E2" onclick="event.stopPropagation();deleteCsGroup(${group.id})">삭제</button>
-        </div>
-      </div>`;
-  }).join('') : '<div style="padding:20px;text-align:center;color:#9CA3AF;font-size:11px">생성된 그룹이 없어.</div>';
-
-  const getStudentRequirements = (student, rows, groups) => rows
-    .filter(row => row.studentIds.includes(student.id))
-    .map(row => {
-      const assignedGroup = groups.find(group =>
-        group.studentIds.includes(student.id) &&
-        group.classType === row.classType &&
-        getGroupSubjectId(group) === row.subjectId &&
-        getGroupLevelSet(group).includes(row.levelGroup)
-      );
-      return { row, assignedGroup };
-    });
-
-  const studentHtml = (students, groups, rows) => students.length ? students.map(student => {
-    const requirements = getStudentRequirements(student, rows, groups);
-    const assignedCount = requirements.filter(item => item.assignedGroup).length;
-    const totalCount = requirements.length;
-    const completed = totalCount > 0 && assignedCount === totalCount;
-    const partial = assignedCount > 0 && !completed;
-    const statusLabel = !totalCount ? '그룹 과목 미설정' : (completed ? `배정 완료 ${assignedCount}/${totalCount}` : (partial ? `일부 배정 ${assignedCount}/${totalCount}` : `미배정 0/${totalCount}`));
-    const statusBg = completed ? '#D1FAE5' : (partial ? '#FEF3C7' : '#FEE2E2');
-    const statusColor = completed ? '#047857' : (partial ? '#B45309' : '#DC2626');
-    return `
-      <div style="padding:9px;border:1px solid ${completed ? '#D1FAE5' : '#E5E7EB'};border-radius:9px;background:#fff">
-        <div style="display:flex;align-items:flex-start;gap:8px">
-          <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lessonEsc(student.nick || student.name)} <span style="font-weight:400;color:#9CA3AF">(${lessonEsc(student.name)})</span></div>
-          <div style="font-size:9.5px;color:#6B7280;margin-top:2px">${lessonEsc(student.nationality || '-')} · ${student.age || '-'}세 · ${lessonEsc(student.level || '-')}</div>
-          </div>
-          <span style="padding:3px 6px;border-radius:999px;background:${statusBg};color:${statusColor};font-size:9px;font-weight:800;white-space:nowrap">${statusLabel}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
-          ${requirements.length ? requirements.map(({ row, assignedGroup }) => {
-            let unassignedReason = '';
-            if (!assignedGroup) {
-              const matchingGroups = groups.filter(group =>
-                group.classType === row.classType &&
-                getGroupSubjectId(group) === row.subjectId &&
-                getGroupLevelSet(group).includes(row.levelGroup)
-              );
-              if (!matchingGroups.length) {
-                unassignedReason = '일치하는 그룹 없음 · 그룹 생성 필요';
-              } else if (!matchingGroups.some(group => group.studentIds.length < getGroupClassCapacity(group.classType))) {
-                unassignedReason = '일치하는 그룹 정원 마감';
-              } else {
-                unassignedReason = '배정 가능한 그룹 있음 · 학생 배정 필요';
-              }
-            }
-            return `
-            <div style="padding:5px 7px;border-radius:7px;background:${assignedGroup ? '#F0FDF4' : '#FFF7ED'}">
-              <div style="display:flex;align-items:center;gap:6px">
-                <span class="tsa-badge ${row.classType === '1:4' ? 'tsa-badge-warning' : 'tsa-badge-primary'}" style="font-size:8.5px">${row.classType}</span>
-                <b style="font-size:9.5px;color:#374151">${lessonEsc(row.curriculum.map(ref => subjectName(ref.id)).join(' · '))}</b>
-                <span style="margin-left:auto;font-size:9px;color:${assignedGroup ? '#047857' : '#DC2626'};font-weight:700">${assignedGroup ? lessonEsc(getGroupDisplayName(assignedGroup)) : '미배정'}</span>
-              </div>
-              ${unassignedReason ? `<div style="font-size:8.5px;color:#DC2626;margin-top:3px">${unassignedReason}</div>` : ''}
-            </div>
-          `;
-          }).join('') : '<div style="font-size:9.5px;color:#9CA3AF">과정에 등록된 그룹 과목이 없어.</div>'}
-        </div>
-      </div>`;
-  }).join('') : '<div style="padding:20px;text-align:center;color:#9CA3AF;font-size:11px">해당 과정 학생이 없어.</div>';
-
-  wrap.innerHTML = courses.map(course => {
-    const rows = demandRows.filter(row => row.courseNames.includes(course.name));
-    const pendingRows = rows.filter(row => row.additionalGroups > 0);
-    const groups = MOCK_GROUP_CLASSES.filter(group =>
-      group.status === 'active' &&
-      (course.subjectsByType?.[group.classType] || []).some(ref => ref.id === getGroupSubjectId(group))
-    );
-    const students = activeStudents.filter(student => student.course === course.name);
-    const additional = rows.reduce((sum, row) => sum + row.additionalGroups, 0);
-    const incomplete = students.filter(student => {
-      const requirements = getStudentRequirements(student, rows, groups);
-      return !requirements.length || requirements.some(item => !item.assignedGroup);
-    }).length;
-    return `
-      <section class="tsa-card" style="margin-bottom:14px;overflow:hidden">
-        <div style="padding:13px 16px;background:#F5F3FF;border-bottom:1px solid #DDD6FE;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div>
-            <h3 style="margin:0;font-size:13px;font-weight:800;color:#312E81">${lessonEsc(course.name)}</h3>
-              <div style="font-size:10px;color:#6B7280;margin-top:3px">대상 학생 ${students.length}명 · 현재 그룹 ${groups.length}개 · 과목 배정 미완료 ${incomplete}명</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:7px">
-            <span style="font-size:10px;font-weight:800;color:${additional ? '#DC2626' : '#047857'}">${additional ? `그룹 ${additional}개 추가 필요` : '필요 그룹 충족'}</span>
-          </div>
-        </div>
-        <div class="cs-course-section-grid">
-          <div class="cs-course-section-column">
-            <div class="cs-course-section-title">① 필요 그룹 <span>${pendingRows.length}조건</span></div>
-            <div class="cs-course-section-scroll">${demandHtml(pendingRows)}</div>
-          </div>
-          <div class="cs-course-section-column">
-            <div class="cs-course-section-title">② 현재 그룹 <span>${groups.length}개</span></div>
-            <div class="cs-course-section-scroll">${groupHtml(groups)}</div>
-          </div>
-          <div class="cs-course-section-column">
-              <div class="cs-course-section-title">③ 학생별 과목 배정 <span>${students.length}명</span></div>
-              <div class="cs-course-section-scroll">${studentHtml(students, groups, rows)}</div>
-          </div>
-        </div>
-      </section>`;
-  }).join('') || '<div class="tsa-card" style="padding:30px;text-align:center;color:#9CA3AF">그룹 편성 대상 과정이 없어.</div>';
-
-  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
-}
-
-let _groupManagementTab = 'unmatched';
+let _groupManagementTab = 'students';
 
 function initGroupManagement() {
   renderGroupManagement();
 }
 
 function switchGroupManagementTab(tab) {
-  _groupManagementTab = tab;
+  _groupManagementTab = ['students', 'list', 'active'].includes(tab) ? tab : 'students';
   renderGroupManagement();
 }
 
@@ -1902,7 +1937,7 @@ function renderGroupManagement() {
   const content = document.getElementById('group-management-content');
   if (!content) return;
 
-  ['list', 'unmatched'].forEach(tab => {
+  ['students', 'list', 'active'].forEach(tab => {
     const button = document.getElementById(`gm-tab-${tab}`);
     if (!button) return;
     const selected = tab === _groupManagementTab;
@@ -1910,12 +1945,33 @@ function renderGroupManagement() {
     button.style.borderBottomColor = selected ? '#5E5CE6' : 'transparent';
   });
 
-  if (_groupManagementTab === 'unmatched') {
-    renderGroupManagementUnmatched(content);
+  if (_groupManagementTab === 'students') {
+    renderGroupManagementStudents(content);
+  } else if (_groupManagementTab === 'active') {
+    renderGroupManagementActive(content);
   } else {
     renderGroupManagementList(content);
   }
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+function renderGroupManagementStudents(content) {
+  content.innerHTML = `
+    <div class="tsa-card" style="overflow:hidden">
+      <div class="tsa-card-header">
+        <h3 class="tsa-card-title">🧑‍🎓 그룹 수업 학생 목록</h3>
+        <div style="font-size:11px;color:#6B7280">과정의 교시별 템플릿에 따라 중그룹·대그룹 배정 상태를 확인하고 변경해.</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tsa-table">
+          <thead><tr>
+            <th style="text-align:center;width:36px">#</th><th>학생 정보</th><th>과정 및 수강 기간</th><th>레벨</th><th>그룹 배정 현황</th><th>미배정 그룹 수업</th><th style="text-align:center">관리</th>
+          </tr></thead>
+          <tbody id="gm-student-assign-body"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderStudentAssignmentTable('gm-student-assign-body', 'group');
 }
 
 function getGroupManagementSubjectLabel(curriculum) {
@@ -1937,7 +1993,7 @@ let _gmTypeFilter = 'all';
 
 function getGroupManagementRowKey(row) {
   const levels = row.levelGroups || [row.levelGroup];
-  return `${row.subjectId}|${levels.join(',')}|${row.classType}`;
+  return `${row.subjectId}|${levels.join(',')}|${row.classType}|${row.sequence || ''}`;
 }
 
 function getGroupManagementRowGroups(row) {
@@ -1948,6 +2004,7 @@ function getGroupManagementRowGroups(row) {
     group.status === 'active' &&
     group.classType === row.classType &&
     getGroupSubjectId(group) === row.subjectId &&
+    Array.isArray(group.periods) && group.periods.includes(row.sequence) &&
     getGroupLevelSet(group).includes(row.levelGroup)
   );
 }
@@ -2024,11 +2081,11 @@ function renderGroupManagementList(content) {
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px">
       ${[
-        ['그룹 생성 필요', createCount, '#DC2626', '#FEF2F2', 'create'],
-        ['학생 배정 필요', assignCount, '#B45309', '#FFFBEB', 'assign'],
-        ['배정 완료', doneCount, '#047857', '#ECFDF5', 'done'],
-        ['운영 그룹', allGroups.length, '#4F46E5', '#EEF2FF', 'all']
-      ].map(item => `<button onclick="setGroupManagementStatusFilter('${item[4]}')" style="text-align:left;padding:15px;border:1px solid #E5E7EB;border-radius:12px;background:${item[3]};cursor:pointer"><div style="font-size:10px;color:#6B7280">${item[0]}</div><b style="display:block;margin-top:5px;font-size:22px;color:${item[2]}">${item[1]}</b></button>`).join('')}
+        ['그룹 생성 필요', createCount, '#DC2626', '#FEF2F2', "setGroupManagementStatusFilter('create')"],
+        ['학생 배정 필요', assignCount, '#B45309', '#FFFBEB', "setGroupManagementStatusFilter('assign')"],
+        ['배정 완료', doneCount, '#047857', '#ECFDF5', "setGroupManagementStatusFilter('done')"],
+        ['운영 그룹', allGroups.length, '#4F46E5', '#EEF2FF', "switchGroupManagementTab('active')"]
+      ].map(item => `<button onclick="${item[4]}" style="text-align:left;padding:15px;border:1px solid #E5E7EB;border-radius:12px;background:${item[3]};cursor:pointer"><div style="font-size:10px;color:#6B7280">${item[0]}</div><b style="display:block;margin-top:5px;font-size:22px;color:${item[2]}">${item[1]}</b></button>`).join('')}
     </div>
     <div class="tsa-card" style="overflow:hidden">
       <div style="padding:12px 14px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -2076,7 +2133,7 @@ function renderGroupManagementList(content) {
               <td style="font-size:10px;color:#4B5563">${lessonEsc(groupSummary)}</td>
               <td style="text-align:center;white-space:nowrap">
                 <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openGroupManagementBrowserPopup(${originalIndex})">상세</button>
-                ${row.additionalGroups ? `<button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})">${groups.length ? '그룹 추가' : '그룹 만들기'}</button>` : ''}
+                ${row.additionalGroups ? `<button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup},undefined,undefined,${row.sequence ?? 'undefined'})">${groups.length ? '그룹 추가' : '그룹 만들기'}</button>` : ''}
               </td>
             </tr>`;
           }).join('') || '<tr><td colspan="8" style="padding:30px;text-align:center;color:#9CA3AF">조건에 맞는 그룹이 없어.</td></tr>'}</tbody>
@@ -2086,40 +2143,80 @@ function renderGroupManagementList(content) {
 }
 
 function renderGroupManagementActive(content) {
-  const groups = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
+  const groups = [...MOCK_GROUP_CLASSES.filter(group => group.status === 'active')]
+    .sort((a, b) => _gmActiveSortDir === 'desc' ? b.id - a.id : a.id - b.id);
+  const total = groups.length;
   content.innerHTML = `
     <div class="tsa-card" style="overflow:hidden">
       <div class="tsa-card-header"><h3 class="tsa-card-title">운영 그룹 <span style="color:#6366F1">${groups.length}개</span></h3></div>
       <div style="overflow:auto">
         <table class="tsa-table">
-          <thead><tr><th>그룹</th><th>과목 구성</th><th>유형</th><th>요일·교시</th><th>강사</th><th>강의실</th><th style="text-align:center">학생</th><th>학생 목록</th><th style="text-align:center">관리</th></tr></thead>
-          <tbody>${groups.map(group => {
+          <thead><tr>
+            <th style="text-align:center;cursor:pointer;white-space:nowrap" onclick="setGroupManagementActiveSort()">#${_gmActiveSortDir === 'desc' ? ' ▼' : ' ▲'}</th>
+            <th>레벨</th><th>과목</th><th>유형</th><th>교시</th><th>요일</th><th>강사</th><th>강의실</th><th style="text-align:center">학생</th><th>학생 목록</th><th style="text-align:center">관리</th>
+          </tr></thead>
+          <tbody>${groups.map((group, idx) => {
             const students = group.studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
             const capacity = getGroupClassCapacity(group.classType);
-            const dayPeriodLabel = (Array.isArray(group.dayOfWeek) && group.dayOfWeek.length) || (Array.isArray(group.periods) && group.periods.length)
-              ? `${(group.dayOfWeek || []).join(',')} ${(group.periods || []).join(', ')}교시`
-              : '-';
+            const rowNumber = _gmActiveSortDir === 'desc' ? total - idx : idx + 1;
+            const dayLabel = Array.isArray(group.dayOfWeek) && group.dayOfWeek.length ? group.dayOfWeek.join(',') : '-';
+            const curriculum = getGroupCurriculumRefs(group);
+            const subjectLabel = curriculum.map(ref => MOCK_MASTER_SUBJECTS.find(s => s.id === ref.id)?.name || ref.id).join(', ') || '-';
+            const levelLabel = getGroupLevelSetLabel(group);
+            const periodLabel = Array.isArray(group.periods) && group.periods.length ? group.periods.join(', ') + '교시' : '-';
             const teacherLabel = group.teacherId != null ? (MOCK_TEACHERS.find(t => t.id === group.teacherId)?.nick || '-') : '-';
             const roomLabel = group.roomId != null ? (MOCK_CLASS_ROOMS.find(r => r.id === group.roomId)?.roomNo || '-') : '-';
             return `<tr>
-              <td style="font-weight:700">${lessonEsc(getGroupDisplayName(group))}</td>
-              <td style="font-size:11px;color:#4B5563">${lessonEsc(getGroupManagementSubjectLabel(getGroupCurriculumRefs(group)))}</td>
-              <td><span class="tsa-badge ${group.classType === '1:4' ? 'tsa-badge-warning' : 'tsa-badge-primary'}">${group.classType}</span></td>
-              <td style="font-size:11px;color:#4B5563;white-space:nowrap">${lessonEsc(dayPeriodLabel)}</td>
+              <td style="text-align:center;color:#9CA3AF;font-size:11px">${rowNumber}</td>
+              <td style="font-weight:700;white-space:nowrap">${lessonEsc(levelLabel)}</td>
+              <td style="font-size:11px;color:#4B5563;font-weight:700">${lessonEsc(subjectLabel)}</td>
+              <td><span class="tsa-badge ${group.classType === '1:4' ? 'tsa-badge-warning' : 'tsa-badge-primary'}">${group.classType} · ${lessonEsc(getGroupSizeShortLabel(group.classType))}</span></td>
+              <td style="font-size:11px;color:#4B5563;white-space:nowrap">${lessonEsc(periodLabel)}</td>
+              <td style="font-size:11px;color:#4B5563;white-space:nowrap">${lessonEsc(dayLabel)}</td>
               <td style="font-size:11px;color:#4B5563">${lessonEsc(teacherLabel)}</td>
               <td style="font-size:11px;color:#4B5563">${lessonEsc(roomLabel)}</td>
               <td style="text-align:center;font-weight:700">${students.length}/${capacity}명</td>
               <td>${students.map(student => `<span style="display:inline-block;padding:3px 7px;margin:2px;border-radius:999px;background:#F3F4F6;font-size:10px">${lessonEsc(student.nick || student.name)}</span>`).join('') || '<span style="color:#9CA3AF">배정 학생 없음</span>'}</td>
               <td style="text-align:center;white-space:nowrap">
-                <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openGroupManagementStudentEditor(${group.id})">학생 수정</button>
+                <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openActiveGroupDetail(${group.id})">상세</button>
                 <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
                 <button class="tsa-btn tsa-btn-xs" style="color:#DC2626;background:#FEE2E2" onclick="deleteCsGroup(${group.id})">삭제</button>
               </td>
             </tr>`;
-          }).join('') || '<tr><td colspan="9" style="padding:30px;text-align:center;color:#9CA3AF">운영 중인 그룹이 없어.</td></tr>'}</tbody>
+          }).join('') || '<tr><td colspan="11" style="padding:30px;text-align:center;color:#9CA3AF">운영 중인 그룹이 없어.</td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
+}
+
+// 운영 그룹 행에서 해당 과목·레벨·유형·교시에 대응하는 기존 그룹 상세 팝업을 연다.
+function openActiveGroupDetail(groupId) {
+  const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(groupId));
+  if (!group) {
+    showToast('그룹 정보를 찾을 수 없어.', 'warning');
+    return;
+  }
+  const subjectId = getGroupSubjectId(group);
+  const levels = getGroupLevelSet(group);
+  const period = Array.isArray(group.periods) ? Number(group.periods[0]) : null;
+  const rows = buildGroupManagementDisplayRows();
+  const rowIndex = rows.findIndex(row =>
+    row.subjectId === subjectId &&
+    row.classType === group.classType &&
+    row.sequence === period &&
+    levels.includes(row.levelGroup)
+  );
+  if (rowIndex < 0) {
+    showToast('이 그룹에 연결된 과정 템플릿 상세 정보를 찾을 수 없어.', 'warning');
+    return;
+  }
+  openGroupManagementBrowserPopup(rowIndex);
+}
+
+let _gmActiveSortDir = 'desc';
+function setGroupManagementActiveSort() {
+  _gmActiveSortDir = _gmActiveSortDir === 'desc' ? 'asc' : 'desc';
+  renderGroupManagement();
 }
 
 function renderGroupManagementUnmatched(content) {
@@ -2201,7 +2298,9 @@ function initializeGroupPopupMessageBridge() {
         action: 'initialize',
         payload: {
           students: MOCK_STUDENTS,
-          groups: MOCK_GROUP_CLASSES
+          groups: MOCK_GROUP_CLASSES,
+          teachers: MOCK_TEACHERS,
+          rooms: MOCK_CLASS_ROOMS
         }
       }, '*');
       return;
@@ -2221,11 +2320,36 @@ function initializeGroupPopupMessageBridge() {
     if (message.action === 'assign-student-to-group') {
       const result = assignStudentToGroupFromBrowserPopup(message.studentId, message.groupId);
       showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
+      if (result.ok && typeof renderCsStudentAssignmentList === 'function') renderCsStudentAssignmentList();
+    }
+
+    if (message.action === 'change-student-group') {
+      const result = changeStudentAssignedGroup(message.studentId, message.fromGroupId, message.toGroupId);
+      showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
+      if (result.ok && typeof renderCsStudentAssignmentList === 'function') renderCsStudentAssignmentList();
     }
 
     if (message.action === 'assign-students-additive') {
       const result = assignStudentsToGroupFromBrowserPopup(message.studentIds || [], message.groupId);
       showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
+    }
+
+    if (message.action === 'save-primary-teacher') {
+      const result = saveStudentPrimaryTeacher(message.studentId, message.teacherId);
+      showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
+      if (result.ok && typeof renderCsStudentAssignmentList === 'function') renderCsStudentAssignmentList();
+    }
+
+    if (message.action === 'save-one-to-one-schedule') {
+      const result = saveStudentOneToOneSchedule(message.studentId, message.subjectId, message.teacherId, message.day, message.period);
+      showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
+      if (result.ok && typeof renderCsStudentAssignmentList === 'function') renderCsStudentAssignmentList();
+    }
+
+    if (message.action === 'unassign-one-to-one') {
+      unassignStudentOneToOne(message.studentId, message.subjectId);
+      showToast('1:1 수업 배정을 해제했어.', 'success');
+      if (typeof renderCsStudentAssignmentList === 'function') renderCsStudentAssignmentList();
     }
 
     // "운영 그룹 전체 보기" 팝업(로컬 스크립트 없이 열림)은 직접 함수를 호출할 수 없어(파일 오리진이 서로 달라 차단됨),
@@ -2239,7 +2363,7 @@ function initializeGroupPopupMessageBridge() {
     }
 
     if (message.action === 'open-group-create') {
-      openGroupCreateBrowserPopup(message.curriculum || [], message.classType, message.levelGroup);
+      openGroupCreateBrowserPopup(message.curriculum || [], message.classType, message.levelGroup, undefined, undefined, message.sequence);
     }
   });
 }
@@ -2397,7 +2521,7 @@ function openGroupManagementBrowserPopup(rowIndex, popupTarget) {
         window.openGroupEditBrowserPopup(id,${rowIndex},window);
       }
       function createGroupInOpener(){
-        window.openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup},window);
+        window.openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup},window,undefined,${row.sequence ?? 'undefined'});
       }
     <\/script>
     </body></html>`);
@@ -2419,7 +2543,7 @@ function assignGroupStudentsFromBrowserPopup(groupId, studentIds) {
     return student &&
       level != null &&
       levels.includes(level) &&
-      studentCanTakeGroupSubject(student, groupSubjectId, group.classType);
+      studentCanTakeGroupAtTemplatePeriod(student, groupSubjectId, group.classType, group.periods);
   });
   if (validIds.length !== selectedIds.length) {
     return { ok: false, message: '과목·레벨·수업 형태가 일치하지 않는 학생이 포함되어 있어.' };
@@ -2434,7 +2558,24 @@ function assignGroupStudentsFromBrowserPopup(groupId, studentIds) {
       message: `${nationalityViolation.nationality} 학생은 한 그룹에 최대 ${nationalityViolation.cap}명까지만 배정할 수 있어.`
     };
   }
+  const previousIds = [...group.studentIds];
+  const previousSchedules = new Map(validIds.map(id => {
+    const student = MOCK_STUDENTS.find(item => item.id === id);
+    return [id, (student?.oneToOneSchedule || []).map(item => ({ ...item }))];
+  }));
   group.studentIds.splice(0, group.studentIds.length, ...validIds);
+  for (const id of validIds) {
+    const student = MOCK_STUDENTS.find(item => item.id === id);
+    const replanned = replanStudentOneToOneAfterGroupChange(student);
+    if (!replanned.ok) {
+      group.studentIds.splice(0, group.studentIds.length, ...previousIds);
+      previousSchedules.forEach((schedule, studentId) => {
+        const target = MOCK_STUDENTS.find(item => item.id === studentId);
+        if (target) target.oneToOneSchedule = schedule;
+      });
+      return { ok: false, message: `${student?.nick || student?.name || '학생'}의 1:1 수업을 다시 배치할 수 없어: ${replanned.message}` };
+    }
+  }
   renderCsGroupPanel();
   return { ok: true, message: `${validIds.length}명을 배정했어.` };
 }
@@ -2460,12 +2601,13 @@ function assignStudentToGroupFromBrowserPopup(studentId, groupId) {
     return { ok: false, message: '이 그룹의 레벨 범위 대상이 아니야.' };
   }
   const groupSubjectId = getGroupSubjectId(group);
-  if (!studentCanTakeGroupSubject(student, groupSubjectId, group.classType)) {
-    return { ok: false, message: '학생의 등록 과정에 이 과목이 포함되어 있지 않아 배정할 수 없어.' };
+  if (!studentCanTakeGroupAtTemplatePeriod(student, groupSubjectId, group.classType, group.periods)) {
+    return { ok: false, message: '학생 과정의 교시별 시간표와 과목·유형·교시가 일치하지 않아 배정할 수 없어.' };
   }
   const duplicated = MOCK_GROUP_CLASSES.some(item =>
     item.id !== group.id && item.status === 'active' &&
     item.classType === group.classType && getGroupSubjectId(item) === groupSubjectId &&
+    Array.isArray(item.periods) && Array.isArray(group.periods) && item.periods.some(period => group.periods.includes(period)) &&
     item.studentIds.includes(studentId)
   );
   if (duplicated) return { ok: false, message: `이미 같은 과목의 다른 ${getGroupSizeShortLabel(group.classType)}에 배정된 학생이야.` };
@@ -2474,9 +2616,34 @@ function assignStudentToGroupFromBrowserPopup(studentId, groupId) {
     return { ok: false, message: `${nationalityViolation.nationality} 학생은 한 그룹에 최대 ${nationalityViolation.cap}명까지만 배정할 수 있어.` };
   }
   group.studentIds.push(studentId);
+  const replanned = replanStudentOneToOneAfterGroupChange(student);
+  if (!replanned.ok) {
+    group.studentIds = group.studentIds.filter(id => id !== studentId);
+    return { ok: false, message: `그룹 배정 후 1:1 수업을 다시 배치할 수 없어: ${replanned.message}` };
+  }
   renderCsGroupPanel();
   const over = group.studentIds.length > baseCap;
   return { ok: true, message: `${student.nick || student.name} 학생을 배정했어.${over ? ` (기준 정원 초과 · ${getGroupLiveRatioLabel(group)} 운영)` : ''}` };
+}
+
+// 배정 완료 학생을 같은 과정 템플릿 조건의 다른 운영 그룹으로 안전하게 이동한다.
+function changeStudentAssignedGroup(studentId, fromGroupId, toGroupId) {
+  const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
+  const fromGroup = MOCK_GROUP_CLASSES.find(item => item.id === Number(fromGroupId));
+  const toGroup = MOCK_GROUP_CLASSES.find(item => item.id === Number(toGroupId));
+  if (!student || !fromGroup || !toGroup) return { ok: false, message: '학생 또는 그룹 정보를 찾을 수 없어.' };
+  if (!fromGroup.studentIds.includes(student.id)) return { ok: false, message: '현재 그룹 배정 정보를 다시 확인해줘.' };
+  if (fromGroup.id === toGroup.id) return { ok: false, message: '현재 배정된 그룹과 같은 그룹이야.' };
+  const previousSchedule = (student.oneToOneSchedule || []).map(item => ({ ...item }));
+  fromGroup.studentIds = fromGroup.studentIds.filter(id => id !== student.id);
+  const result = assignStudentToGroupFromBrowserPopup(student.id, toGroup.id);
+  if (!result.ok) {
+    if (!fromGroup.studentIds.includes(student.id)) fromGroup.studentIds.push(student.id);
+    student.oneToOneSchedule = previousSchedule;
+    return result;
+  }
+  renderCsGroupPanel();
+  return { ok: true, message: `${student.nick || student.name} 학생의 그룹 배정을 변경했어.` };
 }
 
 // 여러 학생을 한 그룹에 순차 추가 배정한다(기존 배정 인원은 유지, 실패한 학생만 건너뜀).
@@ -2578,7 +2745,7 @@ function openSizeAssignPopup(studentId, subjectId, classType, popupTarget) {
       var baseCap=${baseCap};
       var groupCounts=${JSON.stringify(Object.fromEntries(groups.map(group => [group.id, group.studentIds.length]))).replace(/</g, '\\u003c')};
       function createGroup(){
-        window.openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${classType}',${row.levelGroup},window,${studentId});
+        window.openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${classType}',${row.levelGroup},window,${studentId},${row.sequence ?? 'undefined'});
       }
       function save(){
         var picked=document.querySelector('input[name=pick-group]:checked');
@@ -2627,7 +2794,7 @@ function openGroupAssignmentBrowserPopup(groupId, detailRowIndex, popupTarget) {
     );
     return level != null &&
       getGroupLevelSet(group).includes(level) &&
-      studentCanTakeGroupSubject(student, groupSubjectId, group.classType) &&
+      studentCanTakeGroupAtTemplatePeriod(student, groupSubjectId, group.classType, group.periods) &&
       (!assignedElsewhere || selectedIds.has(student.id)) &&
       ['current', 'waiting', 'extended'].includes(student.status);
   });
@@ -2707,6 +2874,14 @@ function saveGroupFromBrowserPopup(groupId, payload) {
     g.dayOfWeek.some(day => dayOfWeek.includes(day)) && g.periods.some(period => periods.includes(period))
   );
   if (teacherConflict) return { ok: false, message: '선택한 강사가 같은 요일·교시에 이미 다른 그룹을 담당하고 있어.' };
+  const teacherOneToOneConflict = MOCK_STUDENTS.some(student =>
+    (student.oneToOneSchedule || []).some(schedule =>
+      schedule.teacherId === teacherId &&
+      dayOfWeek.includes(schedule.dayOfWeek) &&
+      periods.includes(Number(schedule.period))
+    )
+  );
+  if (teacherOneToOneConflict) return { ok: false, message: '선택한 강사가 같은 요일·교시에 이미 1:1 수업을 담당하고 있어.' };
   const roomConflict = MOCK_GROUP_CLASSES.some(g =>
     g.id !== groupId && g.status === 'active' && g.roomId === roomId &&
     Array.isArray(g.dayOfWeek) && Array.isArray(g.periods) &&
@@ -2716,12 +2891,22 @@ function saveGroupFromBrowserPopup(groupId, payload) {
   const capacity = getGroupClassCapacity(classType);
   if (!isCreate && group.studentIds.length > capacity) return { ok: false, message: `현재 배정 인원 ${group.studentIds.length}명이 변경할 상한 ${capacity}명을 초과해.` };
   const subjectId = curriculum[0].id;
+  if (!isCreate) {
+    const incompatibleStudents = (group.studentIds || []).map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(student => {
+      const level = getLevelGroupForStudent(student);
+      return !student || level == null || !levelGroups.includes(level) || !studentCanTakeGroupAtTemplatePeriod(student, subjectId, classType, periods);
+    });
+    if (incompatibleStudents.length) {
+      const names = incompatibleStudents.map(student => student?.nick || student?.name || '알 수 없는 학생').join(', ');
+      return { ok: false, message: `과정 템플릿의 과목·수업 유형·레벨과 맞지 않는 기존 학생이 있어 수정할 수 없어: ${names}` };
+    }
+  }
   const subjectNames = [...curriculum]
     .sort((a, b) => (MOCK_MASTER_SUBJECTS.find(s => s.id === a.id)?.order ?? 999) - (MOCK_MASTER_SUBJECTS.find(s => s.id === b.id)?.order ?? 999))
     .map(ref => MOCK_MASTER_SUBJECTS.find(s => s.id === ref.id)?.name || ref.id);
   const name = `${subjectNames.join('·')} · ${levelGroups.map(getLevelGroupName).join(', ')} · ${getGroupSizeShortLabel(classType)}`;
   const groupData = {
-    name, groupMode: 'subject', course: '', courses: [], status: 'active',
+    name, groupMode: 'subject', course: payload?.course || group?.course || '', courses: [], status: 'active',
     subjectId, subjectIds: curriculum.map(ref => ref.id), curriculum,
     levelGroup: levelGroups[0], levelGroups, classType, startDate, endDate, weeklyFrequency, nationalityCap, periods, dayOfWeek, teacherId, roomId
   };
@@ -2732,7 +2917,7 @@ function saveGroupFromBrowserPopup(groupId, payload) {
     const candidateLevel = candidate ? getLevelGroupForStudent(candidate) : null;
     const seedValid = candidate &&
       candidateLevel != null && levelGroups.includes(candidateLevel) &&
-      studentCanTakeGroupSubject(candidate, subjectId, classType);
+      studentCanTakeGroupAtTemplatePeriod(candidate, subjectId, classType, periods);
     if (seedValid) seedStudent = candidate;
     MOCK_GROUP_CLASSES.push({
       id: _csGroupNextId++,
@@ -2800,9 +2985,38 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
     types: ['1:4', '1:8'].filter(type => MOCK_COURSES.some(course => (course.subjectsByType?.[type] || []).some(ref => ref.id === subject.id)))
   }));
   const classTypes = MOCK_MASTER_CLASS_TYPES.filter(type => type.classMode === 'group' && type.visible !== false).sort((a, b) => a.maxStudents - b.maxStudents);
+  // 빈 상태로 새 그룹을 만들 때만(사전 지정된 과목이 없을 때만) 과정의 시간표 템플릿에서 유형·과목을 고르게 한다.
+  // 학생 요구사항에서 진입한 "+ 새 그룹 만들기"는 이미 그 학생의 과정 템플릿에서 유형·과목이 정해진 채로 들어오므로 그대로 둔다.
+  const useTemplatePicker = isCreate && prefillCurriculum.length === 0;
+  const groupClassTypeCodes = new Set(classTypes.map(type => type.code));
+  const courseTemplates = {};
+  const courseLevels = {};
+  if (useTemplatePicker) {
+    MOCK_COURSES.filter(course => course.active !== false).forEach(course => {
+      const seen = new Set();
+      const rows = [];
+      // sequence = 과정 전체 시간표(1:1 포함)에서 이 항목이 몇 번째 교시인지 — 그 번호를 그대로 실제 교시로 쓴다.
+      getCourseTimetableTemplate(course).forEach((item, index) => {
+        if (!groupClassTypeCodes.has(item.classType)) return;
+        const key = item.classType + '|' + item.subjectId;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const subject = MOCK_MASTER_SUBJECTS.find(s => s.id === item.subjectId);
+        rows.push({ classType: item.classType, subjectId: item.subjectId, subjectName: subject?.name || item.subjectId, sequence: index + 1 });
+      });
+      courseTemplates[course.name] = rows;
+      courseLevels[course.name] = (course.levels || []).map(id => MOCK_MASTER_LEVELS.find(l => l.id === id)?.order).filter(Boolean);
+    });
+  }
+  // 학생 요구사항("+ 새 그룹 만들기")에서 들어온 경우는 이미 그 학생 과정 템플릿의 몇 번째 교시인지(sequence)가 정해져 있다 — 그대로 실제 교시로 잠근다.
+  const prefillSequence = isCreate && !useTemplatePicker && createDefaults?.sequence != null ? Number(createDefaults.sequence) : null;
+  const lockPeriodToSequence = useTemplatePicker || prefillSequence != null;
   const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
-  const selectedPeriods = Array.isArray(group.periods) ? group.periods.map(Number).filter(Number.isFinite) : [];
-  const selectedDays = Array.isArray(group.dayOfWeek) ? group.dayOfWeek.filter(day => LESSON_DAYS.includes(day)) : [];
+  const selectedPeriods = isCreate
+    ? (prefillSequence != null ? [prefillSequence] : [])
+    : (Array.isArray(group.periods) ? group.periods.map(Number).filter(Number.isFinite) : []);
+  // 요일은 항상 월~금 고정 운영으로 둔다(변경 불가).
+  const selectedDays = [...LESSON_DAYS];
   const currentTeacherId = group.teacherId != null ? Number(group.teacherId) : null;
   const currentRoomId = group.roomId != null ? Number(group.roomId) : null;
   const seedStudentId = isCreate && createDefaults?.seedStudentId != null ? Number(createDefaults.seedStudentId) : null;
@@ -2819,22 +3033,38 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
       .preview{padding:11px;border-radius:9px;background:#F5F3FF;color:#4F46E5;font-size:11px;line-height:1.6}.hint{font-size:9.5px;color:#6B7280;margin-top:6px}
       footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;background:#fff;border-top:1px solid #E5E7EB}button{padding:9px 13px;border:1px solid #D1D5DB;border-radius:8px;background:#fff;cursor:pointer}.primary{background:#5E5CE6;color:#fff;border-color:#5E5CE6}
     </style></head><body>
-    <header><div style="flex:1"><h1>${isCreate ? '그룹 만들기' : '그룹 설정'}</h1><div class="meta">${isCreate ? (seedStudent ? `${esc(seedStudent.nick || seedStudent.name)} 학생을 위한 그룹을 만들어. 과목·레벨·수업 형태를 선택해.` : '과목·레벨·수업 형태를 선택해.') : esc(getGroupDisplayName(group))}</div></div><button class="back" onclick="goBack()">×</button></header>
+    <header><div style="flex:1"><h1>${isCreate ? '그룹 만들기' : '그룹 설정'}</h1><div class="meta">${isCreate ? (useTemplatePicker ? '과정을 선택하면 시간표 템플릿에서 유형·과목이 자동으로 채워져.' : (seedStudent ? `${esc(seedStudent.nick || seedStudent.name)} 학생을 위한 그룹을 만들어. 레벨을 확인해줘.` : '레벨·수업 형태를 확인해줘.')) : esc(getGroupDisplayName(group))}</div></div><button class="back" onclick="goBack()">×</button></header>
     <main>
       ${seedStudent ? `<div class="section" style="background:#F5F3FF;border-color:#C7D2FE;color:#4338CA;font-size:11px;font-weight:700">그룹을 만들면 ${esc(seedStudent.nick || seedStudent.name)} 학생이 자동으로 배정돼.</div>` : ''}
+      ${useTemplatePicker ? `
+      <section class="section"><h2>과정</h2><select id="templateCourse" onchange="onCourseChange()"><option value="">과정을 선택해</option>${MOCK_COURSES.filter(course => course.active !== false).map(course => `<option value="${esc(course.name)}">${esc(course.name)}</option>`).join('')}</select><div class="hint">교육 과정 및 과목 레벨 설정에 등록된 과정 목록이야.</div></section>
+      <section class="section"><h2>교시 템플릿 (유형 · 과목)</h2><select id="templateRow" onchange="onTemplateRowChange()" disabled><option value="">먼저 과정을 선택해</option></select><div class="hint" id="templateHint">선택한 과정의 시간표 템플릿에서 그룹 수업(1:4, 1:8) 항목만 보여줘.</div><input type="hidden" id="classType" value=""></section>
+      ` : `
       <section class="section"><h2>과목</h2><div id="subjects" class="choices"></div><div class="hint">그룹은 과목 1개당 개별 클래스로 만들어. 같은 과목이면 코스가 달라도 합반 후보가 될 수 있어.</div></section>
+      `}
       <section class="section"><h2>레벨</h2><div class="choices">${MOCK_MASTER_LEVELS.filter(level => level.visible !== false).sort((a,b)=>a.order-b.order).map(level => `<label class="choice"><input type="checkbox" class="level" value="${level.order}" ${selectedLevels.includes(level.order) ? 'checked' : ''}>${esc(level.name)}</label>`).join('')}</div><div class="hint">교재가 레벨마다 달라 단일 레벨을 권장해. 여러 레벨을 묶는 건 운영 편의를 위한 예외 옵션이야.</div></section>
+      ${useTemplatePicker ? `
+      <section class="section"><div class="grid"><div><label class="title">동일 국적 최대 인원</label><input id="nationalityCap" type="number" min="1" value="${group.nationalityCap ?? ''}" placeholder="정원의 40%"></div></div></section>
+      ` : `
       <section class="section"><div class="grid"><div><label class="title">수업 형태</label><select id="classType" onchange="renderSubjects()">${classTypes.map(type => `<option value="${type.code}" ${type.code === group.classType ? 'selected' : ''}>${esc(type.code)} ${esc(type.name)}</option>`).join('')}</select></div><div><label class="title">동일 국적 최대 인원</label><input id="nationalityCap" type="number" min="1" value="${group.nationalityCap ?? ''}" placeholder="${getGroupNationalityCap(group.classType)}"></div></div></section>
-      <section class="section"><h2>요일</h2><div id="days" class="periods" style="grid-template-columns:repeat(5,1fr)"></div></section>
-      <section class="section"><h2>교시 선택</h2><div id="periods" class="periods"></div><div class="hint">이 그룹이 실제로 만나는 요일·교시를 골라.</div></section>
+      `}
+      <section class="section"><h2>요일</h2><div id="days" class="periods" style="grid-template-columns:repeat(5,1fr)"></div><div class="hint" id="daysSelectedHint">선택됨: 요일 미지정</div></section>
+      <section class="section"><h2>교시 선택</h2><div id="periods" class="periods"></div><div class="hint" id="periodsSelectedHint">선택됨: 교시 미지정</div></section>
       <section class="section"><div class="grid"><div><label class="title">담당 강사 *</label><select id="teacherId" onchange="renderPreview()"></select></div><div><label class="title">강의실 *</label><select id="roomId" onchange="renderPreview()"></select></div></div><div class="hint" id="candidateHint"></div></section>
       <section class="section"><div id="preview" class="preview"></div></section>
-      <section class="section"><div class="grid"><div><label class="title">운영 시작일</label><input id="startDate" type="date" value="${esc(group.startDate || '2026-06-22')}"></div><div><label class="title">운영 종료일 (선택)</label><input id="endDate" type="date" value="${esc(group.endDate || '')}"></div></div><div class="grid" style="margin-top:9px"><div><label class="title">주당 수업 횟수</label><input id="weeklyFrequency" type="number" min="1" value="${group.weeklyFrequency || 5}"></div></div></section>
+      <input type="hidden" id="startDate" value="${esc(group.startDate || '2026-06-22')}">
+      <input type="hidden" id="endDate" value="${esc(group.endDate || '')}">
+      <input type="hidden" id="weeklyFrequency" value="${group.weeklyFrequency || 5}">
     </main>
     <footer><button onclick="goBack()">취소</button><button class="primary" onclick="save()">${isCreate ? '그룹 만들기' : '저장'}</button></footer>
     <script>
       var subjectData=${JSON.stringify(subjectData).replace(/</g, '\\u003c')};
       var prefill=${JSON.stringify(prefillCurriculum).replace(/</g, '\\u003c')};
+      var useTemplatePicker=${useTemplatePicker ? 'true' : 'false'};
+      var lockPeriodToSequence=${lockPeriodToSequence ? 'true' : 'false'};
+      var courseTemplates=${JSON.stringify(courseTemplates).replace(/</g, '\\u003c')};
+      var courseLevels=${JSON.stringify(courseLevels).replace(/</g, '\\u003c')};
+      var selectedTemplateSubject=null;
       var totalPeriods=${totalPeriods};
       var selectedPeriods=${JSON.stringify(selectedPeriods)};
       var LESSON_DAYS_LOCAL=['월','화','수','목','금'];
@@ -2845,24 +3075,32 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
         var container=document.getElementById('periods');
         var html='';
         for(var i=1;i<=totalPeriods;i++){
-          html+='<button type="button" class="period-btn'+(selectedPeriods.indexOf(i)>-1?' selected':'')+'" data-period="'+i+'" onclick="togglePeriod('+i+')">'+i+'</button>';
+          var selected=selectedPeriods.indexOf(i)>-1;
+          html+=lockPeriodToSequence
+            ? ('<button type="button" class="period-btn'+(selected?' selected':'')+'" disabled style="cursor:default;opacity:'+(selected?1:.35)+'">'+i+'</button>')
+            : ('<button type="button" class="period-btn'+(selected?' selected':'')+'" data-period="'+i+'" onclick="togglePeriod('+i+')">'+i+'</button>');
         }
         container.innerHTML=html;
+        document.getElementById('periodsSelectedHint').textContent=lockPeriodToSequence
+          ? '과정 시간표 템플릿 기준 교시라 자동으로 정해져. 선택됨: '+(selectedPeriods.length?selectedPeriods.join(', ')+'교시':'과목을 먼저 선택해')
+          : '선택됨: '+(selectedPeriods.length?selectedPeriods.join(', ')+'교시':'교시 미지정');
       }
       function togglePeriod(period){
-        var idx=selectedPeriods.indexOf(period);
-        if(idx>-1)selectedPeriods.splice(idx,1);
-        else selectedPeriods.push(period);
-        selectedPeriods.sort(function(a,b){return a-b});
+        if(lockPeriodToSequence) return;
+        // 그룹 하나는 하루 1교시만 만난다(과정 시간표 템플릿의 교시 항목당 1시간 기준) — 교시는 단일 선택.
+        selectedPeriods = selectedPeriods.length === 1 && selectedPeriods[0] === period ? [] : [period];
         renderPeriods();
         renderCandidates();
         renderPreview();
       }
       function renderDays(){
+        // 운영 요일은 항상 월~금 고정이라 클릭해도 바뀌지 않는다.
         var container=document.getElementById('days');
         container.innerHTML=LESSON_DAYS_LOCAL.map(function(day){
-          return '<button type="button" class="period-btn'+(selectedDays.indexOf(day)>-1?' selected':'')+'" onclick="toggleDay(\\''+day+'\\')">'+day+'</button>';
+          return '<button type="button" class="period-btn selected" disabled style="cursor:default">'+day+'</button>';
         }).join('');
+        document.getElementById('daysSelectedHint').textContent='고정: 월~금 (변경 불가)';
+        document.getElementById('weeklyFrequency').value=selectedDays.length||5;
       }
       function toggleDay(day){
         var idx=selectedDays.indexOf(day);
@@ -2894,7 +3132,33 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
         else if(!roomOptions.length) hint.textContent='선택한 요일·교시에 가능한 강의실이 없어. 다른 시간을 선택해줘.';
         else hint.textContent='';
       }
+      function onCourseChange(){
+        var course=document.getElementById('templateCourse').value;
+        var rows=courseTemplates[course]||[];
+        var rowSel=document.getElementById('templateRow');
+        rowSel.disabled=!rows.length;
+        rowSel.innerHTML='<option value="">'+(rows.length?'템플릿 선택':'그룹 수업 항목 없음')+'</option>'+rows.map(function(r,i){return '<option value="'+i+'">'+r.sequence+'교시 · '+r.classType+' · '+r.subjectName+'</option>';}).join('');
+        document.getElementById('templateHint').textContent=rows.length?'':'이 과정은 전부 1:1 수업이라 그룹 수업 항목이 없어. 다른 과정을 선택해줘.';
+        var levels=courseLevels[course]||[];
+        document.querySelectorAll('.level').forEach(function(cb){cb.checked=levels.indexOf(Number(cb.value))>-1;});
+        selectedTemplateSubject=null;
+        document.getElementById('classType').value='';
+        onTemplateRowChange();
+      }
+      function onTemplateRowChange(){
+        var course=document.getElementById('templateCourse').value;
+        var rows=courseTemplates[course]||[];
+        var idx=document.getElementById('templateRow').value;
+        var row=rows[idx];
+        selectedTemplateSubject=row?{id:row.subjectId,hours:1}:null;
+        document.getElementById('classType').value=row?row.classType:'';
+        selectedPeriods=row?[row.sequence]:[];
+        renderPeriods();
+        renderCandidates();
+        renderPreview();
+      }
       function selectedCurriculum(){
+        if(useTemplatePicker) return selectedTemplateSubject?[selectedTemplateSubject]:[];
         var input=document.querySelector('.subject:checked');
         if(!input)return [];
         var hoursInput=document.querySelector('.hours[data-subject="'+input.value+'"]');
@@ -2927,22 +3191,25 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
       }
       function goBack(){window.close();}
       function save(){
+        if(useTemplatePicker&&!selectedTemplateSubject){window.alert('과정과 교시 템플릿을 선택해.');return;}
         if(!window.opener||window.opener.closed){window.alert('기존 LMS 화면에서 다시 열어줘.');return;}
-        var payload={curriculum:selectedCurriculum(),levelGroups:Array.from(document.querySelectorAll('.level:checked')).map(function(input){return Number(input.value)}),classType:document.getElementById('classType').value,nationalityCap:document.getElementById('nationalityCap').value,startDate:document.getElementById('startDate').value,endDate:document.getElementById('endDate').value,weeklyFrequency:document.getElementById('weeklyFrequency').value,periods:selectedPeriods,dayOfWeek:selectedDays,teacherId:document.getElementById('teacherId').value,roomId:document.getElementById('roomId').value,seedStudentId:${seedStudentId != null ? seedStudentId : 'null'}};
+        var courseSel=document.getElementById('templateCourse');
+        var payload={curriculum:selectedCurriculum(),course:courseSel?courseSel.value:'',levelGroups:Array.from(document.querySelectorAll('.level:checked')).map(function(input){return Number(input.value)}),classType:document.getElementById('classType').value,nationalityCap:document.getElementById('nationalityCap').value,startDate:document.getElementById('startDate').value,endDate:document.getElementById('endDate').value,weeklyFrequency:document.getElementById('weeklyFrequency').value,periods:selectedPeriods,dayOfWeek:selectedDays,teacherId:document.getElementById('teacherId').value,roomId:document.getElementById('roomId').value,seedStudentId:${seedStudentId != null ? seedStudentId : 'null'}};
         window.opener.postMessage({channel:'tsa-group-popup',action:'save-group',groupId:${isCreate ? 'null' : group.id},payload:payload},'*');
         window.close();
       }
       renderPeriods();
       renderDays();
-      renderSubjects();
+      if(useTemplatePicker){ renderCandidates(); renderPreview(); } else { renderSubjects(); }
     <\/script></body></html>`);
   popup.document.close();
   popup.focus();
 }
 
 // prefillCurriculum: 커리큘럼 배열([{id,hours}]) 또는 (구버전 호환) 단일 subjectId 문자열.
-function openGroupCreateBrowserPopup(prefillCurriculum, prefillClassType, prefillLevelGroup, popupTarget, seedStudentId) {
+function openGroupCreateBrowserPopup(prefillCurriculum, prefillClassType, prefillLevelGroup, popupTarget, seedStudentId, prefillSequence) {
   const safeSeedStudentId = Number.isFinite(Number(seedStudentId)) ? Number(seedStudentId) : null;
+  const safeSequence = Number.isFinite(Number(prefillSequence)) ? Number(prefillSequence) : null;
   const normalizedCurriculum = Array.isArray(prefillCurriculum)
     ? prefillCurriculum.map(ref => ({ id: ref.id, hours: Math.max(1, Number(ref.hours) || 1) }))
     : (prefillCurriculum ? [{ id: prefillCurriculum, hours: 1 }] : []);
@@ -2951,7 +3218,8 @@ function openGroupCreateBrowserPopup(prefillCurriculum, prefillClassType, prefil
     subjectId: normalizedCurriculum[0]?.id || '',
     type: prefillClassType || '1:4',
     level: Number(prefillLevelGroup) || 1,
-    seedStudentId: safeSeedStudentId
+    seedStudentId: safeSeedStudentId,
+    sequence: safeSequence
   };
   if (!popupTarget) {
     const popupUrl = createGroupPopupUrl('create');
@@ -2959,6 +3227,7 @@ function openGroupCreateBrowserPopup(prefillCurriculum, prefillClassType, prefil
     popupUrl.searchParams.set('type', defaults.type);
     popupUrl.searchParams.set('level', defaults.level);
     if (safeSeedStudentId != null) popupUrl.searchParams.set('student', safeSeedStudentId);
+    if (safeSequence != null) popupUrl.searchParams.set('sequence', safeSequence);
     const openedPopup = window.open(popupUrl.href, 'tsa-group-create', 'popup=yes,width=820,height=820,resizable=yes,scrollbars=yes');
     if (!openedPopup) {
       showToast('팝업이 차단됐어. 브라우저에서 팝업을 허용해줘.', 'warning');
@@ -3007,23 +3276,6 @@ function initializeGroupPopupMode() {
     );
   }
 }
-
-function openGroupCreateForStudent(studentId) {
-  const student = MOCK_STUDENTS.find(item => item.id === studentId);
-  if (!student) {
-    showLessonToast('학생 정보를 찾을 수 없어.', 'error');
-    return;
-  }
-  const demandRow = buildCsGroupDemandRows().find(row =>
-    row.studentIds.includes(studentId) && row.additionalGroups > 0
-  );
-  if (!demandRow) {
-    showLessonToast('이 학생에게 새로 만들 그룹 과목이 없어.', 'info');
-    return;
-  }
-  openGroupCreateBrowserPopup(demandRow.curriculum, demandRow.classType, demandRow.levelGroup);
-}
-
 function openGroupManagementDetail(rowIndex) {
   closeGroupManagementDetail();
   const row = buildGroupManagementDisplayRows()[rowIndex];
@@ -3102,7 +3354,7 @@ function openGroupManagementDetail(rowIndex) {
         </div>
         <div class="tsa-modal-footer">
           <button class="tsa-btn tsa-btn-outline" onclick="closeGroupManagementDetail()">닫기</button>
-          ${row.additionalGroups ? `<button class="tsa-btn tsa-btn-primary" onclick="closeGroupManagementDetail();openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})"><i data-lucide="plus"></i> 그룹 추가</button>` : ''}
+          ${row.additionalGroups ? `<button class="tsa-btn tsa-btn-primary" onclick="closeGroupManagementDetail();openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup},undefined,undefined,${row.sequence ?? 'undefined'})"><i data-lucide="plus"></i> 그룹 추가</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -3187,7 +3439,7 @@ function openOperatingGroupsPopup(rowIndex) {
       }
       function createGroup(){
         if(!window.opener||window.opener.closed){window.alert('기존 LMS 화면에서 다시 열어줘.');return;}
-        window.opener.postMessage({channel:'tsa-group-popup',action:'open-group-create',curriculum:${curriculumJsLiteral(row.curriculum)},classType:'${row.classType}',levelGroup:${row.levelGroup}},'*');
+        window.opener.postMessage({channel:'tsa-group-popup',action:'open-group-create',curriculum:${curriculumJsLiteral(row.curriculum)},classType:'${row.classType}',levelGroup:${row.levelGroup},sequence:${row.sequence ?? 'null'}},'*');
       }
     <\/script>
     </body></html>`);
@@ -3195,189 +3447,10 @@ function openOperatingGroupsPopup(rowIndex) {
   popup.focus();
 }
 
-let _csDemandSubjectFilter = '전체';
-
-function setCsDemandSubjectFilter(subjectId) {
-  _csDemandSubjectFilter = subjectId;
-  renderCsGroupDemandSummary();
-}
-
-function renderCsGroupDemandSummary() {
-  const wrap = document.getElementById('cs-group-demand-summary');
-  if (!wrap) return;
-  const rows = buildCsGroupDemandRows();
-  const requiredGroups = rows.reduce((sum, row) => sum + row.requiredGroups, 0);
-  const additionalGroups = rows.reduce((sum, row) => sum + row.additionalGroups, 0);
-  const waitingStudents = new Set(rows.flatMap(row => {
-    const matchingGroups = MOCK_GROUP_CLASSES.filter(group =>
-      group.status === 'active' &&
-      group.classType === row.classType &&
-      getGroupSubjectId(group) === row.subjectId &&
-      getGroupLevelSet(group).includes(row.levelGroup)
-    );
-    const assignedIds = new Set(matchingGroups.flatMap(group => group.studentIds));
-    return row.studentIds.filter(id => !assignedIds.has(id));
-  })).size;
-  const shortageRows = rows.filter(row => row.additionalGroups > 0);
-  const availableSubjects = [...new Set(rows.map(row => row.subjectId))]
-    .map(subjectId => MOCK_MASTER_SUBJECTS.find(subject => subject.id === subjectId))
-    .filter(Boolean)
-    .sort((a, b) => a.order - b.order);
-  if (_csDemandSubjectFilter !== '전체' && !availableSubjects.some(subject => subject.id === _csDemandSubjectFilter)) {
-    _csDemandSubjectFilter = '전체';
-  }
-  const displayRows = _csDemandSubjectFilter === '전체'
-    ? rows
-    : rows.filter(row => row.subjectId === _csDemandSubjectFilter);
-  const subjectOrder = new Map(MOCK_MASTER_SUBJECTS.map(subject => [subject.id, subject.order]));
-  const rowsBySubject = [...displayRows.reduce((map, row) => {
-    if (!map.has(row.subjectId)) map.set(row.subjectId, []);
-    map.get(row.subjectId).push(row);
-    return map;
-  }, new Map()).entries()].sort(([subjectA], [subjectB]) =>
-    (subjectOrder.get(subjectA) ?? 999) - (subjectOrder.get(subjectB) ?? 999)
-  );
-  const demandTableRows = rowsBySubject.map(([subjectId, subjectRows]) => {
-    const sortedRows = [...subjectRows].sort((a, b) =>
-      a.levelGroup - b.levelGroup || a.classType.localeCompare(b.classType)
-    );
-    const subjectName = MOCK_MASTER_SUBJECTS.find(subject => subject.id === subjectId)?.name || subjectId;
-    const subjectStudentCount = new Set(subjectRows.flatMap(row => row.studentIds)).size;
-    const subjectAdditionalGroups = subjectRows.reduce((sum, row) => sum + row.additionalGroups, 0);
-    return `
-      <tr>
-        <td colspan="9" style="padding:9px 12px;background:#F5F3FF;border-top:1.5px solid #C7D2FE">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-            <strong style="font-size:11.5px;color:#4338CA">${lessonEsc(subjectName)}</strong>
-            <span style="font-size:10px;color:#6B7280">
-              대상 학생 ${subjectStudentCount}명 · 편성 조건 ${subjectRows.length}건 ·
-              <b style="color:${subjectAdditionalGroups ? '#DC2626' : '#047857'}">${subjectAdditionalGroups ? `추가 ${subjectAdditionalGroups}개 필요` : '그룹 충족'}</b>
-            </span>
-          </div>
-        </td>
-      </tr>
-      ${sortedRows.map(row => {
-        const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === row.subjectId);
-        const shortage = row.additionalGroups > 0;
-        return `<tr style="${shortage ? 'background:#FFF7ED' : ''}">
-          <td style="font-weight:700">${lessonEsc(subject?.name || row.subjectId)}</td>
-          <td>${lessonEsc(getLevelGroupName(row.levelGroup))}</td>
-          <td><span style="padding:2px 6px;border-radius:999px;background:${row.classType === '1:4' ? '#FEF3C7' : '#E0E7FF'};color:${row.classType === '1:4' ? '#92400E' : '#4338CA'};font-weight:800">${row.classType}</span></td>
-          <td style="text-align:center">${row.totalStudents}명</td>
-          <td style="text-align:center;color:${row.waitingCount ? '#B45309' : '#047857'};font-weight:700">${row.waitingCount}명</td>
-          <td style="text-align:center;font-weight:800">${row.requiredGroups}개</td>
-          <td style="text-align:center">${row.existingGroups}개</td>
-          <td style="text-align:center">${row.openSeats}석</td>
-          <td style="text-align:center"><span style="padding:3px 7px;border-radius:999px;background:${shortage ? '#FEE2E2' : '#D1FAE5'};color:${shortage ? '#DC2626' : '#047857'};font-weight:800">${shortage ? `+${row.additionalGroups}개` : '충족'}</span></td>
-        </tr>`;
-      }).join('')}
-    `;
-  }).join('');
-
-  wrap.innerHTML = `
-    <div style="background:#fff">
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F5F3FF;border-bottom:1px solid #E5E7EB">
-        <div>
-          <h3 class="tsa-card-title" style="font-size:12.5px">필요 그룹 확인</h3>
-          <div style="font-size:10.5px;color:#6B7280;margin-top:3px">매칭 대상 학생을 과목·레벨·수업 유형별로 계산한 결과야. 과정은 과목 수강 가능 여부만 판단해.</div>
-        </div>
-        <span style="font-size:10px;color:#4F46E5;font-weight:700">학생 수 ÷ 유형별 정원 = 필요 그룹 수</span>
-      </div>
-      <div style="padding:12px 14px">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">
-          ${[
-            ['매칭 대기 학생', `${waitingStudents}명`, '#B45309', '#FFF7ED'],
-            ['전체 필요 그룹', `${requiredGroups}개`, '#4F46E5', '#EEF2FF'],
-            ['현재 생성 그룹', `${MOCK_GROUP_CLASSES.filter(group => group.status === 'active').length}개`, '#047857', '#ECFDF5'],
-            ['추가 생성 필요', `${additionalGroups}개`, additionalGroups ? '#DC2626' : '#047857', additionalGroups ? '#FEF2F2' : '#ECFDF5']
-          ].map(([label, value, color, bg]) => `<div style="padding:10px 12px;border-radius:9px;background:${bg}"><span style="display:block;font-size:10px;color:#6B7280">${label}</span><b style="display:block;font-size:19px;color:${color};margin-top:2px">${value}</b></div>`).join('')}
-        </div>
-        ${rows.length ? `
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-            ${[
-              { id: '전체', name: '전체', count: rows.length },
-              ...availableSubjects.map(subject => ({
-                id: subject.id,
-                name: subject.name,
-                count: rows.filter(row => row.subjectId === subject.id).length,
-              }))
-            ].map(subject => {
-              const active = _csDemandSubjectFilter === subject.id;
-              return `<button type="button" onclick="setCsDemandSubjectFilter('${subject.id}')"
-                class="tsa-pill ${active ? 'active' : ''}"
-                style="${active ? 'background:#5E5CE6;color:#fff;border-color:#5E5CE6' : ''}">
-                ${lessonEsc(subject.name)} <span style="font-size:9px;opacity:.75">${subject.count}</span>
-              </button>`;
-            }).join('')}
-          </div>
-          <div style="overflow-x:auto;border:1px solid #E5E7EB;border-radius:9px">
-            <table class="tsa-table" style="min-width:900px;font-size:10.5px">
-               <thead><tr><th>과목</th><th>레벨</th><th>유형</th><th style="text-align:center">대상 학생</th><th style="text-align:center">매칭 대기</th><th style="text-align:center">필요 그룹</th><th style="text-align:center">현재 그룹</th><th style="text-align:center">남은 좌석</th><th style="text-align:center">추가 필요</th></tr></thead>
-              <tbody>${demandTableRows || '<tr><td colspan="9" style="padding:24px;text-align:center;color:#9CA3AF">선택한 과목의 그룹 편성 대상이 없어.</td></tr>'}</tbody>
-            </table>
-          </div>
-          ${shortageRows.length ? `<div style="margin-top:8px;padding:9px 11px;border-radius:8px;background:#FFFBEB;color:#92400E;font-size:10.5px">현재 기준으로 ${shortageRows.length}개 조건에서 총 ${additionalGroups}개 그룹을 추가 생성해야 해.</div>` : `<div style="margin-top:8px;padding:9px 11px;border-radius:8px;background:#ECFDF5;color:#047857;font-size:10.5px">현재 생성된 그룹 수가 계산된 수요를 충족해.</div>`}
-        ` : '<div style="padding:18px;text-align:center;color:#9CA3AF;font-size:11.5px">그룹 수업 대상 학생이 없어.</div>'}
-      </div>
-    </div>`;
-}
-
-function renderCsGroupRow(g) {
-  const cap = getGroupClassCapacity(g.classType);
-  const filled = g.studentIds.length;
-  const selected = g.id === _csSelectedGroupId;
-  const groupSizeLabel = getGroupSizeLabel(g);
-  const assignedStudents = g.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-  const emptySeats = Math.max(0, cap - assignedStudents.length);
-
-  const filledRows = assignedStudents.map((s, i) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #E5E7EB;border-radius:8px;padding:6px 10px">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0">
-        <span style="font-size:10px;color:#9CA3AF;flex-shrink:0">${i + 1}번째</span>
-        <div style="min-width:0">
-          <div style="font-size:12px;font-weight:700;color:#1F2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nick || s.name} <span style="font-weight:400;color:#9CA3AF">(${s.name})</span></div>
-          <div style="font-size:10px;color:#6B7280;white-space:nowrap">${s.nationality || '-'} · ${s.gender}성 · ${s.age || '-'}세</div>
-        </div>
-      </div>
-      <button class="tsa-btn tsa-btn-xs tsa-btn-outline-danger" style="flex-shrink:0" onclick="event.stopPropagation();removeStudentFromGroup(${g.id},${s.id})">해제</button>
-    </div>
-  `).join('');
-
-  const emptyRows = Array.from({ length: emptySeats }).map((_, i) => `
-    <button onclick="event.stopPropagation();openGroupAssignPopup(${g.id})" style="display:flex;align-items:center;gap:8px;border:1px dashed #C7D2FE;border-radius:8px;padding:6px 10px;background:#F8F9FF;color:#6366F1;font-size:11.5px;font-weight:600;cursor:pointer;width:100%;text-align:left">
-      <span style="font-size:10px;color:#9CA3AF;flex-shrink:0">${assignedStudents.length + i + 1}번째</span>
-      <span>+ 배정하기</span>
-    </button>
-  `).join('');
-
-  return `
-    <div onclick="selectCsGroup(${g.id})" style="padding:14px;border:1.5px solid ${selected ? '#6366F1' : '#E5E7EB'};border-radius:12px;cursor:pointer;background:${selected ? '#EEF2FF' : '#fff'}">
-      <!-- 1행: 그룹명 + 관리 버튼(우측 상단) -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="font-size:13px;font-weight:700;color:#111827;line-height:1.4">${getGroupDisplayName(g)}</div>
-        <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="event.stopPropagation();openGroupEditBrowserPopup(${g.id})">수정</button>
-          <button class="tsa-btn tsa-btn-xs" style="background:#FEE2E2;color:#DC2626;border:1px solid #FECACA" onclick="event.stopPropagation();deleteCsGroup(${g.id})">삭제</button>
-        </div>
-      </div>
-      <!-- 1-1행: 레벨/형태/정원 배지 (자동 줄바꿈) -->
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px">
-        <span class="tsa-badge tsa-badge-primary" style="font-size:10px">🎯 ${getGroupLevelSetLabel(g)}</span>
-        <span class="tsa-badge ${filled >= cap ? 'tsa-badge-gray' : 'tsa-badge-success'}" style="font-size:10px">${g.classType} · ${groupSizeLabel}</span>
-        <span style="font-size:11.5px;font-weight:700;color:${filled >= cap ? '#6B7280' : '#5E5CE6'}">${filled}/${cap}</span>
-      </div>
-      <!-- 2행: 과정·과목·레벨 상세 -->
-      <div style="font-size:11px;color:#6B7280;margin-top:6px">주 ${g.weeklyFrequency}회 · 정원 ${cap}명</div>
-      <!-- 3행: 정원 슬롯 (배정 학생 + 빈 자리, 세로 나열) -->
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">${filledRows}${emptyRows}</div>
-    </div>
-  `;
-}
 
 // 그룹 카드의 "+ 배정하기" 클릭 시 뜨는 팝업: 매칭 대상 학생을 바로 골라 배정할 수 있게 한다.
 function openGroupAssignPopup(groupId) {
   _csSelectedGroupId = groupId;
-  renderCsGroupList();
   renderGroupAssignPopupCandidates();
   openModal('group-assign-popup-modal');
 }
@@ -3451,253 +3524,24 @@ function assignFromGroupAssignPopup() {
   closeGroupAssignPopup();
   renderCsGroupPanel();
 }
-
-function renderCsGroupList() {
-  const wrap = document.getElementById('cs-group-list');
-  if (!wrap) return;
-  if (!MOCK_GROUP_CLASSES.length) {
-    wrap.innerHTML = `<div style="padding:20px;text-align:center;color:#9CA3AF;font-size:12px">등록된 그룹이 없습니다. [그룹 생성] 버튼으로 추가하세요.</div>`;
-    return;
-  }
-  const medium = MOCK_GROUP_CLASSES.filter(g => getGroupSizeCategory(g.classType) === 'medium');
-  const large = MOCK_GROUP_CLASSES.filter(g => getGroupSizeCategory(g.classType) === 'large');
-
-  const sectionHtml = (title, list) => `
-    <div style="font-size:11px;font-weight:800;color:#6B7280;margin:14px 0 8px">${title} (${list.length})</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
-      ${list.length ? list.map(renderCsGroupRow).join('') : `<div style="padding:14px;text-align:center;color:#D1D5DB;font-size:11px">해당 그룹 없음</div>`}
-    </div>
-  `;
-
-  wrap.innerHTML = sectionHtml('중그룹 (정원 ≤6)', medium) + sectionHtml('대그룹 (정원 7+)', large);
-}
-
-function selectCsGroup(id) {
-  _csSelectedGroupId = id;
-  const searchInput = document.getElementById('cs-manual-add-search');
-  if (searchInput) searchInput.value = '';
-  renderCsGroupList();
-  renderCsGroupCandidates();
-  renderCsGroupDetail();
-  renderCsManualAddResults();
-}
-
 function deleteCsGroup(id) {
   const groupIndex = MOCK_GROUP_CLASSES.findIndex(g => g.id === id);
   if (groupIndex < 0) return;
 
   const group = MOCK_GROUP_CLASSES[groupIndex];
   const studentCount = group.studentIds.length;
-  const assignmentCount = LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.demandId === `G-${id}`).length;
-  const impact = [
-    studentCount ? `배정 학생 ${studentCount}명` : '',
-    assignmentCount ? `주간 편성 ${assignmentCount}건` : '',
-  ].filter(Boolean).join(', ');
-  const impactMessage = impact ? `\n\n삭제 시 ${impact}도 함께 해제돼.` : '';
+  const impactMessage = studentCount ? `\n\n삭제 시 배정 학생 ${studentCount}명도 함께 미배정 상태로 돌아가.` : '';
 
   if (!window.confirm(`'${getGroupDisplayName(group)}' 그룹을 삭제할까?${impactMessage}`)) return;
 
   MOCK_GROUP_CLASSES.splice(groupIndex, 1);
-  LESSON_SCHEDULE_ASSIGNMENTS = LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.demandId !== `G-${id}`);
   if (_csSelectedGroupId === id) {
     _csSelectedGroupId = MOCK_GROUP_CLASSES[0]?.id || null;
   }
-  if (_lessonSelectedDemandId === `G-${id}`) {
-    _lessonSelectedDemandId = null;
-    _lessonSelectedSlot = null;
-    _lessonSelectedTeacherId = null;
-    _lessonSelectedRoomId = null;
-    _lessonEditingAssignmentId = null;
-  }
-  _lessonScheduleConfirmed = false;
 
   renderCsGroupPanel();
-  renderLessonSchedulingBoard();
   showToast(`✓ ${getGroupDisplayName(group)} 그룹을 삭제했어.`, 'success');
 }
-
-function renderCsGroupCandidates() {
-  const wrap = document.getElementById('cs-group-candidates');
-  if (!wrap) return;
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _csSelectedGroupId);
-  if (!group) {
-    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:12px">좌측에서 그룹을 선택하세요.</div>`;
-    return;
-  }
-  const candidates = getGroupCandidateStudents(group);
-  const cap = getGroupClassCapacity(group.classType);
-  const remaining = Math.max(0, cap - group.studentIds.length);
-  if (!candidates.length) {
-    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:12px">동일 과목·레벨군의 미배정 학생이 없습니다.</div>`;
-    return;
-  }
-  wrap.innerHTML = candidates.map(s => {
-    const nationalityBlocked = isGroupNationalityLimitExceeded(group, s);
-    const blocked = remaining <= 0 || nationalityBlocked;
-    const reason = remaining <= 0 ? '정원 마감' : (nationalityBlocked ? '동일 국적 제한 초과' : '');
-    return `
-      <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px;${blocked ? 'opacity:.5' : 'cursor:pointer'}">
-        <input type="checkbox" class="cs-group-candidate-cb" value="${s.id}" ${blocked ? 'disabled' : ''}/>
-        <div style="flex:1;font-size:11.5px">
-          <div style="font-weight:700;color:#111827">${s.nick} <span style="font-weight:400;color:#6B7280">(${s.name})</span></div>
-          <div style="color:#6B7280;margin-top:1px">${s.level || '-'} · ${s.nationality || '-'} · ${s.gender}성 · ${s.age || '-'}세</div>
-        </div>
-        ${reason ? `<span style="font-size:10px;color:#EF4444;font-weight:700">${reason}</span>` : ''}
-      </label>
-    `;
-  }).join('');
-}
-
-function assignSelectedCandidatesToGroup() {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _csSelectedGroupId);
-  if (!group) { showToast('먼저 그룹을 선택하세요.', 'warning'); return; }
-  const checked = [...document.querySelectorAll('.cs-group-candidate-cb:checked')].map(cb => parseInt(cb.value, 10));
-  if (!checked.length) { showToast('배정할 학생을 선택하세요.', 'warning'); return; }
-  const cap = getGroupClassCapacity(group.classType);
-  const availableSeats = Math.max(0, cap - group.studentIds.length);
-  const validStudentIds = checked.filter(studentId =>
-    MOCK_STUDENTS.some(student => student.id === studentId) &&
-    !group.studentIds.includes(studentId)
-  );
-  if (validStudentIds.length > availableSeats) {
-    showToast(`남은 자리 ${availableSeats}석까지만 배정할 수 있어.`, 'warning');
-    return;
-  }
-  const nationalityViolation = getGroupAssignmentNationalityViolation(group, validStudentIds);
-  if (nationalityViolation) {
-    window.alert(`${nationalityViolation.nationality} 학생은 한 그룹에 최대 ${nationalityViolation.cap}명까지만 배정할 수 있어.\n선택한 학생은 배정되지 않았어.`);
-    return;
-  }
-  group.studentIds.push(...validStudentIds);
-  const assignedCount = validStudentIds.length;
-  showToast(`✓ ${assignedCount}명을 ${getGroupDisplayName(group)}에 배정했습니다.`, 'success');
-  renderCsGroupPanel();
-}
-
-// 자동 필터(과목·레벨 일치) 조건에 안 맞는 학생을 관리자가 사유를 남기고 예외로 직접 추가
-function renderCsManualAddResults() {
-  const wrap = document.getElementById('cs-manual-add-results');
-  if (!wrap) return;
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _csSelectedGroupId);
-  const term = (document.getElementById('cs-manual-add-search')?.value || '').trim().toLowerCase();
-  if (!group) { wrap.innerHTML = ''; return; }
-  if (!term) { wrap.innerHTML = `<div style="font-size:11px;color:#9CA3AF;padding:4px">검색어를 입력하세요.</div>`; return; }
-
-  const assignedIds = getAssignedGroupStudentIds();
-  const results = MOCK_STUDENTS.filter(s =>
-    !assignedIds.has(s.id) &&
-    ['current', 'waiting', 'extended'].includes(s.status) &&
-    (s.name.toLowerCase().includes(term) || s.nick.toLowerCase().includes(term))
-  ).slice(0, 8);
-
-  if (!results.length) { wrap.innerHTML = `<div style="font-size:11px;color:#9CA3AF;padding:4px">검색 결과가 없습니다.</div>`; return; }
-
-  wrap.innerHTML = results.map(s => {
-    const levelGroup = getLevelGroupForStudent(s);
-    const levelMismatch = levelGroup == null || !getGroupLevelSet(group).includes(levelGroup);
-    const mismatch = !getGroupCourses(group).includes(s.course) ? '과정 다름' : (levelMismatch ? '레벨 다름' : '');
-    return `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:5px">
-        <div style="flex:1;font-size:11.5px">
-          <div style="font-weight:700;color:#111827">${s.nick} <span style="font-weight:400;color:#6B7280">(${s.name})</span></div>
-          <div style="color:#6B7280;margin-top:1px">${s.course || '-'} · ${s.level || '-'}${mismatch ? ` · <span style="color:#D97706;font-weight:700">${mismatch}</span>` : ''}</div>
-        </div>
-        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="flex-shrink:0" onclick="addStudentToGroupAsException(${s.id})">추가(예외)</button>
-      </div>
-    `;
-  }).join('');
-}
-
-function addStudentToGroupAsException(studentId) {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _csSelectedGroupId);
-  if (!group) { showToast('먼저 그룹을 선택하세요.', 'warning'); return; }
-  const cap = getGroupClassCapacity(group.classType);
-  if (group.studentIds.length >= cap) { showToast('그룹 정원이 이미 마감되었습니다.', 'danger'); return; }
-  const student = MOCK_STUDENTS.find(s => s.id === studentId);
-  if (!student) return;
-
-  const reason = prompt(`${student.nick}(${student.name})을(를) 조건 예외로 배정합니다.\n승인 사유를 입력하세요:`);
-  if (!reason) { showToast('사유를 입력해야 예외 배정이 가능합니다.', 'warning'); return; }
-
-  group.studentIds.push(studentId);
-  if (!group.manualLockIds) group.manualLockIds = [];
-  group.manualLockIds.push(studentId); // 예외 승인 학생은 자동 재매칭에서 이동하지 않도록 수동 고정과 동일하게 유지
-  if (!group.exceptions) group.exceptions = [];
-  group.exceptions.push({ studentId, reason, approvedBy: '관리자', approvedAt: '2026-06-23' });
-
-  showToast(`✓ ${student.nick}을(를) 예외 배정했습니다.`, 'success');
-  const searchInput = document.getElementById('cs-manual-add-search');
-  if (searchInput) searchInput.value = '';
-  renderCsGroupPanel();
-}
-
-function removeStudentFromGroup(groupId, studentId) {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === groupId);
-  if (!group) return;
-  group.studentIds = group.studentIds.filter(id => id !== studentId);
-  group.manualLockIds = (group.manualLockIds || []).filter(id => id !== studentId);
-  group.exceptions = (group.exceptions || []).filter(e => e.studentId !== studentId);
-  renderCsGroupPanel();
-}
-
-function toggleGroupManualLock(groupId, studentId) {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === groupId);
-  if (!group) return;
-  if (!group.manualLockIds) group.manualLockIds = [];
-  const idx = group.manualLockIds.indexOf(studentId);
-  if (idx >= 0) group.manualLockIds.splice(idx, 1);
-  else group.manualLockIds.push(studentId);
-  renderCsGroupDetail();
-}
-
-function renderCsGroupDetail() {
-  const wrap = document.getElementById('cs-group-detail');
-  if (!wrap) return;
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _csSelectedGroupId);
-  if (!group) {
-    wrap.innerHTML = `<div style="padding:16px;text-align:center;color:#9CA3AF;font-size:12px">좌측에서 그룹을 선택하세요.</div>`;
-    return;
-  }
-  const cap = getGroupClassCapacity(group.classType);
-  const roster = group.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-  wrap.innerHTML = `
-    <div style="font-size:12.5px;font-weight:800;color:#111827;margin-bottom:4px">${getGroupDisplayName(group)}</div>
-    <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">${group.classType} · ${getGroupSizeLabel(group)} · ${group.studentIds.length}/${cap}명 · 주 ${group.weeklyFrequency}회</div>
-    ${roster.length ? roster.map(s => {
-      const locked = (group.manualLockIds || []).includes(s.id);
-      const exception = (group.exceptions || []).find(e => e.studentId === s.id);
-      return `
-        <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px">
-          <div style="flex:1;font-size:11.5px">
-            <div style="font-weight:700;color:#111827">${s.nick} <span style="font-weight:400;color:#6B7280">(${s.name})</span>${exception ? ' <span class="tsa-badge tsa-badge-warning" style="font-size:9px" title="' + exception.reason.replace(/"/g, '&quot;') + '">예외</span>' : ''}</div>
-            <div style="color:#6B7280;margin-top:1px">${s.level || '-'} · ${s.nationality || '-'}</div>
-          </div>
-          <button class="tsa-btn tsa-btn-xs ${locked ? 'tsa-btn-primary' : 'tsa-btn-outline'}" onclick="toggleGroupManualLock(${group.id},${s.id})" title="수동 고정 — 자동 매칭에서 이동되지 않음">${locked ? '🔒 고정' : '고정'}</button>
-          <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="color:#EF4444" onclick="removeStudentFromGroup(${group.id},${s.id})">제외</button>
-        </div>
-      `;
-    }).join('') : '<div style="text-align:center;color:#9CA3AF;font-size:11.5px;padding:10px">배정된 학생이 없습니다.</div>'}
-    <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="width:100%;justify-content:center;margin-top:6px" onclick="autoMatchOneGroup(${group.id})"><i data-lucide="wand-2"></i> 이 그룹 재매칭</button>
-  `;
-  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
-}
-
-// PRD 06 미매칭 사유 코드: NO_GROUP / CAPACITY_FULL / NATIONALITY_LIMIT / DATA_MISSING
-function getUnmatchedReason(student) {
-  const levelGroup = getLevelGroupForStudent(student);
-  if (!levelGroup) return { code: 'DATA_MISSING', label: '레벨 등 필수 정보 누락' };
-  const matchingGroups = MOCK_GROUP_CLASSES.filter(g => {
-    if (!getGroupCourses(g).includes(student.course)) return false;
-    return getGroupLevelSet(g).includes(levelGroup);
-  });
-  if (!matchingGroups.length) return { code: 'NO_GROUP', label: '해당 레벨군 그룹 없음' };
-  const openGroups = matchingGroups.filter(g => g.studentIds.length < getGroupClassCapacity(g.classType));
-  if (!openGroups.length) return { code: 'CAPACITY_FULL', label: '그룹 정원 마감' };
-  const nationalityBlocked = openGroups.every(g => isGroupNationalityLimitExceeded(g, student));
-  if (nationalityBlocked) return { code: 'NATIONALITY_LIMIT', label: '동일 국적 제한 초과' };
-  return { code: 'UNKNOWN', label: '수동 배정 필요' };
-}
-
 function getStudentMissingGroupRows(studentId) {
   return buildCsGroupDemandRows().filter(row => {
     if (!row.studentIds.includes(studentId)) return false;
@@ -3724,84 +3568,6 @@ function getUnmatchedGroupCandidateStudents() {
     getStudentMissingGroupRows(student.id).length > 0
   );
 }
-
-function getGroupClassHoursSafe(course) {
-  return (typeof getCourseClassHours === 'function') ? getCourseClassHours(course) : { '1:1': 0, '1:4': 0, '1:8': 0 };
-}
-
-// "주간 수업 편성"(MOCK_CLASS_SESSIONS)에 실제로 배정된 교시 수를 강의실 유형별로 합산한다.
-// 그룹 배정 여부와 무관하게, 학생이 특정 요일·교시에 실제로 편성돼 있으면 그만큼 카운트된다.
-function getStudentWeeklyAssignedHours(studentId) {
-  const totals = {};
-  MOCK_CLASS_SESSIONS.forEach(session => {
-    if (!session.studentIds.includes(studentId)) return;
-    const room = MOCK_CLASS_ROOMS.find(r => r.id === session.roomId);
-    if (!room) return;
-    totals[room.type] = (totals[room.type] || 0) + (session.periods ? session.periods.length : 0);
-  });
-  return totals;
-}
-
-function renderCsUnmatchedStudents() {
-  const tbody = document.getElementById('cs-unmatched-tbody');
-  const countEl = document.getElementById('cs-unmatched-count');
-  if (!tbody) return;
-  const unmatched = getUnmatchedGroupCandidateStudents();
-  if (countEl) countEl.textContent = unmatched.length ? `${unmatched.length}명` : '';
-  if (!unmatched.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#9CA3AF;padding:16px">미매칭 학생이 없습니다.</td></tr>`;
-    return;
-  }
-  const fmt = d => d ? d.replace('2026-', '26.').replace(/-/g, '.') : '-';
-  tbody.innerHTML = unmatched.map((s, idx) => {
-    const reason = getUnmatchedReason(s);
-    const weeks = (s.startDate && s.endDate) ? Math.max(1, Math.round((new Date(s.endDate) - new Date(s.startDate)) / (7 * 86400000))) : null;
-    const period = (s.startDate && s.endDate) ? `${fmt(s.startDate)} ~ ${fmt(s.endDate)}${weeks ? ` (${weeks}주)` : ''}` : '-';
-    const course = MOCK_COURSES.find(c => c.name === s.course);
-    const hours = course ? getGroupClassHoursSafe(course) : null;
-    // 일일 시수 × 주 5일(월~금) = 주간 필요 수업 개수. 실제 배정량은 주간 수업 편성(MOCK_CLASS_SESSIONS) 기준으로 집계한다.
-    const WEEKDAYS_PER_WEEK = 5;
-    const assignedHours = getStudentWeeklyAssignedHours(s.id);
-    const hoursLabel = hours
-      ? [...MOCK_MASTER_CLASS_TYPES].filter(t => t.classMode === 'group' && t.visible !== false && (hours[t.code] || 0) > 0)
-          .map(t => `${t.code} ${assignedHours[t.code] || 0}/${hours[t.code] * WEEKDAYS_PER_WEEK}개`).join(' · ') || '-'
-      : '-';
-    return `
-      <tr>
-        <td style="text-align:center;color:#9CA3AF;font-size:11px">${idx + 1}</td>
-        <td>
-          <div style="font-weight:700">${s.nick} <span style="font-weight:400;color:#6B7280;font-size:11px">(${s.name})</span></div>
-          <div style="color:#6B7280;font-size:10.5px;margin-top:2px">${s.nationality || '-'} · ${s.gender}성 · ${s.age || '-'}세</div>
-        </td>
-        <td style="text-align:center;font-size:11.5px">${s.level || '-'}</td>
-        <td style="font-size:11.5px;color:#374151">${s.course || '-'}</td>
-        <td style="font-size:11px;color:#6B7280;white-space:nowrap">${period}</td>
-        <td style="font-size:10.5px;color:#6B7280;white-space:nowrap">${hoursLabel}</td>
-        <td><span class="tsa-badge tsa-badge-warning" style="font-size:10px">${reason.label}</span></td>
-        <td style="text-align:center">
-          ${reason.code === 'NO_GROUP' ? `<button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openGroupCreateForStudent(${s.id})">그룹 생성</button>` : '<span style="font-size:11px;color:#9CA3AF">-</span>'}
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function autoMatchOneGroup(groupId) {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === groupId);
-  if (!group) return;
-  const cap = getGroupClassCapacity(group.classType);
-  const candidates = getGroupCandidateStudents(group).sort((a, b) => a.id - b.id);
-  let assigned = 0;
-  candidates.forEach(s => {
-    if (group.studentIds.length >= cap) return;
-    if (isGroupNationalityLimitExceeded(group, s)) return;
-    group.studentIds.push(s.id);
-    assigned++;
-  });
-  showToast(`✓ ${getGroupDisplayName(group)}: ${assigned}명 자동 매칭 완료.`, 'success');
-  renderCsGroupPanel();
-}
-
 function closeAutoMatchAllGroupsModal() {
   document.getElementById('group-auto-match-conditions-modal')?.remove();
 }
@@ -3875,204 +3641,10 @@ function autoMatchAllGroups() {
   showToast(`✓ 전체 자동 매칭 완료 — ${totalAssigned}명 배정.`, 'success');
   renderCsGroupPanel();
 }
-
-function openGroupCreateModal(groupId, prefillStudentId, prefillCourseName, prefillClassType, prefillLevelGroup) {
-  const groupModal = document.getElementById('group-class-modal');
-  const groupBackdrop = document.getElementById('group-class-backdrop');
-  if (groupBackdrop && groupBackdrop.parentElement !== document.body) document.body.appendChild(groupBackdrop);
-  if (groupModal && groupModal.parentElement !== document.body) document.body.appendChild(groupModal);
-
-  const isEdit = !!groupId;
-  const g = isEdit ? MOCK_GROUP_CLASSES.find(x => x.id === groupId) : null;
-  document.getElementById('gcm-title').textContent = isEdit ? '그룹 수정' : '그룹 생성';
-  document.getElementById('gcm-id').value = isEdit ? g.id : '';
-  document.getElementById('gcm-mode').value = isEdit && (g.groupMode === 'shared' || getGroupCourses(g).length > 1) ? 'shared' : 'course';
-
-  const prefillStudent = prefillStudentId ? MOCK_STUDENTS.find(s => s.id === prefillStudentId) : null;
-  const selectedCourses = isEdit
-    ? getGroupCourses(g)
-    : (prefillStudent ? [prefillStudent.course] : (prefillCourseName ? [prefillCourseName] : []));
-
-  const classTypeSel = document.getElementById('gcm-class-type');
-  const groupClassTypes = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.classMode === 'group' && t.visible !== false).sort((a, b) => a.maxStudents - b.maxStudents);
-  classTypeSel.innerHTML = groupClassTypes.map(t => `<option value="${t.code}">${typeof getClassTypeDisplayName === 'function' ? getClassTypeDisplayName(t) : t.code + ' ' + t.name}</option>`).join('');
-  classTypeSel.value = isEdit
-    ? g.classType
-    : (prefillClassType || groupClassTypes.find(t => t.code === '1:4')?.code || groupClassTypes[0]?.code || '');
-  renderGcmCourseChoices(selectedCourses);
-
-  const selectedLevels = isEdit
-    ? getGroupLevelSet(g)
-    : [prefillStudent ? (getLevelGroupForStudent(prefillStudent) || 1) : (prefillLevelGroup || 1)];
-  const levelWrap = document.getElementById('gcm-level-checks');
-  levelWrap.innerHTML = [...MOCK_MASTER_LEVELS].filter(l => l.visible !== false).sort((a, b) => a.order - b.order).map(l => `
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-      <input type="checkbox" class="gcm-level-cb" value="${l.order}" ${selectedLevels.includes(l.order) ? 'checked' : ''}/> ${l.name}
-    </label>
-  `).join('');
-
-  document.getElementById('gcm-nationality-cap').value = isEdit && g.nationalityCap != null ? g.nationalityCap : '';
-  document.getElementById('gcm-start-date').value = isEdit ? g.startDate : '2026-06-22';
-  document.getElementById('gcm-weekly-frequency').value = isEdit ? g.weeklyFrequency : 5;
-  updateGcmCapacityHint();
-
-  groupModal.style.display = 'block';
-  groupBackdrop.style.display = 'block';
-}
-
-function getGcmAvailableCourses() {
-  return MOCK_COURSES.filter(course =>
-    course.active !== false &&
-    (getGroupClassHoursSafe(course)['1:4'] > 0 || getGroupClassHoursSafe(course)['1:8'] > 0)
-  );
-}
-
-function renderGcmCourseChoices(selectedCourseNames) {
-  const classType = document.getElementById('gcm-class-type').value;
-  const groupMode = document.getElementById('gcm-mode')?.value || 'course';
-  const selectedNames = Array.isArray(selectedCourseNames)
-    ? selectedCourseNames
-    : [...document.querySelectorAll('.gcm-course-cb:checked')].map(cb => cb.value);
-  const courses = getGcmAvailableCourses();
-  const courseWrap = document.getElementById('gcm-course-checks');
-  let availableCount = 0;
-
-  courseWrap.innerHTML = courses.map(course => {
-    const supported = (course.subjectsByType?.[classType] || []).length > 0;
-    if (supported) availableCount++;
-    return `<label style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;padding:6px 8px;border:1px solid ${supported ? '#C7D2FE' : '#E5E7EB'};border-radius:7px;background:${supported ? '#F5F3FF' : '#F9FAFB'};color:${supported ? '#374151' : '#9CA3AF'};cursor:${supported ? 'pointer' : 'not-allowed'}">
-      <span style="display:flex;align-items:center;gap:6px;min-width:0"><input type="${groupMode === 'shared' ? 'checkbox' : 'radio'}" name="${groupMode === 'shared' ? 'gcm-course-shared' : 'gcm-course-radio'}" class="gcm-course-cb" value="${lessonEsc(course.name)}" onchange="updateGcmCurriculumPreview()" ${supported && selectedNames.includes(course.name) ? 'checked' : ''} ${supported ? '' : 'disabled'}/> <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lessonEsc(course.name)}</span></span>
-      ${supported ? '<span style="font-size:9px;color:#4F46E5;font-weight:700;white-space:nowrap">선택 가능</span>' : '<span style="font-size:9px;color:#9CA3AF;white-space:nowrap">선택 불가</span>'}
-    </label>`;
-  }).join('');
-
-  const hint = document.getElementById('gcm-course-filter-hint');
-  if (hint) hint.textContent = groupMode === 'shared'
-    ? `${classType} 수업을 운영하는 과정 중 2개 이상 선택해. 모든 과정에 공통인 과목만 적용돼.`
-    : `${classType} 수업을 운영하는 과정 ${availableCount}개 중 하나를 선택해. 과목은 과정 구성에서 자동 적용돼.`;
-  updateGcmCurriculumPreview();
-}
-
-function onGcmModeChange() {
-  renderGcmCourseChoices();
-}
-
-function getGcmCommonCurriculum(courseNames, classType) {
-  const selectedCourses = courseNames.map(name => MOCK_COURSES.find(course => course.name === name)).filter(Boolean);
-  if (!selectedCourses.length) return [];
-  const firstRefs = selectedCourses[0].subjectsByType?.[classType] || [];
-  return firstRefs.filter(ref =>
-    selectedCourses.every(course => (course.subjectsByType?.[classType] || []).some(item => item.id === ref.id))
-  ).map(ref => ({
-    id: ref.id,
-    hours: Math.min(...selectedCourses.map(course =>
-      (course.subjectsByType?.[classType] || []).find(item => item.id === ref.id)?.hours || 0
-    ))
-  })).filter(ref => ref.hours > 0);
-}
-
-function updateGcmCurriculumPreview() {
-  const preview = document.getElementById('gcm-curriculum-preview');
-  if (!preview) return;
-  const courseNames = [...document.querySelectorAll('.gcm-course-cb:checked')].map(input => input.value);
-  const classType = document.getElementById('gcm-class-type')?.value;
-  const groupMode = document.getElementById('gcm-mode')?.value || 'course';
-  const refs = groupMode === 'shared'
-    ? getGcmCommonCurriculum(courseNames, classType)
-    : (MOCK_COURSES.find(item => item.name === courseNames[0])?.subjectsByType?.[classType] || []);
-  preview.innerHTML = refs.length
-    ? `<b>${groupMode === 'shared' ? '통합 그룹 공통 과목' : '그룹 수업 구성'}</b><div style="margin-top:4px">${refs.map(ref => {
-        const subject = MOCK_MASTER_SUBJECTS.find(item => item.id === ref.id);
-        return `${lessonEsc(subject?.name || ref.id)} ${ref.hours}교시`;
-      }).join(' · ')}</div>`
-    : '<span style="color:#9CA3AF">과정을 선택하면 그룹의 과목 구성이 표시돼.</span>';
-}
-
-function updateGcmCapacityHint() {
-  const classType = document.getElementById('gcm-class-type').value;
-  const hint = document.getElementById('gcm-capacity-hint');
-  if (hint) hint.textContent = `정원 ${getGroupClassCapacity(classType)}명 (형태 기준 자동 설정) · 동일 국적 최대 제안값 ${getGroupNationalityCap(classType)}명 (아래에서 직접 지정 가능)`;
-  const capInput = document.getElementById('gcm-nationality-cap');
-  if (capInput) capInput.placeholder = `예: ${getGroupNationalityCap(classType)}`;
-  renderGcmCourseChoices();
-}
-
-function closeGroupCreateModal() {
-  document.getElementById('group-class-modal').style.display = 'none';
-  document.getElementById('group-class-backdrop').style.display = 'none';
-}
-
-function saveGroupClass() {
-  const id = document.getElementById('gcm-id').value;
-  const groupMode = document.getElementById('gcm-mode')?.value || 'course';
-  const courses = [...document.querySelectorAll('.gcm-course-cb:checked')].map(cb => cb.value);
-  const levelGroups = [...document.querySelectorAll('.gcm-level-cb:checked')].map(cb => parseInt(cb.value, 10)).sort((a, b) => a - b);
-  const classType = document.getElementById('gcm-class-type').value;
-  const startDate = document.getElementById('gcm-start-date').value;
-  const weeklyFrequency = Math.max(1, parseInt(document.getElementById('gcm-weekly-frequency').value, 10) || 5);
-  const nationalityCapRaw = document.getElementById('gcm-nationality-cap').value;
-  const nationalityCap = nationalityCapRaw === '' ? null : Math.max(1, parseInt(nationalityCapRaw, 10) || 1);
-  const selectedCourse = MOCK_COURSES.find(course => course.name === courses[0]);
-  const curriculum = groupMode === 'shared'
-    ? getGcmCommonCurriculum(courses, classType)
-    : (selectedCourse?.subjectsByType?.[classType] || []);
-  const subjectIds = curriculum.map(ref => ref.id);
-  const subjectId = subjectIds[0] || null;
-  const levelLabel = levelGroups.length ? levelGroups.map(getLevelGroupName).join(', ') : '레벨 미지정';
-  const name = `${courses.join(', ')} · ${levelLabel} · ${classType}`;
-
-  const invalidCourseCount = groupMode === 'shared' ? courses.length < 2 : courses.length !== 1;
-  if (invalidCourseCount || !subjectIds.length || !startDate) {
-    showToast('과정, 레벨, 수업 형태와 운영 시작일을 확인해.', 'danger');
-    return;
-  }
-  if (!levelGroups.length) {
-    showToast('레벨을 1개 이상 선택해 주세요.', 'danger');
-    return;
-  }
-
-  if (id) {
-    const g = MOCK_GROUP_CLASSES.find(x => x.id === parseInt(id, 10));
-    if (g) {
-      const newCap = getGroupClassCapacity(classType);
-      if (g.studentIds.length > newCap) {
-        showToast(`현재 배정 인원(${g.studentIds.length}명)이 변경할 형태의 정원(${newCap}명)을 초과합니다.`, 'danger');
-        return;
-      }
-      Object.assign(g, { name, groupMode, course: courses[0], courses, subjectId, subjectIds, curriculum, levelGroup: levelGroups[0], levelGroups, classType, startDate, weeklyFrequency, nationalityCap });
-      delete g.levelGroupMin;
-      delete g.levelGroupMax;
-      showToast('✓ 그룹 정보가 수정되었습니다.', 'success');
-    }
-  } else {
-    MOCK_GROUP_CLASSES.push({
-      id: _csGroupNextId++, name, groupMode, course: courses[0], courses, subjectId, subjectIds, curriculum, levelGroup: levelGroups[0], levelGroups, classType, startDate, weeklyFrequency, nationalityCap,
-      studentIds: [], manualLockIds: [], status: 'active', createdAt: '2026-06-23',
-    });
-    showToast('✓ 신규 그룹이 생성되었습니다.', 'success');
-  }
-  closeGroupCreateModal();
-  renderCsGroupPanel();
-}
-
 function initClassSchedule() {
   _csCurrentWeek = '2026-06-22';
   _csCurrentDay  = '월';
-  switchClassScheduleTab('rooms');
-}
-
-function switchClassScheduleTab(tab) {
-  ['period','group','rooms','students','assign','view'].forEach(t => {
-    document.getElementById('cs-panel-' + t).style.display = t === tab ? '' : 'none';
-    const btn = document.getElementById('cs-tab-' + t);
-    if (btn) { btn.style.color = t===tab?'#5E5CE6':'#6B7280'; btn.style.borderBottomColor = t===tab?'#5E5CE6':'transparent'; }
-  });
-  if (tab === 'period') { if (typeof initBellSettingsView === 'function') initBellSettingsView(); }
-  if (tab === 'group')  renderCsGroupPanel();
-  if (tab === 'rooms')  renderCsRooms();
-  if (tab === 'students') renderCsStudentAssignmentList();
-  if (tab === 'assign') renderLessonSchedulingBoard();
-  if (tab === 'view')   setFinalTimetableView('all', document.getElementById('ft-tab-all'));
+  renderCsStudentAssignmentList();
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
@@ -4249,1228 +3821,10 @@ function saveCsRoom() {
       showToast(`✓ ${roomNo} 호실이 추가되었습니다.`, 'success');
     }
   }
+  syncTeacherRoomsFromClassroomSettings();
   closeCsAddRoomModal();
   renderCsRooms();
 }
-
-function csWeekLabel(w) {
-  const d = new Date(w);
-  const end = new Date(d); end.setDate(d.getDate() + 4);
-  const fmt = x => `${x.getMonth()+1}/${x.getDate()}`;
-  return `${d.getFullYear()}년 ${d.getMonth()+1}월 (${fmt(d)} ~ ${fmt(end)})`;
-}
-
-function shiftCsWeek(delta) {
-  const d = new Date(_csCurrentWeek);
-  d.setDate(d.getDate() + delta * 7);
-  _csCurrentWeek = d.toISOString().slice(0,10);
-  ['cs-week-label','cs-week-label-2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=csWeekLabel(_csCurrentWeek); });
-  const active = document.querySelector('.cs-panel-active');
-  if (document.getElementById('cs-panel-assign').style.display !== 'none') renderCsAssignGrid();
-  if (document.getElementById('cs-panel-view').style.display !== 'none') renderCsWeekView();
-}
-
-function selectCsDay(day, btn) {
-  _csCurrentDay = day;
-  document.querySelectorAll('.cs-day-btn').forEach(b => b.classList.remove('cs-day-active'));
-  btn.classList.add('cs-day-active');
-  renderCsAssignGrid();
-}
-
-function renderCsAssignGrid() {
-  const el = document.getElementById('cs-week-label');
-  if (el) el.textContent = csWeekLabel(_csCurrentWeek);
-  const grid = document.getElementById('cs-assign-grid');
-  if (!grid) return;
-
-  let activeRooms = MOCK_CLASS_ROOMS.filter(r => r.roomNo);
-  if (_csAssignTypeFilter !== '전체') {
-    activeRooms = activeRooms.filter(r => r.type === _csAssignTypeFilter);
-  }
-
-  if (activeRooms.length === 0) {
-    grid.innerHTML = '<div style="color:#9CA3AF;font-size:13px;padding:20px;text-align:center">해당 유형의 강의실이 없습니다.</div>';
-    return;
-  }
-  const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
-
-  grid.innerHTML = activeRooms.map(room => {
-    const teacher = MOCK_TEACHERS.find(t => t.nick === room.teacherNick);
-    const avatarBg = teacher ? '#EEF2FF' : '#F3F4F6';
-    const avatarColor = teacher ? '#5E5CE6' : '#9CA3AF';
-    const sessions = MOCK_CLASS_SESSIONS.filter(s => s.roomId === room.id && s.day === _csCurrentDay && s.weekOf === _csCurrentWeek);
-
-    // 교시별 배정 현황
-    const periodMap = {};
-    sessions.forEach(s => s.periods.forEach(p => { periodMap[p] = s; }));
-
-    const slots = Object.keys(CS_PERIODS).map(p => {
-      const period = parseInt(p);
-      const session = periodMap[period];
-      if (session) {
-        const students = session.studentIds.map(sid => {
-          const st = MOCK_STUDENTS.find(x => x.id === sid);
-          return st ? `<span class="cs-chip">${st.nick}</span>` : '';
-        }).join('');
-        const emptySlots = room.capacity - session.studentIds.length;
-        const emptyChips = emptySlots > 0 ? `<span class="cs-chip-empty">+${emptySlots} 자리</span>` : '';
-        return `<div class="cs-slot cs-slot-occ">
-          <div class="cs-slot-p">${period}교시</div>
-          <div style="flex:1;display:flex;flex-wrap:wrap;gap:3px">${students}${emptyChips}</div>
-          <button onclick="openCsAssignModal(${room.id},${period})" style="font-size:10px;padding:2px 6px;border:none;background:#C7D2FE;color:#3730A3;border-radius:4px;cursor:pointer">+추가</button>
-          <button onclick="removeCsSession(${session.id})" style="font-size:10px;padding:2px 6px;border:none;background:#FEE2E2;color:#991B1B;border-radius:4px;cursor:pointer">해제</button>
-        </div>`;
-      }
-      return `<div class="cs-slot">
-        <div class="cs-slot-p">${period}교시</div>
-        <button class="cs-slot-add" onclick="openCsAssignModal(${room.id},${period})">+ 배정하기</button>
-      </div>`;
-    }).join('');
-
-    return `<div class="cs-room-card">
-      <div class="cs-room-card-header">
-        <div>
-          <span style="font-size:13px;font-weight:700;color:#111827">${room.roomNo}</span>
-          <span style="font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px;${typeStyle(room.type)}">${room.type}</span>
-        </div>
-        <button onclick="openCsBulkAssignModal(${room.id})" style="font-size:11px;padding:4px 10px;border:0.5px solid #5E5CE6;border-radius:6px;background:#EEF2FF;color:#5E5CE6;cursor:pointer;white-space:nowrap">일괄 배정</button>
-      </div>
-      <div style="padding:8px 14px;border-bottom:0.5px solid #E5E7EB;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div style="width:22px;height:22px;border-radius:50%;background:${avatarBg};color:${avatarColor};font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          ${teacher ? teacher.nick.charAt(0) : '?'}
-        </div>
-        <div style="font-size:12px;color:#374151;font-weight:600">${teacher ? teacher.nick : '강사 미배정'}</div>
-        ${teacher && (teacher.preferredCourses||[]).length > 0
-          ? (teacher.preferredCourses||[]).map(tag => `<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#D1FAE5;color:#065F46;font-weight:600">${tag}</span>`).join('')
-          : ''}
-      </div>
-      <div style="padding:10px 14px">${slots}</div>
-    </div>`;
-  }).join('');
-  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
-}
-
-function openCsBulkAssignModal(roomId) {
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
-  if (!room) return;
-  _csAssignTarget = { roomId, period: null };
-  document.getElementById('cs-assign-modal-title').textContent = `${room.roomNo} · 일괄 배정`;
-  document.getElementById('cs-assign-info').innerHTML = `<b>${room.roomNo}</b> &nbsp;|&nbsp; ${room.type} · 최대 ${room.capacity}명 &nbsp;<span style="color:#6B7280;font-size:12px">교시를 복수 선택해 한 번에 배정합니다</span>`;
-
-  // 모든 교시 체크박스 (미배정 교시만 체크 활성화)
-  const sessions = MOCK_CLASS_SESSIONS.filter(s => s.roomId === roomId && s.day === _csCurrentDay && s.weekOf === _csCurrentWeek);
-  const occupiedPeriods = new Set(sessions.flatMap(s => s.periods));
-  const pWrap = document.getElementById('cs-period-checkboxes');
-  pWrap.innerHTML = Object.keys(CS_PERIODS).map(p => {
-    const isOccupied = occupiedPeriods.has(parseInt(p));
-    return `<label style="display:flex;align-items:center;gap:4px;cursor:${isOccupied?'not-allowed':'pointer'};padding:4px 10px;border-radius:6px;border:0.5px solid ${isOccupied?'#E5E7EB':'#C7D2FE'};font-size:12px;background:${isOccupied?'#F3F4F6':'#fff'};opacity:${isOccupied?'0.5':'1'}">
-      <input type="checkbox" name="cs-period" value="${p}" ${isOccupied?'disabled':''} style="accent-color:#5E5CE6"/> ${p}교시
-      ${isOccupied ? '<span style="font-size:10px;color:#9CA3AF">배정됨</span>' : ''}
-    </label>`;
-  }).join('');
-
-  // 학생 목록
-  const listEl = document.getElementById('cs-student-list');
-  const eligible = MOCK_STUDENTS.filter(s => s.remittanceStatus === 'paid' && (s.status === 'current' || s.status === 'waiting'));
-  listEl.innerHTML = eligible.length === 0
-    ? '<div style="color:#9CA3AF;font-size:12px">배정 가능한 학생이 없습니다.</div>'
-    : eligible.map(s => `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:0.5px solid #E5E7EB;border-radius:8px;cursor:pointer">
-        <input type="${room.capacity === 1 ? 'radio' : 'checkbox'}" name="cs-student" value="${s.id}" style="accent-color:#5E5CE6"/>
-        <div style="flex:1">
-          <div style="font-size:12.5px;font-weight:600">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
-          <div style="font-size:11px;color:#9CA3AF">${s.flag||''} ${s.nationality} · ${s.course}</div>
-        </div>
-      </label>`).join('');
-
-  document.getElementById('cs-assign-modal').style.display = 'block';
-  document.getElementById('cs-assign-backdrop').style.display = 'block';
-}
-
-function openCsAssignModal(roomId, period) {
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
-  if (!room) return;
-  _csAssignTarget = { roomId, period };
-  document.getElementById('cs-assign-modal-title').textContent = `${room.roomNo} · ${period}교시 배정`;
-  document.getElementById('cs-assign-info').innerHTML = `<b>${room.roomNo}</b> · ${period}교시 (${CS_PERIODS[period]}) &nbsp;|&nbsp; ${room.type} · 최대 ${room.capacity}명`;
-
-  // 교시 체크박스
-  const pWrap = document.getElementById('cs-period-checkboxes');
-  pWrap.innerHTML = Object.keys(CS_PERIODS).map(p => {
-    const checked = parseInt(p) === period ? 'checked' : '';
-    return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border-radius:6px;border:0.5px solid #E5E7EB;font-size:12px">
-      <input type="checkbox" name="cs-period" value="${p}" ${checked} style="accent-color:#5E5CE6"/> ${p}교시
-    </label>`;
-  }).join('');
-
-  // 학생 목록 (완납 학생 중 현재 수업 없는 학생)
-  const listEl = document.getElementById('cs-student-list');
-  const eligible = MOCK_STUDENTS.filter(s => s.remittanceStatus === 'paid' && (s.status === 'current' || s.status === 'waiting'));
-  listEl.innerHTML = eligible.length === 0
-    ? '<div style="color:#9CA3AF;font-size:12px">배정 가능한 학생이 없습니다.</div>'
-    : eligible.map(s => `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:0.5px solid #E5E7EB;border-radius:8px;cursor:pointer">
-        <input type="${room.capacity === 1 ? 'radio' : 'checkbox'}" name="cs-student" value="${s.id}" style="accent-color:#5E5CE6"/>
-        <div style="flex:1">
-          <div style="font-size:12.5px;font-weight:600">${s.nick} <span style="font-size:11px;color:#6B7280">${s.name}</span></div>
-          <div style="font-size:11px;color:#9CA3AF">${s.flag||''} ${s.nationality} · ${s.course}</div>
-        </div>
-      </label>`).join('');
-
-  document.getElementById('cs-assign-modal').style.display = 'block';
-  document.getElementById('cs-assign-backdrop').style.display = 'block';
-}
-
-function closeCsAssignModal() {
-  document.getElementById('cs-assign-modal').style.display = 'none';
-  document.getElementById('cs-assign-backdrop').style.display = 'none';
-  _csAssignTarget = null;
-}
-
-function confirmCsAssign() {
-  if (!_csAssignTarget) return;
-  const { roomId } = _csAssignTarget;
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
-  const selectedPeriods = [...document.querySelectorAll('input[name="cs-period"]:checked')].map(cb => parseInt(cb.value));
-  const selectedStudents = [...document.querySelectorAll('input[name="cs-student"]:checked')].map(cb => parseInt(cb.value));
-  if (selectedPeriods.length === 0) { showToast('교시를 선택하세요.', 'warning'); return; }
-  if (selectedStudents.length === 0) { showToast('학생을 선택하세요.', 'warning'); return; }
-  if (selectedStudents.length > room.capacity) { showToast(`정원 초과입니다. 최대 ${room.capacity}명.`, 'danger'); return; }
-
-  // 중복 배정 검사
-  for (const sid of selectedStudents) {
-    for (const p of selectedPeriods) {
-      const conflict = MOCK_CLASS_SESSIONS.find(s => s.day === _csCurrentDay && s.weekOf === _csCurrentWeek && s.periods.includes(p) && s.studentIds.includes(sid) && s.roomId !== roomId);
-      if (conflict) {
-        const st = MOCK_STUDENTS.find(x => x.id === sid);
-        showToast(`⚠ ${st?.nick} 학생이 ${p}교시에 이미 다른 수업에 배정되어 있습니다.`, 'danger');
-        return;
-      }
-    }
-  }
-
-  MOCK_CLASS_SESSIONS.push({
-    id: _csSessionNextId++, roomId,
-    day: _csCurrentDay, periods: selectedPeriods,
-    studentIds: selectedStudents,
-    course: document.getElementById('cs-assign-course').value,
-    level: document.getElementById('cs-assign-level').value,
-    weekOf: _csCurrentWeek
-  });
-  showToast('✓ 수업이 배정되었습니다.', 'success');
-  closeCsAssignModal();
-  renderCsAssignGrid();
-}
-
-function removeCsSession(id) {
-  if (!confirm('이 수업 배정을 해제하시겠습니까?')) return;
-  MOCK_CLASS_SESSIONS = MOCK_CLASS_SESSIONS.filter(s => s.id !== id);
-  showToast('배정이 해제되었습니다.', 'success');
-  renderCsAssignGrid();
-}
-
-/* =============================================
-   Lesson Scheduling PRD v1.0 — 3패널 수업 편성 보드
-   그룹 관리 데이터는 읽기 전용으로 사용하고 시간·강사·강의실만 배정한다.
-   ============================================= */
-let LESSON_SCHEDULE_ASSIGNMENTS = [];
-let _lessonDemandTab = 'GROUP';
-let _lessonSelectedDemandId = null;
-let _lessonSelectedSlot = null;
-let _lessonSelectedTeacherId = null;
-let _lessonSelectedRoomId = null;
-let _lessonEditingAssignmentId = null;
-let _lessonCourseFilter = 'all';
-let _lessonSearch = '';
-let _lessonScheduleConfirmed = false;
-const _lessonConfirmedWeeks = new Set();
-let _lessonAssignmentNextId = 1;
-
-const LESSON_DAYS = ['월','화','수','목','금'];
-
-function lessonSubjectName(subjectId) {
-  const subject = (typeof MOCK_MASTER_SUBJECTS !== 'undefined' ? MOCK_MASTER_SUBJECTS : []).find(s => s.id === subjectId);
-  return subject ? subject.name : (subjectId || '과목 미지정');
-}
-
-function lessonActiveStudents() {
-  return MOCK_STUDENTS.filter(s => s.remittanceStatus === 'paid' && (s.status === 'current' || s.status === 'waiting'));
-}
-
-function lessonGroupStudents(group) {
-  if (group.studentIds?.length) return group.studentIds;
-  const candidates = typeof getGroupCandidateStudents === 'function' ? getGroupCandidateStudents(group) : [];
-  return candidates.slice(0, Math.min(getGroupClassCapacity(group.classType), 4)).map(s => s.id);
-}
-
-function buildLessonDemands() {
-  const groups = MOCK_GROUP_CLASSES
-    .filter(g => g.status === 'active' && ['1:4','1:8'].includes(g.classType))
-    .flatMap(g => {
-      const weeklyFrequency = Math.max(1, Number(g.weeklyFrequency) || 1);
-      const curriculum = getGroupCurriculumRefs(g);
-      const subjectRefs = curriculum.length
-        ? curriculum
-        : [{ id: g.subjectId, hours: 1 }].filter(ref => ref.id);
-      return subjectRefs.map(ref => {
-        const subjectHours = Math.max(1, Number(ref.hours) || 1);
-        return {
-          id: `G-${g.id}-${ref.id}`,
-          kind: 'GROUP',
-          groupId: g.id,
-          name: getGroupDisplayName(g),
-          course: g.course,
-          subjectId: ref.id,
-          classType: g.classType,
-          levelGroups: getGroupLevelSet(g),
-          studentIds: lessonGroupStudents(g),
-          dailyRequiredCount: subjectHours,
-          requiredCount: subjectHours * weeklyFrequency
-        };
-      });
-    });
-  const oneToOne = lessonActiveStudents().slice(0, 12).map(s => {
-    const course = MOCK_COURSES.find(c => c.name === s.course);
-    const dailyRequiredCount = Math.max(0, Number(course?.oneone) || 0);
-    return {
-      id: `S-${s.id}`, kind: 'ONE_TO_ONE', studentId: s.id, name: `${s.nick} 1:1`,
-      course: s.course, classType: '1:1', levelGroups: [getLevelGroupForStudent(s)].filter(Boolean),
-      studentIds: [s.id], dailyRequiredCount,
-      requiredCount: dailyRequiredCount * LESSON_DAYS.length
-    };
-  }).filter(demand => demand.dailyRequiredCount > 0);
-  return [...groups, ...oneToOne];
-}
-
-function lessonAssignmentsForDemand(demandId) {
-  return LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.demandId === demandId && a.weekOf === _csCurrentWeek);
-}
-
-function lessonDemandStatus(demand) {
-  const assignments = lessonAssignmentsForDemand(demand.id);
-  const count = assignments.length;
-  if (count === 0) return 'UNSCHEDULED';
-  if (count < demand.requiredCount || assignments.some(a => a.status !== 'READY')) return 'PARTIAL';
-  return 'SCHEDULED';
-}
-
-function lessonTeacherAvailableAt(teacher, day, period) {
-  if (!teacher?.availability) return true;
-  const dailyAvailability = Array.isArray(teacher.availability)
-    ? teacher.availability
-    : teacher.availability[day];
-  return Array.isArray(dailyAvailability) && dailyAvailability[period - 1] !== false;
-}
-
-function lessonTeacherLoad(teacherId, day, classType, ignoreAssignmentId) {
-  const assignments = LESSON_SCHEDULE_ASSIGNMENTS.filter(a =>
-    a.id !== ignoreAssignmentId && a.weekOf === _csCurrentWeek && a.day === day && a.teacherId === teacherId
-  );
-  return {
-    total: assignments.length,
-    byType: assignments.filter(a => buildLessonDemands().find(d => d.id === a.demandId)?.classType === classType).length
-  };
-}
-
-function lessonTeacherCandidates(demand, day, period, ignoreAssignmentId) {
-  if (!demand || !day || !period) return [];
-  return MOCK_TEACHERS.filter(t => {
-    if (t.status === 'resigned' || !t.available || !lessonTeacherAvailableAt(t, day, period)) return false;
-    if (!(t.classTypes || []).includes(demand.classType)) return false;
-    const load = lessonTeacherLoad(t.id, day, demand.classType, ignoreAssignmentId);
-    const dailyMax = Number.isFinite(t.dailyMaxLessons) ? t.dailyMaxLessons : 8;
-    const typeMax = Number.isFinite(t.dailyTypeLimits?.[demand.classType]) ? t.dailyTypeLimits[demand.classType] : dailyMax;
-    if (load.total >= dailyMax || load.byType >= typeMax) return false;
-    return !LESSON_SCHEDULE_ASSIGNMENTS.some(a =>
-      a.id !== ignoreAssignmentId && a.weekOf === _csCurrentWeek && a.day === day && a.period === period && a.teacherId === t.id
-    );
-  }).map(t => {
-    const load = lessonTeacherLoad(t.id, day, demand.classType, ignoreAssignmentId);
-    const dailyMax = Number.isFinite(t.dailyMaxLessons) ? t.dailyMaxLessons : 8;
-    let score = Math.round((t.rating || 0) * 10);
-    const reasons = [`${period}교시 근무 가능`, `${demand.classType} 수업 가능`, `일일 잔여 ${dailyMax - load.total}회`];
-    score += Math.max(0, dailyMax - load.total) * 2;
-    if ((t.preferredCourses || []).some(c => demand.course?.includes(c) || c.includes(demand.course || ''))) {
-      score += 25;
-      reasons.push('과정 전문 분야 일치');
-    }
-    if (demand.kind === 'GROUP') {
-      score += Math.round((t.rating || 0) * 5);
-      reasons.push(`평점 ${t.rating || '-'}`);
-    }
-    return { teacher: t, score, reasons };
-  }).sort((a, b) => b.score - a.score);
-}
-
-function lessonCompatibleRooms(demand, day, period, ignoreAssignmentId) {
-  if (!demand) return [];
-  const allowedTypes = demand.classType === '1:8' ? ['1:8'] : demand.classType === '1:4' ? ['1:4','1:8'] : ['1:1','1:4','1:8'];
-  return MOCK_CLASS_ROOMS.filter(r => r.roomNo && r.status !== 'inactive' && allowedTypes.includes(r.type) &&
-    r.capacity >= demand.studentIds.length &&
-    !LESSON_SCHEDULE_ASSIGNMENTS.some(a => a.id !== ignoreAssignmentId && a.weekOf === _csCurrentWeek && a.day === day && a.period === period && a.roomId === r.id)
-  ).sort((a, b) => {
-    const exactA = a.type === demand.classType ? 0 : 1;
-    const exactB = b.type === demand.classType ? 0 : 1;
-    return exactA - exactB || a.capacity - b.capacity;
-  });
-}
-
-function lessonSlotConflict(demand, day, period, ignoreAssignmentId) {
-  const occupied = LESSON_SCHEDULE_ASSIGNMENTS.filter(a =>
-    a.id !== ignoreAssignmentId && a.weekOf === _csCurrentWeek && a.day === day && a.period === period
-  );
-  const studentConflict = occupied.find(a => a.studentIds.some(id => demand.studentIds.includes(id)));
-  if (studentConflict) return { code: 'STUDENT_TIME_CONFLICT', message: '소속 학생이 이 교시에 이미 다른 수업을 수강 중이야.' };
-  const sameDayCount = lessonAssignmentsForDemand(demand.id).filter(a =>
-    a.id !== ignoreAssignmentId && a.day === day
-  ).length;
-  if (sameDayCount >= (demand.dailyRequiredCount || 1)) {
-    return {
-      code: 'DAILY_DEMAND_LIMIT',
-      message: `이 수업은 하루 최대 ${demand.dailyRequiredCount || 1}회까지만 배정할 수 있어.`
-    };
-  }
-  return null;
-}
-
-function lessonSlotResourceConflict(demand, day, period, ignoreAssignmentId) {
-  const slotAssignments = LESSON_SCHEDULE_ASSIGNMENTS.filter(a =>
-    a.id !== ignoreAssignmentId && a.weekOf === _csCurrentWeek && a.day === day && a.period === period
-  );
-  const roomLimit = MOCK_CLASS_ROOMS.filter(r =>
-    r.roomNo && r.status !== 'inactive' && r.type === demand.classType
-  ).length;
-  const sameTypeCount = slotAssignments.filter(a =>
-    buildLessonDemands().find(d => d.id === a.demandId)?.classType === demand.classType
-  ).length;
-  if (sameTypeCount >= roomLimit) {
-    return { code: 'ROOM_TYPE_CAPACITY_EXCEEDED', message: `${demand.classType} 강의실 수를 초과해 이 교시에 더 배치할 수 없어.` };
-  }
-  const availableTeacherCount = MOCK_TEACHERS.filter(t =>
-    t.status !== 'resigned' && t.available && lessonTeacherAvailableAt(t, day, period)
-  ).length;
-  if (slotAssignments.length >= availableTeacherCount) {
-    return { code: 'TEACHER_CAPACITY_EXCEEDED', message: '이 교시에 근무 가능한 강사 수를 초과해.' };
-  }
-  return null;
-}
-
-function lessonPlacementConflict(demand, day, period, ignoreAssignmentId) {
-  return lessonSlotConflict(demand, day, period, ignoreAssignmentId) ||
-    lessonSlotResourceConflict(demand, day, period, ignoreAssignmentId);
-}
-
-function selectLessonDemand(id) {
-  _lessonSelectedDemandId = id;
-  _lessonSelectedSlot = null;
-  _lessonSelectedTeacherId = null;
-  _lessonSelectedRoomId = null;
-  _lessonEditingAssignmentId = null;
-  renderLessonSchedulingBoard();
-}
-
-function selectLessonSlot(day, period) {
-  const demand = buildLessonDemands().find(d => d.id === _lessonSelectedDemandId);
-  if (!demand) return;
-  const conflict = lessonPlacementConflict(demand, day, period);
-  if (conflict) {
-    showToast(`${conflict.code}: ${conflict.message}`, 'danger');
-    return;
-  }
-  _lessonSelectedSlot = { day, period };
-  _lessonSelectedTeacherId = null;
-  _lessonSelectedRoomId = null;
-  _lessonEditingAssignmentId = null;
-  renderLessonSchedulingBoard();
-}
-
-function openLessonAssignment(id) {
-  const assignment = LESSON_SCHEDULE_ASSIGNMENTS.find(a => a.id === id);
-  if (!assignment) return;
-  _lessonSelectedDemandId = assignment.demandId;
-  _lessonSelectedSlot = { day: assignment.day, period: assignment.period };
-  _lessonSelectedTeacherId = assignment.teacherId || null;
-  _lessonSelectedRoomId = assignment.roomId || null;
-  _lessonEditingAssignmentId = assignment.id;
-  renderLessonSchedulingBoard();
-}
-
-function selectLessonTeacher(id) {
-  _lessonSelectedTeacherId = Number(id);
-  const demand = buildLessonDemands().find(d => d.id === _lessonSelectedDemandId);
-  _lessonSelectedRoomId = demand && _lessonSelectedSlot
-    ? (lessonCompatibleRooms(demand, _lessonSelectedSlot.day, _lessonSelectedSlot.period, _lessonEditingAssignmentId)[0]?.id || null)
-    : null;
-  renderLessonSchedulingBoard();
-}
-
-function selectLessonRoom(id) {
-  _lessonSelectedRoomId = Number(id);
-  renderLessonSchedulingBoard();
-}
-
-function saveLessonAssignment() {
-  const demand = buildLessonDemands().find(d => d.id === _lessonSelectedDemandId);
-  if (!demand || !_lessonSelectedSlot) return showToast('수업과 교시를 먼저 선택해.', 'warning');
-  if (!_lessonSelectedTeacherId) return showToast('배정 가능한 강사를 선택해.', 'warning');
-  if (!_lessonSelectedRoomId) return showToast('배정 가능한 강의실이 없어.', 'danger');
-  const conflict = lessonPlacementConflict(demand, _lessonSelectedSlot.day, _lessonSelectedSlot.period, _lessonEditingAssignmentId);
-  if (conflict) return showToast(`${conflict.code}: ${conflict.message}`, 'danger');
-  const selectedTeacherIsEligible = lessonTeacherCandidates(
-    demand, _lessonSelectedSlot.day, _lessonSelectedSlot.period, _lessonEditingAssignmentId
-  ).some(item => item.teacher.id === _lessonSelectedTeacherId);
-  if (!selectedTeacherIsEligible) {
-    return showToast('TEACHER_DAILY_LIMIT: 선택한 강사가 중복 또는 일일 시수 제한으로 더 이상 배정 가능하지 않아.', 'danger');
-  }
-  if (LESSON_SCHEDULE_ASSIGNMENTS.some(a => a.weekOf === _csCurrentWeek && a.day === _lessonSelectedSlot.day &&
-      a.period === _lessonSelectedSlot.period && a.teacherId === _lessonSelectedTeacherId && a.id !== _lessonEditingAssignmentId)) {
-    return showToast('TEACHER_TIME_CONFLICT: 해당 강사는 이미 배정됐어.', 'danger');
-  }
-  if (LESSON_SCHEDULE_ASSIGNMENTS.some(a => a.weekOf === _csCurrentWeek && a.day === _lessonSelectedSlot.day &&
-      a.period === _lessonSelectedSlot.period && a.roomId === _lessonSelectedRoomId && a.id !== _lessonEditingAssignmentId)) {
-    return showToast('CLASSROOM_TIME_CONFLICT: 해당 강의실은 이미 사용 중이야.', 'danger');
-  }
-  const editing = LESSON_SCHEDULE_ASSIGNMENTS.find(a => a.id === _lessonEditingAssignmentId);
-  if (editing) {
-    Object.assign(editing, {
-      teacherId: _lessonSelectedTeacherId, roomId: _lessonSelectedRoomId, status: 'READY'
-    });
-  } else {
-    LESSON_SCHEDULE_ASSIGNMENTS.push({
-      id: _lessonAssignmentNextId++, demandId: demand.id, weekOf: _csCurrentWeek,
-      day: _lessonSelectedSlot.day, period: _lessonSelectedSlot.period,
-      teacherId: _lessonSelectedTeacherId, roomId: _lessonSelectedRoomId,
-      studentIds: [...demand.studentIds], isManuallyLocked: false, isAutoAssigned: false, status: 'READY'
-    });
-  }
-  _lessonSelectedSlot = null;
-  _lessonSelectedTeacherId = null;
-  _lessonSelectedRoomId = null;
-  _lessonEditingAssignmentId = null;
-  _lessonScheduleConfirmed = false;
-  _lessonConfirmedWeeks.delete(_csCurrentWeek);
-  showToast('수업을 저장했어. 학생·강사·강의실 충돌 검증을 통과했어.', 'success');
-  renderLessonSchedulingBoard();
-}
-
-function removeLessonAssignment(id) {
-  const assignment = LESSON_SCHEDULE_ASSIGNMENTS.find(a => a.id === id);
-  if (assignment?.isManuallyLocked) return showToast('잠긴 편성은 잠금을 먼저 해제해야 해.', 'warning');
-  LESSON_SCHEDULE_ASSIGNMENTS = LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.id !== id);
-  _lessonScheduleConfirmed = false;
-  _lessonConfirmedWeeks.delete(_csCurrentWeek);
-  renderLessonSchedulingBoard();
-}
-
-function toggleLessonAssignmentLock(id) {
-  const assignment = LESSON_SCHEDULE_ASSIGNMENTS.find(a => a.id === id);
-  if (!assignment) return;
-  assignment.isManuallyLocked = !assignment.isManuallyLocked;
-  showToast(assignment.isManuallyLocked ? '자동 편성 보호 잠금을 설정했어.' : '잠금을 해제했어.', 'success');
-  renderLessonSchedulingBoard();
-}
-
-function closeLessonAutoScheduleModal() {
-  document.getElementById('lesson-auto-schedule-modal')?.remove();
-}
-
-function closeLessonResourceMatchModal() {
-  document.getElementById('lesson-resource-match-modal')?.remove();
-}
-
-function openLessonResourceMatchModal() {
-  closeLessonResourceMatchModal();
-  const weekAssignments = LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.weekOf === _csCurrentWeek);
-  const targets = weekAssignments.filter(a => !a.isManuallyLocked && (!a.teacherId || !a.roomId));
-  const unmatchedTeachers = targets.filter(a => !a.teacherId).length;
-  const unmatchedRooms = targets.filter(a => !a.roomId).length;
-  const activeTeachers = MOCK_TEACHERS.filter(t => t.status !== 'resigned' && t.available).length;
-  const activeRooms = MOCK_CLASS_ROOMS.filter(r => r.roomNo && r.status !== 'inactive').length;
-  const canRun = targets.length > 0;
-  const modal = document.createElement('div');
-  modal.id = 'lesson-resource-match-modal';
-  modal.innerHTML = `
-    <div onclick="closeLessonResourceMatchModal()" style="position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:1200"></div>
-    <section role="dialog" aria-modal="true" aria-labelledby="lesson-resource-modal-title" style="position:fixed;z-index:1210;left:50%;top:50%;transform:translate(-50%,-50%);width:650px;max-width:calc(100vw - 24px);max-height:calc(100vh - 32px);background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(17,24,39,.25);display:flex;flex-direction:column;overflow:hidden">
-      <div style="padding:18px 22px;border-bottom:1px solid #E5E7EB;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-        <div><h3 id="lesson-resource-modal-title" style="margin:0;font-size:16px;color:#111827">강사·강의실 자동 매칭 조건 확인</h3><p style="margin:5px 0 0;font-size:11px;color:#6B7280">교시가 배치된 수업에 추천 1순위 강사와 적합한 빈 강의실을 매칭해.</p></div>
-        <button onclick="closeLessonResourceMatchModal()" aria-label="닫기" style="border:0;background:none;color:#6B7280;font-size:19px;cursor:pointer">×</button>
-      </div>
-      <div style="padding:18px 22px;overflow-y:auto">
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-bottom:14px;background:${canRun ? '#FFF7ED' : '#ECFDF5'};border:1px solid ${canRun ? '#FED7AA' : '#A7F3D0'};border-radius:9px">
-          <span style="width:22px;height:22px;flex:0 0 22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:${canRun ? '#C2410C' : '#047857'};font-size:12px;font-weight:900">${canRun ? '!' : '✓'}</span>
-          <div><b style="display:block;font-size:11.5px;color:${canRun ? '#C2410C' : '#047857'}">${canRun ? `${targets.length}개 수업이 자동 매칭 대상이야.` : '자동 매칭이 필요한 수업이 없어.'}</b><span style="display:block;font-size:10px;color:#6B7280;margin-top:3px">${canRun ? '수동 잠금 편성은 제외하고 비어 있는 강사·강의실만 채워.' : '현재 배치된 수업의 강사와 강의실 지정이 완료됐어.'}</span></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-          <div style="padding:10px;background:#F8F9FF;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">매칭 대상</span><b style="display:block;font-size:18px">${targets.length}건</b></div>
-          <div style="padding:10px;background:#FFF7ED;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">강사 미지정</span><b style="display:block;font-size:18px;color:#C2410C">${unmatchedTeachers}건</b></div>
-          <div style="padding:10px;background:#F5F3FF;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">강의실 미지정</span><b style="display:block;font-size:18px;color:#5B21B6">${unmatchedRooms}건</b></div>
-          <div style="padding:10px;background:#F0FDF4;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">운영 자원</span><b style="display:block;font-size:12px;color:#047857">강사 ${activeTeachers}명<br>강의실 ${activeRooms}개</b></div>
-        </div>
-        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:8px">자동 매칭 처리 순서</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px">
-          ${[['1','교시별 수업 정렬'],['2','추천 강사 계산'],['3','빈 강의실 배정'],['4','중복 재검증']].map(([number,label], index) => `<div style="position:relative;padding:9px 6px;text-align:center;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px"><span style="display:inline-flex;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;background:#EEF2FF;color:#4F46E5;font-size:9px;font-weight:800">${number}</span><b style="display:block;font-size:9.5px;color:#374151;margin-top:4px">${label}</b>${index < 3 ? '<span style="position:absolute;right:-7px;top:18px;z-index:1;color:#9CA3AF">›</span>' : ''}</div>`).join('')}
-        </div>
-        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:8px">필수 매칭 조건</div>
-        <div style="display:flex;flex-direction:column;gap:7px">
-          ${[
-            ['기존 편성 보호', '이미 강사·강의실이 확정된 수업과 수동 잠금 편성은 변경하지 않음'],
-            ['강사 유형', '수업 유형이 강사의 담당 가능 유형에 포함된 경우만 추천'],
-            ['강사 가용성', '해당 요일·교시 Availability가 ON이고 같은 교시에 다른 수업이 없는 강사만 추천'],
-            ['강사 시수', '하루 전체 최대 시수와 1:1·1:4·1:8 유형별 최대 시수를 초과하지 않음'],
-            ['추천 우선순위', '필수 조건을 통과한 강사를 추천 점수 1순위부터 차례로 매칭'],
-            ['강의실 조건', '수업 유형·정원을 충족하고 같은 교시에 비어 있는 강의실만 배정'],
-            ['강의실 순위', '정확한 수업 유형을 우선하고 허용된 상위 정원 강의실을 차선으로 사용'],
-            ['실패 처리', '강사 또는 강의실을 찾지 못한 수업은 일부 편성 상태로 유지']
-          ].map(([title, description]) => `<div style="display:grid;grid-template-columns:22px 88px 1fr;gap:8px;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px"><span style="width:18px;height:18px;border-radius:50%;background:#EEF2FF;color:#4F46E5;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:900">✓</span><b style="font-size:10.5px;color:#4F46E5">${title}</b><span style="font-size:10.5px;color:#4B5563;line-height:1.45">${description}</span></div>`).join('')}
-        </div>
-      </div>
-      <div style="padding:14px 22px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
-        <button onclick="closeLessonResourceMatchModal()" class="tsa-btn tsa-btn-outline">취소</button>
-        <button onclick="closeLessonResourceMatchModal();autoMatchLessonResources()" ${canRun ? '' : 'disabled'} class="tsa-btn tsa-btn-primary" style="opacity:${canRun ? '1' : '.45'}">${canRun ? '조건 확인 후 자동 매칭' : '매칭 대상 없음'}</button>
-      </div>
-    </section>`;
-  document.body.appendChild(modal);
-}
-
-function autoMatchLessonResources() {
-  const targets = LESSON_SCHEDULE_ASSIGNMENTS.filter(a =>
-    a.weekOf === _csCurrentWeek && !a.isManuallyLocked && (!a.teacherId || !a.roomId)
-  ).sort((a, b) => {
-    const demandA = buildLessonDemands().find(d => d.id === a.demandId);
-    const demandB = buildLessonDemands().find(d => d.id === b.demandId);
-    return (demandA?.kind === 'GROUP' ? 0 : 1) - (demandB?.kind === 'GROUP' ? 0 : 1) ||
-      LESSON_DAYS.indexOf(a.day) - LESSON_DAYS.indexOf(b.day) || a.period - b.period;
-  });
-  let teacherMatched = 0;
-  let roomMatched = 0;
-  let readyCount = 0;
-  targets.forEach(assignment => {
-    const demand = buildLessonDemands().find(d => d.id === assignment.demandId);
-    if (!demand) return;
-    if (!assignment.teacherId) {
-      const teacher = lessonTeacherCandidates(demand, assignment.day, assignment.period, assignment.id)[0]?.teacher;
-      if (teacher) {
-        assignment.teacherId = teacher.id;
-        teacherMatched += 1;
-      }
-    }
-    if (!assignment.roomId) {
-      const room = lessonCompatibleRooms(demand, assignment.day, assignment.period, assignment.id)[0];
-      if (room) {
-        assignment.roomId = room.id;
-        roomMatched += 1;
-      }
-    }
-    assignment.status = assignment.teacherId && assignment.roomId ? 'READY' : 'TIME_ASSIGNED';
-    if (assignment.status === 'READY') readyCount += 1;
-  });
-  _lessonScheduleConfirmed = false;
-  _lessonConfirmedWeeks.delete(_csCurrentWeek);
-  showToast(`자동 매칭 완료 · 강사 ${teacherMatched}건 · 강의실 ${roomMatched}건 · 완료 ${readyCount}건`, readyCount < targets.length ? 'warning' : 'success');
-  renderLessonSchedulingBoard();
-}
-
-function openLessonAutoScheduleModal(scope) {
-  closeLessonAutoScheduleModal();
-  const isOneToOne = scope === 'ONE_TO_ONE';
-  const demands = buildLessonDemands().filter(d => d.kind === scope);
-  const remainingCount = demands.reduce((sum, demand) =>
-    sum + Math.max(0, demand.requiredCount - lessonAssignmentsForDemand(demand.id).length), 0
-  );
-  const roomCounts = ['1:1','1:4','1:8'].reduce((result, type) => {
-    result[type] = MOCK_CLASS_ROOMS.filter(r => r.roomNo && r.status !== 'inactive' && r.type === type).length;
-    return result;
-  }, {});
-  const activeTeachers = MOCK_TEACHERS.filter(t => t.status !== 'resigned' && t.available).length;
-  const modalTitle = isOneToOne ? '1:1 교시 자동 편성 조건 확인' : '그룹 교시 자동 편성 조건 확인';
-  const targetLabel = isOneToOne ? '1:1 학생' : '그룹 수업';
-  const roomLabel = isOneToOne ? '1:1 강의실' : '그룹 강의실';
-  const roomSummary = isOneToOne
-    ? `1:1 ${roomCounts['1:1']}개`
-    : `1:4 ${roomCounts['1:4']}개<br>1:8 ${roomCounts['1:8']}개`;
-  const conditions = isOneToOne ? [
-    ['배치 순서', '기존 그룹 교시와 수동 잠금 편성을 유지한 뒤 학생별 1:1 수업을 배치'],
-    ['강의실 상한', '같은 교시의 1:1 수업 수는 운영 중인 1:1 강의실 수를 초과할 수 없음'],
-    ['강사 상한', '같은 교시의 전체 수업 수는 해당 교시에 근무 가능한 강사 수를 초과할 수 없음'],
-    ['학생 중복', '학생이 같은 요일·교시에 그룹 또는 다른 1:1 수업과 겹치면 배치하지 않음'],
-    ['주간 횟수', '과정의 일일 1:1 시수 × 주 5일을 주간 요구량으로 적용'],
-    ['일일 횟수', '학생별 하루 배치 수는 과정에 설정된 일일 1:1 시수를 초과할 수 없음'],
-    ['기존 편성 보호', '이미 배치된 교시와 수동 잠금 편성은 유지하고 남은 횟수만 배치'],
-    ['배치 후 처리', '테이블 카드를 클릭해 추천 강사를 선택하면 빈 1:1 강의실을 자동 배정']
-  ] : [
-    ['배치 순서', '수동 잠금 유지 → 1:8 그룹 → 1:4 그룹 → 학생 수가 많은 그룹'],
-    ['강의실 상한', '같은 교시의 1:4·1:8 수업 수는 유형별 운영 강의실 수를 초과할 수 없음'],
-    ['강사 상한', '같은 교시의 전체 수업 수는 해당 교시에 근무 가능한 강사 수를 초과할 수 없음'],
-    ['학생 중복', '그룹 소속 학생이 같은 요일·교시에 다른 수업과 겹치면 배치하지 않음'],
-    ['주간 횟수', '그룹별 설정된 주당 수업 횟수만큼 서로 다른 요일에 배치'],
-    ['기존 편성 보호', '이미 배치된 교시와 수동 잠금 편성은 유지하고 남은 횟수만 배치'],
-    ['배치 후 처리', '테이블 카드를 클릭해 추천 강사를 선택하면 빈 강의실을 자동 배정']
-  ];
-  const hasRemainingLessons = remainingCount > 0;
-  const executionStatus = hasRemainingLessons
-    ? { bg: '#FFF7ED', border: '#FED7AA', color: '#C2410C', icon: '!', title: `${remainingCount}개 교시를 새로 배치할 예정이야.`, description: '조건을 확인한 뒤 실행하면 기존 편성을 유지하고 남은 교시만 배치해.' }
-    : { bg: '#ECFDF5', border: '#A7F3D0', color: '#047857', icon: '✓', title: '추가로 배치할 교시가 없어.', description: '현재 대상의 교시 배치가 모두 완료됐어. 강사·강의실 미지정 카드를 확인해.' };
-  const modal = document.createElement('div');
-  modal.id = 'lesson-auto-schedule-modal';
-  modal.innerHTML = `
-    <div onclick="closeLessonAutoScheduleModal()" style="position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:1200"></div>
-    <section role="dialog" aria-modal="true" aria-labelledby="lesson-auto-modal-title" style="position:fixed;z-index:1210;left:50%;top:50%;transform:translate(-50%,-50%);width:620px;max-width:calc(100vw - 24px);max-height:calc(100vh - 32px);background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(17,24,39,.25);display:flex;flex-direction:column;overflow:hidden">
-      <div style="padding:18px 22px;border-bottom:1px solid #E5E7EB;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-        <div><h3 id="lesson-auto-modal-title" style="margin:0;font-size:16px;color:#111827">${modalTitle}</h3><p style="margin:5px 0 0;font-size:11px;color:#6B7280">강사와 강의실은 확정하지 않고 요일·교시만 자동 배치해.</p></div>
-        <button onclick="closeLessonAutoScheduleModal()" aria-label="닫기" style="border:0;background:none;color:#6B7280;font-size:19px;cursor:pointer">×</button>
-      </div>
-      <div style="padding:18px 22px;overflow-y:auto">
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-bottom:14px;background:${executionStatus.bg};border:1px solid ${executionStatus.border};border-radius:9px">
-          <span style="width:22px;height:22px;flex:0 0 22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:${executionStatus.color};font-size:12px;font-weight:900">${executionStatus.icon}</span>
-          <div><b style="display:block;font-size:11.5px;color:${executionStatus.color}">${executionStatus.title}</b><span style="display:block;font-size:10px;color:#6B7280;margin-top:3px;line-height:1.4">${executionStatus.description}</span></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-          <div style="padding:10px;background:#F8F9FF;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">전체 ${targetLabel}</span><b style="display:block;font-size:18px;color:#111827">${demands.length}개</b><small style="font-size:8.5px;color:#9CA3AF">자동 편성 대상</small></div>
-          <div style="padding:10px;background:#FFF7ED;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">배치 대기 교시</span><b style="display:block;font-size:18px;color:#C2410C">${remainingCount}건</b><small style="font-size:8.5px;color:#9CA3AF">이번 실행 범위</small></div>
-          <div style="padding:10px;background:#F0FDF4;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">사용 가능 강사</span><b style="display:block;font-size:18px;color:#047857">${activeTeachers}명</b><small style="font-size:8.5px;color:#9CA3AF">재직·근무 기준</small></div>
-          <div style="padding:10px;background:#F5F3FF;border-radius:8px"><span style="font-size:9.5px;color:#6B7280">사용 가능 ${roomLabel}</span><b style="display:block;font-size:13px;color:#5B21B6">${roomSummary}</b><small style="font-size:8.5px;color:#9CA3AF">운영 중 기준</small></div>
-        </div>
-        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:8px">처리 흐름</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px">
-          ${[
-            ['1','대상 정렬'],['2','충돌·상한 검사'],['3','요일·교시 배치'],['4','강사·호실 후속 지정']
-          ].map(([number,label], index) => `<div style="position:relative;padding:9px 6px;text-align:center;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px"><span style="display:inline-flex;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;background:#EEF2FF;color:#4F46E5;font-size:9px;font-weight:800">${number}</span><b style="display:block;font-size:9.5px;color:#374151;margin-top:4px">${label}</b>${index < 3 ? '<span style="position:absolute;right:-7px;top:18px;z-index:1;color:#9CA3AF">›</span>' : ''}</div>`).join('')}
-        </div>
-        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:8px">필수 배치 조건</div>
-        <div style="display:flex;flex-direction:column;gap:7px">
-          ${conditions.map(([title, description]) => `<div style="display:grid;grid-template-columns:22px 88px 1fr;gap:8px;align-items:start;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px"><span style="width:18px;height:18px;border-radius:50%;background:#EEF2FF;color:#4F46E5;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:900">✓</span><b style="font-size:10.5px;color:#4F46E5">${title}</b><span style="font-size:10.5px;color:#4B5563;line-height:1.45">${description}</span></div>`).join('')}
-        </div>
-        <div style="margin-top:14px;padding:10px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10.5px;color:#92400E;line-height:1.5">자동 편성 후에도 강사와 강의실을 지정하지 않은 수업은 <b>일부 편성</b> 상태로 남으며 시간표를 확정할 수 없어.</div>
-      </div>
-      <div style="padding:14px 22px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
-        <button onclick="closeLessonAutoScheduleModal()" class="tsa-btn tsa-btn-outline">취소</button>
-        <button onclick="closeLessonAutoScheduleModal();autoScheduleLessons('${scope}')" ${hasRemainingLessons ? '' : 'disabled'} class="tsa-btn tsa-btn-primary" style="opacity:${hasRemainingLessons ? '1' : '.45'};cursor:${hasRemainingLessons ? 'pointer' : 'not-allowed'}">${hasRemainingLessons ? '조건 확인 후 교시 자동 편성' : '배치할 교시 없음'}</button>
-      </div>
-    </section>`;
-  document.body.appendChild(modal);
-}
-
-function autoScheduleLessons(scope) {
-  const typePriority = { '1:8': 0, '1:4': 1, '1:1': 2 };
-  const demands = buildLessonDemands().filter(d => d.kind === scope).sort((a, b) =>
-    (typePriority[a.classType] ?? 9) - (typePriority[b.classType] ?? 9) ||
-    b.studentIds.length - a.studentIds.length
-  );
-  let success = 0;
-  let failed = 0;
-  demands.forEach(demand => {
-    let remaining = Math.max(0, demand.requiredCount - lessonAssignmentsForDemand(demand.id).length);
-    while (remaining > 0) {
-      let placed = false;
-      for (const day of LESSON_DAYS) {
-        for (const periodText of Object.keys(CS_PERIODS)) {
-          const period = Number(periodText);
-          if (lessonPlacementConflict(demand, day, period)) continue;
-          LESSON_SCHEDULE_ASSIGNMENTS.push({
-            id: _lessonAssignmentNextId++, demandId: demand.id, weekOf: _csCurrentWeek, day, period,
-            teacherId: null, roomId: null, studentIds: [...demand.studentIds],
-            isManuallyLocked: false, isAutoAssigned: true, status: 'TIME_ASSIGNED'
-          });
-          success += 1;
-          remaining -= 1;
-          placed = true;
-          break;
-        }
-        if (placed) break;
-      }
-      if (!placed) {
-        failed += remaining;
-        break;
-      }
-    }
-  });
-  _lessonScheduleConfirmed = false;
-  _lessonConfirmedWeeks.delete(_csCurrentWeek);
-  showToast(`교시 자동 편성 완료 · 교시 배치 ${success}건 · 미배치 ${failed}건`, failed ? 'warning' : 'success');
-  renderLessonSchedulingBoard();
-}
-
-function confirmLessonSchedule() {
-  const demands = buildLessonDemands();
-  const incomplete = demands.filter(d => lessonDemandStatus(d) !== 'SCHEDULED');
-  if (incomplete.length) {
-    showToast(`시수 미충족 ${incomplete.length}건이 있어 확정할 수 없어. 미편성 탭에서 확인해.`, 'danger');
-    _lessonDemandTab = 'UNSCHEDULED';
-    renderLessonSchedulingBoard();
-    return;
-  }
-  const demandMap = new Map(demands.map(demand => [demand.id, demand]));
-  const finalAssignments = LESSON_SCHEDULE_ASSIGNMENTS.filter(assignment =>
-    assignment.weekOf === _csCurrentWeek && assignment.status === 'READY'
-  );
-  if (!finalAssignments.length) {
-    showToast('확정할 편성 수업이 없어.', 'danger');
-    return;
-  }
-
-  // 주간 편성 결과를 주간 현황에서 사용하는 최종 스케줄 형식으로 발행한다.
-  // 같은 주차의 기존 현황은 확정 시점의 편성 결과로 교체한다.
-  MOCK_CLASS_SESSIONS = MOCK_CLASS_SESSIONS.filter(session => session.weekOf !== _csCurrentWeek);
-  finalAssignments.forEach(assignment => {
-    const demand = demandMap.get(assignment.demandId);
-    if (!demand) return;
-    MOCK_CLASS_SESSIONS.push({
-      id: _csSessionNextId++,
-      source: 'lesson-scheduling',
-      published: true,
-      assignmentId: assignment.id,
-      demandId: assignment.demandId,
-      demandName: demand.name,
-      subjectId: demand.subjectId || null,
-      roomId: assignment.roomId,
-      teacherId: assignment.teacherId,
-      day: assignment.day,
-      periods: [assignment.period],
-      studentIds: [...assignment.studentIds],
-      course: demand.course,
-      level: (demand.levelGroups || []).join(' · '),
-      classType: demand.classType,
-      weekOf: assignment.weekOf
-    });
-  });
-  _lessonScheduleConfirmed = true;
-  _lessonConfirmedWeeks.add(_csCurrentWeek);
-  showToast(`주간 시간표를 확정했어. 최종 스케줄 ${finalAssignments.length}건을 주간 현황에 반영했어.`, 'success');
-  switchClassScheduleTab('view');
-}
-
-function setLessonDemandTab(tab) {
-  _lessonDemandTab = tab;
-  renderLessonSchedulingBoard();
-}
-
-function lessonEsc(value) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-}
-
-function calculateGroupMatchScore(group) {
-  const students = (group?.studentIds || []).map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-  const capacity = getGroupClassCapacity(group?.classType);
-  const nationalityCap = getEffectiveNationalityCap(group);
-  if (!students.length) {
-    return { score: null, students, capacity, nationalityCap, breakdown: [] };
-  }
-
-  const subjectId = getGroupSubjectId(group);
-  const levels = getGroupLevelSet(group);
-  const subjectMatches = students.filter(student => studentCanTakeGroupSubject(student, subjectId, group.classType)).length;
-  const levelMatches = students.filter(s => levels.includes(getLevelGroupForStudent(s))).length;
-  const nationalityCounts = students.reduce((result, student) => {
-    const nationality = student.nationality || '미등록';
-    result[nationality] = (result[nationality] || 0) + 1;
-    return result;
-  }, {});
-  const dominantEntry = Object.entries(nationalityCounts).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
-  const nationalityExcess = Math.max(0, dominantEntry[1] - nationalityCap);
-
-  const breakdown = [
-    { key: 'subject', label: '과목 대상', max: 30, score: Math.round(30 * subjectMatches / students.length), detail: `${subjectMatches}/${students.length}명 수강 가능` },
-    { key: 'level', label: '레벨 일치', max: 30, score: Math.round(30 * levelMatches / students.length), detail: `${levelMatches}/${students.length}명 일치` },
-    { key: 'capacity', label: '정원 적합도', max: 20, score: Math.round(20 * Math.min(students.length, capacity) / capacity), detail: `${students.length}/${capacity}명 충원` },
-    { key: 'nationality', label: '국적 분산', max: 20, score: Math.max(0, 20 - nationalityExcess * 5), detail: `${dominantEntry[0]} ${dominantEntry[1]}명 · 동일 국적 상한 ${nationalityCap}명` },
-  ];
-  return {
-    score: breakdown.reduce((sum, item) => sum + item.score, 0),
-    students, capacity, nationalityCap, breakdown
-  };
-}
-
-function groupMatchScoreMeta(score) {
-  if (score == null) return { label: '산정 전', color: '#6B7280', bg: '#F3F4F6' };
-  if (score >= 90) return { label: '우수', color: '#047857', bg: '#D1FAE5' };
-  if (score >= 75) return { label: '양호', color: '#2563EB', bg: '#DBEAFE' };
-  if (score >= 60) return { label: '확인 필요', color: '#B45309', bg: '#FEF3C7' };
-  return { label: '재검토', color: '#DC2626', bg: '#FEE2E2' };
-}
-
-function closeGroupMatchScoreModal() {
-  document.getElementById('group-match-score-modal')?.remove();
-}
-
-function openGroupMatchScoreModal(groupId) {
-  closeGroupMatchScoreModal();
-  const groups = groupId == null
-    ? MOCK_GROUP_CLASSES.filter(group => group.status === 'active')
-    : MOCK_GROUP_CLASSES.filter(group => group.id === groupId);
-  const isOverview = groupId == null;
-
-  const groupRows = groups.map(group => {
-    const result = calculateGroupMatchScore(group);
-    const meta = groupMatchScoreMeta(result.score);
-    const breakdown = result.breakdown.length ? result.breakdown.map(item => `
-      <div style="display:grid;grid-template-columns:90px 1fr 42px;gap:8px;align-items:center;padding:7px 0;border-top:1px solid #F3F4F6">
-        <b style="font-size:10.5px;color:#4B5563">${item.label}</b>
-        <span style="font-size:10px;color:#6B7280">${item.detail}</span>
-        <b style="font-size:11px;text-align:right;color:${item.score === item.max ? '#047857' : '#B45309'}">${item.score}/${item.max}</b>
-      </div>`).join('') : '<div style="padding:10px 0;color:#9CA3AF;font-size:11px">학생을 배정하면 점수가 산정돼.</div>';
-    return `<section style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-        <div><b style="display:block;font-size:12px;color:#111827">${lessonEsc(getGroupDisplayName(group))}</b><span style="font-size:10px;color:#6B7280">${group.classType} · 학생 ${result.students.length}/${result.capacity}명</span></div>
-        <span style="white-space:nowrap;padding:4px 8px;border-radius:999px;background:${meta.bg};color:${meta.color};font-size:11px;font-weight:800">${result.score == null ? meta.label : `${result.score}점 · ${meta.label}`}</span>
-      </div>
-      ${breakdown}
-    </section>`;
-  }).join('');
-
-  const modal = document.createElement('div');
-  modal.id = 'group-match-score-modal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(17,24,39,.52);display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = event => { if (event.target === modal) closeGroupMatchScoreModal(); };
-  modal.innerHTML = `<div style="width:min(720px,96vw);max-height:88vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:18px 20px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div><h3 style="font-size:16px;margin:0;color:#111827">${isOverview ? '그룹별 매칭 점수' : '그룹 매칭 점수 상세'}</h3><p style="font-size:11px;color:#6B7280;margin:5px 0 0">과목 30점 + 레벨 30점 + 정원 20점 + 국적 분산 20점 = 100점</p></div>
-      <button onclick="closeGroupMatchScoreModal()" style="border:0;background:none;font-size:20px;color:#6B7280;cursor:pointer">×</button>
-    </div>
-    <div style="padding:16px 20px;overflow:auto;display:flex;flex-direction:column;gap:10px">${groupRows || '<div style="padding:30px;text-align:center;color:#9CA3AF">운영 중인 그룹이 없어.</div>'}</div>
-    <div style="padding:12px 20px;border-top:1px solid #E5E7EB;background:#F9FAFB;font-size:10.5px;color:#6B7280">수동 예외 배정도 과목·레벨 불일치 항목에서 자동 감점되며, 동일 국적 상한을 초과할 때마다 5점씩 감점돼.</div>
-  </div>`;
-  document.body.appendChild(modal);
-}
-
-function renderLessonSchedulingBoard() {
-  const root = document.getElementById('lesson-scheduling-board');
-  if (!root) return;
-  const demands = buildLessonDemands();
-  if (_lessonSelectedDemandId && !demands.some(d => d.id === _lessonSelectedDemandId)) _lessonSelectedDemandId = null;
-  const selected = demands.find(d => d.id === _lessonSelectedDemandId);
-  const assignments = LESSON_SCHEDULE_ASSIGNMENTS.filter(a => a.weekOf === _csCurrentWeek);
-  _lessonScheduleConfirmed = _lessonConfirmedWeeks.has(_csCurrentWeek);
-  const scheduled = demands.filter(d => lessonDemandStatus(d) === 'SCHEDULED').length;
-  const partial = demands.filter(d => lessonDemandStatus(d) === 'PARTIAL').length;
-  const unscheduled = demands.length - scheduled - partial;
-  const courses = [...new Set(demands.map(d => d.course).filter(Boolean))];
-  let filtered = demands.filter(d => {
-    const tabMatch = _lessonDemandTab === 'UNSCHEDULED' ? lessonDemandStatus(d) !== 'SCHEDULED' : d.kind === _lessonDemandTab;
-    const courseMatch = _lessonCourseFilter === 'all' || d.course === _lessonCourseFilter;
-    const q = _lessonSearch.toLowerCase();
-    const searchMatch = !q || `${d.name} ${d.course}`.toLowerCase().includes(q);
-    return tabMatch && courseMatch && searchMatch;
-  });
-
-  const cards = filtered.length ? filtered.map(d => {
-    const count = lessonAssignmentsForDemand(d.id).length;
-    const status = lessonDemandStatus(d);
-    const statusLabel = status === 'SCHEDULED' ? '완료' : status === 'PARTIAL' ? '일부 편성' : '미편성';
-    const color = status === 'SCHEDULED' ? '#047857' : status === 'PARTIAL' ? '#B45309' : '#DC2626';
-    const groupCapacity = d.kind === 'GROUP' ? getGroupClassCapacity(d.classType) : 1;
-    const studentCountLabel = d.kind === 'GROUP'
-      ? `학생 ${d.studentIds.length}/${groupCapacity}명`
-      : '학생 1명';
-    const group = d.kind === 'GROUP' ? MOCK_GROUP_CLASSES.find(item => item.id === d.groupId) : null;
-    const groupScore = group ? calculateGroupMatchScore(group) : null;
-    const groupScoreMeta = groupMatchScoreMeta(groupScore?.score);
-    return `<button onclick="selectLessonDemand('${d.id}')" aria-pressed="${selected?.id === d.id}" style="width:100%;text-align:left;border:1px solid ${selected?.id === d.id ? '#5E5CE6' : '#E5E7EB'};background:${selected?.id === d.id ? '#F5F3FF' : '#fff'};border-radius:10px;padding:11px;cursor:pointer;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px;color:#111827">${lessonEsc(d.name)}</b><span style="font-size:10px;color:${color};font-weight:700">${statusLabel}</span></div>
-      <div style="font-size:10.5px;color:#6B7280;margin-top:5px">${lessonEsc(d.course)} · ${d.classType}${d.kind === 'GROUP' ? ` · ${lessonEsc(lessonSubjectName(d.subjectId))}` : ''}</div>
-      <div style="font-size:10.5px;color:#4B5563;margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${studentCountLabel} · ${count}/${d.requiredCount}회${group ? `<span role="button" onclick="event.stopPropagation();openGroupMatchScoreModal(${group.id})" style="padding:2px 6px;border-radius:999px;background:${groupScoreMeta.bg};color:${groupScoreMeta.color};font-size:9px;font-weight:800">${groupScore.score == null ? '매칭 산정 전' : `매칭 ${groupScore.score}점`}</span>` : ''}</div>
-    </button>`;
-  }).join('') : '<div style="padding:28px 10px;text-align:center;color:#9CA3AF;font-size:12px">조건에 맞는 편성 대상이 없어.</div>';
-
-  const boardRows = Object.keys(CS_PERIODS).map(periodText => {
-    const period = Number(periodText);
-    const cells = LESSON_DAYS.map(day => {
-      const slotAssignments = assignments.filter(a => a.day === day && a.period === period);
-      const isSelected = _lessonSelectedSlot?.day === day && _lessonSelectedSlot?.period === period;
-      const conflict = selected ? lessonPlacementConflict(selected, day, period) : null;
-      const cellCards = slotAssignments.map(a => {
-        const demand = demands.find(d => d.id === a.demandId);
-        const teacher = MOCK_TEACHERS.find(t => t.id === a.teacherId);
-        const room = MOCK_CLASS_ROOMS.find(r => r.id === a.roomId);
-        const capacity = demand?.kind === 'GROUP' ? getGroupClassCapacity(demand.classType) : 1;
-        const group = demand?.kind === 'GROUP' ? MOCK_GROUP_CLASSES.find(item => item.id === demand.groupId) : null;
-        const groupScore = group ? calculateGroupMatchScore(group) : null;
-        const groupScoreMeta = groupMatchScoreMeta(groupScore?.score);
-        const studentNames = (demand?.studentIds || []).map(id => MOCK_STUDENTS.find(s => s.id === id)?.nick).filter(Boolean).join(', ');
-        const resourceStatus = !a.teacherId && !a.roomId
-          ? '강사·강의실 선택 필요'
-          : !a.teacherId ? '강사 선택 필요'
-          : !a.roomId ? '강의실 선택 필요'
-          : `${lessonEsc(teacher?.nick || '-')} · ${lessonEsc(room?.roomNo || '-')}`;
-        return `<div onclick="event.stopPropagation();openLessonAssignment(${a.id})" title="${lessonEsc(studentNames)}" style="padding:5px 6px;border-radius:6px;background:${demand?.kind === 'GROUP' ? '#EEF2FF' : '#ECFDF5'};border-left:3px solid ${demand?.kind === 'GROUP' ? '#5E5CE6' : '#10B981'};margin-bottom:4px;font-size:9.5px;line-height:1.35;cursor:pointer">
-          ${demand?.kind === 'ONE_TO_ONE' ? `<div style="color:#6B7280;font-size:8.5px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lessonEsc(demand.course || '코스 미지정')}</div>` : ''}
-          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-weight:700;color:#111827">
-            <span>${lessonEsc(demand?.name || '수업')}</span>
-            <span style="display:inline-flex;padding:1px 5px;border-radius:999px;background:${demand?.classType === '1:1' ? '#D1FAE5' : demand?.classType === '1:4' ? '#FEF3C7' : '#E0E7FF'};color:${demand?.classType === '1:1' ? '#047857' : demand?.classType === '1:4' ? '#92400E' : '#4338CA'};font-size:8.5px;font-weight:800">${lessonEsc(demand?.classType || '-')}</span>
-            ${demand?.kind === 'GROUP' ? `<span style="display:inline-flex;padding:1px 5px;border-radius:999px;background:#fff;color:#4B5563;font-size:8.5px;font-weight:700;border:1px solid #D1D5DB">${demand.studentIds.length}/${capacity}명</span>` : ''}
-            ${group ? `<span role="button" onclick="event.stopPropagation();openGroupMatchScoreModal(${group.id})" style="display:inline-flex;padding:1px 5px;border-radius:999px;background:${groupScoreMeta.bg};color:${groupScoreMeta.color};font-size:8.5px;font-weight:800">${groupScore.score == null ? '산정 전' : `${groupScore.score}점`}</span>` : ''}
-            ${a.isManuallyLocked ? '<span>🔒</span>' : ''}
-          </div>
-          <div style="color:${a.status === 'TIME_ASSIGNED' ? '#B45309' : '#6B7280'}">${resourceStatus}</div>
-          <div style="display:flex;gap:5px;margin-top:3px"><button onclick="event.stopPropagation();toggleLessonAssignmentLock(${a.id})" style="border:0;background:none;color:#5E5CE6;font-size:9px;cursor:pointer;padding:0">${a.isManuallyLocked ? '잠금 해제' : '잠금'}</button><button onclick="event.stopPropagation();removeLessonAssignment(${a.id})" style="border:0;background:none;color:#DC2626;font-size:9px;cursor:pointer;padding:0">삭제</button></div>
-        </div>`;
-      }).join('');
-      return `<td onclick="${selected && !conflict ? `selectLessonSlot('${day}',${period})` : ''}" title="${conflict ? lessonEsc(conflict.message) : ''}" style="min-width:132px;height:76px;vertical-align:top;padding:5px;border:1px solid #E5E7EB;background:${isSelected ? '#FEF3C7' : conflict ? '#FEF2F2' : '#fff'};cursor:${selected && !conflict ? 'pointer' : 'default'}">${cellCards || `<div style="text-align:center;padding-top:20px;color:${conflict ? '#FCA5A5' : '#D1D5DB'};font-size:10px">${selected ? (conflict ? '배정 불가' : '+ 선택') : '비어 있음'}</div>`}</td>`;
-    }).join('');
-    return `<tr><th style="position:sticky;left:0;z-index:1;background:#F9FAFB;min-width:78px;padding:8px;border:1px solid #E5E7EB;font-size:10.5px;color:#4B5563">${period}교시<br><span style="font-weight:400;color:#9CA3AF">${CS_PERIODS[period]}</span></th>${cells}</tr>`;
-  }).join('');
-
-  let detail = '<div style="padding:36px 14px;text-align:center;color:#9CA3AF;font-size:12px">좌측에서 편성할 수업을 선택해.</div>';
-  if (selected) {
-    const teacherCandidates = _lessonSelectedSlot ? lessonTeacherCandidates(selected, _lessonSelectedSlot.day, _lessonSelectedSlot.period, _lessonEditingAssignmentId) : [];
-    const rooms = _lessonSelectedSlot ? lessonCompatibleRooms(selected, _lessonSelectedSlot.day, _lessonSelectedSlot.period, _lessonEditingAssignmentId) : [];
-    const selectedStudents = selected.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-    const selectedCapacity = selected.kind === 'GROUP' ? getGroupClassCapacity(selected.classType) : 1;
-    const studentListHtml = selected.kind === 'GROUP' ? `
-      <div style="margin-top:12px;padding:10px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-          <b style="font-size:10.5px;color:#374151">그룹 학생 목록</b>
-          <span style="font-size:10px;font-weight:700;color:${selectedStudents.length >= selectedCapacity ? '#DC2626' : '#4F46E5'}">${selectedStudents.length}/${selectedCapacity}명${selectedStudents.length >= selectedCapacity ? ' · 정원 마감' : ` · 잔여 ${selectedCapacity - selectedStudents.length}자리`}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          ${selectedStudents.length ? selectedStudents.map((student, index) => `<div style="display:flex;align-items:center;gap:7px;padding:6px 7px;background:#fff;border:1px solid #E5E7EB;border-radius:6px"><span style="width:18px;height:18px;border-radius:50%;background:#EEF2FF;color:#4F46E5;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">${index + 1}</span><div style="min-width:0"><div style="font-size:10.5px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lessonEsc(student.nick || student.name)}</div><div style="font-size:9px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lessonEsc(student.name || '-')} · ${lessonEsc(student.nationality || '-')} · ${student.age != null ? `${lessonEsc(student.age)}세` : '나이 미등록'} · ${lessonEsc(student.level || '-')}</div></div></div>`).join('') : '<div style="font-size:10px;color:#9CA3AF;text-align:center;padding:8px">배정된 학생이 없어.</div>'}
-        </div>
-      </div>` : '';
-    detail = `<div style="padding:14px">
-      <div style="font-size:14px;font-weight:800;color:#111827">${lessonEsc(selected.name)}</div>
-      <div style="font-size:11px;color:#6B7280;margin-top:5px">${lessonEsc(selected.course)} · ${selected.classType} · 학생 ${selected.kind === 'GROUP' ? `${selected.studentIds.length}/${selectedCapacity}` : selected.studentIds.length}명</div>
-      ${studentListHtml}
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #E5E7EB">
-        <label style="font-size:11px;font-weight:700;color:#374151">1. 요일·교시</label>
-        <div style="font-size:12px;margin-top:6px;color:${_lessonSelectedSlot ? '#111827' : '#9CA3AF'}">${_lessonSelectedSlot ? `${_lessonSelectedSlot.day}요일 ${_lessonSelectedSlot.period}교시 (${CS_PERIODS[_lessonSelectedSlot.period]})` : '가운데 보드에서 빈 교시를 선택해.'}</div>
-      </div>
-      <div style="margin-top:14px">
-        <label style="font-size:11px;font-weight:700;color:#374151">2. 추천 강사</label>
-        ${!_lessonSelectedSlot ? '<div style="font-size:11px;color:#9CA3AF;margin-top:6px">교시 선택 후 계산해.</div>' : teacherCandidates.length ? teacherCandidates.slice(0,4).map((item, index) => `<label style="display:block;border:1px solid ${_lessonSelectedTeacherId === item.teacher.id ? '#5E5CE6' : '#E5E7EB'};border-radius:8px;padding:8px;margin-top:6px;cursor:pointer;background:${_lessonSelectedTeacherId === item.teacher.id ? '#F5F3FF' : '#fff'}"><input type="radio" name="lesson-teacher" ${_lessonSelectedTeacherId === item.teacher.id ? 'checked' : ''} onchange="selectLessonTeacher(${item.teacher.id})" style="accent-color:#5E5CE6"> <b style="font-size:11.5px">${lessonEsc(item.teacher.nick)}</b> <span style="font-size:10px;color:#5E5CE6">${index === 0 ? '추천 1순위 · ' : ''}${item.score}점</span><div style="font-size:9.5px;color:#6B7280;margin:4px 0 0 20px">${item.reasons.join(' · ')}</div></label>`).join('') : '<div style="font-size:11px;color:#DC2626;margin-top:6px">TEACHER_NOT_FOUND · 다른 교시를 선택하거나 강사 가용성을 확인해.</div>'}
-      </div>
-      <div style="margin-top:14px">
-        <label style="font-size:11px;font-weight:700;color:#374151">3. 강의실 자동 배정</label>
-        ${!_lessonSelectedSlot ? '<div style="font-size:11px;color:#9CA3AF;margin-top:6px">교시 선택 후 계산해.</div>' : !_lessonSelectedTeacherId ? '<div style="font-size:11px;color:#9CA3AF;margin-top:6px">강사를 선택하면 빈 강의실을 자동 배정해.</div>' : rooms.length ? `<select class="tsa-input" onchange="selectLessonRoom(this.value)" style="width:100%;margin-top:6px;font-size:11px"><option value="">강의실 선택</option>${rooms.map((r,index) => `<option value="${r.id}" ${_lessonSelectedRoomId === r.id ? 'selected' : ''}>${lessonEsc(r.roomNo)} (${r.type}, ${r.capacity}명)${index === 0 ? ' · 자동 추천' : ''}</option>`).join('')}</select><div style="font-size:9.5px;color:#047857;margin-top:5px">${rooms[0].type === selected.classType ? '정확한 수업 유형을 우선 추천했어.' : '정확한 유형이 없어 허용된 상위 정원 강의실을 추천했어.'}</div>` : '<div style="font-size:11px;color:#DC2626;margin-top:6px">CLASSROOM_NOT_FOUND · 다른 교시를 선택하거나 강의실을 추가해.</div>'}
-      </div>
-      <button onclick="saveLessonAssignment()" ${!_lessonSelectedSlot || !_lessonSelectedTeacherId || !_lessonSelectedRoomId ? 'disabled' : ''} class="tsa-btn tsa-btn-primary" style="width:100%;margin-top:16px;justify-content:center;opacity:${_lessonSelectedSlot && _lessonSelectedTeacherId && _lessonSelectedRoomId ? '1' : '.45'}">편성 저장</button>
-    </div>`;
-  }
-
-  root.innerHTML = `
-    <style>
-      .lesson-scheduling-layout{display:grid;grid-template-columns:minmax(230px,.8fr) minmax(640px,2.2fr) minmax(250px,.9fr);gap:12px;align-items:start}
-      .lesson-board-viewport{height:calc(100vh - 300px);min-height:520px;overflow:auto}
-      @media(max-width:1200px){.lesson-scheduling-layout{grid-template-columns:230px minmax(620px,1fr) 270px;min-width:1160px}.lesson-scheduling-scroll{overflow-x:auto}}
-      @media(max-width:700px){#cs-panel-assign{margin:0 -12px}.lesson-scheduling-scroll{padding:0 12px}.lesson-board-viewport{height:calc(100vh - 270px);min-height:420px}}
-    </style>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <button onclick="shiftCsWeek(-1);renderLessonSchedulingBoard()" class="tsa-btn tsa-btn-outline tsa-btn-sm">‹</button>
-      <b style="font-size:13px">${csWeekLabel(_csCurrentWeek)}</b>
-      <button onclick="shiftCsWeek(1);renderLessonSchedulingBoard()" class="tsa-btn tsa-btn-outline tsa-btn-sm">›</button>
-      <select class="tsa-input" onchange="_lessonCourseFilter=this.value;renderLessonSchedulingBoard()" style="width:150px;font-size:11px;margin-left:6px"><option value="all">전체 과정</option>${courses.map(c => `<option value="${lessonEsc(c)}" ${_lessonCourseFilter === c ? 'selected' : ''}>${lessonEsc(c)}</option>`).join('')}</select>
-      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="openLessonAutoScheduleModal('GROUP')" class="tsa-btn tsa-btn-outline tsa-btn-sm">그룹 교시 자동 편성</button>
-        <button onclick="openLessonAutoScheduleModal('ONE_TO_ONE')" class="tsa-btn tsa-btn-outline tsa-btn-sm">1:1 교시 자동 편성</button>
-        <button onclick="openLessonResourceMatchModal()" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="border-color:#10B981;color:#047857">강사·강의실 자동 매칭</button>
-        <button onclick="confirmLessonSchedule()" class="tsa-btn tsa-btn-primary tsa-btn-sm">${_lessonScheduleConfirmed ? '✓ 확정됨' : '시간표 확정'}</button>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-bottom:12px">
-      <div class="tsa-card" style="padding:10px"><span style="font-size:10px;color:#6B7280">전체 요구량</span><b style="display:block;font-size:20px">${demands.length}</b></div>
-      <div class="tsa-card" style="padding:10px"><span style="font-size:10px;color:#6B7280">편성 완료</span><b style="display:block;font-size:20px;color:#047857">${scheduled}</b></div>
-      <div class="tsa-card" style="padding:10px"><span style="font-size:10px;color:#6B7280">일부 편성</span><b style="display:block;font-size:20px;color:#B45309">${partial}</b></div>
-      <div class="tsa-card" style="padding:10px"><span style="font-size:10px;color:#6B7280">미편성</span><b style="display:block;font-size:20px;color:#DC2626">${unscheduled}</b></div>
-    </div>
-    <div class="lesson-scheduling-scroll"><div class="lesson-scheduling-layout">
-      <section class="tsa-card" aria-label="편성 대상">
-        <div style="display:flex;border-bottom:1px solid #E5E7EB">${[['GROUP','그룹 수업'],['ONE_TO_ONE','1:1 수업'],['UNSCHEDULED','미편성']].map(([key,label]) => `<button onclick="setLessonDemandTab('${key}')" style="flex:1;border:0;border-bottom:2px solid ${_lessonDemandTab === key ? '#5E5CE6' : 'transparent'};background:#fff;padding:10px 3px;color:${_lessonDemandTab === key ? '#5E5CE6' : '#6B7280'};font-size:10.5px;font-weight:700;cursor:pointer">${label}</button>`).join('')}</div>
-        <div style="padding:9px"><input class="tsa-input" value="${lessonEsc(_lessonSearch)}" oninput="_lessonSearch=this.value;renderLessonSchedulingBoard()" placeholder="수업·학생 검색" style="width:100%;font-size:11px;margin-bottom:8px">${cards}</div>
-      </section>
-      <section class="tsa-card" aria-label="주간 편성 현황" style="overflow:hidden">
-        <div style="padding:10px 12px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between"><b style="font-size:12px">주간 편성 현황</b><span style="font-size:10px;color:#6B7280">한 교시에 여러 수업 표시 · 클릭으로 배치</span></div>
-        <div class="lesson-board-viewport"><table style="border-collapse:collapse;width:100%"><thead><tr><th style="position:sticky;top:0;left:0;z-index:4;background:#F9FAFB;border:1px solid #E5E7EB"></th>${LESSON_DAYS.map(d => `<th style="position:sticky;top:0;z-index:3;min-width:132px;padding:8px;border:1px solid #E5E7EB;background:#F9FAFB;font-size:11px">${d}요일</th>`).join('')}</tr></thead><tbody>${boardRows}</tbody></table></div>
-      </section>
-      <aside class="tsa-card" aria-label="선택 수업 상세"><div style="padding:10px 14px;border-bottom:1px solid #E5E7EB"><b style="font-size:12px">선택 수업 상세</b></div>${detail}</aside>
-    </div></div>`;
-  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
-}
-
-function setCsViewMode(mode, btn) {
-  _csViewMode = mode;
-  _csFilterSelect = 'all';
-  _csFilterSearch = '';
-  document.querySelectorAll('#cs-panel-view .tsa-btn').forEach(b => { b.className = 'tsa-btn tsa-btn-xs tsa-btn-outline'; });
-  btn.className = 'tsa-btn tsa-btn-xs tsa-btn-primary';
-  renderCsWeekView();
-}
-
-function renderCsWeekView() {
-  const el2 = document.getElementById('cs-week-label-2');
-  if (el2) el2.textContent = csWeekLabel(_csCurrentWeek);
-  const weekSessions = MOCK_CLASS_SESSIONS.filter(session => session.weekOf === _csCurrentWeek);
-  const publishedSessions = weekSessions.filter(session => session.published);
-
-  // Render Filter Bar
-  const filterBar = document.getElementById('cs-view-filter-bar');
-  if (filterBar) {
-    let selectHtml = '';
-    let label = '';
-    
-    if (_csViewMode === 'room') {
-      label = '강의실 필터';
-      const rooms = MOCK_CLASS_ROOMS.filter(r => r.roomNo);
-      selectHtml = `<select class="tsa-input" style="width:160px;height:32px;font-size:12px;padding:4px 8px;border-radius:6px" onchange="_csFilterSelect=this.value; renderCsWeekView();">
-        <option value="all" ${_csFilterSelect === 'all' ? 'selected' : ''}>전체 강의실</option>
-        ${rooms.map(r => `<option value="${r.id}" ${_csFilterSelect == r.id ? 'selected' : ''}>${r.roomNo} (${r.type})</option>`).join('')}
-      </select>`;
-    } else if (_csViewMode === 'teacher') {
-      label = '강사 필터';
-      const teachers = MOCK_TEACHERS.filter(t => t.status !== 'resigned');
-      selectHtml = `<select class="tsa-input" style="width:160px;height:32px;font-size:12px;padding:4px 8px;border-radius:6px" onchange="_csFilterSelect=this.value; renderCsWeekView();">
-        <option value="all" ${_csFilterSelect === 'all' ? 'selected' : ''}>전체 강사</option>
-        ${teachers.map(t => `<option value="${t.nick}" ${_csFilterSelect === t.nick ? 'selected' : ''}>${t.nick} (${t.name})</option>`).join('')}
-      </select>`;
-    } else if (_csViewMode === 'student') {
-      label = '학생 필터';
-      const students = MOCK_STUDENTS.filter(s => s.status === 'current' || s.status === 'waiting');
-      selectHtml = `<select class="tsa-input" style="width:160px;height:32px;font-size:12px;padding:4px 8px;border-radius:6px" onchange="_csFilterSelect=this.value; renderCsWeekView();">
-        <option value="all" ${_csFilterSelect === 'all' ? 'selected' : ''}>전체 학생</option>
-        ${students.map(s => `<option value="${s.id}" ${_csFilterSelect == s.id ? 'selected' : ''}>${s.nick} (${s.name})</option>`).join('')}
-      </select>`;
-    }
-
-    const placeholderText = _csViewMode === 'room' ? '강의실/학생 검색...' : (_csViewMode === 'teacher' ? '강사/학생/강의실 검색...' : '학생/강사/강의실 검색...');
-
-    filterBar.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;padding:11px 13px;border-radius:9px;background:${publishedSessions.length ? '#ECFDF5' : '#FFFBEB'};border:1px solid ${publishedSessions.length ? '#A7F3D0' : '#FDE68A'}">
-        <div>
-          <b style="display:block;font-size:12px;color:${publishedSessions.length ? '#047857' : '#92400E'}">${publishedSessions.length ? '✓ 최종 스케줄 확정' : '확정된 최종 스케줄 없음'}</b>
-          <span style="display:block;margin-top:3px;font-size:10.5px;color:#6B7280">${publishedSessions.length ? `${csWeekLabel(_csCurrentWeek)} · 총 ${publishedSessions.length}개 수업이 확정됐어.` : '주간 수업 편성에서 모든 수업의 강사와 강의실을 지정한 뒤 시간표를 확정해.'}</span>
-        </div>
-        ${publishedSessions.length ? '<span style="padding:4px 9px;border-radius:999px;background:#D1FAE5;color:#047857;font-size:10px;font-weight:800">PUBLISHED</span>' : '<button onclick="switchClassScheduleTab(\'assign\')" class="tsa-btn tsa-btn-xs tsa-btn-outline">주간 편성으로 이동</button>'}
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#F8F9FC;padding:8px 12px;border-radius:8px;border:1px solid #E5E7EB">
-        <span style="font-size:12px;font-weight:700;color:#4B5563;display:flex;align-items:center;gap:4px">
-          <i data-lucide="filter" style="width:14px;height:14px;color:#5E5CE6"></i> ${label}
-        </span>
-        ${selectHtml}
-        <span style="color:#D1D5DB">|</span>
-        <div style="position:relative;display:flex;align-items:center">
-          <i data-lucide="search" style="position:absolute;left:8px;width:12px;height:12px;color:#9CA3AF"></i>
-          <input type="text" placeholder="${placeholderText}" class="tsa-input" value="${_csFilterSearch}" oninput="_csFilterSearch=this.value.trim(); renderCsWeekView();" style="width:200px;height:32px;font-size:12px;padding:4px 8px;padding-left:26px;padding-right:24px;border-radius:6px" />
-          ${_csFilterSearch ? `<button onclick="_csFilterSearch=''; renderCsWeekView();" style="position:absolute;right:8px;background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:12px">✕</button>` : ''}
-        </div>
-        ${(_csFilterSelect !== 'all' || _csFilterSearch) ? `
-          <button onclick="_csFilterSelect='all'; _csFilterSearch=''; renderCsWeekView();" class="tsa-btn tsa-btn-xs" style="background:#F3F4F6;color:#4B5563;border:1px solid #D1D5DB;height:32px;padding:0 10px;display:flex;align-items:center;gap:4px;border-radius:6px">
-            <i data-lucide="rotate-ccw" style="width:12px;height:12px"></i> 필터 초기화
-          </button>
-        ` : ''}
-      </div>
-    `;
-    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
-  }
-
-  const wrap = document.getElementById('cs-view-table-wrap');
-  if (!wrap) return;
-  const days = ['월','화','수','목','금'];
-  const periods = Object.keys(CS_PERIODS);
-
-  const typeStyle = t => { const [bg,c] = (CS_TYPE_COLOR[t]||'#F3F4F6|#6B7280').split('|'); return `background:${bg};color:${c}`; };
-
-  let html = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-    <thead><tr style="background:#F9FAFB">
-      <th style="padding:8px 12px;text-align:left;border-bottom:0.5px solid #E5E7EB;color:#6B7280;font-weight:600;white-space:nowrap;width:100px">교시</th>
-      ${days.map(d=>`<th style="padding:8px 12px;text-align:center;border-bottom:0.5px solid #E5E7EB;color:#6B7280;font-weight:600">${d}요일</th>`).join('')}
-    </tr></thead><tbody>`;
-
-  periods.forEach(p => {
-    html += `<tr style="border-bottom:0.5px solid #F3F4F6">
-      <td style="padding:8px 12px;color:#4B5563;white-space:nowrap;font-size:11.5px;border-right:1px solid #E5E7EB;vertical-align:middle;text-align:center">
-        <strong style="color:#111827">${p}교시</strong><br><span style="font-size:9.5px;color:#9CA3AF">${CS_PERIODS[p]}</span>
-      </td>`;
-    days.forEach(day => {
-      let sessions = MOCK_CLASS_SESSIONS.filter(s => s.weekOf === _csCurrentWeek && s.day === day && s.periods.includes(parseInt(p)));
-      
-      // Apply filters
-      if (_csViewMode === 'room') {
-        if (_csFilterSelect !== 'all') {
-          sessions = sessions.filter(s => s.roomId == _csFilterSelect);
-        }
-        if (_csFilterSearch) {
-          sessions = sessions.filter(s => {
-            const room = MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-            const roomMatch = room?.roomNo && room.roomNo.toLowerCase().includes(_csFilterSearch.toLowerCase());
-            const studentMatch = s.studentIds.some(id => {
-              const st = MOCK_STUDENTS.find(x => x.id === id);
-              return st && (st.nick.toLowerCase().includes(_csFilterSearch.toLowerCase()) || st.name.toLowerCase().includes(_csFilterSearch.toLowerCase()));
-            });
-            return roomMatch || studentMatch;
-          });
-        }
-      } else if (_csViewMode === 'teacher') {
-        if (_csFilterSelect !== 'all') {
-          sessions = sessions.filter(s => {
-            const r = MOCK_CLASS_ROOMS.find(x => x.id === s.roomId);
-            const teacher = MOCK_TEACHERS.find(t => t.id === s.teacherId);
-            return (teacher?.nick || r?.teacherNick) === _csFilterSelect;
-          });
-        }
-        if (_csFilterSearch) {
-          sessions = sessions.filter(s => {
-            const room = MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-            const roomMatch = room?.roomNo && room.roomNo.toLowerCase().includes(_csFilterSearch.toLowerCase());
-            const assignedTeacher = MOCK_TEACHERS.find(t => t.id === s.teacherId) || MOCK_TEACHERS.find(t => t.nick === room?.teacherNick);
-            const teacherMatch = assignedTeacher && (
-              assignedTeacher.nick.toLowerCase().includes(_csFilterSearch.toLowerCase()) ||
-              assignedTeacher.name.toLowerCase().includes(_csFilterSearch.toLowerCase())
-            );
-            const studentMatch = s.studentIds.some(id => {
-              const st = MOCK_STUDENTS.find(x => x.id === id);
-              return st && (st.nick.toLowerCase().includes(_csFilterSearch.toLowerCase()) || st.name.toLowerCase().includes(_csFilterSearch.toLowerCase()));
-            });
-            return roomMatch || teacherMatch || studentMatch;
-          });
-        }
-      } else if (_csViewMode === 'student') {
-        if (_csFilterSelect !== 'all') {
-          sessions = sessions.filter(s => s.studentIds.includes(parseInt(_csFilterSelect)));
-        }
-        if (_csFilterSearch) {
-          sessions = sessions.filter(s => {
-            const room = MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-            const roomMatch = room?.roomNo && room.roomNo.toLowerCase().includes(_csFilterSearch.toLowerCase());
-            const assignedTeacher = MOCK_TEACHERS.find(t => t.id === s.teacherId) || MOCK_TEACHERS.find(t => t.nick === room?.teacherNick);
-            const teacherMatch = assignedTeacher && (
-              assignedTeacher.nick.toLowerCase().includes(_csFilterSearch.toLowerCase()) ||
-              assignedTeacher.name.toLowerCase().includes(_csFilterSearch.toLowerCase())
-            );
-            const studentMatch = s.studentIds.some(id => {
-              const st = MOCK_STUDENTS.find(x => x.id === id);
-              return st && (st.nick.toLowerCase().includes(_csFilterSearch.toLowerCase()) || st.name.toLowerCase().includes(_csFilterSearch.toLowerCase()));
-            });
-            return roomMatch || teacherMatch || studentMatch;
-          });
-        }
-      }
-
-      if (sessions.length === 0) {
-        html += `<td style="padding:12px 8px;text-align:center;color:#D1D5DB;font-size:11px">-</td>`;
-      } else {
-        html += `<td style="padding:6px 8px;vertical-align:top">`;
-        sessions.forEach(s => {
-          const room = MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-          const teacher = MOCK_TEACHERS.find(t => t.id === s.teacherId) || MOCK_TEACHERS.find(t => t.nick === room?.teacherNick);
-          const teacherName = teacher ? `${teacher.nick} (강사)` : '강사 미배정';
-          const names = s.studentIds.map(id => MOCK_STUDENTS.find(x=>x.id===id)?.nick||'').filter(Boolean).join(', ');
-          
-          html += `<div style="border-radius:6px;padding:6px 8px;margin-bottom:4px;border-left:3px solid ${room?.type === '1:1' ? '#5E5CE6' : (room?.type === '1:4' ? '#B45309' : '#065F46')}; ${typeStyle(room?.type||'1:1')}">
-            ${s.demandName ? `<div style="font-size:10.5px;font-weight:800;margin-bottom:3px">${lessonEsc(s.demandName)}${s.subjectId ? ` · ${lessonEsc(lessonSubjectName(s.subjectId))}` : ''}</div>` : ''}
-            <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:11px">
-              <span>${room?.roomNo||'-'} (${room?.type||''})</span>
-              <span style="font-size:9.5px;font-weight:normal;opacity:0.8">${teacherName}</span>
-            </div>
-            <div style="font-size:10.5px;font-weight:600;margin-top:2px">${names}</div>
-            <div style="font-size:9px;opacity:0.75;margin-top:1px">${s.course || ''} [${s.level || ''}]</div>
-          </div>`;
-        });
-        html += `</td>`;
-      }
-    });
-    html += `</tr>`;
-  });
-
-  html += `</tbody></table></div>`;
-  wrap.innerHTML = html;
-}
-// ── 수업 배정 관리 끝 ──────────────────────────────────
 
 // ── 기숙사 ERP (신규) ─────────────────────────────────
 function openDormTemplateModal() {}
@@ -8831,7 +7185,90 @@ function applyBellSettings() {
   // 현재 설정 화면은 유지하고, 연결된 시간표 화면 데이터만 갱신한다.
   previewBellSettings();
   renderTimetable(APP.conflictMode);
-  renderLessonSchedulingBoard();
-  renderCsWeekView();
+  if (document.getElementById('cs-panel-view')?.style.display !== 'none') renderFinalTimetableView();
 }
 
+// ── 데모용 시드: "학생 수업 배정" 목록의 약 1/4을 미리 배정 완료 상태로 채워둔다.
+// 실제 배정 함수(그룹 배정/1:1 담당강사/1:1 스케줄)를 그대로 사용해서 정원·시간 충돌 없이 만든다.
+// 요일·교시 조합을 넓게 시도해 가능한 한 "전부 배정 완료"까지 만들고, 그래도 안 되는 학생은 건너뛴다.
+(function seedDemoLessonAssignments() {
+  if (window.__tsaDemoAssignmentsSeeded) return;
+  window.__tsaDemoAssignmentsSeeded = true;
+  if (typeof getStudentLessonRequirements !== 'function') return;
+
+  const ALL_DAYS = ['월', '화', '수', '목', '금'];
+  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+
+  // 실제로 손으로 채운 시드 그룹들과 같은 모양(주 5회 · 요일 전체)이 되도록 월~금 풀타임 조합을 먼저 시도하고,
+  // 그래도 강사·강의실이 안 나면 2일짜리 조합으로 좁혀서 재시도한다.
+  function tryFillGroupRequirement(student, req) {
+    let groupId = getCandidateGroupsForStudentRequirement(student, req)[0]?.id;
+    if (groupId) return groupId;
+    const level = getLevelGroupForStudent(student);
+    // 그룹은 과정 템플릿 기준 1시간짜리 수업이라 교시도 1개만 쓴다(2교시 연속 배정 금지).
+    const dayCombos = [ALL_DAYS, ...ALL_DAYS.slice(0, -1).map((day, i) => [day, ALL_DAYS[i + 1]])];
+    const templatePeriod = Number(req.sequence);
+    if (!Number.isFinite(templatePeriod) || templatePeriod < 1 || templatePeriod > totalPeriods) return null;
+    for (const days of dayCombos) {
+      if (!groupId) {
+        const periods = [templatePeriod];
+        const teacherCands = getGroupTeacherCandidates(req.classType, days, periods, null);
+        const roomCands = getGroupRoomCandidates(req.classType, days, periods, getGroupClassCapacity(req.classType), null);
+        if (teacherCands.length && roomCands.length) {
+          const result = saveGroupFromBrowserPopup(null, {
+            curriculum: [{ id: req.subjectId, hours: 1 }],
+            course: student.course || '',
+            levelGroups: [level],
+            classType: req.classType,
+            startDate: student.startDate || '2026-06-01',
+            periods, dayOfWeek: days,
+            teacherId: teacherCands[0].id, roomId: roomCands[0].id
+          });
+          if (result.ok) groupId = MOCK_GROUP_CLASSES[MOCK_GROUP_CLASSES.length - 1].id;
+        }
+      }
+      if (groupId) break;
+    }
+    return groupId;
+  }
+
+  function tryFullyAssign(student) {
+    const requirements = getStudentLessonRequirements(student);
+    let ok = true;
+
+    requirements.filter(r => r.classType !== '1:1').forEach(req => {
+      const groupId = tryFillGroupRequirement(student, req);
+      if (groupId) {
+        const result = assignStudentToGroupFromBrowserPopup(student.id, groupId);
+        if (!result.ok) ok = false;
+      } else {
+        ok = false;
+      }
+    });
+
+    const oneToOneReqs = requirements.filter(r => r.classType === '1:1');
+    if (oneToOneReqs.length) {
+      const teacherCandidates = MOCK_TEACHERS.filter(t => t.status !== 'resigned' && (t.classTypes || []).includes('1:1') && t.room);
+      let assignedAllOneToOne = false;
+      for (const teacher of teacherCandidates) {
+        const result = saveStudentPrimaryTeacher(student.id, teacher.id);
+        if (result.ok) {
+          assignedAllOneToOne = true;
+          break;
+        }
+      }
+      if (!assignedAllOneToOne) ok = false;
+    }
+    return ok;
+  }
+
+  const eligible = MOCK_STUDENTS.filter(s =>
+    ['current', 'waiting', 'extended'].includes(s.status) && getStudentLessonRequirements(s).length > 0
+  );
+  const targetCount = Math.max(1, Math.round(eligible.length / 4));
+  let filled = 0;
+  for (const student of eligible) {
+    if (filled >= targetCount) break;
+    if (tryFullyAssign(student)) filled++;
+  }
+})();

@@ -1571,11 +1571,19 @@
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
         <a class="tsa-nav-item admin-only" id="menu-class-schedule" onclick="navigate('class-schedule')">
           <i data-lucide="calendar-check"></i>
-          수업 배정 관리
+          1:1 수업 관리
         </a>
         <a class="tsa-nav-item admin-only" id="menu-group-management" onclick="navigate('group-management')">
           <i data-lucide="users-round"></i>
           그룹 수업 관리
+        </a>
+        <a class="tsa-nav-item admin-only" id="menu-classroom-manage" onclick="navigate('classroom-manage')">
+          <i data-lucide="building-2"></i>
+          강의실 관리
+        </a>
+        <a class="tsa-nav-item admin-only" id="menu-timetable-status" onclick="navigate('timetable-status')">
+          <i data-lucide="calendar-range"></i>
+          시간표 현황
         </a>
       </div>
       <a class="tsa-nav-item admin-only" id="menu-students" onclick="navigate('students')">
@@ -3407,7 +3415,7 @@
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
               <h2 class="tsa-page-title">👥 그룹 수업 관리</h2>
-              <p class="tsa-page-subtitle">그룹 생성 대상 확인 · 운영 그룹 관리 · 미배정 학생 확인</p>
+          <p class="tsa-page-subtitle">학생별 그룹 배정 · 그룹 생성 대상 확인 · 운영 그룹 관리</p>
             </div>
             <div style="display:flex;gap:8px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
@@ -3415,8 +3423,9 @@
             </div>
           </div>
           <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
-            <button id="gm-tab-unmatched" onclick="switchGroupManagementTab('unmatched')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">미배정 학생</button>
-            <button id="gm-tab-list" onclick="switchGroupManagementTab('list')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 관리</button>
+            <button id="gm-tab-students" onclick="switchGroupManagementTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생 목록</button>
+            <button id="gm-tab-list" onclick="switchGroupManagementTab('list')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 생성 대상</button>
+            <button id="gm-tab-active" onclick="switchGroupManagementTab('active')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">운영 그룹</button>
           </div>
           <div id="group-management-content"></div>
         </div>
@@ -3427,27 +3436,16 @@
         <div id="view-class-schedule" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
-              <h2 class="tsa-page-title">📅 수업 배정 관리</h2>
-              <p class="tsa-page-subtitle">공통 교시 · 강의실 관리 · 그룹/1:1 배정 · 시간표 현황</p>
+              <h2 class="tsa-page-title">📅 1:1 수업 관리</h2>
+              <p class="tsa-page-subtitle">과정 교시 템플릿의 1:1 수업을 담당 강사와 전용 강의실 기준으로 배정하고 변경해</p>
             </div>
           </div>
 
-          <!-- 탭 -->
-          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:20px">
-            <button id="cs-tab-period" onclick="switchClassScheduleTab('period')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">⏰ 공통 교시 설정</button>
-            <button id="cs-tab-group" onclick="switchClassScheduleTab('group')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">🧩 그룹 수업 관리</button>
-            <button id="cs-tab-rooms" onclick="switchClassScheduleTab('rooms')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">🏫 강의실 관리</button>
-            <button id="cs-tab-students" onclick="switchClassScheduleTab('students')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">🧑‍🎓 학생 수업 배정</button>
-            <button id="cs-tab-assign" onclick="switchClassScheduleTab('assign')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📋 주간 수업 편성</button>
-            <button id="cs-tab-view" onclick="switchClassScheduleTab('view')" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">📊 시간표 현황</button>
-          </div>
-
-          <!-- 탭: 학생 수업 배정 (PRD v3.0 §9) -->
-          <div id="cs-panel-students" style="display:none">
+          <div id="cs-panel-students">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title">🧑‍🎓 학생 수업 배정</h3>
-                <div style="font-size:11px;color:#6B7280">과정 교시 템플릿에서 생성된 학생별 수업 요구사항을 그룹 또는 1:1 강사에게 배정해</div>
+                <h3 class="tsa-card-title">🧑‍🎓 1:1 수업 학생 목록</h3>
+                <div style="font-size:11px;color:#6B7280">학생별 1:1 배정 상태를 확인하고 담당 강사를 지정하거나 변경해.</div>
               </div>
               <div style="overflow-x:auto">
                 <table class="tsa-table">
@@ -3457,8 +3455,8 @@
                       <th>학생 정보</th>
                       <th>과정 및 수강 기간</th>
                       <th>레벨</th>
-                      <th>배정 현황</th>
-                      <th>미배정 수업</th>
+                      <th>1:1 배정 현황</th>
+                      <th>미배정 1:1 수업</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
@@ -3468,8 +3466,128 @@
             </div>
           </div>
 
-          <!-- 탭 0: 공통 교시 관리 (구 '교시 및 벨 설정' 화면을 편입) -->
-          <div id="cs-panel-period" style="display:none">
+          <!-- 그룹 카드의 "+ 배정하기" 클릭 시 뜨는 학생 매칭 팝업 -->
+          <div id="group-assign-popup-modal" style="display:none">
+            <div class="tsa-modal-backdrop" onclick="closeGroupAssignPopup()">
+              <div class="tsa-modal" style="max-width:480px" onclick="event.stopPropagation()">
+                <div class="tsa-modal-header">
+                  <div>
+                    <h3 class="tsa-modal-title" id="gap-title">학생 배정</h3>
+                    <p class="tsa-modal-subtitle" id="gap-meta"></p>
+                  </div>
+                  <button class="tsa-modal-close" onclick="closeGroupAssignPopup()"><i data-lucide="x"></i></button>
+                </div>
+                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
+                  <div id="gap-candidates"></div>
+                </div>
+                <div class="tsa-modal-footer">
+                  <button class="tsa-btn tsa-btn-outline" onclick="closeGroupAssignPopup()">닫기</button>
+                  <button class="tsa-btn tsa-btn-primary" onclick="assignFromGroupAssignPopup()"><i data-lucide="check"></i> 선택 학생 배정</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 호실 추가 모달 -->
+        <div id="cs-room-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCsAddRoomModal()"></div>
+        <div id="cs-room-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:440px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
+          <input type="hidden" id="cs-room-modal-id"/>
+          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+            <h3 id="cs-room-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">호실 추가</h3>
+            <button onclick="closeCsAddRoomModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
+          </div>
+          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+            <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">호실 번호 <span style="color:#EF4444">*</span></label><input id="cs-room-no" class="tsa-input" placeholder="예: A-101" style="width:100%"/></div>
+            <!-- 추가 개수 (1:1 강의실 전용) -->
+            <div id="cs-room-qty-row" style="display:none">
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">추가 개수 (1:1 강의실 일괄 추가)</label>
+              <input id="cs-room-qty" class="tsa-input" type="number" min="1" max="50" value="1" style="width:100%"/>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수업 유형 <span style="color:#EF4444">*</span></label>
+                <select id="cs-room-type" class="tsa-input" style="width:100%" onchange="toggleCsRoomQtyRow()">
+                  <option value="1:1">1:1 강의실</option>
+                  <option value="1:4">1:4 그룹</option>
+                  <option value="1:8">1:8 그룹</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label><input id="cs-room-cap" class="tsa-input" type="number" min="1" placeholder="명" style="width:100%"/></div>
+            </div>
+            <div id="cs-room-teacher-row">
+              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1:1 담당 강사</label>
+              <select id="cs-room-teacher" class="tsa-input" style="width:100%"></select>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 관리에서 담당 강사를 지정해.</div>
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
+            <button class="tsa-btn tsa-btn-outline" onclick="closeCsAddRoomModal()">취소</button>
+            <button class="tsa-btn tsa-btn-primary" onclick="saveCsRoom()"><i data-lucide="check"></i> 저장</button>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: CLASSROOM MANAGE (실사용 MOCK_CLASS_ROOMS)   -->
+        <!-- ================================================ -->
+        <div id="view-classroom-manage" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">🏫 강의실 관리</h2>
+              <p class="tsa-page-subtitle">1:1·1:4·1:8 강의실 등록 및 담당 강사 배정</p>
+            </div>
+          </div>
+          <!-- 유형 필터 탭 + 호실 추가 -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="display:flex;gap:8px">
+              <button id="cs-rtype-all" onclick="setCsRoomTypeFilter('전체',this)" class="tsa-pill active">전체</button>
+              <button id="cs-rtype-11"  onclick="setCsRoomTypeFilter('1:1',this)"  class="tsa-pill">1:1 강의실</button>
+              <button id="cs-rtype-14"  onclick="setCsRoomTypeFilter('1:4',this)"  class="tsa-pill">1:4 그룹</button>
+              <button id="cs-rtype-18"  onclick="setCsRoomTypeFilter('1:8',this)"  class="tsa-pill">1:8 그룹</button>
+            </div>
+            <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCsAddRoomModal()"><i data-lucide="plus"></i> 호실 추가</button>
+          </div>
+          <div class="tsa-card">
+            <table class="tsa-table" style="font-size:12px">
+              <thead>
+                <tr><th>호실</th><th>수용 인원</th><th>담당 강사</th><th>상태</th><th>동작</th></tr>
+              </thead>
+              <tbody id="cs-rooms-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: TIMETABLE STATUS (시간표 현황)              -->
+        <!-- ================================================ -->
+        <div id="view-timetable-status" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">📊 시간표 현황</h2>
+              <p class="tsa-page-subtitle">그룹·1:1 배정 데이터에서 즉시 파생되는 최종 시간표</p>
+            </div>
+          </div>
+
+          <!-- 서브 탭 네비게이션 -->
+          <div class="tsa-tabs" style="margin-bottom:16px">
+            <div class="tsa-tab active" id="ts-status-tab-view" onclick="switchTimetableStatusTab('view', this)">시간표 보기</div>
+            <div class="tsa-tab" id="ts-status-tab-period" onclick="switchTimetableStatusTab('period', this)">공통 교시 설정</div>
+          </div>
+
+          <!-- [탭] 시간표 보기 -->
+          <div id="timetable-status-tab-view" class="timetable-status-tab-content">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+              <button id="ft-tab-all" onclick="setFinalTimetableView('all',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary">전체</button>
+              <button id="ft-tab-student" onclick="setFinalTimetableView('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생별</button>
+              <button id="ft-tab-teacher" onclick="setFinalTimetableView('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사별</button>
+              <button id="ft-tab-room" onclick="setFinalTimetableView('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강의실별</button>
+              <select id="ft-entity-select" style="display:none;height:32px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11.5px;margin-left:8px" onchange="renderFinalTimetableView()"></select>
+            </div>
+            <div id="cs-final-timetable-body"></div>
+          </div>
+
+          <!-- [탭] 공통 교시 설정 -->
+          <div id="timetable-status-tab-period" class="timetable-status-tab-content" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
               <!-- Left: Settings Card -->
               <div class="tsa-card">
@@ -3582,229 +3700,6 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- 탭: 그룹 수업 관리 -->
-          <div id="cs-panel-group" style="display:none">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-              <div style="font-size:11.5px;color:#6B7280">레벨(Beginner~Advanced) 기준으로 학생을 매칭합니다. 세부 레벨 우선순위는 아직 지원하지 않습니다.</div>
-              <div style="display:flex;gap:8px">
-                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-2"></i> 전체 자동 매칭</button>
-                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateBrowserPopup()"><i data-lucide="plus"></i> 그룹 생성</button>
-              </div>
-            </div>
-
-            <style>
-              .cs-course-section-grid { display:grid;grid-template-columns:minmax(260px,.9fr) minmax(320px,1.15fr) minmax(300px,1fr); }
-              .cs-course-section-column { min-width:0;padding:12px; }
-              .cs-course-section-column + .cs-course-section-column { border-left:1px solid #E5E7EB; }
-              .cs-course-section-title { font-size:11.5px;font-weight:800;color:#374151;margin-bottom:9px; }
-              .cs-course-section-title span { margin-left:5px;color:#9CA3AF;font-size:9.5px;font-weight:600; }
-              .cs-course-section-scroll { display:flex;flex-direction:column;gap:7px;max-height:340px;overflow:auto;padding-right:3px; }
-              @media (max-width:1250px) {
-                .cs-course-section-grid { grid-template-columns:1fr; }
-                .cs-course-section-column + .cs-course-section-column { border-left:0;border-top:1px solid #E5E7EB; }
-                .cs-course-section-scroll { max-height:none; }
-              }
-            </style>
-            <div id="cs-course-workspaces"></div>
-          </div>
-
-          <!-- 그룹 생성/수정 모달 -->
-          <div id="group-class-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:460px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
-            <input type="hidden" id="gcm-id"/>
-            <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
-              <h3 id="gcm-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">그룹 생성</h3>
-              <button onclick="closeGroupCreateModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
-            </div>
-            <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">그룹 운영 방식 <span style="color:#EF4444">*</span></label>
-                <select id="gcm-mode" class="tsa-input" onchange="onGcmModeChange()">
-                  <option value="course">과정 전용 그룹</option>
-                  <option value="shared">과정 통합 그룹</option>
-                </select>
-                <div style="font-size:10.5px;color:#6B7280;margin-top:4px">통합 그룹은 여러 과정 학생이 공통 과목을 함께 수강해.</div>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">과정 <span style="color:#EF4444">*</span></label>
-                <div id="gcm-course-checks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;border:1px solid #E5E7EB;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto"></div>
-                <div id="gcm-course-filter-hint" style="font-size:10.5px;color:#4F46E5;margin-top:4px"></div>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">레벨 <span style="color:#EF4444">*</span> <span style="font-size:10px;color:#9CA3AF;font-weight:400">(다중 선택 가능)</span></label>
-                <div id="gcm-level-checks" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border:1px solid #E5E7EB;border-radius:8px;padding:10px"></div>
-                <div style="font-size:10.5px;color:#9CA3AF;margin-top:4px">체크한 레벨에 속한 학생이 매칭 대상이 됩니다.</div>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수업 형태 <span style="color:#EF4444">*</span></label>
-                <select id="gcm-class-type" class="tsa-input" onchange="updateGcmCapacityHint()"></select>
-              </div>
-              <div id="gcm-capacity-hint" style="font-size:11px;color:#6B7280"></div>
-              <div id="gcm-curriculum-preview" style="padding:10px 12px;border-radius:8px;background:#F5F3FF;color:#4338CA;font-size:11px"></div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">동일 국적 최대 인원 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(수동 지정, 비우면 제안값 자동 적용)</span></label>
-                <input id="gcm-nationality-cap" type="number" min="1" class="tsa-input" placeholder="예: 2"/>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div>
-                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">운영 시작일 <span style="color:#EF4444">*</span></label>
-                  <input id="gcm-start-date" type="date" class="tsa-input"/>
-                </div>
-                <div>
-                  <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">주당 수업 횟수</label>
-                  <input id="gcm-weekly-frequency" type="number" min="1" value="5" class="tsa-input"/>
-                </div>
-              </div>
-            </div>
-            <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
-              <button class="tsa-btn tsa-btn-outline" onclick="closeGroupCreateModal()">취소</button>
-              <button class="tsa-btn tsa-btn-primary" onclick="saveGroupClass()"><i data-lucide="check"></i> 저장</button>
-            </div>
-          </div>
-          <div id="group-class-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeGroupCreateModal()"></div>
-
-          <!-- 그룹 카드의 "+ 배정하기" 클릭 시 뜨는 학생 매칭 팝업 -->
-          <div id="group-assign-popup-modal" style="display:none">
-            <div class="tsa-modal-backdrop" onclick="closeGroupAssignPopup()">
-              <div class="tsa-modal" style="max-width:480px" onclick="event.stopPropagation()">
-                <div class="tsa-modal-header">
-                  <div>
-                    <h3 class="tsa-modal-title" id="gap-title">학생 배정</h3>
-                    <p class="tsa-modal-subtitle" id="gap-meta"></p>
-                  </div>
-                  <button class="tsa-modal-close" onclick="closeGroupAssignPopup()"><i data-lucide="x"></i></button>
-                </div>
-                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
-                  <div id="gap-candidates"></div>
-                </div>
-                <div class="tsa-modal-footer">
-                  <button class="tsa-btn tsa-btn-outline" onclick="closeGroupAssignPopup()">닫기</button>
-                  <button class="tsa-btn tsa-btn-primary" onclick="assignFromGroupAssignPopup()"><i data-lucide="check"></i> 선택 학생 배정</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 탭 1: 강의실 설정 -->
-          <div id="cs-panel-rooms">
-            <!-- 유형 필터 탭 + 호실 추가 -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <div style="display:flex;gap:8px">
-                <button id="cs-rtype-all" onclick="setCsRoomTypeFilter('전체',this)" class="tsa-pill active">전체</button>
-                <button id="cs-rtype-11"  onclick="setCsRoomTypeFilter('1:1',this)"  class="tsa-pill">1:1 강의실</button>
-                <button id="cs-rtype-14"  onclick="setCsRoomTypeFilter('1:4',this)"  class="tsa-pill">1:4 그룹</button>
-                <button id="cs-rtype-18"  onclick="setCsRoomTypeFilter('1:8',this)"  class="tsa-pill">1:8 그룹</button>
-              </div>
-              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCsAddRoomModal()"><i data-lucide="plus"></i> 호실 추가</button>
-            </div>
-            <div class="tsa-card">
-              <table class="tsa-table" style="font-size:12px">
-                <thead>
-                  <tr><th>호실</th><th>수용 인원</th><th>담당 강사</th><th>상태</th><th>동작</th></tr>
-                </thead>
-                <tbody id="cs-rooms-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- 탭 2: 주간 수업 편성 -->
-          <div id="cs-panel-assign" style="display:none">
-            <div id="lesson-scheduling-board"></div>
-          </div>
-
-          <!-- 탭 3: 주간 현황 -->
-          <div id="cs-panel-view" style="display:none">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-              <button id="ft-tab-all" onclick="setFinalTimetableView('all',this)" class="tsa-btn tsa-btn-xs tsa-btn-primary">전체</button>
-              <button id="ft-tab-student" onclick="setFinalTimetableView('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생별</button>
-              <button id="ft-tab-teacher" onclick="setFinalTimetableView('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사별</button>
-              <button id="ft-tab-room" onclick="setFinalTimetableView('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강의실별</button>
-              <select id="ft-entity-select" style="display:none;height:32px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11.5px;margin-left:8px" onchange="renderFinalTimetableView()"></select>
-            </div>
-            <div id="cs-final-timetable-body"></div>
-          </div>
-        </div>
-
-        <!-- 호실 추가 모달 -->
-        <div id="cs-room-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCsAddRoomModal()"></div>
-        <div id="cs-room-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:440px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
-          <input type="hidden" id="cs-room-modal-id"/>
-          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
-            <h3 id="cs-room-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">호실 추가</h3>
-            <button onclick="closeCsAddRoomModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
-          </div>
-          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
-            <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">호실 번호 <span style="color:#EF4444">*</span></label><input id="cs-room-no" class="tsa-input" placeholder="예: A-101" style="width:100%"/></div>
-            <!-- 추가 개수 (1:1 강의실 전용) -->
-            <div id="cs-room-qty-row" style="display:none">
-              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">추가 개수 (1:1 강의실 일괄 추가)</label>
-              <input id="cs-room-qty" class="tsa-input" type="number" min="1" max="50" value="1" style="width:100%"/>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수업 유형 <span style="color:#EF4444">*</span></label>
-                <select id="cs-room-type" class="tsa-input" style="width:100%" onchange="toggleCsRoomQtyRow()">
-                  <option value="1:1">1:1 강의실</option>
-                  <option value="1:4">1:4 그룹</option>
-                  <option value="1:8">1:8 그룹</option>
-                  <option value="기타">기타</option>
-                </select>
-              </div>
-              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label><input id="cs-room-cap" class="tsa-input" type="number" min="1" placeholder="명" style="width:100%"/></div>
-            </div>
-            <div id="cs-room-teacher-row">
-              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1:1 담당 강사</label>
-              <select id="cs-room-teacher" class="tsa-input" style="width:100%"></select>
-              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 관리에서 담당 강사를 지정해.</div>
-            </div>
-          </div>
-          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
-            <button class="tsa-btn tsa-btn-outline" onclick="closeCsAddRoomModal()">취소</button>
-            <button class="tsa-btn tsa-btn-primary" onclick="saveCsRoom()"><i data-lucide="check"></i> 저장</button>
-          </div>
-        </div>
-
-        <!-- 수업 배정 모달 -->
-        <div id="cs-assign-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1050" onclick="closeCsAssignModal()"></div>
-        <div id="cs-assign-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1060;width:500px;max-width:95vw;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.18);overflow:hidden">
-          <div style="padding:18px 24px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
-            <h3 id="cs-assign-modal-title" style="font-size:15px;font-weight:700;color:#111827;margin:0">수업 배정</h3>
-            <button onclick="closeCsAssignModal()" style="background:none;border:none;cursor:pointer;color:#6B7280;font-size:18px">✕</button>
-          </div>
-          <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
-            <div id="cs-assign-info" style="background:#F8F9FF;border-radius:8px;padding:12px 16px;font-size:13px;color:#374151"></div>
-            <div>
-              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">교시 선택 (복수 가능)</label>
-              <div id="cs-period-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-            </div>
-            <div>
-              <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">학생 선택</label>
-              <div id="cs-student-list" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto"></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">코스</label>
-                <select id="cs-assign-course" class="tsa-input" style="width:100%">
-                  <option value="Regular">Regular</option>
-                  <option value="Regular +">Regular +</option>
-                  <option value="Intensive">Intensive</option>
-                  <option value="Power Speaking 6">Power Speaking 6</option>
-                  <option value="Power Speaking 8">Power Speaking 8</option>
-                  <option value="6Hrs Regular">6Hrs Regular</option>
-                  <option value="6Hrs Intensive">6Hrs Intensive</option>
-                  <option value="6Hrs Power Speaking">6Hrs Power Speaking</option>
-                  <option value="IELTS Intensive">IELTS Intensive</option>
-                  <option value="Special English(TOEIC, Business)">Special English(TOEIC, Business)</option>
-                  <option value="Junior ESL">Junior ESL</option>
-                  <option value="Junior Camp">Junior Camp</option>
-                  <option value="가디언 코스">가디언 코스</option>
-                </select>
-              </div>
-              <div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">레벨</label><input id="cs-assign-level" class="tsa-input" placeholder="예: Band 5.0" style="width:100%"/></div>
-            </div>
-          </div>
-          <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
-            <button class="tsa-btn tsa-btn-outline" onclick="closeCsAssignModal()">취소</button>
-            <button class="tsa-btn tsa-btn-primary" onclick="confirmCsAssign()"><i data-lucide="check"></i> 배정 확정</button>
           </div>
         </div>
 
@@ -6950,11 +6845,11 @@
 <script src="assets/js/lms-data.js?v=0.6.10"></script>
 <script src="assets/js/lms-util.js?v=0.6.2"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.3"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.4"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
     <script src="assets/js/lms-course.js?v=0.6.48"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.11"></script>
-  <script src="assets/js/lms-classroom.js?v=0.8.65"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.79"></script>
     <script src="assets/js/lms-main.js?v=0.6.10"></script>
 <script>
   // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.

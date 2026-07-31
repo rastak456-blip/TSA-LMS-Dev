@@ -6,6 +6,8 @@ const VIEW_MAP = {
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
   'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '수업 배정 관리', sec: '학사 관리' },
   'group-management': { el: 'view-group-management', menu: 'menu-group-management', label: '그룹 관리', sec: '학사 관리' },
+  'classroom-manage': { el: 'view-classroom-manage', menu: 'menu-classroom-manage', label: '강의실 관리', sec: '학사 관리' },
+  'timetable-status': { el: 'view-timetable-status', menu: 'menu-timetable-status', label: '시간표 현황', sec: '학사 관리' },
   'weekly-timetable': { el: 'view-weekly-timetable', menu: 'menu-weekly-timetable', label: '주간 시간표', sec: '학사 관리' },
   students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
   'admin-student-detail': { el: 'view-agency-student-detail', menu: 'menu-students', label: '학생 상세 정보', sec: '학사 관리' },
@@ -105,6 +107,10 @@ function navigate(view) {
     initClassSchedule();
   } else if (view === 'group-management') {
     if (typeof initGroupManagement === 'function') initGroupManagement();
+  } else if (view === 'classroom-manage') {
+    if (typeof renderCsRooms === 'function') renderCsRooms();
+  } else if (view === 'timetable-status') {
+    if (typeof setFinalTimetableView === 'function') setFinalTimetableView('all', document.getElementById('ft-tab-all'));
   } else if (view === 'students') {
     applyStudentFilters();
   } else if (view === 'pickup-managers') {

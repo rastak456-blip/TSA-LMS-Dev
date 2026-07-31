@@ -280,7 +280,7 @@ function renderTeacherList(list) {
           ${capableLevels.map(l => `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:#F3E8FF;color:#7E22CE;font-weight:600;display:inline-block;margin:1px">${l.name}</span>`).join('')
             || '<span style="font-size:11px;color:#D1D5DB">-</span>'}
         </td>
-        <td style="font-size:12px;font-weight:500;white-space:nowrap">Room ${t.room}</td>
+          <td style="font-size:12px;font-weight:500;white-space:nowrap">${t.room ? `Room ${t.room}` : '<span style="color:#9CA3AF">미배정</span>'}</td>
         <td style="text-align:center;white-space:nowrap">${renderTeacherTeachingModes(t)}</td>
         <td style="white-space:nowrap"><span class="tsa-badge ${t.contract==='정규직'?'tsa-badge-primary':'tsa-badge-gray'}">${t.contract}</span></td>
         <td style="white-space:nowrap"><span class="tsa-badge ${statusClass}">${statusLabel}</span></td>
@@ -357,7 +357,7 @@ function openTeacherScheduleModal(nick) {
 
   // Header
   document.getElementById('ts-modal-teacher-name').textContent = `${teacher.name} (${teacher.nick})`;
-  document.getElementById('ts-modal-teacher-type').textContent = `${teacher.type} · Room ${teacher.room} · 경력 ${teacher.exp}년 · ⭐ ${teacher.rating}`;
+  document.getElementById('ts-modal-teacher-type').textContent = `${teacher.type} · ${teacher.room ? `Room ${teacher.room}` : '담당 교실 미배정'} · 경력 ${teacher.exp}년 · ⭐ ${teacher.rating}`;
   document.getElementById('ts-modal-teacher-avatar').src = avatarSrc;
 
   // Weekly schedule grid
@@ -757,6 +757,21 @@ function switchCoursePricingTab(tab, el) {
   }
 }
 
+function switchTimetableStatusTab(tab, el) {
+  if (el) {
+    el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.timetable-status-tab-content').forEach(c => c.style.display = 'none');
+  if (tab === 'view') {
+    document.getElementById('timetable-status-tab-view').style.display = 'block';
+    if (typeof setFinalTimetableView === 'function') setFinalTimetableView('all', document.getElementById('ft-tab-all'));
+  } else if (tab === 'period') {
+    document.getElementById('timetable-status-tab-period').style.display = 'block';
+    if (typeof initBellSettingsView === 'function') initBellSettingsView();
+  }
+}
+
 function switchClassroomTab(tab, el) {
   if (el) {
     el.parentNode.querySelectorAll('.tsa-tab').forEach(t => t.classList.remove('active'));
@@ -886,7 +901,7 @@ function switchTeacherTab(tab, el) {
       container.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="td-room" class="tsa-input" value="${t.room||''}"/></div>
+        <div class="tsa-form-group"><label class="tsa-label">담당 강의실</label><input id="td-room" class="tsa-input" value="${t.room||''}" readonly placeholder="강의실 관리에서 배정"/><div style="font-size:10px;color:#9CA3AF;margin-top:4px">강의실 관리의 1:1 담당 강사 설정과 자동 연동돼.</div></div>
             <div class="tsa-form-group"><label class="tsa-label">근무 시작 시간</label>
               <input id="td-work-start" type="time" class="tsa-input" value="${t.workHours ? t.workHours.start : '08:00'}"/>
             </div>
