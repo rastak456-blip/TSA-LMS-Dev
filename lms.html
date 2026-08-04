@@ -3415,7 +3415,7 @@
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
               <h2 class="tsa-page-title">👥 그룹 수업 관리</h2>
-          <p class="tsa-page-subtitle">학생별 그룹 배정 · 그룹 생성 대상 확인 · 운영 그룹 관리</p>
+          <p class="tsa-page-subtitle">학생별 그룹 배정 · 그룹 생성 및 학생 구성 · 강의실·강사 배정</p>
             </div>
             <div style="display:flex;gap:8px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
@@ -3423,11 +3423,32 @@
             </div>
           </div>
           <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
-            <button id="gm-tab-students" onclick="switchGroupManagementTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생 목록</button>
-            <button id="gm-tab-list" onclick="switchGroupManagementTab('list')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 생성 대상</button>
-            <button id="gm-tab-active" onclick="switchGroupManagementTab('active')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">운영 그룹</button>
+            <button id="gm-tab-students" onclick="switchGroupManagementTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 그룹 배정</button>
+            <button id="gm-tab-active" onclick="switchGroupManagementTab('active')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 편성 관리</button>
+            <button id="gm-tab-rooms" onclick="switchGroupManagementTab('rooms')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">강의실·강사 배정</button>
           </div>
           <div id="group-management-content"></div>
+
+          <!-- 강의실별 탭: 빈 교시에 그룹을 고른 뒤 가능한 강사를 선택하는 모달 -->
+          <div id="group-slot-pending-modal" style="display:none">
+            <div class="tsa-modal-backdrop" onclick="closeGroupSlotPendingPicker()">
+              <div class="tsa-modal" style="max-width:480px" onclick="event.stopPropagation()">
+                <div class="tsa-modal-header">
+                  <div>
+                    <h3 class="tsa-modal-title" id="group-slot-pending-title">교시에 배치할 그룹</h3>
+                    <p class="tsa-modal-subtitle">미배정 그룹을 먼저 고르면 이 교시에 가능한 강사를 보여줘.</p>
+                  </div>
+                  <button class="tsa-modal-close" onclick="closeGroupSlotPendingPicker()"><i data-lucide="x"></i></button>
+                </div>
+                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
+                  <div id="group-slot-pending-candidates"></div>
+                </div>
+                <div class="tsa-modal-footer">
+                  <button class="tsa-btn tsa-btn-outline" onclick="closeGroupSlotPendingPicker()">닫기</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ================================================ -->
@@ -3437,15 +3458,22 @@
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
               <h2 class="tsa-page-title">📅 1:1 수업 관리</h2>
-              <p class="tsa-page-subtitle">과정 교시 템플릿의 1:1 수업을 담당 강사와 전용 강의실 기준으로 배정하고 변경해</p>
+              <p class="tsa-page-subtitle">학생별 1:1 배정 · 강사별 교시 배정 · 중복 검증 및 배정 변경</p>
             </div>
+          </div>
+
+          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
+            <button id="cs-tab-students" onclick="switchOneToOneManageTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 1:1 배정</button>
+            <button id="cs-tab-teacher-assign" onclick="switchOneToOneManageTab('teacher-assign')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">강사별 교시 배정</button>
           </div>
 
           <div id="cs-panel-students">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title">🧑‍🎓 1:1 수업 학생 목록</h3>
-                <div style="font-size:11px;color:#6B7280">학생별 1:1 배정 상태를 확인하고 담당 강사를 지정하거나 변경해.</div>
+                <div>
+                  <h3 class="tsa-card-title">🧑‍🎓 학생별 1:1 배정 현황</h3>
+                  <div style="font-size:11px;color:#6B7280">과정 템플릿의 1:1 교시를 확인하고 담당 강사를 자동 배정하거나 변경해.</div>
+                </div>
               </div>
               <div style="overflow-x:auto">
                 <table class="tsa-table">
@@ -3456,12 +3484,62 @@
                       <th>과정 및 수강 기간</th>
                       <th>레벨</th>
                       <th>1:1 배정 현황</th>
-                      <th>미배정 1:1 수업</th>
+                      <th>수업 리스트</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
                   <tbody id="cs-student-assign-body"></tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="cs-panel-teacher-assign" style="display:none">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+              <span style="font-size:12px;font-weight:700;color:#4B5563;display:flex;align-items:center;gap:4px"><i data-lucide="filter" style="width:14px;height:14px;color:#5E5CE6"></i> 강사·강의실 검색:</span>
+              <input type="search" id="oto-teacher-search" class="tsa-input" placeholder="강사 이름 또는 강의실 검색" style="max-width:280px" oninput="renderOneToOneTeacherCards()"/>
+            </div>
+            <div id="oto-teacher-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+          </div>
+
+          <!-- 강사별 교시 배정 탭: 빈 교시 클릭 시 뜨는 학생 배정 모달 -->
+          <div id="oto-slot-assign-modal" style="display:none">
+            <div class="tsa-modal-backdrop" onclick="closeOneToOneSlotAssignModal()">
+              <div class="tsa-modal" style="max-width:480px" onclick="event.stopPropagation()">
+                <div class="tsa-modal-header">
+                  <div>
+                    <h3 class="tsa-modal-title" id="oto-slot-modal-title">교시 배정</h3>
+                    <p class="tsa-modal-subtitle">미배정 과목이 있고 이 교시가 비어 있는 학생만 보여줘.</p>
+                  </div>
+                  <button class="tsa-modal-close" onclick="closeOneToOneSlotAssignModal()"><i data-lucide="x"></i></button>
+                </div>
+                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
+                  <div id="oto-slot-candidates"></div>
+                </div>
+                <div class="tsa-modal-footer">
+                  <button class="tsa-btn tsa-btn-outline" onclick="closeOneToOneSlotAssignModal()">닫기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 강사별 배정 탭: 카드 우측 상단 "일괄 배정" 클릭 시 뜨는 학생 일괄 매칭 모달 -->
+          <div id="oto-bulk-assign-modal" style="display:none">
+            <div class="tsa-modal-backdrop" onclick="closeOneToOneBulkAssignModal()">
+              <div class="tsa-modal" style="max-width:560px" onclick="event.stopPropagation()">
+                <div class="tsa-modal-header">
+                  <div>
+                    <h3 class="tsa-modal-title" id="oto-bulk-modal-title">일괄 배정</h3>
+                    <p class="tsa-modal-subtitle">학생을 고르면 그 학생의 1:1 과목 전체를 이 강사에게 한 번에 배치해.</p>
+                  </div>
+                  <button class="tsa-modal-close" onclick="closeOneToOneBulkAssignModal()"><i data-lucide="x"></i></button>
+                </div>
+                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
+                  <div id="oto-bulk-candidates"></div>
+                </div>
+                <div class="tsa-modal-footer">
+                  <button class="tsa-btn tsa-btn-outline" onclick="closeOneToOneBulkAssignModal()">닫기</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3581,7 +3659,13 @@
               <button id="ft-tab-student" onclick="setFinalTimetableView('student',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">학생별</button>
               <button id="ft-tab-teacher" onclick="setFinalTimetableView('teacher',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강사별</button>
               <button id="ft-tab-room" onclick="setFinalTimetableView('room',this)" class="tsa-btn tsa-btn-xs tsa-btn-outline">강의실별</button>
-              <select id="ft-entity-select" style="display:none;height:32px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11.5px;margin-left:8px" onchange="renderFinalTimetableView()"></select>
+              <div id="ft-entity-picker" style="display:none;position:relative;margin-left:8px">
+                <input id="ft-entity-search" type="text" placeholder="검색..." autocomplete="off"
+                  style="height:32px;border:1px solid #D1D5DB;border-radius:7px;padding:0 8px;font-size:11.5px;width:170px"
+                  oninput="onFtEntitySearchInput()" onfocus="filterFtEntityOptions()" onblur="setTimeout(hideFtEntityOptions, 150)"/>
+                <input type="hidden" id="ft-entity-value"/>
+                <div id="ft-entity-options" style="display:none;position:absolute;top:36px;left:0;min-width:200px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:20"></div>
+              </div>
             </div>
             <div id="cs-final-timetable-body"></div>
           </div>
@@ -6849,7 +6933,7 @@
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
     <script src="assets/js/lms-course.js?v=0.6.48"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.11"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.79"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.96"></script>
     <script src="assets/js/lms-main.js?v=0.6.10"></script>
 <script>
   // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.

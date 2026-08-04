@@ -21,10 +21,10 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <!-- Keen Icons -->
-  <link href="assets/vendors/keenicons/styles.bundle.css" rel="stylesheet"/>
+  <link href="../assets/vendors/keenicons/styles.bundle.css" rel="stylesheet"/>
   <!-- ApexCharts CSS -->
   <link href="https://keenthemes.com/metronic/tailwind/dist/assets/vendors/apexcharts/apexcharts.css" rel="stylesheet"/>
-  <link href="assets/css/custom-styles.css" rel="stylesheet"/>
+  <link href="../assets/css/custom-styles.css" rel="stylesheet"/>
 
   <style>
     /* ===== CSS RESET & NORMALIZATION ===== */
@@ -3643,7 +3643,7 @@
         <!-- ================================================ -->
         <div id="view-teacher-dashboard" class="tsa-view">
           <div class="tsa-section-header" style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
-            <img src="assets/images/teacher_female.png" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #5E5CE6;" alt=""/>
+            <img src="../assets/images/teacher_female.png" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #5E5CE6;" alt=""/>
             <div>
               <h2 class="tsa-page-title" style="margin:0;">👩‍🏫 강사 대시보드 (Teacher Dashboard)</h2>
               <p class="tsa-page-subtitle" style="margin:0;">오늘 수업 일정 및 출결·평가 입력, 대체 수업 확인</p>
@@ -3747,7 +3747,7 @@
         <!-- ================================================ -->
         <div id="view-student-dashboard" class="tsa-view">
           <div class="tsa-section-header" style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
-            <img src="assets/images/student_female.png" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #10B981;" id="student-portal-avatar" alt=""/>
+            <img src="../assets/images/student_female.png" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #10B981;" id="student-portal-avatar" alt=""/>
             <div>
               <h2 class="tsa-page-title" style="margin:0;"><span id="student-welcome-name">Minjun</span> 학생 개인 포털</h2>
               <p class="tsa-page-subtitle" style="margin:0;">나의 수업 일정 및 출석 상태, 기숙사 생활 모니터링</p>
@@ -4277,7 +4277,7 @@
       <div class="tsa-modal-header" style="padding:16px 24px">
         <div style="display:flex;align-items:center;gap:16px;flex:1">
           <div id="modal-student-avatar-wrap" style="width:64px;height:64px;border-radius:12px;overflow:hidden;border:2px solid #E5E7EB;flex-shrink:0">
-            <img id="modal-student-avatar" src="assets/images/student_male.png" style="width:100%;height:100%;object-fit:cover"/>
+            <img id="modal-student-avatar" src="../assets/images/student_male.png" style="width:100%;height:100%;object-fit:cover"/>
           </div>
           <div>
             <h3 class="tsa-modal-title" id="modal-student-name" style="font-size:16px">학생 상세 프로필</h3>
@@ -5895,15 +5895,16 @@
 <!-- Toast Notification Container -->
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
-<script src="assets/js/lms-data.js?v=0.5.1"></script>
-<script src="assets/js/lms-util.js?v=0.5.1"></script>
-<script src="assets/js/lms-auth.js?v=0.5.1"></script>
-<script src="assets/js/lms-teacher.js?v=0.5.1"></script>
-<script src="assets/js/lms-student.js?v=0.5.1"></script>
-<script src="assets/js/lms-course.js?v=0.5.1"></script>
-<script src="assets/js/lms-classroom.js?v=0.5.1"></script>
-<script src="assets/js/lms-main.js?v=0.5.1"></script>
-<script src="assets/js/lucide.min.js"></script>
+<script src="../assets/js/lms-data.js?v=0.5.1"></script>
+<script src="../assets/js/lms-util.js?v=0.5.1"></script>
+<script src="../assets/js/lms-auth.js?v=0.5.1"></script>
+<script src="../assets/js/lms-teacher.js?v=0.5.1"></script>
+<script src="../assets/js/lms-student.js?v=0.5.1"></script>
+<script src="../assets/js/lms-course.js?v=0.5.1"></script>
+<script src="../assets/js/lms-classroom.js?v=0.5.1"></script>
+<script src="../assets/js/lms-main.js?v=0.5.1"></script>
+<script src="lms_v0.3_weekly_assign.js?v=1.0.0"></script>
+<script src="../assets/js/lucide.min.js"></script>
 <script>
   // 정적 아이콘 초기화
   document.addEventListener('DOMContentLoaded', function() {
