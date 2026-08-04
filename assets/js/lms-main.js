@@ -120,8 +120,12 @@ function enhanceMockStudents() {
     if (!s.flightInfo) s.flightInfo = '-';
     if (!s.flightOutInfo) s.flightOutInfo = '-';
 
-    // 6. Auto transition based on arrivalDate and endDate (only if not resigned/extended)
-    if (s.status !== 'resigned' && s.status !== 'extended') {
+    // 6. Auto transition based on arrivalDate and endDate — 코스를 아직 등록 안 한 학생은
+    //    입학대기/재학/졸업 판단 대상이 아니라 항상 "미수강"으로 둔다(퇴원/연장은 그대로 유지).
+    const hasCourse = s.course && s.course !== '미등록';
+    if (!hasCourse) {
+      if (s.status !== 'resigned' && s.status !== 'extended') s.status = 'no_course';
+    } else if (s.status !== 'resigned' && s.status !== 'extended') {
       const arrDate = new Date(s.arrivalDate);
       const endDate = new Date(s.endDate);
       if (today < arrDate) {
@@ -1915,7 +1919,14 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
     card.style.borderRadius = '8px';
 
     const color = getEventColor(evt.type);
-    const detailFn = listId === 'agency-calendar-events-list' ? 'openStudentDetailPopup' : 'openStudentDetail';
+    const isAgencyList = listId === 'agency-calendar-events-list';
+    const detailFn = isAgencyList ? 'openStudentDetailPopup' : 'openStudentDetail';
+    // 일정 종류에 맞는 '수강 현황' 하위 탭으로 바로 보낸다.
+    // 입출국·비자·SSP는 항공편 & 서류 관리, 수업 시작·졸업·퇴원은 수강정보에 해당 내용이 있다.
+    const detailHub = CALENDAR_EVENT_HUB_TAB[evt.type] || '';
+    const detailArgs = isAgencyList
+      ? `${evt.studentId},null${detailHub ? `,'${detailHub}'` : ''}`
+      : `${evt.studentId}${detailHub ? `,'${detailHub}'` : ''}`;
     const isAdminVisaRenewal = listId === 'admin-calendar-events-list' && !agencyFilter && evt.type === 'visa';
     if (isAdminVisaRenewal) {
       card.style.background = '#FFFBEB';
@@ -1948,7 +1959,7 @@ function selectCalendarDate(dateStr, listId, agencyFilter = null) {
             ${pickupTag}
           </div>
         </div>
-        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="${detailFn}(${evt.studentId})">보기</button>
+        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="${detailFn}(${detailArgs})">보기</button>
       </div>
     `;
     groupBody.appendChild(card);
@@ -2014,6 +2025,17 @@ function getEventsForDate(dateStr, agencyFilter = null) {
 
   return events;
 }
+
+// 대시보드 일정 상세의 "보기" 버튼이 열어줄 학생 상세 팝업의 '수강 현황' 하위 탭
+const CALENDAR_EVENT_HUB_TAB = {
+  arrival: 'flightdocs',
+  departure: 'flightdocs',
+  visa: 'flightdocs',
+  ssp: 'flightdocs',
+  start: 'class',
+  end: 'class',
+  resigned: 'class'
+};
 
 function getEventColor(type) {
   switch (type) {
@@ -2640,6 +2662,7 @@ function renderMonthlyInvoiceStats() {
   // 상태 배지 헬퍼
   const statusBadge = (s) => {
     const map = {
+      no_course: ['tsa-badge-gray',    '미수강'],
       waiting:   ['tsa-badge-warning', '입학 대기'],
       current:   ['tsa-badge-success', '재학'],
       completed: ['tsa-badge-gray',    '졸업'],
@@ -3143,7 +3166,7 @@ function setStudentStatusManually(studentId, newStatus) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (s) {
     s.status = newStatus;
-    const labels = { waiting: '입학 대기', current: '재학', completed: '졸업', resigned: '퇴원', extended: '연장' };
+    const labels = { no_course: '미수강', waiting: '입학 대기', current: '재학', completed: '졸업', resigned: '퇴원', extended: '연장' };
     showToast(`✓ 학생 상태가 수동으로 [${labels[newStatus] || newStatus}] 처리되었습니다.`, 'success');
     
     // Refresh student views
@@ -3214,6 +3237,14 @@ function initializeStudentPopupMode() {
   if (login) login.style.display = 'none';
   if (app) app.style.display = 'block';
   openAgencyStudentDetailPage(studentId, portal);
+  // ?hub=... 로 들어오면 '수강 현황'의 해당 하위 탭까지 바로 펼쳐준다(예: 스케줄 버튼, 대시보드 일정 보기).
+  // 수업 현황·스케줄은 어드민 전용 탭이라 에이전시 포털에서는 무시한다.
+  const hubTab = params.get('hub');
+  const allowedHubTabs = ['class', 'dorm', 'flightdocs', 'settle'].concat(portal === 'admin' ? ['classlog', 'schedule'] : []);
+  if (hubTab && allowedHubTabs.includes(hubTab) && typeof switchAgencyStudentDetailPageTab === 'function') {
+    currentAdetailTab = hubTab;
+    switchAgencyStudentDetailPageTab('enrollment');
+  }
   const closeButtons = document.querySelectorAll('[onclick="closeStudentDetailPage()"]');
   closeButtons.forEach((button, index) => {
     if (index === 0) button.style.display = 'none';

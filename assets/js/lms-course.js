@@ -1885,7 +1885,8 @@ function saveStudentCourseRegistration() {
   const startDate = segments[0]?.startDate || '';
   const duration = segments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
   const endDate = segments[segments.length - 1]?.endDate || '';
-  const status = student.status || 'waiting';
+  // 미수강 학생이 처음 수강 등록을 마치면 입학 대기로 전환한다(이미 재학·연장 등으로 진행된 학생은 유지).
+  const status = (!student.status || student.status === 'no_course') ? 'waiting' : student.status;
   const payment = 'unpaid';
   const remittanceRoute = document.getElementById('course-reg-remittance-route')?.value || 'agency';
   const memo = document.getElementById('course-reg-memo')?.value.trim() || '';
@@ -1961,6 +1962,7 @@ function saveStudentCourseRegistration() {
   });
 
   student.course = course;
+  student.status = status;
   student.courseMode = courseMode;
   student.courseSegments = segments;
   student.startDate = startDate;
@@ -3336,13 +3338,14 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산/입학서류관리</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
+          ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="schedule" onclick="switchAgencyEnrollmentHubTab(\'schedule\')">스케줄</button>' : ''}
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
       </div>
     </div>
   `;
 
-  const availableTabs = ['class', 'classlog', 'flightdocs', 'dorm', 'settle'];
+  const availableTabs = ['class', 'classlog', 'schedule', 'flightdocs', 'dorm', 'settle'];
   switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
 }
 
@@ -3854,6 +3857,10 @@ function switchAgencyEnrollmentHubTab(tab) {
     APP._classLogContainerId = 'adetail-page-enrollment-content';
     APP._classLogDate = APP._classLogDate || '2026-06-16';
     renderStudentClassLogTab();
+  } else if (tab === 'schedule' && currentAdetailPortal === 'admin') {
+    container.innerHTML = typeof buildStudentWeeklyScheduleHtml === 'function'
+      ? buildStudentWeeklyScheduleHtml(s)
+      : '<div style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">스케줄을 불러올 수 없어.</div>';
   } else if (tab === 'flightdocs') {
     renderAgencyEnrollmentFlightDocs(s, container);
   } else if (tab === 'consultation') {
@@ -4211,6 +4218,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
           </div>
         </div>
+        ${renderStudentLoginInfoBoxHtml('ad', s)}
         <div class="tsa-form-group">
           <label class="tsa-label" style="display:block">영문 성명 (여권명) ${changeBtn('name', '영문 성명')}</label>
           <div style="font-size:10px;color:#9CA3AF;margin-bottom:4px">Surname Given Name 순, 미들네임은 Given Name에 붙여서 입력</div>
@@ -4244,12 +4252,8 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </select>
         </div>
         <div class="tsa-form-group">
-          <label class="tsa-label">연락처 (직접 수정가능)</label>
-          <input id="ad-phone" type="text" class="tsa-input" value="${s.phone || '010-1234-5678'}"/>
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">이메일 주소</label>
-          <input id="ad-email" type="email" class="tsa-input" value="${s.email || ''}" placeholder="student@example.com"/>
+          <label class="tsa-label">연락처</label>
+          <input id="ad-phone" type="text" class="tsa-input" value="${s.phone || ''}"/>
         </div>
         <div class="tsa-form-group">
           <label class="tsa-label">비상 연락처</label>
@@ -5164,7 +5168,7 @@ function openAgencyChangeRequestModal(field, label) {
 
   const statusEl = document.getElementById('cr-student-status');
   if (statusEl) {
-    const labels = { waiting: '입학 대기', current: '재학', completed: '졸업', resigned: '퇴원', extended: '연장' };
+    const labels = { no_course: '미수강', waiting: '입학 대기', current: '재학', completed: '졸업', resigned: '퇴원', extended: '연장' };
     const text = labels[s.status] || s.status;
     statusEl.textContent = text;
     statusEl.className = 'tsa-badge';
@@ -5298,8 +5302,11 @@ function saveAgencyStudentDetails() {
     return;
   }
 
+  const passwordResult = readStudentPasswordFields('ad');
+  if (!passwordResult.ok) { showToast(passwordResult.message, 'danger'); return; }
+
   const isActive = s.remittanceStatus === 'paid';
-  const prevValues = { name: s.name, nick: s.nick, phone: s.phone, email: s.email, emergencyContact: s.emergencyContact };
+  const prevValues = { name: s.name, nick: s.nick, phone: s.phone, emergencyContact: s.emergencyContact };
 
   if (!isActive || !isAgencyUser) {
     const name = document.getElementById('ad-name').value.trim();
@@ -5346,8 +5353,9 @@ function saveAgencyStudentDetails() {
   const getVal = (id, fallback) => { const el = document.getElementById(id); return el ? el.value.trim() : fallback; };
 
   s.phone            = getVal('ad-phone', s.phone);
-  s.email            = getVal('ad-email', s.email);
+  // 이메일은 로그인 계정으로 쓰여서 여기서는 읽기전용이고 저장 대상에서 제외한다.
   s.emergencyContact = getVal('ad-emergency', s.emergencyContact);
+  if (passwordResult.password) s.password = passwordResult.password;
   if (adpProfilePhotoData) s.profilePhoto = adpProfilePhotoData;
 
   // 항공 & 입출국
@@ -5415,7 +5423,7 @@ function saveAgencyStudentDetails() {
   if (!s.changeRequests) s.changeRequests = [];
   const changedBy = APP.user === 'super_admin' ? '슈퍼 어드민' : APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : APP.user;
   const today = new Date().toISOString().substring(0, 10);
-  const fieldLabels = { name: '영문 성명', nick: '닉네임', phone: '연락처', email: '이메일', emergencyContact: '비상 연락처' };
+  const fieldLabels = { name: '영문 성명', nick: '닉네임', phone: '연락처', emergencyContact: '비상 연락처' };
   Object.entries(prevValues || {}).forEach(([key, oldVal]) => {
     const newVal = s[key];
     if (oldVal !== newVal && newVal) {
@@ -6701,7 +6709,7 @@ function confirmAdminRemittance(id) {
   const agencyStd = MOCK_AGENCY_STUDENTS.find(a => a.name.includes(s.name) || a.name.includes(s.nick));
   if (agencyStd) agencyStd.agencyStatus = s.status;
 
-  const labels = { waiting: '입학 대기', current: '재학생', completed: '졸업' };
+  const labels = { no_course: '미수강', waiting: '입학 대기', current: '재학생', completed: '졸업' };
   const statusLabel = labels[s.status] || s.status;
   const enrollInfo = s.enrollDate ? ` (수강 등록일: ${s.enrollDate})` : '';
 

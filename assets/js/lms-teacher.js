@@ -754,6 +754,14 @@ function switchCoursePricingTab(tab, el) {
   } else if (tab === 'master') {
     document.getElementById('course-pricing-tab-master').style.display = 'block';
     renderMasterSettings();
+  } else if (tab === 'period') {
+    const target = document.getElementById('course-pricing-tab-period');
+    const panel = document.getElementById('bell-settings-panel');
+    if (target && panel && panel.parentNode !== target) target.appendChild(panel);
+    if (target) target.style.display = 'block';
+    if (panel) panel.style.display = 'block';
+    if (typeof initBellSettingsView === 'function') initBellSettingsView();
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
   }
 }
 
@@ -766,9 +774,6 @@ function switchTimetableStatusTab(tab, el) {
   if (tab === 'view') {
     document.getElementById('timetable-status-tab-view').style.display = 'block';
     if (typeof setFinalTimetableView === 'function') setFinalTimetableView('all', document.getElementById('ft-tab-all'));
-  } else if (tab === 'period') {
-    document.getElementById('timetable-status-tab-period').style.display = 'block';
-    if (typeof initBellSettingsView === 'function') initBellSettingsView();
   }
 }
 
@@ -1091,99 +1096,9 @@ function switchTeacherTab(tab, el) {
       break;
 
     case 'weekly': {
-      const wDays = ['월','화','수','목','금'];
-      const wPeriods = [1,2,3,4,5,6,7,8];
-      const wTimes = {'1':'08:00','2':'09:00','3':'10:00','4':'11:00','5':'12:30','6':'13:30','7':'14:30','8':'15:30'};
-
-      const wSessions = (typeof MOCK_CLASS_SESSIONS !== 'undefined')
-        ? MOCK_CLASS_SESSIONS.filter(s => {
-            const r = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-            return r && r.teacherNick === t.nick;
-          })
-        : [];
-
-      const wCellMap = {};
-      wSessions.forEach(s => {
-        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-        const students = (s.studentIds || []).map(id => {
-          const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
-          return st ? st.nick : '';
-        }).filter(Boolean);
-        s.periods.forEach(p => {
-          const key = `${s.day}-${p}`;
-          if (!wCellMap[key]) wCellMap[key] = [];
-          wCellMap[key].push({ room, students, course: s.course, level: s.level });
-        });
-      });
-
-      const wTypeBg   = r => !r ? '#F3F4F6' : r.type==='1:1' ? '#EEF2FF' : r.type==='1:4' ? '#FEF3C7' : '#D1FAE5';
-      const wTypeCol  = r => !r ? '#6B7280' : r.type==='1:1' ? '#3730A3' : r.type==='1:4' ? '#92400E' : '#065F46';
-      const wTypeBdr  = r => !r ? '#E5E7EB' : r.type==='1:1' ? '#C7D2FE' : r.type==='1:4' ? '#FDE68A' : '#6EE7B7';
-
-      // 주간 피커 상태 초기화
-      if (!APP._teacherWeekOf) APP._teacherWeekOf = '2026-06-22';
-      const curWeek = APP._teacherWeekOf;
-      const wDate = new Date(curWeek);
-      const wEnd  = new Date(wDate); wEnd.setDate(wDate.getDate() + 4);
-      const fmtMD = d => `${d.getMonth()+1}/${d.getDate()}`;
-      const weekLabel = `${wDate.getFullYear()}년 ${wDate.getMonth()+1}월 (${fmtMD(wDate)} ~ ${fmtMD(wEnd)})`;
-
-      // 해당 주 세션으로 재필터
-      const wSessionsFiltered = wSessions.filter(s => s.weekOf === curWeek);
-      const wCellMapFiltered = {};
-      wSessionsFiltered.forEach(s => {
-        const room = (typeof MOCK_CLASS_ROOMS !== 'undefined') && MOCK_CLASS_ROOMS.find(r => r.id === s.roomId);
-        const students = (s.studentIds || []).map(id => {
-          const st = (typeof MOCK_STUDENTS !== 'undefined') && MOCK_STUDENTS.find(x => x.id === id);
-          return st ? st.nick : '';
-        }).filter(Boolean);
-        s.periods.forEach(p => {
-          const key = `${s.day}-${p}`;
-          if (!wCellMapFiltered[key]) wCellMapFiltered[key] = [];
-          wCellMapFiltered[key].push({ room, students, course: s.course, level: s.level });
-        });
-      });
-
-      container.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <button onclick="shiftTeacherWeek(${t.id},-1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">‹</button>
-            <div style="font-size:13px;font-weight:600;color:#111827">${weekLabel}</div>
-            <button onclick="shiftTeacherWeek(${t.id},1)" style="width:28px;height:28px;border:0.5px solid #E5E7EB;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">›</button>
-          </div>
-          <div style="display:flex;gap:5px;font-size:11px">
-            <span style="padding:2px 8px;border-radius:6px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;font-weight:600">1:1</span>
-            <span style="padding:2px 8px;border-radius:6px;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;font-weight:600">1:4</span>
-            <span style="padding:2px 8px;border-radius:6px;background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;font-weight:600">1:8</span>
-          </div>
-        </div>
-        <div style="overflow:auto;max-height:420px;border:0.5px solid #E5E7EB;border-radius:8px">
-          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
-            <colgroup>
-              <col style="width:58px"/>
-              <col/><col/><col/><col/><col/>
-            </colgroup>
-            <thead>
-              <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB">
-                <th style="padding:6px 8px;text-align:left;color:#6B7280;font-weight:600;white-space:nowrap;font-size:11px">교시</th>
-                ${wDays.map(d => `<th style="padding:6px 4px;text-align:center;color:#374151;font-weight:600;font-size:11px">${d}요일</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${wPeriods.map(p => `
-                <tr style="border-bottom:1px solid #F3F4F6">
-                  <td style="padding:4px 8px;color:#9CA3AF;font-size:10px;white-space:nowrap;vertical-align:top">
-                    <div style="font-weight:600;color:#374151;font-size:10.5px">${p}교시</div>
-                    <div style="font-size:9.5px">${wTimes[p]}</div>
-                  </td>
-                  ${wDays.map(d => renderWeeklyCell(wCellMapFiltered[d+'-'+p])).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ${wSessions.length === 0 ? `<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:40px">이번 주 배정된 수업이 없습니다.</div>` : ''}
-      `;
+      container.innerHTML = typeof buildTeacherWeeklyScheduleHtml === 'function'
+        ? buildTeacherWeeklyScheduleHtml(t)
+        : '<div style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">주간 스케줄을 불러올 수 없어.</div>';
       break;
     }
 

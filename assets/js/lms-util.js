@@ -4,6 +4,7 @@
 const VIEW_MAP = {
   dashboard: { el: 'view-dashboard', menu: 'menu-dashboard', label: '대시보드', sec: '개요' },
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
+  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '학생 수업 배정 관리', sec: '학사 관리' },
   'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '수업 배정 관리', sec: '학사 관리' },
   'group-management': { el: 'view-group-management', menu: 'menu-group-management', label: '그룹 관리', sec: '학사 관리' },
   'classroom-manage': { el: 'view-classroom-manage', menu: 'menu-classroom-manage', label: '강의실 관리', sec: '학사 관리' },
@@ -103,6 +104,8 @@ function navigate(view) {
     if (typeof renderAgencyDormBookHistory === 'function') renderAgencyDormBookHistory();
   } else if (view === 'agency-invoice') {
     renderMonthlyInvoiceStats();
+  } else if (view === 'student-class-assign') {
+    if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
   } else if (view === 'class-schedule') {
     initClassSchedule();
   } else if (view === 'group-management') {
@@ -711,7 +714,7 @@ function toggleTimetableSubmenu() {
   const submenu = document.getElementById('timetable-submenu');
   const arrow = document.getElementById('timetable-submenu-arrow');
   if (!submenu) return;
-  
+
   if (submenu.style.display === 'none') {
     submenu.style.display = 'flex';
     if (arrow) arrow.style.transform = 'rotate(180deg)';
@@ -719,5 +722,62 @@ function toggleTimetableSubmenu() {
     submenu.style.display = 'none';
     if (arrow) arrow.style.transform = 'rotate(0deg)';
   }
+}
+
+/* =============================================
+   PASSWORD FIELD VISIBILITY TOGGLE
+   ============================================= */
+function toggleTsaPasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if (btn) btn.textContent = showing ? '👁' : '🙈';
+}
+
+// 비밀번호 변경 필드 묶음(idPrefix-password/idPrefix-password-confirm)을 읽어 검증한다.
+// 둘 다 비어있으면 { ok:true, password:null } (기존 비밀번호 유지), 값이 있으면 8자 이상·일치 여부를 확인한다.
+function readStudentPasswordFields(idPrefix) {
+  const pwEl = document.getElementById(`${idPrefix}-password`);
+  const pwConfirmEl = document.getElementById(`${idPrefix}-password-confirm`);
+  const password = pwEl ? pwEl.value : '';
+  const passwordConfirm = pwConfirmEl ? pwConfirmEl.value : '';
+  if (!password && !passwordConfirm) return { ok: true, password: null };
+  if (password.length < 8) return { ok: false, message: '비밀번호는 8자 이상이어야 합니다.' };
+  if (password !== passwordConfirm) return { ok: false, message: '비밀번호 확인이 일치하지 않습니다.' };
+  return { ok: true, password };
+}
+
+// 학생 상세/수정 폼에서 재사용하는 "로그인 정보" 하이라이트 박스 (이메일·비밀번호 변경을 한 데 묶어서 강조 — 연락처는 계정과 무관한 일반 정보라 여기 포함하지 않는다)
+function renderStudentLoginInfoBoxHtml(idPrefix, s) {
+  return `
+    <div class="tsa-form-group" style="grid-column:span 2;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:14px 16px 16px">
+      <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:12px;display:flex;align-items:center;gap:6px"><span>🔐 로그인 정보</span><span style="font-size:10px;color:#3B82F6;font-weight:400">— 학생은 이 이메일과 비밀번호로 로그인해</span></div>
+      <div class="tsa-form-group" style="margin:0 0 12px">
+        <label class="tsa-label">이메일 주소</label>
+        <input id="${idPrefix}-email" type="email" class="tsa-input" value="${s.email || ''}" placeholder="student@example.com" readonly style="background:#F3F4F6;color:#6B7280;cursor:not-allowed"/>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:4px">이메일은 변경할 수 없습니다.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${renderStudentPasswordFieldsHtml(idPrefix)}
+      </div>
+    </div>`;
+}
+
+// 학생 상세/수정 폼에서 재사용하는 "비밀번호 변경" 필드 묶음 (idPrefix로 ad-password 등 id 충돌 방지)
+function renderStudentPasswordFieldsHtml(idPrefix) {
+  return `
+    <div class="tsa-form-group">
+      <label class="tsa-label">비밀번호 변경</label>
+      <div style="position:relative">
+        <input id="${idPrefix}-password" type="password" class="tsa-input" style="padding-right:36px" placeholder="변경할 때만 입력" autocomplete="new-password"/>
+        <button type="button" onclick="toggleTsaPasswordVisibility('${idPrefix}-password', this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:13px;line-height:1">👁</button>
+      </div>
+      <div style="font-size:10px;color:#9CA3AF;margin-top:4px">비워두면 기존 비밀번호가 유지됩니다. (8자 이상)</div>
+    </div>
+    <div class="tsa-form-group">
+      <label class="tsa-label">비밀번호 확인</label>
+      <input id="${idPrefix}-password-confirm" type="password" class="tsa-input" placeholder="다시 한 번 입력" autocomplete="new-password"/>
+    </div>`;
 }
 

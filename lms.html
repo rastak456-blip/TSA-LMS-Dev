@@ -1459,7 +1459,7 @@
       display: inline-block;
     }
   </style>
-  <link href="assets/css/lms-responsive.css?v=0.1.0" rel="stylesheet"/>
+  <link href="assets/css/lms-responsive.css?v=0.1.1" rel="stylesheet"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
@@ -1569,6 +1569,10 @@
       <!-- Admin 전용 -->
       <div class="tsa-sidebar-section admin-only" id="section-academic">Academic</div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
+        <a class="tsa-nav-item admin-only" id="menu-student-class-assign" onclick="navigate('student-class-assign')">
+          <i data-lucide="user-check"></i>
+          학생 수업 배정 관리
+        </a>
         <a class="tsa-nav-item admin-only" id="menu-class-schedule" onclick="navigate('class-schedule')">
           <i data-lucide="calendar-check"></i>
           1:1 수업 관리
@@ -2190,11 +2194,16 @@
           </div>
 
           <!-- 상태 카드 탭 -->
-          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="admin-status-cards">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:16px" id="admin-status-cards">
             <div class="tsa-stat-card" id="adsc-all" onclick="setAdminStatusCard('all')" style="padding:14px 18px;cursor:pointer;border:2px solid #5E5CE6">
               <div style="font-size:11px;font-weight:700;color:#4B5563;margin-bottom:4px">전체</div>
               <div style="font-size:22px;font-weight:800;color:#374151" id="adsc-count-all">-</div>
               <div style="font-size:10.5px;color:#6B7280">전체 학생</div>
+            </div>
+            <div class="tsa-stat-card" id="adsc-no_course" onclick="setAdminStatusCard('no_course')" style="padding:14px 18px;cursor:pointer;border:2px solid transparent">
+              <div style="font-size:11px;font-weight:700;color:#4B5563;margin-bottom:4px">미수강</div>
+              <div style="font-size:22px;font-weight:800;color:#6B7280" id="adsc-count-no_course">-</div>
+              <div style="font-size:10.5px;color:#6B7280">코스 미등록 학생</div>
             </div>
             <div class="tsa-stat-card" id="adsc-current" onclick="setAdminStatusCard('current')" style="padding:14px 18px;cursor:pointer;border:2px solid transparent">
               <div style="font-size:11px;font-weight:700;color:#4B5563;margin-bottom:4px">재학</div>
@@ -3153,6 +3162,7 @@
           <div class="tsa-tabs" style="margin-bottom:16px">
             <div class="tsa-tab active" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 커리큘럼 구성</div>
             <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목 레벨 수업 유형 설정</div>
+            <div class="tsa-tab" onclick="switchCoursePricingTab('period', this)">공통 교시 설정</div>
           </div>
 
           <!-- [탭 B] 수강 과정 및 커리큘럼 구성 -->
@@ -3257,6 +3267,9 @@
               </div>
             </div>
           </div>
+
+          <!-- 공통 교시 설정 패널이 기존 기능과 ID를 유지한 채 이 위치로 이동된다. -->
+          <div id="course-pricing-tab-period" class="course-pricing-tab-content" style="display:none"></div>
         </div>
 
 
@@ -3407,6 +3420,69 @@
           </div>
         </div>
 
+
+        <!-- ================================================ -->
+        <!--  VIEW: STUDENT CLASS ASSIGN (1:1 + 그룹 통합)      -->
+        <!-- ================================================ -->
+        <div id="view-student-class-assign" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">🧑‍🎓 학생 수업 배정 관리</h2>
+              <p class="tsa-page-subtitle">학생별 1:1·그룹 수업 배정 현황을 한 화면에서 확인하고 배정하거나 변경해.</p>
+            </div>
+            <div id="sca-group-actions" style="display:none;gap:8px">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateBrowserPopup()"><i data-lucide="plus"></i> 그룹 생성</button>
+            </div>
+          </div>
+
+          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
+            <button id="sca-tab-students" onclick="switchStudentClassAssignTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 수업 배정</button>
+            <button id="sca-tab-groups" onclick="switchStudentClassAssignTab('groups')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 수업 편성 관리</button>
+          </div>
+
+          <div id="sca-panel-students">
+            <div class="tsa-card">
+              <div class="tsa-card-header">
+                <div>
+                  <h3 class="tsa-card-title">📋 학생별 수업 배정 현황</h3>
+                  <div style="font-size:11px;color:#6B7280">학생마다 1:1 배정과 그룹 배정을 각각 한 줄씩, 총 2행으로 보여줘.</div>
+                </div>
+              </div>
+              <div class="sca-student-table-scroll">
+                <table class="tsa-table sca-student-table">
+                  <colgroup>
+                    <col class="sca-col-number"/>
+                    <col class="sca-col-student"/>
+                    <col class="sca-col-course"/>
+                    <col class="sca-col-level"/>
+                    <col class="sca-col-schedule"/>
+                    <col class="sca-col-type"/>
+                    <col class="sca-col-status"/>
+                    <col class="sca-col-lessons"/>
+                    <col class="sca-col-actions"/>
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th style="text-align:center">#</th>
+                      <th>학생 정보</th>
+                      <th>과정 및 수강 기간</th>
+                      <th>레벨</th>
+                      <th style="text-align:center;padding-left:6px;padding-right:6px">스케줄</th>
+                      <th>유형</th>
+                      <th>배정 현황</th>
+                      <th>수업 리스트</th>
+                      <th style="text-align:center;padding-left:8px;padding-right:8px">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sca-student-assign-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="sca-panel-groups" style="display:none"></div>
+        </div>
 
         <!-- ================================================ -->
         <!--  VIEW: GROUP MANAGEMENT                          -->
@@ -3633,6 +3709,7 @@
               <tbody id="cs-rooms-tbody"></tbody>
             </table>
           </div>
+          <div id="cs-group-room-schedule" style="display:none;margin-top:16px"></div>
         </div>
 
         <!-- ================================================ -->
@@ -3644,12 +3721,6 @@
               <h2 class="tsa-page-title">📊 시간표 현황</h2>
               <p class="tsa-page-subtitle">그룹·1:1 배정 데이터에서 즉시 파생되는 최종 시간표</p>
             </div>
-          </div>
-
-          <!-- 서브 탭 네비게이션 -->
-          <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" id="ts-status-tab-view" onclick="switchTimetableStatusTab('view', this)">시간표 보기</div>
-            <div class="tsa-tab" id="ts-status-tab-period" onclick="switchTimetableStatusTab('period', this)">공통 교시 설정</div>
           </div>
 
           <!-- [탭] 시간표 보기 -->
@@ -3671,7 +3742,7 @@
           </div>
 
           <!-- [탭] 공통 교시 설정 -->
-          <div id="timetable-status-tab-period" class="timetable-status-tab-content" style="display:none">
+          <div id="bell-settings-panel" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
               <!-- Left: Settings Card -->
               <div class="tsa-card">
@@ -5606,6 +5677,18 @@
                       <div style="font-size:9.5px;color:#9CA3AF;margin-top:6px">JPG, PNG, WEBP 이미지 등록 가능</div>
                     </div>
                   </div>
+                  <div class="tsa-form-group" style="grid-column:span 2;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:14px 16px 16px">
+                    <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:12px;display:flex;align-items:center;gap:6px"><span>🔐 로그인 정보</span><span style="font-size:10px;color:#3B82F6;font-weight:400">— 학생은 이 이메일과 연락처로 로그인해</span></div>
+                    <div class="tsa-form-group" style="margin:0 0 12px">
+                      <label class="tsa-label">이메일 주소 <span style="color:#EF4444">*</span> <span style="font-size:9px;color:#3B82F6;font-weight:700;background:#DBEAFE;padding:2px 6px;border-radius:999px;margin-left:2px">아이디</span></label>
+                      <input id="sf-email" type="email" class="tsa-input" placeholder="student@example.com" required/>
+                      <div id="sf-email-hint" style="font-size:10px;color:#9CA3AF;margin-top:4px;display:none">이메일은 변경할 수 없습니다.</div>
+                    </div>
+                    <div class="tsa-form-group" style="margin:0">
+                      <label class="tsa-label">연락처 <span style="color:#EF4444">*</span> <span style="font-size:9px;color:#3B82F6;font-weight:700;background:#DBEAFE;padding:2px 6px;border-radius:999px;margin-left:2px">초기 비밀번호</span></label>
+                      <input id="sf-phone" type="text" class="tsa-input" placeholder="010-1234-5678" required/>
+                    </div>
+                  </div>
                   <div class="tsa-form-group">
                     <label class="tsa-label" style="display:block">영문 성명 (여권명) <span style="color:#EF4444">*</span></label>
                     <div style="font-size:10px;color:#9CA3AF;margin-bottom:4px">Surname Given Name 순, 미들네임은 Given Name에 붙여서 입력</div>
@@ -5619,8 +5702,6 @@
                       <option value="한국">한국 🇰🇷</option><option value="일본">일본 🇯🇵</option><option value="중국">중국 🇨🇳</option><option value="베트남">베트남 🇻🇳</option><option value="몽골">몽골 🇲🇳</option><option value="필리핀">필리핀 🇵🇭</option>
                     </select>
                   </div>
-                  <div class="tsa-form-group"><label class="tsa-label">연락처 <span style="color:#EF4444">*</span></label><input id="sf-phone" type="text" class="tsa-input" placeholder="010-1234-5678" required/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">이메일 주소 <span style="color:#EF4444">*</span></label><input id="sf-email" type="email" class="tsa-input" placeholder="student@example.com" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">비상 연락처 <span style="color:#EF4444">*</span></label><input id="sf-emergency" type="text" class="tsa-input" placeholder="010-5678-1234 (부모)" required/></div>
                   <div class="tsa-form-group"><label class="tsa-label">식단 구분</label><select id="sf-diet" class="tsa-input"><option value="일반식">🍚 일반식</option><option value="채식">🥗 채식</option><option value="할랄">🌙 할랄</option><option value="글루텐 프리">🌾 글루텐 프리</option></select></div>
                   <div class="tsa-form-group" style="grid-column:span 2"><label class="tsa-label">등록 에이전시 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(에이전시 미경유 시 '직접 등록' 선택)</span></label>
@@ -6929,11 +7010,11 @@
 <script src="assets/js/lms-data.js?v=0.6.10"></script>
 <script src="assets/js/lms-util.js?v=0.6.2"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.4"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.6"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
     <script src="assets/js/lms-course.js?v=0.6.48"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.11"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.96"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.110"></script>
     <script src="assets/js/lms-main.js?v=0.6.10"></script>
 <script>
   // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.

@@ -84,6 +84,7 @@ function renderStudentList(list) {
     const rowNum = total - idx;
     const statusDropdown = `
       <select onchange="setStudentStatusManually(${s.id}, this.value)" class="tsa-input" style="width:95px;padding:3px 6px;font-size:11.5px;font-weight:600;height:auto;display:inline-block">
+        <option value="no_course" ${s.status === 'no_course' ? 'selected' : ''}>미수강</option>
         <option value="waiting" ${s.status === 'waiting' ? 'selected' : ''}>입학 대기</option>
         <option value="current" ${s.status === 'current' ? 'selected' : ''}>재학</option>
         <option value="completed" ${s.status === 'completed' ? 'selected' : ''}>졸업</option>
@@ -94,7 +95,8 @@ function renderStudentList(list) {
 
     let statusLabel = '입학 대기';
     let statusBadgeClass = 'tsa-badge-warning';
-    if (s.status === 'completed') { statusLabel = '졸업'; statusBadgeClass = 'tsa-badge-gray'; }
+    if (s.status === 'no_course') { statusLabel = '미수강'; statusBadgeClass = 'tsa-badge-gray'; }
+    else if (s.status === 'completed') { statusLabel = '졸업'; statusBadgeClass = 'tsa-badge-gray'; }
     else if (s.status === 'resigned') { statusLabel = '퇴원'; statusBadgeClass = 'tsa-badge-danger'; }
     else if (s.status === 'current') { statusLabel = '재학'; statusBadgeClass = 'tsa-badge-success'; }
     else if (s.status === 'extended') { statusLabel = '연장'; statusBadgeClass = 'tsa-badge-primary'; }
@@ -330,8 +332,8 @@ function setAdminStatusCard(elOrStatus, status) {
   // HTML에서 setAdminStatusCard('all') 형태로 호출될 때를 처리
   if (status === undefined) { status = elOrStatus; }
   APP._adminStatusFilter = status;
-  const colors = { all:'#374151', current:'#5E5CE6', waiting:'#D97706', completed:'#6B7280', resigned:'#EF4444', extended:'#8B5CF6' };
-  ['all','current','waiting','completed','resigned','extended'].forEach(s => {
+  const colors = { all:'#374151', no_course:'#6B7280', current:'#5E5CE6', waiting:'#D97706', completed:'#6B7280', resigned:'#EF4444', extended:'#8B5CF6' };
+  ['all','no_course','current','waiting','completed','resigned','extended'].forEach(s => {
     const card = document.getElementById(`adsc-${s}`);
     if (!card) return;
     card.style.borderColor = s === status ? (colors[s] || '#5E5CE6') : 'transparent';
@@ -342,22 +344,23 @@ function setAdminStatusCard(elOrStatus, status) {
 function renderAdminStatusCards() {
   const counts = {
     all: MOCK_STUDENTS.length,
+    no_course: MOCK_STUDENTS.filter(s => s.status === 'no_course').length,
     current:   MOCK_STUDENTS.filter(s => s.status === 'current' || s.status === 'extended').length,
     waiting:   MOCK_STUDENTS.filter(s => s.status === 'waiting').length,
     completed: MOCK_STUDENTS.filter(s => s.status === 'completed').length,
     resigned:  MOCK_STUDENTS.filter(s => s.status === 'resigned').length,
     extended:  MOCK_STUDENTS.filter(s => s.status === 'extended').length,
   };
-  ['all','current','waiting','completed','resigned','extended'].forEach(s => {
+  ['all','no_course','current','waiting','completed','resigned','extended'].forEach(s => {
     const el = document.getElementById(`adsc-count-${s}`);
     if (el) el.textContent = counts[s];
   });
 }
 
-function openStudentDetail(id) {
+function openStudentDetail(id, hubTab) {
   APP.currentStudent = MOCK_STUDENTS.find(s => s.id === id);
   if (!APP.currentStudent) return;
-  openStudentDetailPopup(id, 'admin');
+  openStudentDetailPopup(id, 'admin', hubTab);
 }
 
 function escapeStudentPopupHtml(value) {
@@ -511,7 +514,8 @@ function setStudentActivityFilter(studentId, filter) {
   if (container) renderStudentConsultationTab(student, container);
 }
 
-function openStudentDetailPopup(id, portal) {
+// hubTab을 주면 '수강 현황' 탭의 해당 하위 탭(schedule, classlog 등)이 열린 상태로 팝업이 뜬다.
+function openStudentDetailPopup(id, portal, hubTab) {
   const student = MOCK_STUDENTS.find(item => item.id === id);
   if (!student) return;
   APP.currentStudent = student;
@@ -520,6 +524,7 @@ function openStudentDetailPopup(id, portal) {
   popupUrl.hash = '';
   popupUrl.searchParams.set('studentPopup', String(id));
   popupUrl.searchParams.set('portal', portal || ((APP.user === 'agency_head' || APP.user === 'agency_branch') ? 'agency' : 'admin'));
+  if (hubTab) popupUrl.searchParams.set('hub', hubTab);
   const popup = window.open(popupUrl.toString(), `tsa-student-${id}`, 'popup=yes,width=1420,height=960,resizable=yes,scrollbars=yes');
   if (!popup) {
     if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해줘.', 'warning');
@@ -778,7 +783,7 @@ function renderStudentDetailPopup(student, portal, popup) {
   const avatarUrl = new URL(student.gender === '여' ? 'assets/images/student_female.png' : 'assets/images/student_male.png', window.location.href).href;
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const courseEnd = student.endDate || student.courseEndDate || '-';
-  const statusLabels = { current: '재학', waiting: '입학 대기', completed: '졸업', resigned: '퇴원', extended: '연장' };
+  const statusLabels = { no_course: '미수강', current: '재학', waiting: '입학 대기', completed: '졸업', resigned: '퇴원', extended: '연장' };
   const feeColors = {
     registration: ['#EEF2FF', '#4F46E5'],
     education: ['#ECFDF5', '#047857'],
@@ -847,6 +852,7 @@ function switchStudentTab(tab, el) {
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            ${renderStudentLoginInfoBoxHtml('ad', s)}
             <div class="tsa-form-group">
               <label class="tsa-label">영문 성명 (여권명)</label>
               <input id="ad-name" type="text" class="tsa-input" value="${s.name}"/>
@@ -881,10 +887,6 @@ function switchStudentTab(tab, el) {
             <div class="tsa-form-group">
               <label class="tsa-label">연락처</label>
               <input id="ad-phone" type="text" class="tsa-input" value="${s.phone || ''}"/>
-            </div>
-            <div class="tsa-form-group">
-              <label class="tsa-label">이메일 주소</label>
-              <input id="ad-email" type="email" class="tsa-input" value="${s.email || ''}" placeholder="student@example.com"/>
             </div>
             <div class="tsa-form-group">
               <label class="tsa-label">비상 연락처</label>
@@ -1778,16 +1780,19 @@ function saveAdminStudentBasic() {
   const nick = getVal('ad-nickname', s.nick);
   if (!name || !nick) { showToast('성명과 닉네임은 필수입니다.', 'danger'); return; }
 
+  const passwordResult = readStudentPasswordFields('ad');
+  if (!passwordResult.ok) { showToast(passwordResult.message, 'danger'); return; }
+
   // 변경 이력 추적
   if (!s.changeRequests) s.changeRequests = [];
   const today = new Date().toISOString().slice(0, 10);
-  const fieldLabels = { name:'영문 성명', nick:'닉네임', gender:'성별', nationality:'국적', phone:'연락처', email:'이메일', emergencyContact:'비상 연락처', dietType:'식단 구분', healthNotes:'건강 메모' };
+  const fieldLabels = { name:'영문 성명', nick:'닉네임', gender:'성별', nationality:'국적', phone:'연락처', emergencyContact:'비상 연락처', dietType:'식단 구분', healthNotes:'건강 메모' };
+  // 이메일은 로그인 계정으로 쓰여서 이 폼에서는 읽기전용이고, 변경 이력·저장 대상에도 포함하지 않는다.
   const newVals = {
     name, nick,
     gender:           getVal('ad-gender', s.gender),
     nationality:      getVal('ad-nationality', s.nationality),
     phone:            getVal('ad-phone', s.phone),
-    email:            getVal('ad-email', s.email),
     emergencyContact: getVal('ad-emergency', s.emergencyContact),
     dietType:         getVal('ad-diet', s.dietType),
     healthNotes:      getVal('ad-health-notes', s.healthNotes),
@@ -1811,6 +1816,7 @@ function saveAdminStudentBasic() {
 
   // 값 저장
   Object.assign(s, newVals);
+  if (passwordResult.password) s.password = passwordResult.password;
   if (adProfilePhotoData) s.profilePhoto = adProfilePhotoData;
   const dobEl = document.getElementById('ad-dob');
   if (dobEl && dobEl.value) {
@@ -2133,6 +2139,10 @@ function openStudentRegisterModal() {
   setVal('sf-phone', '');
   setVal('sf-email', '');
   setVal('sf-emergency', '');
+  const sfEmailReg = document.getElementById('sf-email');
+  if (sfEmailReg) sfEmailReg.readOnly = false;
+  const sfEmailHintReg = document.getElementById('sf-email-hint');
+  if (sfEmailHintReg) sfEmailHintReg.style.display = 'none';
   setVal('sf-diet', '일반식');
   setVal('sf-health', '');
   setVal('sf-passportNum', '');
@@ -2199,12 +2209,19 @@ function openStudentEditModal(id) {
   populateSfRegAgencyOptions(s.agency || "직접 등록");
   document.getElementById('sf-visa').value = s.visaExpiry || "";
   document.getElementById('sf-ssp').value = s.sspExpiry || "면제";
-  document.getElementById('sf-passport').value = s.passportStatus || "보관 중";
-  document.getElementById('sf-flight').value = s.flightInfo || "";
   document.getElementById('sf-departure').value = s.departureDate || "";
   document.getElementById('sf-diet').value = s.dietType || "일반식";
   document.getElementById('sf-status').value = s.status || "waiting";
   document.getElementById('sf-health').value = s.healthNotes || "";
+  document.getElementById('sf-phone').value = s.phone || "";
+  document.getElementById('sf-email').value = s.email || "";
+  document.getElementById('sf-emergency').value = s.emergencyContact || "";
+
+  // 이메일은 학생 로그인 계정으로 쓰이기 때문에 등록 후에는 수정 못 하게 막는다.
+  const sfEmailEdit = document.getElementById('sf-email');
+  if (sfEmailEdit) sfEmailEdit.readOnly = true;
+  const sfEmailHintEdit = document.getElementById('sf-email-hint');
+  if (sfEmailHintEdit) sfEmailHintEdit.style.display = '';
 
   // Close details modal if open
   closeModal('student-detail-modal');
@@ -2261,8 +2278,6 @@ function saveStudentForm() {
   const agency = (document.getElementById('sf-reg-agency')?.value || '직접 등록').trim();
   const visaExpiry = document.getElementById('sf-visa').value;
   const sspExpiry = document.getElementById('sf-ssp').value.trim();
-  const passportStatus = document.getElementById('sf-passport').value;
-  const flightInfo = document.getElementById('sf-flight').value.trim();
   const departureDate = document.getElementById('sf-departure').value;
   const dietType = document.getElementById('sf-diet').value;
   const status = document.getElementById('sf-status').value;
@@ -2283,7 +2298,7 @@ function saveStudentForm() {
       s.nationality = nationality;
       s.flag = flag;
       s.phone = phone;
-      s.email = email;
+      // 이메일은 로그인 계정으로 쓰여서 등록 후 수정 폼에서는 절대 덮어쓰지 않는다(입력값이 읽기전용 필드를 우회해 들어와도 무시).
       s.emergencyContact = emergencyContact;
       if (sfProfilePhotoData) s.profilePhoto = sfProfilePhotoData;
       s.course = course;
@@ -2293,8 +2308,6 @@ function saveStudentForm() {
       s.passportNum = passportNum ? passportNum.toUpperCase() : s.passportNum;
       s.visaExpiry = visaExpiry;
       s.sspExpiry = sspExpiry;
-      s.passportStatus = passportStatus;
-      s.flightInfo = flightInfo;
       s.departureDate = departureDate || "";
       s.dietType = dietType;
       s.status = status;
@@ -2355,7 +2368,7 @@ function saveStudentForm() {
       flightInfo: '',
       departureDate: '',
       dietType: dietType,
-      status: 'waiting',
+      status: 'no_course',
       healthNotes: healthNotes || "특이사항 없음.",
       attendance: 0,
       warning: 0,

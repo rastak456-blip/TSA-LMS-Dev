@@ -37,6 +37,44 @@
   scrollbar-width: thin;
 }
 
+/* 학생 수업 배정표는 데스크톱 가용 폭 안에서 수업 배지만 줄바꿈해 페이지 스크롤을 만들지 않는다. */
+.sca-student-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.sca-student-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.sca-student-table .sca-col-number { width: 42px; }
+.sca-student-table .sca-col-student { width: 120px; }
+.sca-student-table .sca-col-course { width: 105px; }
+.sca-student-table .sca-col-level { width: 82px; }
+.sca-student-table .sca-col-schedule { width: 82px; }
+.sca-student-table .sca-col-type { width: 56px; }
+.sca-student-table .sca-col-status { width: 70px; }
+.sca-student-table .sca-col-lessons { width: auto; }
+.sca-student-table .sca-col-actions { width: 184px; }
+
+.sca-student-table .sca-lessons-cell {
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.sca-student-table .sca-lessons-cell .tsa-badge {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.sca-student-table .sca-actions-cell {
+  white-space: normal;
+}
+
 @media (max-width: 1100px) {
   body.tsa-sidebar-open {
     overflow: hidden;
@@ -139,6 +177,10 @@
   .tsa-tt-grid,
   .tsa-wk-grid {
     min-width: 760px;
+  }
+
+  .sca-student-table {
+    min-width: 1180px;
   }
 
   .tsa-card:has(.tsa-table),
