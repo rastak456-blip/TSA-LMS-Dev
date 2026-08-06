@@ -4,8 +4,8 @@
 const VIEW_MAP = {
   dashboard: { el: 'view-dashboard', menu: 'menu-dashboard', label: '대시보드', sec: '개요' },
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
-  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '학생 수업 배정 관리', sec: '학사 관리' },
-  'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '수업 배정 관리', sec: '학사 관리' },
+  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '수업 편성 및 배정 관리', sec: '학사 관리' },
+  'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '1:1 수업 관리', sec: '학사 관리' },
   'group-management': { el: 'view-group-management', menu: 'menu-group-management', label: '그룹 관리', sec: '학사 관리' },
   'classroom-manage': { el: 'view-classroom-manage', menu: 'menu-classroom-manage', label: '강의실 관리', sec: '학사 관리' },
   'timetable-status': { el: 'view-timetable-status', menu: 'menu-timetable-status', label: '시간표 현황', sec: '학사 관리' },
@@ -15,6 +15,7 @@ const VIEW_MAP = {
   'pickup-managers': { el: 'view-pickup-managers', menu: 'menu-pickup-managers', label: '픽업 담당자 관리', sec: '학사 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 관리', sec: '학사 관리' },
+  'passport-access-log': { el: 'view-passport-access-log', menu: 'menu-passport-access-log', label: '여권번호 조회 기록', sec: '관리' },
   'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
   'agency-map': { el: 'view-agency-map', menu: 'menu-agency-map', label: '에이전시 맵', sec: '관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
@@ -23,7 +24,7 @@ const VIEW_MAP = {
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
   'agency-invoice': { el: 'view-agency-invoice', menu: 'menu-agency-invoice', label: '월별 정산 통계', sec: '에이전시' },
   'dorm-erp': { el: 'view-dorm-erp', menu: 'menu-dorm-erp', label: '기숙사 배정 관리', sec: '운영' },
-  'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', label: '교육 과정 및 과목 레벨 설정', sec: '학사 관리' },
+  'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', label: '과정 및 수업 기준 설정', sec: '학사 관리' },
   'tuition-config': { el: 'view-tuition-config', menu: 'menu-tuition-config', label: '수강료 구성', sec: '학사 관리' },
   'teacher-dashboard': { el: 'view-teacher-dashboard', menu: 'menu-teacher-dashboard', label: '강사 대시보드', sec: '수업 관리' },
   'teacher-timetable': { el: 'view-teacher-timetable', menu: 'menu-teacher-timetable', label: '주간 시간표', sec: '수업 관리' },
@@ -104,6 +105,8 @@ function navigate(view) {
     if (typeof renderAgencyDormBookHistory === 'function') renderAgencyDormBookHistory();
   } else if (view === 'agency-invoice') {
     renderMonthlyInvoiceStats();
+  } else if (view === 'passport-access-log') {
+    if (typeof initPassportAccessLogView === 'function') initPassportAccessLogView();
   } else if (view === 'student-class-assign') {
     if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
   } else if (view === 'class-schedule') {

@@ -52,14 +52,29 @@
 }
 
 .sca-student-table .sca-col-number { width: 42px; }
-.sca-student-table .sca-col-student { width: 120px; }
-.sca-student-table .sca-col-course { width: 105px; }
+/* 학생 이름·국적 줄과 수강 기간(2026-06-09 ~ 2026-08-05)이 한 줄에 들어가는 최소 폭 */
+.sca-student-table .sca-col-student { width: 158px; }
+.sca-student-table .sca-col-course { width: 150px; }
 .sca-student-table .sca-col-level { width: 82px; }
 .sca-student-table .sca-col-schedule { width: 82px; }
 .sca-student-table .sca-col-type { width: 56px; }
 .sca-student-table .sca-col-status { width: 70px; }
 .sca-student-table .sca-col-lessons { width: auto; }
 .sca-student-table .sca-col-actions { width: 184px; }
+
+/* 학생 이름·국적과 수강 기간은 줄바꿈하지 않는다. 폭을 넘는 값만 말줄임 처리. */
+.sca-student-table .sca-student-copy {
+  min-width: 0;
+}
+
+.sca-student-table .sca-student-copy > b,
+.sca-student-table .sca-student-copy > div,
+.sca-student-table .sca-course-period {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .sca-student-table .sca-lessons-cell {
   white-space: normal;
@@ -73,6 +88,47 @@
 
 .sca-student-table .sca-actions-cell {
   white-space: normal;
+}
+
+/* 출입국 및 체류 관리 — 좁은 화면에서 항공 일정 목록은 가로 스크롤, 입력 그리드는 단을 줄인다. */
+/* 수강 현황 하위 탭 레이아웃(수강 목록 280px + 본문)은 좁은 화면에서 한 단으로 접는다.
+   접지 않으면 본문 폭이 화면보다 넓어지는데 상위에 스크롤 컨테이너가 없어 내용이 잘린다. */
+.enrollment-hub-layout {
+  min-width: 0;
+}
+
+.enrollment-hub-layout > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .enrollment-hub-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* width/max-width가 없으면 래퍼가 표의 min-width만큼 부풀어 부모를 밀어내고,
+   부모는 overflow:visible이라 어디서도 스크롤되지 않는다(모바일에서 표가 잘림). */
+.stay-flight-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 900px) {
+  .stay-visa-grid,
+  .stay-flight-form {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .stay-visa-grid,
+  .stay-flight-form {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 1100px) {

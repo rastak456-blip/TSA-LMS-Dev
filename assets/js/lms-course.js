@@ -3309,7 +3309,7 @@ function renderAgencyStudentEnrollmentHub() {
 
   const enrollments = getStudentEnrollmentSnapshots(s);
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:280px 1fr;gap:18px">
+    <div class="enrollment-hub-layout" style="display:grid;grid-template-columns:280px 1fr;gap:18px">
       <div style="border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;padding:14px">
         <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">수강 목록</div>
         <div style="display:flex;flex-direction:column;gap:8px">
@@ -3335,7 +3335,7 @@ function renderAgencyStudentEnrollmentHub() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">항공편 & 서류 관리</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">입출국·비자 관리</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산/입학서류관리</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="schedule" onclick="switchAgencyEnrollmentHubTab(\'schedule\')">스케줄</button>' : ''}
@@ -3871,136 +3871,363 @@ function switchAgencyEnrollmentHubTab(tab) {
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
 
+/* =============================================
+   출입국 및 체류 관리 — 데이터 모델
+   원본 파일(여권 사본·E-티켓·보험증서 등)은 LMS에 저장하지 않고
+   확인 상태·확인일·확인 담당자만 기록한다.
+   ============================================= */
+const STAY_FLIGHT_KINDS = [
+  ['first_entry', '최초 입국'],
+  ['temp_exit', '일시 출국'],
+  ['re_entry', '재입국'],
+  ['final_exit', '최종 출국'],
+  ['other', '기타 이동']
+];
+const STAY_COUNTRY_AIRPORTS = {
+  '한국': [['ICN', '인천국제공항'], ['GMP', '김포국제공항'], ['PUS', '김해국제공항'], ['CJU', '제주국제공항']],
+  '일본': [['NRT', '나리타국제공항'], ['HND', '하네다공항'], ['KIX', '간사이국제공항'], ['FUK', '후쿠오카공항'], ['NGO', '주부국제공항']],
+  '중국': [['PEK', '베이징 서우두국제공항'], ['PKX', '베이징 다싱국제공항'], ['PVG', '상하이 푸둥국제공항'], ['CAN', '광저우 바이윈국제공항']],
+  '베트남': [['HAN', '노이바이국제공항'], ['SGN', '떤선녓국제공항'], ['DAD', '다낭국제공항']],
+  '몽골': [['UBN', '칭기즈 칸 국제공항']],
+  '필리핀': [['CEB', '막탄 세부 국제공항'], ['MNL', '니노이 아키노 국제공항'], ['CRK', '클라크국제공항'], ['DVO', '다바오국제공항']],
+  '대만': [['TPE', '타오위안국제공항'], ['TSA', '타이베이 쑹산공항']],
+  '태국': [['BKK', '수완나품공항'], ['DMK', '돈므앙국제공항'], ['HKT', '푸껫국제공항']]
+};
+
+function stayCountryOptionsHtml(selected) {
+  const countries = Object.keys(STAY_COUNTRY_AIRPORTS);
+  const extra = selected && !countries.includes(selected) ? [selected] : [];
+  return '<option value="">국가 선택</option>' + [...countries, ...extra].map(country => `<option value="${country}" ${country === selected ? 'selected' : ''}>${country}</option>`).join('');
+}
+
+function stayAirportOptionsHtml(country, selected) {
+  const airports = STAY_COUNTRY_AIRPORTS[country] || [];
+  const hasSelected = airports.some(([code]) => code === selected);
+  const extra = selected && !hasSelected ? [[selected, '기존 등록 공항']] : [];
+  return '<option value="">공항 선택</option>' + [...airports, ...extra].map(([code, name]) => `<option value="${code}" ${code === selected ? 'selected' : ''}>${code} · ${name}</option>`).join('');
+}
+const STAY_FLIGHT_STATUSES = [
+  ['planned', '예정'],
+  ['confirmed', '확정'],
+  ['changed', '변경'],
+  ['cancelled', '취소']
+];
+const STAY_CHECK_STATUSES = [
+  ['unchecked', '미확인'],
+  ['checked', '확인 완료'],
+  ['recheck', '재확인 필요']
+];
+const STAY_ETICKET_STATUSES = [
+  ['unchecked', '미확인'],
+  ['checked', '확인 완료'],
+  ['recheck', '변경 확인 필요']
+];
+const STAY_VISA_STATUSES = [
+  ['not_started', '미신청'],
+  ['preparing', '서류 준비'],
+  ['applied', '신청 완료'],
+  ['issued', '발급 완료'],
+  ['exempt', '면제']
+];
+function stayLabelOf(list, value) {
+  const found = list.find(([code]) => code === value);
+  return found ? found[1] : (list[0] ? list[0][1] : '-');
+}
+
+function stayOptionsHtml(list, selected) {
+  return list.map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+// 개인정보 번호(비자·SSP·증권번호)는 목록과 기본 화면에서 마스킹한다.
+function maskStayNumber(value, emptyText = '미등록') {
+  const raw = String(value || '').trim();
+  if (!raw) return emptyText;
+  if (raw.length <= 4) return raw[0] + '•'.repeat(Math.max(1, raw.length - 1));
+  return raw.slice(0, 2) + '•'.repeat(raw.length - 4) + raw.slice(-2);
+}
+
+function stayNowStamp() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function stayCurrentActor() {
+  const roleNames = { super_admin: '슈퍼 어드민', head_teacher: '티칭 헤드', accounting: '회계 담당자', ss_staff: 'SS 스탭', agency_head: '에이전시', agency_branch: '에이전시' };
+  return roleNames[APP && APP.user] || '어드민';
+}
+
+// 기존 단일 입/출국 필드를 항공 일정 목록으로 옮긴다. arrivalDate·departureDate는
+// 달력·픽업·정산 등 다른 화면이 그대로 참조하므로 목록에서 다시 채워 동기화한다.
+function ensureStudentStayData(s) {
+  if (!s) return null;
+  if (!Array.isArray(s.flightSchedules)) {
+    // 옛 flightInfo는 "KE631 | 26.06.01 입국"처럼 표시용 문자열이라 편명만 잘라 쓴다.
+    const flightCodeOf = (num, info) => {
+      const code = String(num || fmtFlightStr(info) || '').split('|')[0].trim();
+      return code === '-' ? '' : code;
+    };
+    const schedules = [];
+    if (s.arrivalDate) {
+      schedules.push({
+        id: 1, kind: 'first_entry', status: 'confirmed',
+        departDate: '', departTime: '', arriveDate: s.arrivalDate, arriveTime: s.flightTime || '',
+        fromCountry: s.nationality || '', fromAirport: '', toCountry: '필리핀', toAirport: 'CEB',
+        flightNo: flightCodeOf(s.flightNum, s.flightInfo), terminal: '',
+        pickupNeeded: true, note: '', eticketCheck: 'unchecked', eticketCheckedAt: '', eticketCheckedBy: ''
+      });
+    }
+    if (s.departureDate) {
+      schedules.push({
+        id: 2, kind: 'final_exit', status: 'confirmed',
+        departDate: s.departureDate, departTime: s.flightOutTime || '', arriveDate: '', arriveTime: '',
+        fromCountry: '필리핀', fromAirport: 'CEB', toCountry: s.nationality || '', toAirport: '',
+        flightNo: flightCodeOf(s.flightOutNum, s.flightOutInfo), terminal: '',
+        pickupNeeded: true, note: '', eticketCheck: 'unchecked', eticketCheckedAt: '', eticketCheckedBy: ''
+      });
+    }
+    s.flightSchedules = schedules;
+  }
+  if (!s.passportInfo) {
+    s.passportInfo = { expiry: s.passportExpiry || '' };
+  }
+  if (!Array.isArray(s.passportAccessLogs)) s.passportAccessLogs = [];
+  if (!s.visaInfo) {
+    const legacyStatus = s.visaStatus || (s.visaExpiry === '면제' ? 'exempt' : (s.visaExpiry && s.visaExpiry !== '미설정' ? 'issued' : 'not_started'));
+    s.visaInfo = {
+      status: legacyStatus, type: '', appliedDate: s.visaAppliedDate || '', issuedDate: '',
+      number: s.visaNumber || '', expiry: (s.visaExpiry && s.visaExpiry !== '면제' && s.visaExpiry !== '미설정') ? s.visaExpiry : '',
+      originCheck: 'unchecked', checkedAt: '', checkedBy: '', note: ''
+    };
+  }
+  if (!s.sspInfo) {
+    const legacyStatus = s.sspStatus || (s.sspExpiry === '면제' ? 'exempt' : (s.sspExpiry && s.sspExpiry !== '미취득' ? 'issued' : 'not_started'));
+    s.sspInfo = {
+      status: legacyStatus, appliedDate: s.sspAppliedDate || '', issuedDate: '',
+      number: s.sspNumber || '', expiry: (s.sspExpiry && s.sspExpiry !== '면제' && s.sspExpiry !== '미취득') ? s.sspExpiry : '',
+      exemptReason: '', originCheck: 'unchecked', checkedAt: '', checkedBy: '', note: ''
+    };
+  }
+  if (!Array.isArray(s.stayChangeLog)) s.stayChangeLog = [];
+  return s;
+}
+
+// 항공 일정 목록이 바뀌면 다른 화면이 쓰는 대표 입·출국 필드를 다시 계산한다.
+function syncStudentFlightSummary(s) {
+  if (!s || !Array.isArray(s.flightSchedules)) return;
+  const live = s.flightSchedules.filter(item => item.status !== 'cancelled');
+  const entries = live.filter(item => item.kind === 'first_entry' || item.kind === 're_entry')
+    .filter(item => item.arriveDate).sort((a, b) => a.arriveDate.localeCompare(b.arriveDate));
+  const exits = live.filter(item => item.kind === 'final_exit' || item.kind === 'temp_exit')
+    .filter(item => item.departDate).sort((a, b) => a.departDate.localeCompare(b.departDate));
+  const firstEntry = live.find(item => item.kind === 'first_entry' && item.arriveDate) || entries[0];
+  const finalExit = live.slice().reverse().find(item => item.kind === 'final_exit' && item.departDate) || exits[exits.length - 1];
+  if (firstEntry) {
+    s.arrivalDate = firstEntry.arriveDate;
+    s.flightTime = firstEntry.arriveTime || '';
+    s.flightNum = firstEntry.flightNo || '';
+  }
+  if (finalExit) {
+    s.departureDate = finalExit.departDate;
+    s.flightOutTime = finalExit.departTime || '';
+    s.flightOutNum = finalExit.flightNo || '';
+  }
+}
+
+// §10 이력: 신규 등록·수정·상태 변경·번호 변경·일정 취소·확인 처리
+function addStayChangeLog(s, category, field, before, after, reason) {
+  if (!s) return;
+  if (!Array.isArray(s.stayChangeLog)) s.stayChangeLog = [];
+  if (!Array.isArray(s.changeRequests)) s.changeRequests = [];
+  const logId = Date.now() + Math.floor(Math.random() * 1000);
+  const changedAt = stayNowStamp();
+  const changedBy = stayCurrentActor();
+  s.stayChangeLog.unshift({
+    id: logId,
+    at: changedAt, by: changedBy,
+    category, field, before: before || '-', after: after || '-', reason: reason || ''
+  });
+  // 출입국·여권·비자·SSP 변경 이력도 학생 상담 노트의 '정보 변경' 목록에서 함께 확인한다.
+  s.changeRequests.unshift({
+    id: `stay-${logId}`,
+    field: `${category} · ${field}`,
+    from: before || '-',
+    to: after || '-',
+    reason: reason || '',
+    changedBy,
+    requestDate: changedAt,
+    status: 'logged',
+    source: 'stay',
+    stayLogId: logId
+  });
+}
+
 function renderAgencyEnrollmentFlightDocs(s, container) {
-  const visaStatus = s.visaStatus || (s.visaExpiry === '면제' ? 'exempt' : (s.visaExpiry && s.visaExpiry !== '미설정' ? 'issued' : 'not_started'));
-  const sspStatus = s.sspStatus || (s.sspExpiry === '면제' ? 'exempt' : (s.sspExpiry && s.sspExpiry !== '미취득' ? 'issued' : 'not_started'));
-  const documentStatusOptions = [
-    ['not_started', '미신청'],
-    ['preparing', '서류 준비'],
-    ['applied', '신청 완료'],
-    ['issued', '발급 완료'],
-    ['exempt', '면제']
-  ];
-  const renderStatusOptions = selected => documentStatusOptions
-    .map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`)
-    .join('');
+  ensureStudentStayData(s);
+  // 화면을 다시 그리면 여권번호 노출 타이머가 사라진 DOM을 가리키므로 정리한다.
+  if (_stayPassportRevealTimer) { clearInterval(_stayPassportRevealTimer); _stayPassportRevealTimer = null; }
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
   container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
       <div>
-        <div style="font-size:14px;font-weight:800;color:#111827">항공편 & 서류 관리</div>
-        <div style="font-size:11px;color:#6B7280;margin-top:3px">선택한 수강 건 기준으로 입출국 일정과 필수 서류를 관리합니다.</div>
-      </div>
-      <span class="tsa-badge tsa-badge-primary">수강별 관리 영역</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div style="border:1px solid #BBF7D0;background:#F0FDF4;border-radius:12px;padding:14px">
-        <div style="font-size:12.5px;font-weight:800;color:#047857;margin-bottom:10px">입국 항공편</div>
-        <div class="tsa-form-group"><label class="tsa-label">편명</label><input id="ad-flight-num" class="tsa-input" value="${s.flightNum || fmtFlightStr(s.flightInfo) || ''}" placeholder="KE631"/></div>
-        <div class="tsa-form-group"><label class="tsa-label">입국일</label><input id="ad-arrival-date" type="date" class="tsa-input" value="${s.arrivalDate || s.startDate || ''}"/></div>
-        <div class="tsa-form-group"><label class="tsa-label">도착 시간</label><input id="ad-flight-time" type="time" class="tsa-input" value="${s.flightTime || ''}"/></div>
-      </div>
-      <div style="border:1px solid #BFDBFE;background:#EFF6FF;border-radius:12px;padding:14px">
-        <div style="font-size:12.5px;font-weight:800;color:#1D4ED8;margin-bottom:10px">출국 항공편</div>
-        <div class="tsa-form-group"><label class="tsa-label">편명</label><input id="ad-flight-out-num" class="tsa-input" value="${s.flightOutNum || fmtFlightStr(s.flightOutInfo) || ''}" placeholder="KE632"/></div>
-        <div class="tsa-form-group"><label class="tsa-label">출국일</label><input id="ad-departure-date" type="date" class="tsa-input" value="${s.departureDate || s.endDate || ''}"/></div>
-        <div class="tsa-form-group"><label class="tsa-label">출발 시간</label><input id="ad-flight-out-time" type="time" class="tsa-input" value="${s.flightOutTime || ''}"/></div>
+        <div style="font-size:14px;font-weight:800;color:#111827">입출국·비자 관리</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:3px">학생의 출입국 일정과 여권·비자·SSP 정보 및 첨부 파일을 관리합니다.</div>
       </div>
     </div>
-    <div style="margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#F8FAFC">
-      <div style="font-size:12.5px;font-weight:800;color:#374151;margin-bottom:10px">필수 서류</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;padding:12px;background:#fff;border:1px solid #E5E7EB;border-radius:10px">
-        <div class="tsa-form-group" style="margin:0">
-          <label class="tsa-label">등록된 여권번호</label>
-          <input id="ad-passport-number-masked" class="tsa-input" value="${maskPassportNumber(s.passportNum, '미등록')}" readonly style="background:#F9FAFB;color:#6B7280"/>
-        </div>
-        <div class="tsa-form-group" style="margin:0">
-          <label class="tsa-label">여권번호 입력/변경</label>
-          <input id="ad-passport-number-new" class="tsa-input" type="password" autocomplete="new-password" placeholder="새 여권번호를 입력하세요"/>
-          <div style="font-size:10px;color:#6B7280;margin-top:5px">저장 후에는 보안을 위해 마스킹되어 표시됩니다.</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-        ${['passport','ticket','insurance'].map(type => {
-          const labels = { passport: '여권 사본', ticket: 'E-티켓', insurance: '보험증서' };
-          const uploaded = adetailUploadedFiles[type];
-          const isPdf = uploaded && /\.pdf$/i.test(uploaded);
-          const previewLabel = isPdf ? 'PDF 미리보기' : '미리보기';
-          return `
-            <div style="background:#fff;border:1px dashed #D1D5DB;border-radius:10px;padding:12px;text-align:center;min-height:118px;display:flex;flex-direction:column;justify-content:space-between">
-              <div>
-              <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:7px">${labels[type]}</div>
-              <span class="tsa-badge ${uploaded ? 'tsa-badge-success' : 'tsa-badge-gray'}">${uploaded ? '등록됨' : '없음'}</span>
-              <div style="font-size:10px;color:#9CA3AF;margin-top:6px">${uploaded || '수강 건별 업로드 예정'}</div>
-              </div>
-              <div style="display:flex;gap:5px;margin-top:10px;justify-content:center">
-                <label class="tsa-btn tsa-btn-primary tsa-btn-xs" style="cursor:pointer;justify-content:center">
-                  <i data-lucide="upload" style="width:12px;height:12px"></i> ${uploaded ? '교체' : '등록'}
-                  <input type="file" accept="${type === 'photo' ? 'image/*' : '.pdf,image/*'}" hidden onchange="handleAdetailRequiredFileUpload('${type}',this)"/>
-                </label>
-                <button class="tsa-btn tsa-btn-outline tsa-btn-xs"
-                  style="justify-content:center;${uploaded ? '' : 'opacity:.45;cursor:not-allowed'}"
-                  ${uploaded ? `onclick="openAgencyRequiredFilePreview('${type}', '${encodeURIComponent(uploaded)}')"` : 'disabled'}>
-                  <i data-lucide="${isPdf ? 'file-search' : 'image'}" style="width:12px;height:12px"></i> ${previewLabel}
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-    <div style="margin-top:14px;border:1px solid #DDD6FE;border-radius:12px;padding:14px;background:#FAF5FF">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
-        <div>
-          <div style="font-size:12.5px;font-weight:800;color:#5B21B6">비자 · SSP 서류 관리</div>
-          <div style="font-size:10.5px;color:#7C3AED;margin-top:3px">신청 진행 상태와 발급 정보를 기록하고 증빙 서류를 관리합니다.</div>
-        </div>
-        <span class="tsa-badge tsa-badge-primary">학생별 진행 관리</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        ${[
-          {
-            type: 'visa', title: '비자 서류', color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE',
-            status: visaStatus, appliedDate: s.visaAppliedDate || '', number: s.visaNumber || '',
-            expiry: s.visaExpiry !== '면제' && s.visaExpiry !== '미설정' ? s.visaExpiry || '' : '',
-            numberLabel: '비자 번호', numberPlaceholder: '예: VISA-2026-001'
-          },
-          {
-            type: 'ssp', title: 'SSP 서류', color: '#047857', bg: '#ECFDF5', border: '#A7F3D0',
-            status: sspStatus, appliedDate: s.sspAppliedDate || '', number: s.sspNumber || '',
-            expiry: s.sspExpiry !== '면제' && s.sspExpiry !== '미취득' ? s.sspExpiry || '' : '',
-            numberLabel: 'SSP 번호', numberPlaceholder: '예: SSP-2026-001'
-          }
-        ].map(doc => {
-          const uploaded = adetailUploadedFiles[doc.type];
-          const isPdf = uploaded && /\.pdf$/i.test(uploaded);
-          return `
-            <div style="border:1px solid ${doc.border};background:${doc.bg};border-radius:11px;padding:13px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
-                <div style="font-size:12.5px;font-weight:800;color:${doc.color}">${doc.title}</div>
-                <span class="tsa-badge ${uploaded ? 'tsa-badge-success' : 'tsa-badge-gray'}">${uploaded ? '서류 등록됨' : '서류 없음'}</span>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">진행 상태</label><select id="ad-${doc.type}-status" class="tsa-input">${renderStatusOptions(doc.status)}</select></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">신청일</label><input id="ad-${doc.type}-applied-date" type="date" class="tsa-input" value="${doc.appliedDate}"/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">${doc.numberLabel}</label><input id="ad-${doc.type}-number" class="tsa-input" value="${doc.number}" placeholder="${doc.numberPlaceholder}"/></div>
-                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">만료 예정일</label><input id="ad-${doc.type}-expiry" type="date" class="tsa-input" value="${doc.expiry}"/></div>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid ${doc.border}">
-                <div style="font-size:10px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${uploaded || 'PDF 또는 이미지 파일을 등록하세요.'}</div>
-                <div style="display:flex;gap:5px;flex-shrink:0">
-                  <label class="tsa-btn tsa-btn-primary tsa-btn-xs" style="cursor:pointer"><i data-lucide="upload" style="width:12px;height:12px"></i> ${uploaded ? '교체' : '등록'}<input type="file" accept=".pdf,image/*" hidden onchange="handleAdetailRequiredFileUpload('${doc.type}',this)"/></label>
-                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" ${uploaded ? `onclick="openAgencyRequiredFilePreview('${doc.type}', '${encodeURIComponent(uploaded)}')"` : 'disabled'} style="${uploaded ? '' : 'opacity:.45;cursor:not-allowed'}"><i data-lucide="${isPdf ? 'file-search' : 'image'}" style="width:12px;height:12px"></i> 미리보기</button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:14px">
-      <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyEnrollmentFlightDocs()"><i data-lucide="check"></i> 항공편·서류 전체 저장</button>
+    ${renderStayFlightSection(s, esc)}
+    ${renderStayPassportSection(s, esc)}
+    ${renderStayVisaSspSection(s, esc)}
+    <div style="margin-top:14px;padding:10px 12px;border-radius:9px;background:#F8FAFC;border:1px solid #E5E7EB;font-size:10.5px;color:#6B7280">
+      원본 서류는 사내 보관 정책에 따라 별도 관리합니다.
     </div>
   `;
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+// 저장 결과를 해당 영역 안에서만 알려 다른 영역의 미저장 입력에 영향을 주지 않는다(§11).
+function showStaySectionSaved(sectionId, message) {
+  const box = document.getElementById(sectionId);
+  if (!box) return;
+  box.textContent = `✓ ${message} (${stayNowStamp()})`;
+  box.style.display = '';
+}
+
+/* ── 항공 일정 (§5, §6) ───────────────────────────── */
+function renderStayFlightSection(s, esc) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pickupRequested = typeof isPickupRequired === 'function' ? isPickupRequired(s) : s.pickupRequired === true;
+  const sorted = [...s.flightSchedules].sort((a, b) => {
+    const ka = `${a.departDate || a.arriveDate || ''} ${a.departTime || ''}`;
+    const kb = `${b.departDate || b.arriveDate || ''} ${b.departTime || ''}`;
+    return ka.localeCompare(kb);
+  });
+  const rows = sorted.map(item => {
+    const baseDate = item.departDate || item.arriveDate || '';
+    const isPast = baseDate && baseDate < today;
+    const cancelled = item.status === 'cancelled';
+    const route = `${esc(item.fromCountry || '-')} → ${esc(item.toCountry || '-')}`;
+    const ticketFileName = typeof item.ticketFile === 'string' ? item.ticketFile : (item.ticketFile?.name || '');
+    const ticketHtml = ticketFileName
+      ? `<button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openAgencyRequiredFilePreview('ticket','${encodeURIComponent(ticketFileName)}')"><i data-lucide="paperclip" style="width:11px;height:11px"></i> 파일 보기</button>`
+      : '<span style="font-size:10px;color:#9CA3AF">미첨부</span>';
+    return `<tr style="${cancelled ? 'opacity:.55' : ''}${isPast && !cancelled ? 'background:#FCFCFD' : ''}">
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;white-space:nowrap">
+        <span class="tsa-badge tsa-badge-primary" style="font-size:9.5px">${stayLabelOf(STAY_FLIGHT_KINDS, item.kind)}</span>
+      </td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;font-size:11px;white-space:nowrap">${esc(item.departDate || '-')}<div style="font-size:9.5px;color:#9CA3AF">${esc(item.departTime || '')}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;font-size:11px;white-space:nowrap">${esc(item.arriveDate || '-')}<div style="font-size:9.5px;color:#9CA3AF">${esc(item.arriveTime || '')}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;font-size:11px;white-space:nowrap">${esc(item.flightNo || '-')}${item.terminal ? `<div style="font-size:9.5px;color:#9CA3AF">T${esc(item.terminal)}</div>` : ''}</td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;font-size:11px;white-space:nowrap">${route}</td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;white-space:nowrap">
+        <span style="display:inline-flex;padding:2px 8px;border-radius:999px;font-size:9.5px;font-weight:800;background:${pickupRequested ? '#ECFDF5' : '#F3F4F6'};color:${pickupRequested ? '#047857' : '#6B7280'}">${pickupRequested ? '신청' : '미신청'}</span>
+      </td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;white-space:nowrap">${ticketHtml}</td>
+      <td style="padding:8px;border-bottom:1px solid #F1F4F9;text-align:center;white-space:nowrap">
+        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openStayFlightEditor(${item.id})">수정</button>
+        ${cancelled ? '' : `<button class="tsa-btn tsa-btn-xs" style="color:#DC2626;background:#FEE2E2;margin-left:4px" onclick="cancelStayFlight(${item.id})">취소</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:#374151">항공 일정</div>
+          <div style="font-size:10.5px;color:#6B7280;margin-top:2px">일시 귀국·재입국을 포함해 여러 건을 등록할 수 있으며, 수강 등록 때 첨부한 E-티켓을 확인할 수 있습니다.</div>
+        </div>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openStayFlightEditor(null)"><i data-lucide="plus" style="width:13px;height:13px"></i> 일정 추가</button>
+      </div>
+      <div style="overflow-x:auto" class="stay-flight-scroll">
+        <table style="width:100%;border-collapse:collapse;min-width:720px">
+          <thead><tr style="background:#F8F9FC">
+            ${['구분', '출발일시', '도착일시', '항공편명', '이동 경로', '픽업 신청', 'E-티켓', '관리'].map(h => `<th style="padding:8px;text-align:${h === '관리' ? 'center' : 'left'};font-size:10.5px;font-weight:800;color:#4B5563;border-bottom:1px solid #E5E7EB;white-space:nowrap">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows || '<tr><td colspan="8" style="padding:24px;text-align:center;color:#9CA3AF;font-size:11px">등록된 항공 일정이 없습니다. [일정 추가]로 등록해주세요.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div id="stay-flight-saved" style="display:none;margin-top:9px;font-size:10.5px;color:#047857;font-weight:700"></div>
+    </div>
+  `;
+}
+
+/* ── 여권 정보 (§4) ───────────────────────────────── */
+function renderStayPassportSection(s, esc) {
+  const info = s.passportInfo;
+  const hasNumber = !!s.passportNum;
+  return `
+    <div style="margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#F8FAFC">
+      <div style="font-size:12.5px;font-weight:800;color:#374151;margin-bottom:3px">여권 정보</div>
+      <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">여권번호는 기본적으로 마스킹하며, 수정한 내용과 처리자는 상담 노트의 정보 변경 이력에 기록됩니다.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="tsa-form-group" style="margin:0">
+          <label class="tsa-label">등록된 여권번호</label>
+          <div style="display:flex;gap:6px">
+            <input id="stay-passport-display" class="tsa-input" value="${esc(maskPassportNumber(s.passportNum, '미등록'))}" readonly style="flex:1;background:#F3F4F6;color:#6B7280;letter-spacing:.5px"/>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="flex-shrink:0" onclick="openStayPassportAccessLog()"><i data-lucide="list" style="width:13px;height:13px"></i> 조회 리스트</button>
+            <button id="stay-passport-edit" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="flex-shrink:0" onclick="enableStayPassportInlineEdit()"><i data-lucide="pencil" style="width:13px;height:13px"></i> 수정</button>
+          </div>
+          <div id="stay-passport-edit-hint" style="font-size:10px;color:#9CA3AF;margin-top:5px">수정 버튼을 누르면 화면에서 직접 변경할 수 있습니다.</div>
+          <div id="stay-passport-edit-panel" style="display:none;margin-top:8px;padding:10px;border:1px solid #C7D2FE;border-radius:9px;background:#F8F9FF">
+            <label class="tsa-label">새 여권번호</label>
+            <input id="stay-passport-edit-input" class="tsa-input" value="" placeholder="새 여권번호를 입력하세요" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="tsa-form-group" style="margin:0">
+          <label class="tsa-label">여권 만료일</label>
+          <div style="display:flex;gap:6px">
+            <input id="stay-passport-expiry" type="date" class="tsa-input" style="flex:1" value="${esc(info.expiry || '')}"/>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px">
+        <div id="stay-passport-saved" style="display:none;font-size:10.5px;color:#047857;font-weight:700"></div>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="margin-left:auto" onclick="saveStayPassport()"><i data-lucide="check" style="width:13px;height:13px"></i> 여권 정보 저장</button>
+      </div>
+    </div>`;
+}
+
+/* ── 비자 · SSP 진행 정보 (§7) ────────────────────── */
+function renderStayVisaSspSection(s, esc) {
+  const visa = s.visaInfo;
+  const ssp = s.sspInfo;
+  const sspExempt = ssp.status === 'exempt';
+  const field = (label, inner) => `<div class="tsa-form-group" style="margin:0"><label class="tsa-label">${label}</label>${inner}</div>`;
+  return `
+    <div style="margin-top:14px;border:1px solid #DDD6FE;border-radius:12px;padding:14px;background:#FAF5FF">
+      <div style="font-size:12.5px;font-weight:800;color:#5B21B6;margin-bottom:3px">비자 · SSP 진행 정보</div>
+      <div style="font-size:10.5px;color:#7C3AED;margin-bottom:11px">진행 상태와 발급 정보만 기록합니다. 원본 서류는 LMS에 저장하지 않습니다.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" class="stay-visa-grid">
+        <div style="border:1px solid #BFDBFE;background:#EFF6FF;border-radius:11px;padding:13px">
+          <div style="font-size:12.5px;font-weight:800;color:#1D4ED8;margin-bottom:10px">비자</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+            ${field('진행 상태', `<select id="stay-visa-status" class="tsa-input">${stayOptionsHtml(STAY_VISA_STATUSES, visa.status)}</select>`)}
+            ${field('비자 유형', `<input id="stay-visa-type" class="tsa-input" value="${esc(visa.type || '')}" placeholder="예: 9(a) 관광"/>`)}
+            ${field('신청일', `<input id="stay-visa-applied" type="date" class="tsa-input" value="${esc(visa.appliedDate || '')}"/>`)}
+            ${field('발급일', `<input id="stay-visa-issued" type="date" class="tsa-input" value="${esc(visa.issuedDate || '')}"/>`)}
+            ${field('비자번호', `<input id="stay-visa-number" class="tsa-input" value="${esc(visa.number || '')}" placeholder="예: VISA-2026-001"/>`)}
+            ${field('만료일', `<input id="stay-visa-expiry" type="date" class="tsa-input" value="${esc(visa.expiry || '')}"/>`)}
+          </div>
+          <div style="font-size:10px;color:#6B7280;margin-top:8px">목록·출력물에는 ${esc(maskStayNumber(visa.number))} 형태로 표시됩니다.</div>
+        </div>
+        <div style="border:1px solid #A7F3D0;background:#ECFDF5;border-radius:11px;padding:13px">
+          <div style="font-size:12.5px;font-weight:800;color:#047857;margin-bottom:10px">SSP</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+            ${field('진행 상태', `<select id="stay-ssp-status" class="tsa-input" onchange="onStaySspStatusChange()">${stayOptionsHtml(STAY_VISA_STATUSES, ssp.status)}</select>`)}
+            ${field('면제 사유', `<input id="stay-ssp-exempt-reason" class="tsa-input" value="${esc(ssp.exemptReason || '')}" placeholder="${sspExempt ? '면제 사유를 입력하세요 (필수)' : '면제 선택 시 입력'}" ${sspExempt ? '' : 'disabled'}/>`)}
+            ${field('신청일', `<input id="stay-ssp-applied" type="date" class="tsa-input" value="${esc(ssp.appliedDate || '')}" ${sspExempt ? 'disabled' : ''}/>`)}
+            ${field('발급일', `<input id="stay-ssp-issued" type="date" class="tsa-input" value="${esc(ssp.issuedDate || '')}" ${sspExempt ? 'disabled' : ''}/>`)}
+            ${field('SSP 번호', `<input id="stay-ssp-number" class="tsa-input" value="${esc(ssp.number || '')}" placeholder="예: SSP-2026-001" ${sspExempt ? 'disabled' : ''}/>`)}
+            ${field('만료일', `<input id="stay-ssp-expiry" type="date" class="tsa-input" value="${esc(ssp.expiry || '')}" ${sspExempt ? 'disabled' : ''}/>`)}
+          </div>
+          <div style="font-size:10px;color:#6B7280;margin-top:8px">목록·출력물에는 ${esc(maskStayNumber(ssp.number))} 형태로 표시됩니다.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px">
+        <div id="stay-visa-saved" style="display:none;font-size:10.5px;color:#047857;font-weight:700"></div>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="margin-left:auto" onclick="saveStayVisaSsp()"><i data-lucide="check" style="width:13px;height:13px"></i> 비자·SSP 정보 저장</button>
+      </div>
+    </div>`;
 }
 
 function handleAdetailRequiredFileUpload(type, input) {
@@ -4008,19 +4235,9 @@ function handleAdetailRequiredFileUpload(type, input) {
   if (!fileName) return;
   const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
   if (!s) return;
-  s.flightNum = document.getElementById('ad-flight-num')?.value.trim() || s.flightNum || '';
-  s.arrivalDate = document.getElementById('ad-arrival-date')?.value || s.arrivalDate || '';
-  s.flightTime = document.getElementById('ad-flight-time')?.value || s.flightTime || '';
-  s.flightOutNum = document.getElementById('ad-flight-out-num')?.value.trim() || s.flightOutNum || '';
-  s.departureDate = document.getElementById('ad-departure-date')?.value || s.departureDate || '';
-  s.flightOutTime = document.getElementById('ad-flight-out-time')?.value || s.flightOutTime || '';
   captureAgencyPassportNumber(s);
   captureAgencyVisaSspFields(s);
   adetailUploadedFiles[type] = fileName;
-  renderAgencyEnrollmentFlightDocs(
-    s,
-    document.getElementById('adetail-page-enrollment-content')
-  );
   showToast(`${fileName} 파일이 선택되었습니다. 저장 버튼을 눌러주세요.`, 'success');
 }
 
@@ -4047,25 +4264,631 @@ function captureAgencyVisaSspFields(s) {
   s.sspExpiry = s.sspStatus === 'exempt' ? '면제' : getValue('ad-ssp-expiry');
 }
 
-function saveAgencyEnrollmentFlightDocs() {
+/* =============================================
+   출입국 및 체류 관리 — 영역별 저장 (§11)
+   ============================================= */
+function currentStayStudent() {
   const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  return s ? ensureStudentStayData(s) : null;
+}
+
+function rerenderStaySection() {
+  const s = currentStayStudent();
+  const container = document.getElementById('adetail-page-enrollment-content');
+  if (s && container) renderAgencyEnrollmentFlightDocs(s, container);
+}
+
+const stayVal = id => document.getElementById(id)?.value.trim() || '';
+
+function saveStayPassport() {
+  const s = currentStayStudent();
   if (!s) return;
-  const getVal = (id, fallback) => document.getElementById(id)?.value.trim() || fallback || '';
-  s.flightNum = getVal('ad-flight-num', s.flightNum);
-  s.arrivalDate = getVal('ad-arrival-date', s.arrivalDate);
-  s.flightTime = getVal('ad-flight-time', s.flightTime);
-  s.flightOutNum = getVal('ad-flight-out-num', s.flightOutNum);
-  s.departureDate = getVal('ad-departure-date', s.departureDate);
-  s.flightOutTime = getVal('ad-flight-out-time', s.flightOutTime);
-  captureAgencyPassportNumber(s);
-  captureAgencyVisaSspFields(s);
-  s.requiredFiles = { ...(s.requiredFiles || {}), ...adetailUploadedFiles };
-  renderAgencyEnrollmentFlightDocs(
-    s,
-    document.getElementById('adetail-page-enrollment-content')
-  );
-  if (typeof refreshIcons === 'function') refreshIcons();
-  showToast('여권번호와 항공편, 비자·SSP를 포함한 서류 정보가 저장되었습니다.', 'success');
+  const info = s.passportInfo;
+  const passportEditPanel = document.getElementById('stay-passport-edit-panel');
+  const passportEditInput = document.getElementById('stay-passport-edit-input');
+  if (passportEditPanel?.dataset.editing === 'yes') {
+    const nextNumber = passportEditInput?.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') || '';
+    if (!nextNumber) {
+      showToast('여권번호를 입력해주세요.', 'warning');
+      return;
+    }
+    if (nextNumber !== s.passportNum) {
+      addStayChangeLog(s, '여권', '여권번호', maskPassportNumber(s.passportNum, '미등록'), maskPassportNumber(nextNumber), '화면에서 직접 수정');
+      s.passportNum = nextNumber;
+    }
+  }
+  const expiry = stayVal('stay-passport-expiry');
+  if (expiry !== info.expiry) addStayChangeLog(s, '여권', '만료일', info.expiry, expiry);
+  info.expiry = expiry;
+  s.passportExpiry = expiry || s.passportExpiry;
+  rerenderStaySection();
+  showStaySectionSaved('stay-passport-saved', '여권 정보를 저장했습니다.');
+}
+
+function enableStayPassportInlineEdit() {
+  const s = currentStayStudent();
+  const panel = document.getElementById('stay-passport-edit-panel');
+  const input = document.getElementById('stay-passport-edit-input');
+  const button = document.getElementById('stay-passport-edit');
+  const hint = document.getElementById('stay-passport-edit-hint');
+  if (!s || !panel || !input) return;
+  if (panel.dataset.editing === 'yes') {
+    panel.style.display = 'none';
+    panel.dataset.editing = 'no';
+    input.value = '';
+    if (button) button.innerHTML = '<i data-lucide="pencil" style="width:13px;height:13px"></i> 수정';
+    if (hint) hint.textContent = '수정 버튼을 누르면 화면에서 직접 변경할 수 있습니다.';
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+    return;
+  }
+  panel.style.display = 'block';
+  panel.dataset.editing = 'yes';
+  input.value = '';
+  input.focus();
+  if (button) button.innerHTML = '<i data-lucide="chevron-up" style="width:13px;height:13px"></i> 접기';
+  if (hint) hint.textContent = '번호를 수정한 뒤 [여권 정보 저장]을 눌러주세요.';
+  s.passportAccessLogs.unshift({
+    id: Date.now(),
+    identifier: `${stayCurrentActor()} (${APP?.user || 'admin'})`,
+    accessedAt: stayNowStamp(),
+    ipAddress: '192.168.10.24',
+    task: '학생 여권번호 수정 화면 열람'
+  });
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+// 전체 여권번호는 [조회]를 누른 사람에게만, 15초 동안만 보여준다.
+// 백엔드가 없어 실제 접근 차단은 아니고, 최소한 누가 언제 봤는지는 이력으로 남긴다.
+let _stayPassportRevealTimer = null;
+
+function revealStayPassportNumber() {
+  const s = currentStayStudent();
+  if (!s || !s.passportNum) return;
+  const display = document.getElementById('stay-passport-display');
+  const button = document.getElementById('stay-passport-reveal');
+  const hint = document.getElementById('stay-passport-reveal-hint');
+  if (!display) return;
+  if (_stayPassportRevealTimer) {
+    clearInterval(_stayPassportRevealTimer);
+    _stayPassportRevealTimer = null;
+  }
+  // 이미 열려 있으면 즉시 다시 가린다.
+  if (button && button.dataset.revealed === 'yes') {
+    maskStayPassportDisplay();
+    return;
+  }
+  display.value = s.passportNum;
+  display.style.color = '#111827';
+  display.style.background = '#FEF3C7';
+  if (button) {
+    button.dataset.revealed = 'yes';
+    button.innerHTML = '<i data-lucide="eye-off" style="width:13px;height:13px"></i> 가리기';
+  }
+  addStayChangeLog(s, '여권', '여권번호 조회', '-', maskPassportNumber(s.passportNum), '전체 번호 확인');
+  s.passportAccessLogs.unshift({
+    id: Date.now(),
+    identifier: `${stayCurrentActor()} (${APP?.user || 'admin'})`,
+    accessedAt: stayNowStamp(),
+    ipAddress: '192.168.10.24',
+    task: '학생 여권번호 원문 조회'
+  });
+  let remain = 15;
+  if (hint) hint.textContent = `${remain}초 후 자동으로 가려집니다. 조회 기록이 남았습니다.`;
+  _stayPassportRevealTimer = setInterval(() => {
+    remain -= 1;
+    if (remain <= 0) { maskStayPassportDisplay(); return; }
+    if (hint) hint.textContent = `${remain}초 후 자동으로 가려집니다. 조회 기록이 남았습니다.`;
+  }, 1000);
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+function openStayPassportAccessLog() {
+  const s = currentStayStudent();
+  if (!s) return;
+  // 조회 기록은 사이드바의 '여권번호 조회 기록' 메뉴에서 본다.
+  // 학생 상세는 팝업이라 사이드바가 없으므로, 학생 파라미터를 달아 새 탭으로 연다.
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('passportLog', String(s.id));
+  const opened = window.open(url.toString(), '_blank');
+  if (!opened) {
+    showToast('새 탭이 차단됐어. 브라우저에서 팝업을 허용해줘.', 'warning');
+    return;
+  }
+  opened.focus();
+}
+
+/* =============================================
+   여권번호 조회 기록 (사이드바 메뉴)
+   ============================================= */
+let _palStudentFilter = 'all';
+let _palSeeded = false;
+
+// 화면 확인용 임시 데이터. 실제 개인정보를 쓰지 않도록 전부 가상값이며,
+// 운영 전환 시 이 함수와 호출부를 지우면 된다(§12).
+function seedPassportAccessLogSamples() {
+  if (_palSeeded) return;
+  _palSeeded = true;
+  const samples = [
+    { nick: 'Amy', email: 'amy.test@example.test', logs: [
+      { by: '슈퍼 어드민 (super_admin)', at: '2026-08-05 14:22', ip: '192.168.10.24', task: '학생 여권번호 원문 조회' },
+      { by: 'SS 스탭 (ss_staff)', at: '2026-08-04 11:05', ip: '192.168.10.51', task: '학생 여권번호 수정 화면 열람' }
+    ] },
+    { nick: 'James', email: 'james.test@example.test', logs: [
+      { by: 'SS 스탭 (ss_staff)', at: '2026-08-05 09:47', ip: '192.168.10.51', task: '학생 여권번호 원문 조회' }
+    ] },
+    { nick: 'Kevin', email: 'kevin.test@example.test', logs: [
+      { by: '슈퍼 어드민 (super_admin)', at: '2026-08-03 16:30', ip: '192.168.10.24', task: '학생 여권번호 원문 조회' },
+      { by: '회계 담당자 (accounting)', at: '2026-08-01 10:12', ip: '192.168.10.77', task: '학생 여권번호 수정 화면 열람' }
+    ] },
+    { nick: 'Yuki', email: 'yuki.test@example.test', logs: [
+      { by: '티칭 헤드 (head_teacher)', at: '2026-07-30 13:58', ip: '192.168.10.35', task: '학생 여권번호 원문 조회' }
+    ] }
+  ];
+  samples.forEach((sample, index) => {
+    const student = MOCK_STUDENTS.find(s => s.nick === sample.nick);
+    if (!student) return;
+    ensureStudentStayData(student);
+    if (!student.email) student.email = sample.email;
+    if (student.passportAccessLogs.length) return;
+    student.passportAccessLogs = sample.logs.map((log, i) => ({
+      id: 900000 + index * 10 + i,
+      identifier: log.by, accessedAt: log.at, ipAddress: log.ip, task: log.task
+    }));
+  });
+}
+
+function initPassportAccessLogView(studentId) {
+  if (!document.getElementById('pal-tbody')) return;
+  seedPassportAccessLogSamples();
+  _palStudentFilter = studentId != null ? String(studentId) : 'all';
+  const search = document.getElementById('pal-search');
+  if (search && studentId != null) search.value = '';
+  renderPassportAccessLogView();
+}
+
+function getPalStudentLabel(studentId) {
+  const s = MOCK_STUDENTS.find(item => String(item.id) === String(studentId));
+  return s ? (s.nick || s.name) : '알 수 없는 학생';
+}
+
+function resetPassportAccessLogFilter() {
+  _palStudentFilter = 'all';
+  const search = document.getElementById('pal-search');
+  if (search) search.value = '';
+  renderPassportAccessLogView();
+}
+
+function renderPassportAccessLogView() {
+  const tbody = document.getElementById('pal-tbody');
+  if (!tbody) return;
+  const query = (document.getElementById('pal-search')?.value || '').trim().toLowerCase();
+
+  const chip = document.getElementById('pal-student-chip');
+  const chipLabel = document.getElementById('pal-student-chip-label');
+  if (chip) {
+    chip.style.display = _palStudentFilter === 'all' ? 'none' : 'flex';
+    if (chipLabel && _palStudentFilter !== 'all') chipLabel.textContent = `${getPalStudentLabel(_palStudentFilter)} 학생만 보는 중`;
+  }
+
+  const entries = [];
+  MOCK_STUDENTS.forEach(s => {
+    if (!Array.isArray(s.passportAccessLogs)) return;
+    if (_palStudentFilter !== 'all' && String(s.id) !== _palStudentFilter) return;
+    s.passportAccessLogs.forEach(log => entries.push({ student: s, log }));
+  });
+  // 검색은 학생 기준(이름·닉네임·이메일)으로만 건다.
+  const filtered = entries.filter(({ student }) => !query ||
+    `${student.name || ''} ${student.nick || ''} ${student.email || ''}`.toLowerCase().includes(query)
+  ).sort((a, b) => String(b.log.accessedAt || '').localeCompare(String(a.log.accessedAt || '')));
+
+  const countEl = document.getElementById('pal-count');
+  if (countEl) countEl.textContent = `${filtered.length}건${_palStudentFilter !== 'all' ? ` · ${getPalStudentLabel(_palStudentFilter)}` : ''}`;
+
+  tbody.innerHTML = filtered.map(({ student, log }) => `<tr>
+    <td style="font-size:11px">
+      <b>${lessonEsc(student.nick || student.name)}</b>
+      <div style="font-size:10px;color:#9CA3AF">${lessonEsc(student.name || '')} · ${lessonEsc(maskPassportNumber(student.passportNum, '미등록'))}</div>
+      <div style="font-size:10px;color:#9CA3AF">${lessonEsc(student.email || '이메일 미등록')}</div>
+    </td>
+    <td style="font-size:11px;font-weight:700;color:#374151">${lessonEsc(log.identifier)}</td>
+    <td style="font-size:11px;white-space:nowrap">${lessonEsc(log.accessedAt)}</td>
+    <td style="font-size:11px;font-family:monospace">${lessonEsc(log.ipAddress || log.locationInfo || '-')}</td>
+    <td style="font-size:11px">${lessonEsc(log.task)}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">조회 기록이 없습니다.</td></tr>';
+}
+
+function maskStayPassportDisplay() {
+  if (_stayPassportRevealTimer) {
+    clearInterval(_stayPassportRevealTimer);
+    _stayPassportRevealTimer = null;
+  }
+  const s = currentStayStudent();
+  const display = document.getElementById('stay-passport-display');
+  const button = document.getElementById('stay-passport-reveal');
+  const hint = document.getElementById('stay-passport-reveal-hint');
+  if (display) {
+    display.value = maskPassportNumber(s && s.passportNum, '미등록');
+    display.style.color = '#6B7280';
+    display.style.background = '#F3F4F6';
+  }
+  if (button) {
+    button.dataset.revealed = 'no';
+    button.innerHTML = '<i data-lucide="eye" style="width:13px;height:13px"></i> 조회';
+  }
+  if (hint) hint.textContent = '조회하면 15초 후 자동으로 다시 가려집니다.';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+function onStaySspStatusChange() {
+  const exempt = stayVal('stay-ssp-status') === 'exempt';
+  ['stay-ssp-applied', 'stay-ssp-issued', 'stay-ssp-number', 'stay-ssp-expiry'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = exempt; if (exempt) el.value = ''; }
+  });
+  const reason = document.getElementById('stay-ssp-exempt-reason');
+  if (reason) {
+    reason.disabled = !exempt;
+    reason.placeholder = exempt ? '면제 사유를 입력하세요 (필수)' : '면제 선택 시 입력';
+  }
+}
+
+function saveStayVisaSsp() {
+  const s = currentStayStudent();
+  if (!s) return;
+  const sspStatus = stayVal('stay-ssp-status') || 'not_started';
+  const sspExemptReason = stayVal('stay-ssp-exempt-reason');
+  if (sspStatus === 'exempt' && !sspExemptReason) {
+    showToast('SSP 면제 사유는 필수입니다.', 'warning');
+    document.getElementById('stay-ssp-exempt-reason')?.focus();
+    return;
+  }
+  const visa = s.visaInfo;
+  const nextVisa = {
+    status: stayVal('stay-visa-status') || 'not_started', type: stayVal('stay-visa-type'),
+    appliedDate: stayVal('stay-visa-applied'), issuedDate: stayVal('stay-visa-issued'),
+    number: stayVal('stay-visa-number'), expiry: stayVal('stay-visa-expiry')
+  };
+  if (nextVisa.status !== visa.status) addStayChangeLog(s, '비자', '진행 상태', stayLabelOf(STAY_VISA_STATUSES, visa.status), stayLabelOf(STAY_VISA_STATUSES, nextVisa.status));
+  if (nextVisa.number !== visa.number) addStayChangeLog(s, '비자', '비자번호', maskStayNumber(visa.number), maskStayNumber(nextVisa.number));
+  Object.assign(visa, nextVisa);
+
+  const ssp = s.sspInfo;
+  const nextSsp = {
+    status: sspStatus, exemptReason: sspStatus === 'exempt' ? sspExemptReason : '',
+    appliedDate: sspStatus === 'exempt' ? '' : stayVal('stay-ssp-applied'),
+    issuedDate: sspStatus === 'exempt' ? '' : stayVal('stay-ssp-issued'),
+    number: sspStatus === 'exempt' ? '' : stayVal('stay-ssp-number'),
+    expiry: sspStatus === 'exempt' ? '' : stayVal('stay-ssp-expiry')
+  };
+  if (nextSsp.status !== ssp.status) addStayChangeLog(s, 'SSP', '진행 상태', stayLabelOf(STAY_VISA_STATUSES, ssp.status), stayLabelOf(STAY_VISA_STATUSES, nextSsp.status), nextSsp.exemptReason);
+  if (nextSsp.number !== ssp.number) addStayChangeLog(s, 'SSP', 'SSP 번호', maskStayNumber(ssp.number), maskStayNumber(nextSsp.number));
+  Object.assign(ssp, nextSsp);
+
+  // 목록·달력이 참조하는 기존 요약 필드도 함께 맞춰준다.
+  s.visaStatus = visa.status;
+  s.visaNumber = visa.number;
+  s.visaAppliedDate = visa.appliedDate;
+  s.visaExpiry = visa.status === 'exempt' ? '면제' : (visa.expiry || '미설정');
+  s.sspStatus = ssp.status;
+  s.sspNumber = ssp.number;
+  s.sspAppliedDate = ssp.appliedDate;
+  s.sspExpiry = ssp.status === 'exempt' ? '면제' : (ssp.expiry || '미취득');
+  showStaySectionSaved('stay-visa-saved', '비자·SSP 정보를 저장했습니다.');
+}
+
+/* ── 항공 일정 편집 (§5) ──────────────────────────── */
+let _stayEditingFlightId = null;
+let _stayLastFlightPreset = null;
+
+function openStayFlightEditor(flightId) {
+  const s = currentStayStudent();
+  if (!s) return;
+  _stayEditingFlightId = flightId;
+  const item = flightId != null ? s.flightSchedules.find(f => f.id === flightId) : null;
+  const f = item || {
+    kind: 'first_entry', status: 'planned', departDate: '', departTime: '', arriveDate: '', arriveTime: '',
+    fromCountry: '', fromAirport: '', toCountry: '', toAirport: '', flightNo: '', terminal: '',
+    pickupNeeded: false, note: '', eticketCheck: 'unchecked', eticketCheckedAt: '', eticketCheckedBy: ''
+  };
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
+  const field = (label, inner) => `<div class="tsa-form-group" style="margin:0"><label class="tsa-label">${label}</label>${inner}</div>`;
+  let modal = document.getElementById('stay-flight-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'stay-flight-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="tsa-modal-backdrop" onclick="closeStayFlightEditor()">
+      <div class="tsa-modal" style="max-width:720px" onclick="event.stopPropagation()">
+        <div class="tsa-modal-header">
+          <div>
+            <h3 class="tsa-modal-title">${item ? '항공 일정 수정' : '항공 일정 추가'}</h3>
+            <p class="tsa-modal-subtitle">출발·도착 일정과 항공편 정보를 입력합니다.</p>
+          </div>
+          <button class="tsa-modal-close" onclick="closeStayFlightEditor()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="tsa-modal-body" style="max-height:68vh;overflow-y:auto">
+          <div style="display:grid;grid-template-columns:1fr;gap:10px" class="stay-flight-form">
+            ${field('일정 구분', `<select id="sf-kind" class="tsa-input" onchange="applyStayFlightKindDefaults(true)">${stayOptionsHtml(STAY_FLIGHT_KINDS, f.kind)}</select>`)}
+          </div>
+          <div id="sf-kind-hint" style="margin-top:7px;padding:7px 10px;border-radius:8px;background:#EEF2FF;color:#4338CA;font-size:10.5px"></div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px" class="stay-flight-form">
+            <div style="border:1px solid #BBF7D0;background:#F0FDF4;border-radius:10px;padding:11px">
+              <div style="font-size:11.5px;font-weight:800;color:#047857;margin-bottom:8px">출발</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="grid-column:span 2">${field('국가', `<select id="sf-from-country" class="tsa-input">${stayCountryOptionsHtml(f.fromCountry)}</select>`)}</div>
+                ${field('날짜', `<input id="sf-depart-date" type="date" class="tsa-input" value="${esc(f.departDate)}"/>`)}
+                ${field('시간', `<input id="sf-depart-time" type="time" class="tsa-input" value="${esc(f.departTime)}"/>`)}
+              </div>
+            </div>
+            <div style="border:1px solid #BFDBFE;background:#EFF6FF;border-radius:10px;padding:11px">
+              <div style="font-size:11.5px;font-weight:800;color:#1D4ED8;margin-bottom:8px">도착</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="grid-column:span 2">${field('국가', `<select id="sf-to-country" class="tsa-input">${stayCountryOptionsHtml(f.toCountry)}</select>`)}</div>
+                ${field('날짜', `<input id="sf-arrive-date" type="date" class="tsa-input" value="${esc(f.arriveDate)}"/>`)}
+                ${field('시간', `<input id="sf-arrive-time" type="time" class="tsa-input" value="${esc(f.arriveTime)}"/>`)}
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px" class="stay-flight-form">
+            ${field('항공편명', `<input id="sf-flightno" class="tsa-input" value="${esc(f.flightNo)}" placeholder="예: KE631"/>`)}
+            ${field('터미널', `<input id="sf-terminal" class="tsa-input" value="${esc(f.terminal)}" placeholder="예: 2"/>`)}
+          </div>
+          <div style="margin-top:12px;padding:11px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
+            <label class="tsa-label">E-티켓 첨부</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label class="tsa-btn tsa-btn-outline tsa-btn-sm" style="cursor:pointer;flex-shrink:0"><i data-lucide="paperclip" style="width:13px;height:13px"></i> 파일 선택<input id="sf-ticket-file" type="file" accept=".pdf,image/*" hidden onchange="handleStayFlightTicketSelected(this)"/></label>
+              <span id="sf-ticket-file-name" style="font-size:10.5px;color:${f.ticketFile ? '#374151' : '#9CA3AF'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.ticketFile || '첨부된 파일 없음')}</span>
+            </div>
+          </div>
+
+          <div id="sf-warnings" style="display:none;margin-top:11px;padding:10px 12px;border-radius:9px;background:#FFF7ED;border:1px solid #FED7AA">
+            <div style="font-size:11px;font-weight:800;color:#C2410C;margin-bottom:6px">확인이 필요한 항목</div>
+            <ul id="sf-warning-list" style="margin:0;padding-left:18px;font-size:10.5px;color:#9A3412;line-height:1.6"></ul>
+            <div class="tsa-form-group" style="margin:9px 0 0">
+              <label class="tsa-label">그래도 저장하려면 사유를 입력하세요</label>
+              <input id="sf-override-reason" class="tsa-input" placeholder="예: 학생 요청으로 예외 처리"/>
+            </div>
+          </div>
+        </div>
+        <div class="tsa-modal-footer">
+          <button class="tsa-btn tsa-btn-outline" onclick="closeStayFlightEditor()">취소</button>
+          <button class="tsa-btn tsa-btn-primary" onclick="saveStayFlight()"><i data-lucide="check"></i> 저장</button>
+        </div>
+      </div>
+    </div>`;
+  modal.style.display = '';
+  // 새 일정은 구분에 맞춰 노선을 미리 채워주고, 수정은 입력값을 건드리지 않는다.
+  _stayLastFlightPreset = null;
+  applyStayFlightKindDefaults(!item);
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+function toggleStayFlightMore() {
+  const box = document.getElementById('sf-more');
+  const caret = document.getElementById('sf-more-caret');
+  if (!box) return;
+  const open = box.style.display === 'none';
+  box.style.display = open ? 'block' : 'none';
+  if (caret) caret.textContent = open ? '▼' : '▶';
+}
+
+function handleStayFlightTicketSelected(input) {
+  const label = document.getElementById('sf-ticket-file-name');
+  const fileName = input?.files?.[0]?.name || '';
+  if (label) {
+    label.textContent = fileName || '첨부된 파일 없음';
+    label.style.color = fileName ? '#374151' : '#9CA3AF';
+  }
+}
+
+function onStayFlightCountryChange(side) {
+  const country = document.getElementById(`sf-${side}-country`)?.value || '';
+  const airport = document.getElementById(`sf-${side}-airport`);
+  if (airport) airport.innerHTML = stayAirportOptionsHtml(country, '');
+}
+
+// 구분만 고르면 나머지 노선 정보를 대신 채워준다.
+// 세부 캠퍼스 기준이라 국내 구간은 학생 국적, 현지 구간은 필리핀(CEB)으로 둔다.
+function applyStayFlightKindDefaults(fillValues) {
+  const s = currentStayStudent();
+  const kind = document.getElementById('sf-kind')?.value;
+  if (!kind) return;
+  const home = (s && s.nationality) || '';
+  const presets = {
+    first_entry: { from: home, fromAir: '', to: '필리핀', toAir: 'CEB', pickup: 'yes', hint: '한국 등 본국에서 세부로 처음 입국하는 일정입니다. 픽업이 필요한 경우가 많습니다.' },
+    temp_exit: { from: '필리핀', fromAir: 'CEB', to: home, toAir: '', pickup: 'yes', hint: '수강 중 잠시 출국하는 일정입니다. 이후 재입국 일정도 함께 등록해주세요.' },
+    re_entry: { from: home, fromAir: '', to: '필리핀', toAir: 'CEB', pickup: 'yes', hint: '일시 출국 후 다시 들어오는 일정입니다.' },
+    final_exit: { from: '필리핀', fromAir: 'CEB', to: home, toAir: '', pickup: 'yes', hint: '수강을 마치고 귀국하는 일정입니다. 샌딩이 필요한 경우가 많습니다.' },
+    other: { from: '', fromAir: '', to: '', toAir: '', pickup: 'no', hint: '국내 이동 등 위 구분에 해당하지 않는 일정입니다.' }
+  };
+  const preset = presets[kind] || presets.other;
+  const hint = document.getElementById('sf-kind-hint');
+  if (hint) hint.textContent = preset.hint;
+  if (!fillValues) { _stayLastFlightPreset = null; return; }
+  // 비어 있거나 직전 프리셋이 넣어둔 값이면 새 프리셋으로 바꾸고, 사용자가 직접 적은 값은 그대로 둔다.
+  const prev = _stayLastFlightPreset;
+  const setSmart = (id, value, prevValue) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!el.value || (prevValue && el.value === prevValue)) el.value = value;
+  };
+  const currentFromAirport = document.getElementById('sf-from-airport')?.value || '';
+  const currentToAirport = document.getElementById('sf-to-airport')?.value || '';
+  setSmart('sf-from-country', preset.from, prev && prev.from);
+  setSmart('sf-to-country', preset.to, prev && prev.to);
+  const fromAirport = document.getElementById('sf-from-airport');
+  const toAirport = document.getElementById('sf-to-airport');
+  if (fromAirport) fromAirport.innerHTML = stayAirportOptionsHtml(document.getElementById('sf-from-country')?.value || '', currentFromAirport);
+  if (toAirport) toAirport.innerHTML = stayAirportOptionsHtml(document.getElementById('sf-to-country')?.value || '', currentToAirport);
+  setSmart('sf-from-airport', preset.fromAir, prev && prev.fromAir);
+  setSmart('sf-to-airport', preset.toAir, prev && prev.toAir);
+  _stayLastFlightPreset = preset;
+}
+
+function closeStayFlightEditor() {
+  const modal = document.getElementById('stay-flight-modal');
+  if (modal) modal.style.display = 'none';
+  _stayEditingFlightId = null;
+}
+
+// §6 저장 전 검증. 업무상 예외가 있을 수 있어 사유를 적으면 저장할 수 있게 한다.
+function validateStayFlight(s, draft, editingId) {
+  const warnings = [];
+  const others = s.flightSchedules.filter(f => f.id !== editingId && f.status !== 'cancelled');
+  const departStamp = draft.departDate ? `${draft.departDate} ${draft.departTime || '00:00'}` : '';
+  const arriveStamp = draft.arriveDate ? `${draft.arriveDate} ${draft.arriveTime || '00:00'}` : '';
+  if (departStamp && arriveStamp && arriveStamp < departStamp) {
+    warnings.push('도착일시가 출발일시보다 빠릅니다.');
+  }
+  if (departStamp && others.some(f => f.departDate && `${f.departDate} ${f.departTime || '00:00'}` === departStamp)) {
+    warnings.push('같은 출발일시에 등록된 다른 항공 일정이 있습니다.');
+  }
+  const firstEntry = others.find(f => f.kind === 'first_entry' && f.arriveDate);
+  if (draft.kind === 're_entry' && firstEntry && draft.arriveDate && draft.arriveDate < firstEntry.arriveDate) {
+    warnings.push('최초 입국일보다 앞선 재입국 일정입니다.');
+  }
+  if (draft.kind === 'temp_exit') {
+    const hasReturn = others.some(f => f.kind === 're_entry' && f.arriveDate && (!draft.departDate || f.arriveDate >= draft.departDate));
+    if (!hasReturn) warnings.push('일시 출국 이후의 재입국 일정이 없습니다.');
+  }
+  const finalExit = others.find(f => f.kind === 'final_exit' && f.departDate);
+  if (finalExit && draft.kind !== 'final_exit') {
+    const base = draft.departDate || draft.arriveDate;
+    if (base && base > finalExit.departDate) warnings.push('최종 출국 이후에 추가되는 일정입니다.');
+  }
+  const courseStart = s.startDate;
+  const courseEnd = s.endDate || s.departureDate;
+  const gapDays = (a, b) => Math.abs((new Date(a) - new Date(b)) / 86400000);
+  if (draft.kind === 'first_entry' && draft.arriveDate && courseStart && gapDays(draft.arriveDate, courseStart) > 14) {
+    warnings.push('수강 시작일과 입국일 차이가 14일을 넘습니다.');
+  }
+  if (draft.kind === 'final_exit' && draft.departDate && courseEnd && gapDays(draft.departDate, courseEnd) > 14) {
+    warnings.push('수강 종료일과 출국일 차이가 14일을 넘습니다.');
+  }
+  return warnings;
+}
+
+function saveStayFlight() {
+  const s = currentStayStudent();
+  if (!s) return;
+  const existing = _stayEditingFlightId != null ? s.flightSchedules.find(f => f.id === _stayEditingFlightId) : null;
+  const selectedTicketFile = document.getElementById('sf-ticket-file')?.files?.[0]?.name || '';
+  const draft = {
+    kind: stayVal('sf-kind') || 'other', status: existing?.status || 'planned',
+    departDate: stayVal('sf-depart-date'), departTime: stayVal('sf-depart-time'),
+    arriveDate: stayVal('sf-arrive-date'), arriveTime: stayVal('sf-arrive-time'),
+    fromCountry: stayVal('sf-from-country'), fromAirport: existing?.fromAirport || '',
+    toCountry: stayVal('sf-to-country'), toAirport: existing?.toAirport || '',
+    flightNo: stayVal('sf-flightno'), terminal: stayVal('sf-terminal'),
+    ticketFile: selectedTicketFile || existing?.ticketFile || '',
+    pickupNeeded: existing?.pickupNeeded || false, note: existing?.note || '',
+    eticketCheck: existing?.eticketCheck || 'unchecked', eticketCheckedAt: existing?.eticketCheckedAt || '',
+    eticketCheckedBy: existing?.eticketCheckedBy || ''
+  };
+  if (!draft.departDate && !draft.arriveDate) {
+    showToast('출발일 또는 도착일 중 하나는 입력해야 합니다.', 'warning');
+    return;
+  }
+  const warnings = validateStayFlight(s, draft, _stayEditingFlightId);
+  const overrideReason = stayVal('sf-override-reason');
+  if (warnings.length && !overrideReason) {
+    const box = document.getElementById('sf-warnings');
+    const list = document.getElementById('sf-warning-list');
+    if (list) list.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+    if (box) box.style.display = '';
+    showToast('확인이 필요한 항목이 있습니다. 사유를 입력하면 저장할 수 있습니다.', 'warning');
+    return;
+  }
+
+  if (existing) {
+    if (existing.departDate !== draft.departDate || existing.arriveDate !== draft.arriveDate) {
+      addStayChangeLog(s, '항공 일정', `${stayLabelOf(STAY_FLIGHT_KINDS, existing.kind)} 일자`, `${existing.departDate || '-'} → ${existing.arriveDate || '-'}`, `${draft.departDate || '-'} → ${draft.arriveDate || '-'}`, overrideReason);
+    }
+    if (existing.eticketCheck !== draft.eticketCheck) addStayChangeLog(s, '항공 일정', 'E-티켓 확인', stayLabelOf(STAY_ETICKET_STATUSES, existing.eticketCheck), stayLabelOf(STAY_ETICKET_STATUSES, draft.eticketCheck));
+    if ((existing.ticketFile || '') !== draft.ticketFile) addStayChangeLog(s, '항공 일정', 'E-티켓 첨부', existing.ticketFile || '미첨부', draft.ticketFile || '미첨부', '항공 일정에서 첨부');
+    Object.assign(existing, draft);
+  } else {
+    const nextId = s.flightSchedules.reduce((max, f) => Math.max(max, f.id || 0), 0) + 1;
+    s.flightSchedules.push({ id: nextId, ...draft });
+    addStayChangeLog(s, '항공 일정', `${stayLabelOf(STAY_FLIGHT_KINDS, draft.kind)} 등록`, '-', `${draft.departDate || draft.arriveDate} ${draft.flightNo || ''}`.trim(), overrideReason);
+  }
+  syncStudentFlightSummary(s);
+  closeStayFlightEditor();
+  rerenderStaySection();
+  showStaySectionSaved('stay-flight-saved', existing ? '항공 일정을 수정했습니다.' : '항공 일정을 추가했습니다.');
+  showToast(existing ? '항공 일정을 수정했습니다.' : '항공 일정을 추가했습니다.', 'success');
+}
+
+// 취소된 일정은 지우지 않고 상태만 바꿔 남긴다(§5).
+function cancelStayFlight(flightId) {
+  const s = currentStayStudent();
+  if (!s) return;
+  const item = s.flightSchedules.find(f => f.id === flightId);
+  if (!item) return;
+  const reason = window.prompt('일정 취소 사유를 입력하세요.', '');
+  if (reason === null) return;
+  const before = stayLabelOf(STAY_FLIGHT_STATUSES, item.status);
+  item.status = 'cancelled';
+  addStayChangeLog(s, '항공 일정', `${stayLabelOf(STAY_FLIGHT_KINDS, item.kind)} 취소`, before, '취소', reason.trim());
+  syncStudentFlightSummary(s);
+  rerenderStaySection();
+  showStaySectionSaved('stay-flight-saved', '항공 일정을 취소 처리했습니다.');
+}
+
+/* ── 변경 이력 (§10) ──────────────────────────────── */
+function openStayChangeLog() {
+  const s = currentStayStudent();
+  if (!s) return;
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
+  const rows = (s.stayChangeLog || []).map(log => `<tr>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;white-space:nowrap">${esc(log.at)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;white-space:nowrap">${esc(log.category)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px">${esc(log.field)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;color:#9CA3AF">${esc(log.before)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;font-weight:700">${esc(log.after)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;white-space:nowrap">${esc(log.by)}</td>
+    <td style="padding:7px;border-bottom:1px solid #F1F4F9;font-size:10.5px;color:#6B7280">${esc(log.reason || '-')}</td>
+  </tr>`).join('');
+  let modal = document.getElementById('stay-log-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'stay-log-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="tsa-modal-backdrop" onclick="closeStayChangeLog()">
+      <div class="tsa-modal" style="max-width:900px" onclick="event.stopPropagation()">
+        <div class="tsa-modal-header">
+          <div>
+            <h3 class="tsa-modal-title">${esc(s.nick || s.name)} 출입국·체류 변경 이력</h3>
+            <p class="tsa-modal-subtitle">번호 항목은 마스킹된 값으로 기록됩니다.</p>
+          </div>
+          <button class="tsa-modal-close" onclick="closeStayChangeLog()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="tsa-modal-body" style="max-height:66vh;overflow:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:660px">
+            <thead><tr style="background:#F8F9FC">
+              ${['처리일시', '정보 종류', '항목', '변경 전', '변경 후', '처리자', '사유'].map(h => `<th style="padding:7px;text-align:left;font-size:10.5px;font-weight:800;color:#4B5563;border-bottom:1px solid #E5E7EB;white-space:nowrap">${h}</th>`).join('')}
+            </tr></thead>
+            <tbody>${rows || '<tr><td colspan="7" style="padding:26px;text-align:center;color:#9CA3AF;font-size:11px">기록된 변경 이력이 없습니다.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeStayChangeLog()">닫기</button></div>
+      </div>
+    </div>`;
+  modal.style.display = '';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
+function closeStayChangeLog() {
+  const modal = document.getElementById('stay-log-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 function openAgencyRequiredFilePreview(type, encodedFileName) {

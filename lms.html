@@ -1571,23 +1571,11 @@
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
         <a class="tsa-nav-item admin-only" id="menu-student-class-assign" onclick="navigate('student-class-assign')">
           <i data-lucide="user-check"></i>
-          학생 수업 배정 관리
-        </a>
-        <a class="tsa-nav-item admin-only" id="menu-class-schedule" onclick="navigate('class-schedule')">
-          <i data-lucide="calendar-check"></i>
-          1:1 수업 관리
-        </a>
-        <a class="tsa-nav-item admin-only" id="menu-group-management" onclick="navigate('group-management')">
-          <i data-lucide="users-round"></i>
-          그룹 수업 관리
+          수업 편성 및 배정 관리
         </a>
         <a class="tsa-nav-item admin-only" id="menu-classroom-manage" onclick="navigate('classroom-manage')">
           <i data-lucide="building-2"></i>
           강의실 관리
-        </a>
-        <a class="tsa-nav-item admin-only" id="menu-timetable-status" onclick="navigate('timetable-status')">
-          <i data-lucide="calendar-range"></i>
-          시간표 현황
         </a>
       </div>
       <a class="tsa-nav-item admin-only" id="menu-students" onclick="navigate('students')">
@@ -1601,7 +1589,7 @@
 
       <a class="tsa-nav-item admin-only" id="menu-course-pricing" onclick="navigate('course-pricing')">
         <i data-lucide="settings-2"></i>
-        교육 과정 및 과목 레벨 설정
+        과정 및 수업 기준 설정
       </a>
       <a class="tsa-nav-item admin-only" id="menu-tuition-config" onclick="navigate('tuition-config')">
         <i data-lucide="receipt-text"></i>
@@ -1681,6 +1669,10 @@
       <a class="tsa-nav-item admin-only" id="menu-agency-map" onclick="navigate('agency-map')">
         <i data-lucide="map"></i>
         에이전시 맵
+      </a>
+      <a class="tsa-nav-item admin-only" id="menu-passport-access-log" onclick="navigate('passport-access-log')">
+        <i data-lucide="shield-check"></i>
+        여권번호 조회 기록
       </a>
       <a class="tsa-nav-item admin-only" id="menu-admin-invoice" onclick="navigate('agency-invoice')">
         <i data-lucide="trending-up"></i>
@@ -3153,23 +3145,23 @@
         <div id="view-course-pricing" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">📚 교육 과정 및 과목 레벨 설정</h2>
-              <p class="tsa-page-subtitle">수강 과정 관리 · 커리큘럼 및 과목·레벨 설정</p>
+              <h2 class="tsa-page-title">📚 과정 및 수업 기준 설정</h2>
+              <p class="tsa-page-subtitle">과정별 교시 구성과 수업 운영에 필요한 기준을 설정합니다.</p>
             </div>
           </div>
 
           <!-- 서브 탭 네비게이션 -->
           <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 커리큘럼 구성</div>
-            <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목 레벨 수업 유형 설정</div>
-            <div class="tsa-tab" onclick="switchCoursePricingTab('period', this)">공통 교시 설정</div>
+            <div class="tsa-tab active" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 교시 템플릿</div>
+            <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목·레벨·수업 유형</div>
+            <div class="tsa-tab" onclick="switchCoursePricingTab('period', this)">교시 시간 설정</div>
           </div>
 
-          <!-- [탭 B] 수강 과정 및 커리큘럼 구성 -->
+          <!-- [탭 B] 수강 과정 및 교시 템플릿 -->
           <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 및 커리큘럼 목록</h3>
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 및 교시 템플릿 목록</h3>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
                   <i data-lucide="plus-square"></i> 신규 과정 추가
                 </button>
@@ -3268,7 +3260,7 @@
             </div>
           </div>
 
-          <!-- 공통 교시 설정 패널이 기존 기능과 ID를 유지한 채 이 위치로 이동된다. -->
+          <!-- 교시 시간 설정 패널이 기존 기능과 ID를 유지한 채 이 위치로 이동된다. -->
           <div id="course-pricing-tab-period" class="course-pricing-tab-content" style="display:none"></div>
         </div>
 
@@ -3427,8 +3419,8 @@
         <div id="view-student-class-assign" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
-              <h2 class="tsa-page-title">🧑‍🎓 학생 수업 배정 관리</h2>
-              <p class="tsa-page-subtitle">학생별 1:1·그룹 수업 배정 현황을 한 화면에서 확인하고 배정하거나 변경해.</p>
+              <h2 class="tsa-page-title">🧑‍🎓 수업 편성 및 배정 관리</h2>
+              <p class="tsa-page-subtitle">학생별 수업 배정과 그룹 수업 편성 현황을 확인하고 관리합니다.</p>
             </div>
             <div id="sca-group-actions" style="display:none;gap:8px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
@@ -3438,7 +3430,7 @@
 
           <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
             <button id="sca-tab-students" onclick="switchStudentClassAssignTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 수업 배정</button>
-            <button id="sca-tab-groups" onclick="switchStudentClassAssignTab('groups')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 수업 편성 관리</button>
+            <button id="sca-tab-groups" onclick="switchStudentClassAssignTab('groups')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 수업 편성</button>
           </div>
 
           <div id="sca-panel-students">
@@ -3446,7 +3438,7 @@
               <div class="tsa-card-header">
                 <div>
                   <h3 class="tsa-card-title">📋 학생별 수업 배정 현황</h3>
-                  <div style="font-size:11px;color:#6B7280">학생마다 1:1 배정과 그룹 배정을 각각 한 줄씩, 총 2행으로 보여줘.</div>
+                  <div style="font-size:11px;color:#6B7280">학생별 과정에 필요한 1:1 및 그룹 수업의 배정 현황을 확인합니다.</div>
                 </div>
               </div>
               <div class="sca-student-table-scroll">
@@ -3709,7 +3701,6 @@
               <tbody id="cs-rooms-tbody"></tbody>
             </table>
           </div>
-          <div id="cs-group-room-schedule" style="display:none;margin-top:16px"></div>
         </div>
 
         <!-- ================================================ -->
@@ -3741,13 +3732,13 @@
             <div id="cs-final-timetable-body"></div>
           </div>
 
-          <!-- [탭] 공통 교시 설정 -->
+          <!-- [탭] 교시 시간 설정 -->
           <div id="bell-settings-panel" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
               <!-- Left: Settings Card -->
               <div class="tsa-card">
                 <div class="tsa-card-header" style="background:#F0F1FE">
-                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 공통 교시 설정</h3>
+                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 교시 시간 설정</h3>
                 </div>
                 <div class="tsa-card-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
                   <div class="tsa-form-group">
@@ -4060,6 +4051,59 @@
                 <tfoot id="month-stats-tfoot"></tfoot>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: PASSPORT ACCESS LOG                        -->
+        <!-- ================================================ -->
+        <div id="view-passport-access-log" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">🛡️ 여권번호 조회 기록</h2>
+              <p class="tsa-page-subtitle">학생 여권번호를 열람하거나 수정 화면을 연 접속 기록입니다.</p>
+            </div>
+          </div>
+          <div class="tsa-card" style="margin-bottom:16px">
+            <div class="tsa-card-body" style="padding:14px">
+              <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+                <div class="tsa-form-group" style="margin:0;min-width:220px;flex:1">
+                  <label class="tsa-label">학생 검색</label>
+                  <input id="pal-search" type="search" class="tsa-input" placeholder="학생 이름 또는 이메일 검색" oninput="renderPassportAccessLogView()"/>
+                </div>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="resetPassportAccessLogFilter()">필터 초기화</button>
+              </div>
+              <!-- 학생 상세의 [조회 리스트]로 들어오면 해당 학생만 보이도록 걸리는 필터 -->
+              <div id="pal-student-chip" style="display:none;align-items:center;gap:8px;margin-top:10px;padding:7px 11px;border-radius:999px;background:#EEF2FF;border:1px solid #C7D2FE;width:fit-content">
+                <span style="font-size:11px;font-weight:700;color:#4338CA" id="pal-student-chip-label"></span>
+                <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="padding:2px 8px;font-size:10px" onclick="resetPassportAccessLogFilter()">필터 해제</button>
+              </div>
+            </div>
+          </div>
+          <div class="tsa-card">
+            <div class="tsa-card-header">
+              <div>
+                <h3 class="tsa-card-title">📋 조회 기록</h3>
+                <div style="font-size:11px;color:#6B7280" id="pal-count">-</div>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tsa-table">
+                <thead>
+                  <tr>
+                    <th>학생</th>
+                    <th>식별자</th>
+                    <th>접속일시</th>
+                    <th>IP 주소</th>
+                    <th>수행업무</th>
+                  </tr>
+                </thead>
+                <tbody id="pal-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div style="margin-top:12px;padding:10px 12px;border-radius:9px;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:10.5px;line-height:1.55">
+            현재 프로토타입에는 테스트용 IP 주소가 표시됩니다. 실제 운영 환경에서는 서버에서 접속 IP와 계정을 자동으로 기록해야 합니다.
           </div>
         </div>
 
@@ -7008,13 +7052,13 @@
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script src="assets/js/lms-data.js?v=0.6.10"></script>
-<script src="assets/js/lms-util.js?v=0.6.2"></script>
+<script src="assets/js/lms-util.js?v=0.6.4"></script>
 <script src="assets/js/lms-auth.js?v=0.6.1"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.6"></script>
 <script src="assets/js/lms-student.js?v=0.6.6"></script>
-    <script src="assets/js/lms-course.js?v=0.6.48"></script>
+    <script src="assets/js/lms-course.js?v=0.6.61"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.11"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.110"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.114"></script>
     <script src="assets/js/lms-main.js?v=0.6.10"></script>
 <script>
   // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.

@@ -3205,7 +3205,37 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeStudentPopupMode();
   initializeStudentRegisterPopupMode();
   initializeTeacherDetailPopupMode();
+  initializePassportAccessLogMode();
 });
+
+// 학생 상세 팝업의 [조회 리스트]에서 넘어오는 창. 학생 파라미터를 필터에 적용한 뒤
+// '여권번호 조회 기록' 메뉴를 바로 띄운다.
+function initializePassportAccessLogMode() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('passportLog')) return;
+  const studentId = parseInt(params.get('passportLog'), 10);
+
+  if (window.opener && !window.opener.closed) {
+    try {
+      const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
+      syncArray(MOCK_STUDENTS, window.opener.MOCK_STUDENTS);
+    } catch (e) { /* 다른 오리진이면 기본 mock 데이터로 진행 */ }
+  }
+
+  APP.user = 'super_admin';
+  if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
+  if (typeof applyRoleUI === 'function') applyRoleUI();
+  const login = document.getElementById('login-screen');
+  const app = document.getElementById('app-layout');
+  if (login) login.style.display = 'none';
+  if (app) app.style.display = 'block';
+  navigate('passport-access-log');
+  if (Number.isFinite(studentId) && typeof initPassportAccessLogView === 'function') {
+    initPassportAccessLogView(studentId);
+  }
+  document.title = '여권번호 조회 기록';
+  setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
+}
 
 function initializeStudentPopupMode() {
   const params = new URLSearchParams(window.location.search);
