@@ -18,6 +18,7 @@ const VIEW_MAP = {
   'passport-access-log': { el: 'view-passport-access-log', menu: 'menu-passport-access-log', label: '여권번호 조회 기록', sec: '관리' },
   'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
   'agency-map': { el: 'view-agency-map', menu: 'menu-agency-map', label: '에이전시 맵', sec: '관리' },
+  'partnership-inquiries': { el: 'view-partnership-inquiries', menu: 'menu-partnership-inquiries', label: '에이전시 제휴 문의', sec: '관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
   'agency-students': { el: 'view-agency-students', menu: 'menu-agency-students', label: '학생 관리', sec: '에이전시' },
   'agency-student-detail': { el: 'view-agency-student-detail', menu: 'menu-agency-students', label: '학생 상세', sec: '에이전시' },
@@ -136,6 +137,8 @@ function navigate(view) {
     renderAgencyManage();
   } else if (view === 'agency-map') {
     if (typeof renderAgencyMap === 'function') renderAgencyMap();
+  } else if (view === 'partnership-inquiries') {
+    if (typeof renderPartnershipInquiries === 'function') renderPartnershipInquiries();
   } else if (view === 'global-dashboard') {
     if (typeof initGlobalDashboard === 'function') initGlobalDashboard();
   } else if (view === 'teacher-dashboard') {
@@ -512,7 +515,8 @@ function handleAregDobChange() {
 }
 
 // Room Change Split Billing Implementation
-function openDormRoomChangeModal() {
+// presetStudentId를 주면(예: Room 상세 모달의 입실 현황에서 특정 학생의 "이동" 버튼) 그 학생을 미리 선택해서 연다.
+function openDormRoomChangeModal(presetStudentId) {
   const selectStudent = document.getElementById('rc-student-select');
   const selectNewRoom = document.getElementById('rc-new-room-select');
   if (!selectStudent || !selectNewRoom) return;
@@ -531,6 +535,9 @@ function openDormRoomChangeModal() {
     selectStudent.innerHTML = `<option value="">방 이동 가능한 학생 없음</option>`;
   } else {
     selectStudent.innerHTML = residentStudents.map(s => `<option value="${s.id}">${s.nick} (${s.name})</option>`).join('');
+  }
+  if (presetStudentId && residentStudents.some(s => s.id === presetStudentId)) {
+    selectStudent.value = String(presetStudentId);
   }
 
   const emptyBeds = [];

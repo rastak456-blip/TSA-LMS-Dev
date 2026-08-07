@@ -1946,7 +1946,6 @@ function saveStudentCourseRegistration() {
     totalGross,
     status,
     paymentStatus: payment,
-    courseMode,
     remittanceRoute,
     memo,
     flightInfo: {
@@ -1963,7 +1962,6 @@ function saveStudentCourseRegistration() {
 
   student.course = course;
   student.status = status;
-  student.courseMode = courseMode;
   student.courseSegments = segments;
   student.startDate = startDate;
   student.duration = duration;
@@ -3317,8 +3315,11 @@ function renderAgencyStudentEnrollmentHub() {
             const selected = String(e.id) === String(currentAdetailEnrollmentId);
             return `
             <button type="button" onclick="selectAgencyStudentEnrollment('${e.id}')" style="width:100%;padding:12px;border-radius:10px;border:1px solid ${selected ? '#C7D2FE' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};text-align:left;cursor:pointer;font-family:inherit">
-              <div style="font-size:12.5px;font-weight:800;color:#111827">${e.course}</div>
-              <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)} · ${e.duration}주</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:9.5px;font-weight:800;color:#5E5CE6;background:#EEF2FF;border-radius:999px;padding:1px 7px;white-space:nowrap">${e.sessionNumber}차 수강</span>
+                <div style="font-size:12.5px;font-weight:800;color:#111827">${e.course}</div>
+              </div>
+              <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)} · ${e.duration}주${e.segments && e.segments.length > 1 ? ` · ${e.segments.length}개 구간` : ''}</div>
               <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
                 <span class="tsa-badge ${e.status === 'current' ? 'tsa-badge-success' : e.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(e.status)}</span>
                 ${selected ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
@@ -3327,7 +3328,7 @@ function renderAgencyStudentEnrollmentHub() {
           }).join('')}
         </div>
         <div style="margin-top:12px;font-size:11px;color:#6B7280;line-height:1.5">
-          코스 등록은 학생 리스트의 <b>코스 등록</b> 버튼에서 진행합니다.
+          코스 등록은 학생 리스트의 <b>코스 등록</b> 버튼에서 진행합니다. 등록 화면에서 <b>선택 구간 추가</b>로 넣은 코스는 같은 차수로 묶이고, <b>코스 등록</b> 버튼을 다시 눌러 저장할 때마다 새로운 차수가 생성됩니다.
         </div>
       </div>
 
@@ -3336,8 +3337,8 @@ function renderAgencyStudentEnrollmentHub() {
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="class" onclick="switchAgencyEnrollmentHubTab('class')">수강정보</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="dorm" onclick="switchAgencyEnrollmentHubTab('dorm')">기숙사</button>
           <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="flightdocs" onclick="switchAgencyEnrollmentHubTab('flightdocs')">입출국·비자 관리</button>
-          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산/입학서류관리</button>
-          ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="classlog" onclick="switchAgencyEnrollmentHubTab(\'classlog\')">수업 현황</button>' : ''}
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="settle" onclick="switchAgencyEnrollmentHubTab('settle')">정산</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="admdocs" onclick="switchAgencyEnrollmentHubTab('admdocs')">입학서류관리</button>
           ${currentAdetailPortal === 'admin' ? '<button class="tsa-btn tsa-btn-outline tsa-btn-sm enrollment-hub-tab" data-hub-tab="schedule" onclick="switchAgencyEnrollmentHubTab(\'schedule\')">스케줄</button>' : ''}
         </div>
         <div id="adetail-page-enrollment-content" style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff;min-height:420px"></div>
@@ -3345,7 +3346,7 @@ function renderAgencyStudentEnrollmentHub() {
     </div>
   `;
 
-  const availableTabs = ['class', 'classlog', 'schedule', 'flightdocs', 'dorm', 'settle'];
+  const availableTabs = ['class', 'schedule', 'flightdocs', 'dorm', 'settle', 'admdocs'];
   switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
 }
 
@@ -3369,7 +3370,10 @@ function getStudentEnrollmentSnapshots(s) {
     dormType: s.dormType,
     dormGrade: s.dormGrade,
   };
-  const saved = Array.isArray(s.enrollments) ? s.enrollments.map(enrollment => {
+  // enrollments[]는 학생 리스트의 "코스 등록" 버튼을 누를 때마다(unshift로) 새로 생기는 별도의 수강 등록
+  // 세션이다 — 한 번의 등록 안에서 "선택 구간 추가"로 넣은 코스들만 같은 세션의 segments로 묶인다.
+  // 오래된 순으로 1차·2차·3차… 번호를 매겨 직원이 "등록 버튼 = 새 세션"임을 화면에서 바로 알 수 있게 한다.
+  const saved = Array.isArray(s.enrollments) ? s.enrollments.map((enrollment, idx, arr) => {
     const dormParts = String(enrollment.dorm || '').split(' · ');
     return {
       ...enrollment,
@@ -3378,8 +3382,10 @@ function getStudentEnrollmentSnapshots(s) {
       dormAccomType: enrollment.dormAccomType || dormParts[0] || '',
       dormType: enrollment.dormType || parseInt(dormParts[1], 10) || null,
       dormGrade: enrollment.dormGrade || dormParts[2] || '',
+      sessionNumber: arr.length - idx,
     };
   }) : [];
+  current.sessionNumber = saved.length || 1;
   const history = saved.filter(e => !(e.course === current.course && e.startDate === current.startDate));
   return [current, ...history].slice(0, 4);
 }
@@ -3481,7 +3487,11 @@ function openCourseSegmentEditModal(studentId, index) {
   const segment = segments[index];
   if (!segment) return;
 
-  APP._segmentEditTarget = { studentId, index };
+  // 수정은 같은 과정의 기간만 바꾸는 용도라, 비교표에는 지금 구간의 과정만 보여준다(다른 과정으로
+  // 바꾸고 싶으면 삭제 후 "구간 추가"로 새로 넣는다).
+  APP._segmentEditTarget = { studentId, index, isNew: false, lockedCourse: segment.course || '' };
+  const titleEl = document.getElementById('course-segment-edit-title');
+  if (titleEl) titleEl.textContent = '수강 구간 수정';
 
   const courseEl = document.getElementById('seg-edit-course');
   if (courseEl) courseEl.value = segment.course || '';
@@ -3489,6 +3499,44 @@ function openCourseSegmentEditModal(studentId, index) {
   if (startEl) startEl.value = segment.startDate || '';
   const durationEl = document.getElementById('seg-edit-duration');
   if (durationEl) durationEl.value = String(segment.duration || 4);
+
+  renderSegmentEditCourseComparison();
+  renderSegmentEditRecommendedLevels();
+  previewCourseSegmentEdit();
+  document.getElementById('course-segment-edit-modal').style.display = 'flex';
+  document.getElementById('course-segment-edit-backdrop').style.display = 'block';
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
+}
+
+// 이미 저장된 등록(같은 차수) 안에서 체류를 이어가며 다른 과정으로 바꾸거나, 같은 과정을 다시 이어서
+// 듣는 경우를 위한 "구간 추가". 마지막 구간 종료일 다음날을 기본 시작일로 채워, 공백 없이 이어지는 게
+// 기본값이 되게 하되(같은 체류 안에서 코스만 바뀌는 것이므로) 직원이 원하면 날짜를 바꿀 수 있다.
+function openCourseSegmentAddModal(studentId) {
+  const baseStudent = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!baseStudent) return;
+  const segments = getEditableSegmentsArray(baseStudent);
+  const lastSegment = segments[segments.length - 1];
+
+  // 이미 이 등록(차수)에 들어있는 과정은 비교표에서 비활성화한다 — 같은 과정을 다시 쓰고 싶으면
+  // 새 구간을 추가하는 게 아니라 그 구간을 "수정"해서 기간을 늘리는 게 맞기 때문.
+  const usedCourses = segments.map(seg => seg.course).filter(Boolean);
+  APP._segmentEditTarget = { studentId, index: segments.length, isNew: true, usedCourses };
+  const titleEl = document.getElementById('course-segment-edit-title');
+  if (titleEl) titleEl.textContent = '수강 구간 추가';
+
+  let defaultStart = '';
+  if (lastSegment && lastSegment.endDate) {
+    const d = new Date(lastSegment.endDate);
+    d.setDate(d.getDate() + 1);
+    defaultStart = d.toISOString().split('T')[0];
+  }
+
+  const courseEl = document.getElementById('seg-edit-course');
+  if (courseEl) courseEl.value = '';
+  const startEl = document.getElementById('seg-edit-start');
+  if (startEl) startEl.value = defaultStart;
+  const durationEl = document.getElementById('seg-edit-duration');
+  if (durationEl) durationEl.value = '';
 
   renderSegmentEditCourseComparison();
   renderSegmentEditRecommendedLevels();
@@ -3510,7 +3558,16 @@ function renderSegmentEditCourseComparison() {
   const target = document.getElementById('seg-edit-compare-table');
   if (!target) return;
   const summary = document.getElementById('seg-edit-selection-summary');
-  const rows = typeof getCourseRegActiveCourses === 'function' ? getCourseRegActiveCourses() : [];
+  let rows = typeof getCourseRegActiveCourses === 'function' ? getCourseRegActiveCourses() : [];
+  // 수정 모드(같은 구간의 기간만 바꾸는 것)는 지금 구간의 과정 한 줄만 보여준다. 다른 과정으로 바꾸려면
+  // 삭제 후 "구간 추가"로 새로 넣는다 — 그 락 대상 과정이 목록에서 사라진 경우(비활성화 등)에는 전체를 보여준다.
+  const lockedCourse = APP._segmentEditTarget && !APP._segmentEditTarget.isNew ? APP._segmentEditTarget.lockedCourse : '';
+  if (lockedCourse) {
+    const lockedRows = rows.filter(row => row.course.name === lockedCourse);
+    if (lockedRows.length) rows = lockedRows;
+  }
+  // 구간 추가 모드에서는 이미 이 등록에 쓰인 과정을 비활성화한다(같은 과정을 더 듣고 싶으면 그 구간을 "수정"해서 기간을 늘리면 된다).
+  const usedCourses = APP._segmentEditTarget && APP._segmentEditTarget.isNew ? (APP._segmentEditTarget.usedCourses || []) : [];
   const selectedCourseName = document.getElementById('seg-edit-course')?.value || '';
   const selectedWeeks = parseInt(document.getElementById('seg-edit-duration')?.value, 10) || 0;
   const hasStartDate = Boolean(document.getElementById('seg-edit-start')?.value);
@@ -3532,22 +3589,27 @@ function renderSegmentEditCourseComparison() {
           <div style="padding:8px 5px;text-align:center;font-size:10.5px;font-weight:800;color:${selectedWeeks && weeks === selectedWeeks ? '#4338CA' : '#4B5563'};background:${selectedWeeks && weeks === selectedWeeks ? '#EEF2FF' : 'transparent'}">${weeks}주</div>
         `).join('')}
       </div>
-      ${rows.map(({ course, index }, rowIndex) => `
-        <div style="display:grid;grid-template-columns:150px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:#fff">
-          <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${selectedCourseName === course.name ? '#F8FAFF' : '#fff'}">
-            <b style="font-size:11px;color:#111827">${course.name}</b>
+      ${rows.map(({ course, index }, rowIndex) => {
+        const isUsed = usedCourses.includes(course.name);
+        return `
+        <div style="display:grid;grid-template-columns:150px repeat(${getCourseRegPeriods().length},minmax(72px,1fr));border-bottom:${rowIndex === rows.length - 1 ? '0' : '1px solid #EEF0F4'};background:${isUsed ? '#F9FAFB' : '#fff'}">
+          <div style="padding:8px 10px;display:flex;flex-direction:column;justify-content:center;background:${isUsed ? '#F9FAFB' : selectedCourseName === course.name ? '#F8FAFF' : '#fff'}">
+            <b style="font-size:11px;color:${isUsed ? '#9CA3AF' : '#111827'}">${course.name}</b>
+            ${isUsed ? '<span style="font-size:9.5px;color:#9CA3AF;margin-top:2px">이미 등록됨 · 기간은 수정에서 변경</span>' : ''}
           </div>
           ${getCourseRegPeriods().map(weeks => {
-            const active = hasStartDate && selectedCourseName === course.name && weeks === selectedWeeks;
+            const active = hasStartDate && !isUsed && selectedCourseName === course.name && weeks === selectedWeeks;
+            const clickable = hasStartDate && !isUsed;
             const amount = getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks);
             return `
-              <button type="button" onclick="selectSegmentEditOption(${index}, ${weeks})" aria-pressed="${active}" ${hasStartDate ? '' : 'disabled'} style="min-height:44px;padding:5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : hasStartDate ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : hasStartDate ? '#111827' : '#9CA3AF'};cursor:${hasStartDate ? 'pointer' : 'not-allowed'};font-family:inherit">
+              <button type="button" onclick="selectSegmentEditOption(${index}, ${weeks})" aria-pressed="${active}" ${clickable ? '' : 'disabled'} style="min-height:44px;padding:5px;border:0;border-left:1px solid #EEF0F4;background:${active ? '#4F46E5' : clickable ? '#fff' : '#F9FAFB'};color:${active ? '#fff' : clickable ? '#111827' : '#D1D5DB'};cursor:${clickable ? 'pointer' : 'not-allowed'};font-family:inherit">
                 <span style="display:block;font-size:11px;font-weight:900">${formatCourseRegMoney(amount)}</span>
               </button>
             `;
           }).join('')}
         </div>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
   `;
 }
@@ -3610,7 +3672,8 @@ function saveCourseSegmentEdit() {
   const baseStudent = MOCK_STUDENTS.find(std => std.id === target.studentId);
   if (!baseStudent) return;
   const segments = getEditableSegmentsArray(baseStudent);
-  const segment = segments[target.index];
+  const isNew = Boolean(target.isNew);
+  const segment = isNew ? {} : segments[target.index];
   if (!segment) return;
 
   const courseName = document.getElementById('seg-edit-course')?.value || '';
@@ -3620,6 +3683,15 @@ function saveCourseSegmentEdit() {
   if (!courseName || !startVal) {
     showToast('과정과 시작일을 입력해줘.', 'danger');
     return;
+  }
+
+  // 새 구간을 추가하는 경우, 같은 등록(체류) 안에서 이어지는 것이므로 직전 구간 종료일 이후여야 한다.
+  if (isNew) {
+    const previousSegment = segments[segments.length - 1];
+    if (previousSegment && previousSegment.endDate && startVal < previousSegment.endDate) {
+      showToast('새 구간은 이전 구간 종료일 이후에 시작해야 해.', 'warning');
+      return;
+    }
   }
 
   const courses = typeof MOCK_COURSES !== 'undefined' ? MOCK_COURSES : [];
@@ -3636,9 +3708,11 @@ function saveCourseSegmentEdit() {
   segment.recommendedLevels = recommendedLevels;
   segment.tuitionAmount = course ? getCourseRegPeriodFee(course.fee, course.tuitionPolicy, weeks) : segment.tuitionAmount;
 
+  if (isNew) segments.push(segment);
+
   syncStudentTopLevelFromSegments(baseStudent);
   closeCourseSegmentEditModal();
-  showToast('수강 구간이 수정되었습니다.', 'success');
+  showToast(isNew ? '수강 구간이 추가되었습니다.' : '수강 구간이 수정되었습니다.', 'success');
   refreshCourseSegmentTab();
 }
 
@@ -3852,15 +3926,9 @@ function switchAgencyEnrollmentHubTab(tab) {
   const container = document.getElementById('adetail-page-enrollment-content');
   if (!s || !container) return;
 
-  if (tab === 'classlog' && currentAdetailPortal === 'admin') {
-    APP.currentStudent = s;
-    APP._classLogContainerId = 'adetail-page-enrollment-content';
-    APP._classLogDate = APP._classLogDate || '2026-06-16';
-    renderStudentClassLogTab();
-  } else if (tab === 'schedule' && currentAdetailPortal === 'admin') {
-    container.innerHTML = typeof buildStudentWeeklyScheduleHtml === 'function'
-      ? buildStudentWeeklyScheduleHtml(s)
-      : '<div style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">스케줄을 불러올 수 없어.</div>';
+  if (tab === 'schedule' && currentAdetailPortal === 'admin') {
+    if (typeof renderStudentScheduleTab === 'function') renderStudentScheduleTab(s.id);
+    else container.innerHTML = '<div style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">스케줄을 불러올 수 없어.</div>';
   } else if (tab === 'flightdocs') {
     renderAgencyEnrollmentFlightDocs(s, container);
   } else if (tab === 'consultation') {
@@ -5320,7 +5388,10 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <div style="font-size:13px;font-weight:800;color:#111827">수강 구간</div>
-            <span style="font-size:10.5px;color:#6B7280">등록 당시 선택한 과정과 기간</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:10.5px;color:#6B7280">등록 당시 선택한 과정과 기간</span>
+              <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openCourseSegmentAddModal(${baseStudent.id})"><i data-lucide="plus" style="font-size:11px"></i> 구간 추가</button>
+            </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px">
             ${courseSegments.map((segment, index) => `
@@ -5401,18 +5472,12 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
 
           <div style="border-left:1px solid #CBD5E1;padding:0 0 0 18px;min-width:0">
-            <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">입학서류관리</div>
-            <div style="display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin-bottom:12px;overflow-x:auto" id="agency-inline-doc-tabs">
-              <button type="button" data-inline-doc-tab="invoice" onclick="renderAgencyInlineDocument(${s.id}, 'invoice')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공식 인보이스 (Invoice)</button>
-              <button type="button" data-inline-doc-tab="loa" onclick="renderAgencyInlineDocument(${s.id}, 'loa')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">입학 허가서 (LOA)</button>
-              <button type="button" data-inline-doc-tab="invitation" onclick="renderAgencyInlineDocument(${s.id}, 'invitation')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">초청장 (Invitation)</button>
-              <button type="button" data-inline-doc-tab="pickup" onclick="renderAgencyInlineDocument(${s.id}, 'pickup')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공항 픽업 확인서</button>
-            </div>
+            <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">공식 인보이스 (Invoice)</div>
             <div style="height:520px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
               <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, APP.selectedInvoiceTab || 'invoice')">크게 보기</button>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">크게 보기</button>
               <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
             </div>
           </div>
@@ -5782,6 +5847,25 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
         </div>
         `}
       </div>`;
+  } else if (tab === 'admdocs') {
+    html = `
+      <div style="padding:8px 0">
+        <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:4px">입학서류관리</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:12px">입학 허가서·초청장·공항 픽업 확인서를 확인하고 인쇄합니다. 공식 송금 인보이스는 정산 탭에서 확인합니다.</div>
+        <div style="display:flex;gap:4px;border-bottom:1px solid #E5E7EB;margin-bottom:12px;overflow-x:auto" id="agency-inline-doc-tabs">
+          <button type="button" data-inline-doc-tab="loa" onclick="renderAgencyInlineDocument(${s.id}, 'loa')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">입학 허가서 (LOA)</button>
+          <button type="button" data-inline-doc-tab="invitation" onclick="renderAgencyInlineDocument(${s.id}, 'invitation')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">초청장 (Invitation)</button>
+          <button type="button" data-inline-doc-tab="pickup" onclick="renderAgencyInlineDocument(${s.id}, 'pickup')" style="border:0;background:none;padding:8px 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer">공항 픽업 확인서</button>
+        </div>
+        <div style="height:560px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
+          <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, APP.selectedInvoiceTab && APP.selectedInvoiceTab !== 'invoice' ? APP.selectedInvoiceTab : 'loa')">크게 보기</button>
+          <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
+        </div>
+      </div>
+    `;
   }
 
   container.innerHTML = html;
@@ -5791,6 +5875,9 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   if (tab === 'settle') {
     setTimeout(() => renderAgencyInlineDocument(s.id, 'invoice'), 0);
     setTimeout(() => { if (typeof renderRemitItemChecklist === 'function') renderRemitItemChecklist(s.id); }, 0);
+  }
+  if (tab === 'admdocs') {
+    setTimeout(() => renderAgencyInlineDocument(s.id, 'loa'), 0);
   }
 }
 
@@ -6278,6 +6365,7 @@ function openAgencyDocumentsInline(id, tab = 'invoice') {
     total: s.fees.reduce((sum, f) => sum + f.amount, 0),
     branch: s.branch || '강남지사'
   };
+  APP._invoiceDocStudentId = id;
 
   switchInvoiceTab(tab);
   openModal('agency-invoice-modal');
@@ -6295,7 +6383,24 @@ function setSelectedInvoiceStudent(id) {
     total: s.fees.reduce((sum, fee) => sum + fee.amount, 0),
     branch: s.branch || '강남지사'
   };
+  APP._invoiceDocStudentId = id;
   return s;
+}
+
+// LOA·초청장처럼 여권번호 원문이 들어가는 서류를 인쇄할 때 호출한다.
+// 화면 미리보기는 항상 마스킹 상태를 유지하고, 인쇄 시점에만 원문을 노출하면서
+// 누가 언제 열람했는지 학생의 여권번호 조회 기록에 남긴다.
+function logPassportDocumentPrint(studentId, docLabel) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  if (!Array.isArray(s.passportAccessLogs)) s.passportAccessLogs = [];
+  s.passportAccessLogs.unshift({
+    id: Date.now(),
+    identifier: `${stayCurrentActor()} (${APP?.user || 'admin'})`,
+    accessedAt: stayNowStamp(),
+    ipAddress: '192.168.10.24',
+    task: `${docLabel} 인쇄 - 여권번호 원문 노출`
+  });
 }
 
 function renderAgencyInlineDocument(id, tab = 'invoice') {
@@ -6321,12 +6426,30 @@ function renderAgencyInlineDocument(id, tab = 'invoice') {
 function printAgencyInlineDocument() {
   const content = document.getElementById('agency-inline-doc-content');
   if (!content) return;
+  const tab = APP.selectedInvoiceTab;
+  const studentId = APP._invoiceDocStudentId;
+  const needsReveal = (tab === 'loa' || tab === 'invitation') && studentId != null;
+  let printHtml = content.innerHTML;
+  if (needsReveal) {
+    APP._invoiceRevealPassport = true;
+    switchInvoiceTab(tab);
+    const revealedSource = document.getElementById('invoice-modal-content');
+    if (revealedSource) {
+      printHtml = revealedSource.innerHTML;
+      content.innerHTML = revealedSource.innerHTML;
+    }
+    APP._invoiceRevealPassport = false;
+    switchInvoiceTab(tab);
+    const maskedSource = document.getElementById('invoice-modal-content');
+    if (maskedSource) content.innerHTML = maskedSource.innerHTML;
+    logPassportDocumentPrint(studentId, tab === 'loa' ? '입학 허가서(LOA)' : '초청장(Invitation)');
+  }
   const printWindow = window.open('', '_blank', 'width=960,height=900');
   if (!printWindow) {
     showToast('인쇄 창을 열 수 없어. 브라우저 팝업 허용을 확인해줘.', 'warning');
     return;
   }
-  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TalkStation Academy Document</title><style>body{margin:0;padding:24px;font-family:Pretendard,Arial,sans-serif;color:#111827;background:#fff}*{box-sizing:border-box}@media print{body{padding:0}}</style></head><body>${content.innerHTML}</body></html>`);
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>TalkStation Academy Document</title><style>body{margin:0;padding:24px;font-family:Pretendard,Arial,sans-serif;color:#111827;background:#fff}*{box-sizing:border-box}@media print{body{padding:0}}</style></head><body>${printHtml}</body></html>`);
   printWindow.document.close();
   printWindow.focus();
   setTimeout(() => printWindow.print(), 200);
@@ -7263,7 +7386,7 @@ function switchInvoiceTab(tab) {
           </div>
           <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11.5px">
             <div><strong>Full Name:</strong> ${std.name}</div>
-            <div><strong>Passport No:</strong> ${maskPassportNumber(std.passportNum, 'N/A')}</div>
+            <div><strong>Passport No:</strong> ${APP._invoiceRevealPassport ? (std.passportNum || 'N/A') : maskPassportNumber(std.passportNum, 'N/A')}</div>
             <div><strong>Date of Birth:</strong> 2002-05-15 (Age: ${std.age})</div>
             <div><strong>Nationality:</strong> ${std.nationality}</div>
             <div><strong>Course Program:</strong> ${std.course}</div>
@@ -7303,7 +7426,7 @@ function switchInvoiceTab(tab) {
             <tr><th style="width:34%;text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Name</th><td style="padding:10px 12px;border:1px solid #CBD5E1;font-weight:700">${std.name}</td></tr>
             <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Gender</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.gender === '남' ? 'Male' : std.gender === '여' ? 'Female' : std.gender || 'N/A'}</td></tr>
             <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Date of Birth</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${invitationBirthDate}</td></tr>
-            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Passport Number</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.passportNum || 'N/A'}</td></tr>
+            <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Passport Number</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${APP._invoiceRevealPassport ? (std.passportNum || 'N/A') : maskPassportNumber(std.passportNum, 'N/A')}</td></tr>
             <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Course Program</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.course}</td></tr>
             <tr><th style="text-align:left;padding:10px 12px;background:#F1F5F9;border:1px solid #CBD5E1">Study Period</th><td style="padding:10px 12px;border:1px solid #CBD5E1">${std.startDate || 'N/A'} to ${invitationEndDate}</td></tr>
           </tbody>
@@ -7364,7 +7487,23 @@ function switchInvoiceTab(tab) {
 }
 
 function printInvoiceDocument() {
-  window.print();
+  const tab = APP.selectedInvoiceTab;
+  const studentId = APP._invoiceDocStudentId;
+  const needsReveal = (tab === 'loa' || tab === 'invitation') && studentId != null;
+  if (!needsReveal) {
+    window.print();
+    return;
+  }
+  APP._invoiceRevealPassport = true;
+  switchInvoiceTab(tab);
+  logPassportDocumentPrint(studentId, tab === 'loa' ? '입학 허가서(LOA)' : '초청장(Invitation)');
+  const restoreMask = () => {
+    APP._invoiceRevealPassport = false;
+    switchInvoiceTab(tab);
+    window.removeEventListener('afterprint', restoreMask);
+  };
+  window.addEventListener('afterprint', restoreMask);
+  setTimeout(() => window.print(), 50);
 }
 
 // 어드민 전용 에이전시 업무 처리 함
@@ -8784,4 +8923,172 @@ function createNewBranch() {
     · 어드민 계정, 사이드바 메뉴, 데이터 격리 자동 생성 완료
   `;
   showToast(`신규 지점 "${name}" 생성 완료 — 라우팅: /${code}/admin/`, 'success');
+}
+
+/* =============================================
+   PARTNERSHIP INQUIRIES (에이전시 제휴 문의)
+   ============================================= */
+let _piStatusFilter = 'all';
+let _piExpandedId = null;
+
+function openPartnershipInquiryModal() {
+  ['pi-agency-name', 'pi-contact-name', 'pi-phone', 'pi-email', 'pi-message'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const countryEl = document.getElementById('pi-country');
+  if (countryEl) countryEl.value = '';
+  openModal('modal-partnership-inquiry');
+}
+
+function submitPartnershipInquiry() {
+  const agencyName = document.getElementById('pi-agency-name').value.trim();
+  const contactName = document.getElementById('pi-contact-name').value.trim();
+  const country = document.getElementById('pi-country').value;
+  const phone = document.getElementById('pi-phone').value.trim();
+  const email = document.getElementById('pi-email').value.trim();
+  const message = document.getElementById('pi-message').value.trim();
+
+  if (!agencyName) { showToast('회사명을 입력해 주세요.', 'danger'); return; }
+  if (!contactName) { showToast('담당자 성함을 입력해 주세요.', 'danger'); return; }
+  if (!country) { showToast('국가를 선택해 주세요.', 'danger'); return; }
+  if (!email) { showToast('이메일을 입력해 주세요.', 'danger'); return; }
+
+  const nextId = MOCK_PARTNERSHIP_INQUIRIES.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+  MOCK_PARTNERSHIP_INQUIRIES.unshift({
+    id: nextId, agencyName, contactName, country, phone, email, message,
+    submittedAt: stayNowStamp(), status: 'new', partnerRegistered: false, notes: []
+  });
+
+  closeModal('modal-partnership-inquiry');
+  _piStatusFilter = 'all';
+  renderPartnershipInquiries();
+  showToast(`✓ ${agencyName} 제휴 문의가 등록되었습니다.`, 'success');
+}
+
+function setPartnershipInquiryFilter(status) {
+  _piStatusFilter = status;
+  renderPartnershipInquiries();
+}
+
+function updatePartnershipInquiryStatus(id, status) {
+  const inquiry = MOCK_PARTNERSHIP_INQUIRIES.find(p => p.id === id);
+  if (!inquiry) return;
+  inquiry.status = status;
+  renderPartnershipInquiries();
+  showToast('문의 상태가 변경되었습니다.', 'success');
+}
+
+function togglePartnershipRegistration(id) {
+  const inquiry = MOCK_PARTNERSHIP_INQUIRIES.find(p => p.id === id);
+  if (!inquiry) return;
+  inquiry.partnerRegistered = !inquiry.partnerRegistered;
+  renderPartnershipInquiries();
+  showToast(inquiry.partnerRegistered ? `✓ ${inquiry.agencyName} 제휴 등록 처리되었습니다.` : `${inquiry.agencyName} 제휴 등록이 취소되었습니다.`, 'success');
+}
+
+function togglePartnershipInquiryNotes(id) {
+  _piExpandedId = _piExpandedId === id ? null : id;
+  renderPartnershipInquiries();
+}
+
+function addPartnershipInquiryNote(id) {
+  const inquiry = MOCK_PARTNERSHIP_INQUIRIES.find(p => p.id === id);
+  if (!inquiry) return;
+  const input = document.getElementById(`pi-note-input-${id}`);
+  const text = input ? input.value.trim() : '';
+  if (!text) { showToast('메모 내용을 입력해 주세요.', 'danger'); return; }
+
+  if (!Array.isArray(inquiry.notes)) inquiry.notes = [];
+  const nextNoteId = inquiry.notes.reduce((max, n) => Math.max(max, n.id), 0) + 1;
+  inquiry.notes.push({ id: nextNoteId, text, author: stayCurrentActor(), at: stayNowStamp() });
+
+  _piExpandedId = id;
+  renderPartnershipInquiries();
+  showToast('답변 메모가 저장되었습니다.', 'success');
+}
+
+function renderPartnershipInquiries() {
+  const tbody = document.getElementById('pi-tbody');
+  if (!tbody) return;
+
+  ['all', 'new', 'contacted', 'closed'].forEach(status => {
+    const btn = document.getElementById(`pi-filter-${status}`);
+    if (!btn) return;
+    btn.classList.toggle('tsa-btn-primary', _piStatusFilter === status);
+    btn.classList.toggle('tsa-btn-outline', _piStatusFilter !== status);
+  });
+
+  const statusMeta = {
+    new: { label: '신규', badge: 'tsa-badge-warning' },
+    contacted: { label: '응대중', badge: 'tsa-badge-info' },
+    closed: { label: '완료', badge: 'tsa-badge-success' }
+  };
+
+  const filtered = MOCK_PARTNERSHIP_INQUIRIES
+    .filter(p => _piStatusFilter === 'all' || p.status === _piStatusFilter)
+    .sort((a, b) => String(b.submittedAt || '').localeCompare(String(a.submittedAt || '')));
+
+  const countEl = document.getElementById('pi-count');
+  if (countEl) countEl.textContent = `${filtered.length}건${_piStatusFilter !== 'all' ? ` · ${statusMeta[_piStatusFilter].label}` : ''} (전체 ${MOCK_PARTNERSHIP_INQUIRIES.length}건)`;
+
+  tbody.innerHTML = filtered.map(p => {
+    const meta = statusMeta[p.status] || statusMeta.new;
+    const notes = Array.isArray(p.notes) ? p.notes : [];
+    const isExpanded = _piExpandedId === p.id;
+    const row = `<tr>
+    <td style="font-size:11px">
+      <b>${lessonEsc(p.agencyName)}</b>
+      <div style="font-size:10px;color:#9CA3AF">${lessonEsc(p.contactName)}</div>
+    </td>
+    <td style="font-size:11px">${lessonEsc(p.country)}</td>
+    <td style="font-size:11px">
+      <div>${lessonEsc(p.email)}</div>
+      ${p.phone ? `<div style="font-size:10px;color:#9CA3AF">${lessonEsc(p.phone)}</div>` : ''}
+    </td>
+    <td style="font-size:11px;max-width:260px;white-space:pre-wrap">${lessonEsc(p.message || '-')}</td>
+    <td style="font-size:11px;white-space:nowrap">${lessonEsc(p.submittedAt)}</td>
+    <td style="font-size:11px">
+      <select class="tsa-input" style="padding:4px 6px;font-size:11px" onchange="updatePartnershipInquiryStatus(${p.id}, this.value)">
+        <option value="new" ${p.status === 'new' ? 'selected' : ''}>신규</option>
+        <option value="contacted" ${p.status === 'contacted' ? 'selected' : ''}>응대중</option>
+        <option value="closed" ${p.status === 'closed' ? 'selected' : ''}>완료</option>
+      </select>
+      <span class="tsa-badge ${meta.badge}" style="display:block;margin-top:4px;text-align:center">${meta.label}</span>
+    </td>
+    <td style="font-size:11px;text-align:center">
+      ${p.partnerRegistered
+        ? `<span class="tsa-badge tsa-badge-success" style="cursor:pointer" onclick="togglePartnershipRegistration(${p.id})" title="클릭하면 제휴 등록을 취소합니다"><i data-lucide="badge-check" style="width:11px;height:11px"></i> 등록완료</span>`
+        : `<button class="tsa-btn tsa-btn-sm tsa-btn-outline" style="white-space:nowrap" onclick="togglePartnershipRegistration(${p.id})">제휴 등록 처리</button>`}
+    </td>
+    <td style="font-size:11px">
+      <button class="tsa-btn tsa-btn-sm ${isExpanded ? 'tsa-btn-primary' : 'tsa-btn-outline'}" style="white-space:nowrap" onclick="togglePartnershipInquiryNotes(${p.id})">
+        <i data-lucide="message-square" style="width:12px;height:12px"></i> 메모 ${notes.length}
+      </button>
+    </td>
+  </tr>`;
+
+    if (!isExpanded) return row;
+
+    const notesHtml = notes.length
+      ? notes.map(n => `<div style="padding:8px 10px;border-radius:8px;background:#F9FAFB;border:1px solid #E5E7EB;margin-bottom:6px">
+          <div style="font-size:11px;color:#374151;white-space:pre-wrap">${lessonEsc(n.text)}</div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:4px">${lessonEsc(n.author)} · ${lessonEsc(n.at)}</div>
+        </div>`).join('')
+      : '<div style="font-size:11px;color:#9CA3AF;padding:4px 0">아직 남긴 답변 메모가 없습니다.</div>';
+
+    const panel = `<tr>
+      <td colspan="8" style="background:#F9FAFB;padding:14px 16px">
+        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">💬 ${lessonEsc(p.agencyName)} — 답변 메모</div>
+        <div style="max-height:180px;overflow-y:auto;margin-bottom:10px">${notesHtml}</div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="pi-note-input-${p.id}" class="tsa-input" rows="2" style="flex:1" placeholder="상담 결과, 다음 액션 등을 메모로 남겨주세요."></textarea>
+          <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="white-space:nowrap" onclick="addPartnershipInquiryNote(${p.id})">메모 저장</button>
+        </div>
+      </td>
+    </tr>`;
+    return row + panel;
+  }).join('') || '<tr><td colspan="8" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">접수된 제휴 문의가 없습니다.</td></tr>';
+
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 0);
 }

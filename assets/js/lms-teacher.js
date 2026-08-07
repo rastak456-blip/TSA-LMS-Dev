@@ -336,83 +336,6 @@ function renderTeacherCapabilityCheckboxes(selectedSubjects = [], selectedLevels
   }
 }
 
-function openTeacherScheduleModal(nick) {
-  const teacher = MOCK_TEACHERS.find(t => t.nick === nick);
-  const ttRow = MOCK_TIMETABLE.find(r => r.teacher === nick);
-  if (!teacher) return;
-
-  const PERIODS = [
-    { p: 1, time: '08:00~09:00' }, { p: 2, time: '09:00~10:00' },
-    { p: 3, time: '10:00~11:00' }, { p: 4, time: '11:00~12:00' },
-    { p: 5, time: '13:00~14:00' }, { p: 6, time: '14:00~15:00' },
-    { p: 7, time: '15:00~16:00' }, { p: 8, time: '16:00~17:00' },
-  ];
-  const DAYS = ['월', '화', '수', '목', '금'];
-  const avail = teacher.availability || {};
-  const color = ttRow ? ttRow.color : '#5E5CE6';
-  const bg = ttRow ? ttRow.bg : '#EEF2FF';
-  const slots = ttRow ? ttRow.slots : [];
-
-  const avatarSrc = teacher.gender === '남' ? 'assets/images/teacher_male.png' : 'assets/images/teacher_female.png';
-
-  // Header
-  document.getElementById('ts-modal-teacher-name').textContent = `${teacher.name} (${teacher.nick})`;
-  document.getElementById('ts-modal-teacher-type').textContent = `${teacher.type} · ${teacher.room ? `Room ${teacher.room}` : '담당 교실 미배정'} · 경력 ${teacher.exp}년 · ⭐ ${teacher.rating}`;
-  document.getElementById('ts-modal-teacher-avatar').src = avatarSrc;
-
-  // Weekly schedule grid
-  const slotMap = {};
-  slots.forEach(s => { slotMap[s.p] = s; });
-
-  let rows = '';
-  PERIODS.forEach(({ p, time }) => {
-    const slot = slotMap[p] || { student: null };
-    let cellHtml = '';
-    if (slot.student) {
-      const names = slot.students ? slot.students.join(', ') : slot.student;
-      const tag = slot.type ? `<span style="font-size:10px;opacity:.75">${slot.type}</span>` : '';
-      const subj = slot.subject ? `<div style="font-size:10px;margin-top:2px;opacity:.8">${slot.subject}${slot.level ? ' · ' + slot.level : ''}</div>` : '';
-      cellHtml = `<td colspan="5" style="background:${bg};border-left:3px solid ${color};padding:7px 10px">
-        <div style="font-weight:700;font-size:12px;color:${color}">${names} ${tag}</div>${subj}
-      </td>`;
-    } else {
-      // Per-day availability
-      cellHtml = DAYS.map(d => {
-        const dayAvail = Array.isArray(avail[d]) ? avail[d][p - 1] : true;
-        if (dayAvail) {
-          return `<td style="text-align:center;color:#D1FAE5;font-size:18px">·</td>`;
-        } else {
-          return `<td style="text-align:center;background:#FEF2F2;color:#FCA5A5;font-size:11px">✕</td>`;
-        }
-      }).join('');
-    }
-
-    rows += `<tr>
-      <td style="text-align:center;font-size:11px;color:#6B7280;white-space:nowrap;padding:6px 10px;border-right:1px solid #E5E7EB">
-        <strong style="color:#374151">${p}교시</strong><br/><span style="font-size:10px">${time}</span>
-      </td>
-      ${cellHtml}
-    </tr>`;
-  });
-
-  // Day availability summary
-  let daySummary = DAYS.map(d => {
-    const dayArr = Array.isArray(avail[d]) ? avail[d] : [];
-    const count = dayArr.filter(Boolean).length;
-    const active = count > 0;
-    return `<div style="text-align:center;padding:6px 12px;border-radius:8px;background:${active ? bg : '#F3F4F6'};border:1.5px solid ${active ? color : '#E5E7EB'}">
-      <div style="font-weight:700;color:${active ? color : '#9CA3AF'};font-size:13px">${d}</div>
-      <div style="font-size:11px;color:${active ? '#374151' : '#9CA3AF'}">${count}교시</div>
-    </div>`;
-  }).join('');
-
-  document.getElementById('ts-modal-day-summary').innerHTML = daySummary;
-  document.getElementById('ts-modal-grid-body').innerHTML = rows;
-
-  openModal('teacher-schedule-modal');
-  if (window.lucide) lucide.createIcons();
-}
-
 function filterTeacherList(status) {
   _teacherStatusFilter = status;
   document.querySelectorAll('#teacher-filter-pills .tsa-pill').forEach(p => {
@@ -1333,14 +1256,25 @@ function saveTeacherAvailability(id) {
 /* =============================================
    TEACHER PORTAL LOGIC
    ============================================= */
-let teacherDashboardData = {
-  teacherNick: 'Sarah',
-  completedSlots: [false, false, false, false, false, false, false, false],
-  attendance: ['출석', '출석', '출석', '출석', '출석', '출석', '출석', '출석'],
-  quizzes: [85, 90, 80, 75, 85, 90, 0, 0],
-  progress: ['', '', '', '', '', '', '', ''],
-  feedback: ['', '', '', '', '', '', '', '']
+// 강사 포털의 "오늘 나의 시간표"·"주간 시간표"는 관리자 쪽 수업 편성/배정 관리와
+// 동일한 실제 배정 데이터(buildFinalTimetableEntries — MOCK_GROUP_CLASSES +
+// MOCK_STUDENTS[].oneToOneSchedule)에서 뽑아 쓴다. 완료 여부·출결·교재·피드백은
+// 별도 상태를 들고 있지 않고, 그때그때 MOCK_CLASS_LOG(studentId+date+period)를
+// 조회해서 판단한다 — 관리자 쪽 "수강 현황 > 스케줄" 탭과 항상 같은 진실을 본다.
+const TEACHER_PERIOD_TIMES = {
+  1: '08:00 - 08:50', 2: '09:00 - 09:50', 3: '10:00 - 10:50', 4: '11:00 - 11:50',
+  5: '12:30 - 13:20', 6: '13:30 - 14:20', 7: '14:30 - 15:20', 8: '15:30 - 16:20'
 };
+
+function resolveCurrentTeacher() {
+  return APP.currentTeacher || MOCK_TEACHERS.find(t => t.nick === 'Sarah') || null;
+}
+
+function todayScheduleDayLabel() {
+  const dayMap = { 0: '일', 1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토' };
+  const d = new Date(`${SCHEDULE_TODAY_STR}T00:00:00`);
+  return APP.selectedDay || dayMap[d.getDay()] || '월';
+}
 
 function initTeacherPortal() {
   setupTeacherDashboard();
@@ -1351,31 +1285,27 @@ function setupTeacherDashboard() {
   const tbody = document.getElementById('teacher-today-classes-body');
   if (!tbody) return;
 
-  const tTimetable = MOCK_TIMETABLE.find(t => t.teacher === 'Sarah');
-  if (!tTimetable) return;
+  const teacher = resolveCurrentTeacher();
+  const titleEl = document.getElementById('teacher-dashboard-title');
+  if (titleEl && teacher) titleEl.textContent = `👩‍🏫 ${teacher.nick || teacher.name} 강사 대시보드 (Teacher Dashboard)`;
+  if (!teacher) return;
 
-  // 요일 필터: APP.selectedDay 또는 현재 요일 사용 (데모 기본값 '월')
-  const dayMap = { 0: '일', 1: '월', 2: '화', 3: '수', 4: '목', 5: '금', 6: '토' };
-  const todayDay = APP.selectedDay || dayMap[new Date().getDay()] || '월';
-  const todaySlots = tTimetable.slots.filter(s => s.day === todayDay);
-  // 교시 순으로 정렬
-  todaySlots.sort((a, b) => a.p - b.p);
-
-  const times = {
-    1: '08:00 - 08:50', 2: '09:00 - 09:50', 3: '10:00 - 10:50', 4: '11:00 - 11:50',
-    5: '12:30 - 13:20', 6: '13:30 - 14:20', 7: '14:30 - 15:20', 8: '15:30 - 16:20'
-  };
+  const todayDay = todayScheduleDayLabel();
+  const allEntries = typeof buildFinalTimetableEntries === 'function' ? buildFinalTimetableEntries() : [];
+  const todayEntries = allEntries.filter(e => e.teacherId === teacher.id && e.dayOfWeek === todayDay);
 
   let completedCount = 0;
-  let activeSlots = 0;
+  let activeCount = 0;
   let html = '';
 
-  todaySlots.forEach((s) => {
-    const timeStr = times[s.p] || '';
-    if (!s.student) {
+  for (let p = 1; p <= 8; p++) {
+    const timeStr = TEACHER_PERIOD_TIMES[p] || '';
+    const entry = todayEntries.find(e => e.period === p);
+
+    if (!entry) {
       html += `
         <tr style="background:#FAFAFA">
-          <td style="font-weight:700;color:#9CA3AF">${s.p}교시</td>
+          <td style="font-weight:700;color:#9CA3AF">${p}교시</td>
           <td style="color:#9CA3AF;font-size:12px">${timeStr}</td>
           <td colspan="4" style="color:#C4C9D4;font-style:italic;font-size:12px">
             <span style="display:flex;align-items:center;gap:6px">
@@ -1384,131 +1314,119 @@ function setupTeacherDashboard() {
           </td>
         </tr>
       `;
-      return;
+      continue;
     }
 
-    activeSlots++;
-    const isDone = teacherDashboardData.completedSlots[s.p - 1];
-    if (isDone) completedCount++;
+    const studentRows = entry.studentIds.map(studentId => {
+      const std = MOCK_STUDENTS.find(m => m.id === studentId);
+      const log = MOCK_CLASS_LOG.find(l => l.studentId === studentId && l.date === SCHEDULE_TODAY_STR && l.period === p);
+      const isDone = !!log;
+      activeCount++;
+      if (isDone) completedCount++;
+      const avatarSrc = std ? (std.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png') : 'assets/images/student_male.png';
+      const actionButton = isDone
+        ? `<span class="tsa-badge tsa-badge-success"><i data-lucide="check-check"></i> 입력 완료</span>`
+        : `<button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="padding:4px 8px;font-size:11px" onclick="openTeacherInputModal(${p}, ${studentId}, false)">출결/성적 입력</button>`;
+      return `
+        <tr>
+          <td style="font-weight:700">${p}교시</td>
+          <td style="color:#6B7280;font-size:12px">${timeStr}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <img src="${avatarSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;" alt=""/>
+              <span style="font-weight:700">${std ? (std.nick || std.name) : '학생 정보 없음'}</span>
+            </div>
+          </td>
+          <td><span class="tsa-badge tsa-badge-primary">${entry.classType || '1:1'}</span></td>
+          <td><div style="font-size:11px;color:#6B7280">${entry.subjectName || '-'}</div></td>
+          <td style="text-align:center">${actionButton}</td>
+        </tr>
+      `;
+    }).join('');
 
-    const std = MOCK_STUDENTS.find(m => m.nick === s.student);
-    const avatarSrc = std ? (std.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png') : 'assets/images/student_male.png';
-
-    const isSub = (s.p === 2);
-    const subBadge = isSub ? `<span class="tsa-badge tsa-badge-warning" style="font-size:9.5px;padding:1px 5px;margin-left:6px">대체 배정</span>` : '';
-
-    const actionButton = isDone
-      ? `<span class="tsa-badge tsa-badge-success"><i data-lucide="check-check"></i> 입력 완료</span>`
-      : `<button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="padding:4px 8px;font-size:11px" onclick="openTeacherInputModal(${s.p}, '${s.student}', ${isSub})">출결/성적 입력</button>`;
-
-    html += `
-      <tr style="${isSub && !isDone ? 'background:#FFFDF5;border-left:3px solid #F59E0B' : ''}">
-        <td style="font-weight:700">${s.p}교시</td>
-        <td style="color:#6B7280;font-size:12px">${timeStr}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <img src="${avatarSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;" alt=""/>
-            <span style="font-weight:700">${s.student}</span>
-            ${subBadge}
-          </div>
-        </td>
-        <td><span class="tsa-badge tsa-badge-primary">${s.type || '1:1'}</span></td>
-        <td><div style="font-size:11px;color:#6B7280">${s.subject || 'IELTS Speaking'} (${s.level || 'Band 6.0'})</div></td>
-        <td style="text-align:center">${actionButton}</td>
-      </tr>
-    `;
-  });
+    html += studentRows;
+  }
 
   tbody.innerHTML = html;
-  document.getElementById('teacher-completed-stats').textContent = `완료 ${completedCount}/${activeSlots}`;
+  document.getElementById('teacher-completed-stats').textContent = `완료 ${completedCount}/${activeCount}`;
   if (typeof refreshIcons === 'function') refreshIcons();
 
-  // Substitute class alert card control
-  const hasSubAlert = assignedSlots.some(s => s.p === 2) && !teacherDashboardData.completedSlots[1];
-  document.getElementById('card-sub-alert').style.display = hasSubAlert ? 'block' : 'none';
+  // 대체 수업 알림: MOCK_SUBSTITUTE_LOGS(실제 대체 배정 기록)에 오늘 날짜·이 강사가
+  // subTeacher로 남아있는 건이 있을 때만 노출한다.
+  const subLog = MOCK_SUBSTITUTE_LOGS.find(l => l.date === SCHEDULE_TODAY_STR && l.subTeacher === teacher.nick);
+  const alertCard = document.getElementById('card-sub-alert');
+  const alertText = document.getElementById('sub-alert-text');
+  if (alertCard) {
+    alertCard.style.display = subLog ? 'block' : 'none';
+    if (subLog && alertText) {
+      alertText.textContent = `${subLog.originalTeacher} 강사 사유(${subLog.reason})로 [${subLog.subject}] 대체 수업이 지정되었습니다. 수업 전 인수인계 자료를 필히 검토하십시오.`;
+    }
+  }
 }
 
 function setupTeacherTimetable() {
   const gridBody = document.getElementById('teacher-weekly-grid-body');
   if (!gridBody) return;
 
-  const times = {
-    1: '08:00 - 08:50', 2: '09:00 - 09:50', 3: '10:00 - 10:50', 4: '11:00 - 11:50',
-    5: '12:30 - 13:20', 6: '13:30 - 14:20', 7: '14:30 - 15:20', 8: '15:30 - 16:20'
-  };
+  const teacher = resolveCurrentTeacher();
+  if (!teacher) return;
 
-  const tTimetable = MOCK_TIMETABLE.find(t => t.teacher === 'Sarah');
-  if (!tTimetable) return;
+  document.getElementById('teacher-timetable-room').textContent = `지정 강의실: Room ${teacher.room || 'TBD'}`;
 
-  document.getElementById('teacher-timetable-room').textContent = `지정 강의실: Room ${tTimetable.room || '101'}`;
+  const allEntries = typeof buildFinalTimetableEntries === 'function' ? buildFinalTimetableEntries() : [];
+  const teacherEntries = allEntries.filter(e => e.teacherId === teacher.id);
+  const weekDays = ['월', '화', '수', '목', '금'];
 
   let html = '';
   for (let p = 1; p <= 8; p++) {
-    const timeStr = times[p];
-    const slot = tTimetable.slots.find(s => s.p === p);
-
+    const timeStr = TEACHER_PERIOD_TIMES[p];
     html += `<tr><td style="font-weight:700">${p}교시 (${timeStr})</td>`;
-    
-    // Fill Mon-Fri (Monday is the default matching slot)
-    for (let day = 0; day < 5; day++) {
-      if (slot && slot.student) {
-        // Mock weekday content, Monday is actual match
-        const isMon = (day === 0);
-        const name = slot.student;
-        const sub = slot.subject || 'IELTS Prep';
+
+    weekDays.forEach(day => {
+      const entry = teacherEntries.find(e => e.period === p && e.dayOfWeek === day);
+      if (entry) {
         html += `
-          <td style="background:${tTimetable.bg || '#EEF2FF'};border-color:#C7D2FE">
-            <div style="font-weight:700;color:${tTimetable.color || '#5E5CE6'}">${name}</div>
-            <div style="font-size:10px;opacity:0.75;margin-top:2px">${sub} (Room ${tTimetable.room})</div>
+          <td style="background:#EEF2FF;border-color:#C7D2FE">
+            <div style="font-weight:700;color:#5E5CE6">${lessonEsc(entry.studentLabel)}</div>
+            <div style="font-size:10px;opacity:0.75;margin-top:2px">${lessonEsc(entry.subjectName)} · ${lessonEsc(entry.classType)} (${lessonEsc(entry.roomLabel)})</div>
           </td>
         `;
       } else {
         html += `<td style="background:#FAFAFA;color:#9CA3AF;font-style:italic;text-align:center">비어있음</td>`;
       }
-    }
+    });
     html += '</tr>';
   }
   gridBody.innerHTML = html;
 }
 
-let activeTeacherInput = { period: 0, studentNick: '', isSub: false };
+let activeTeacherInput = { period: 0, studentId: null, isSub: false };
 
-function openTeacherInputModal(period, studentNick, isSub = false) {
-  activeTeacherInput = { period, studentNick, isSub };
+function openTeacherInputModal(period, studentId, isSub = false) {
+  activeTeacherInput = { period, studentId, isSub };
+  const std = MOCK_STUDENTS.find(s => s.id === studentId);
+  const studentNick = std ? (std.nick || std.name) : '학생';
 
   document.getElementById('teacher-modal-subtitle').innerHTML = `<strong>${studentNick}</strong> 학생 · ${period}교시 수업`;
-  
+
   // Handover card control (visible if it's substitute class)
   const handoverPanel = document.getElementById('sub-handover-panel');
   if (handoverPanel) {
     if (isSub) {
       handoverPanel.style.display = 'block';
-      // Load Minjun's health details or mock handover info
-      const s = MOCK_STUDENTS.find(std => std.nick === studentNick);
-      document.getElementById('sub-handover-progress').textContent = s ? s.healthNotes : '진도: Grammar Focus Book 2 / Ch.1';
-      document.getElementById('sub-handover-health').textContent = s ? `식이: ${s.dietType || '일반식'}, 건강: ${s.healthNotes || '없음'}` : '일반 식단';
+      document.getElementById('sub-handover-progress').textContent = std ? std.healthNotes || '진도: Grammar Focus Book 2 / Ch.1' : '진도: Grammar Focus Book 2 / Ch.1';
+      document.getElementById('sub-handover-health').textContent = std ? `식이: ${std.dietType || '일반식'}, 건강: ${std.healthNotes || '없음'}` : '일반 식단';
     } else {
       handoverPanel.style.display = 'none';
     }
   }
 
-  // Set default values in inputs
-  const idx = period - 1;
-  const currentAtt = teacherDashboardData.attendance[idx] || '출석';
-  const currentQuiz = teacherDashboardData.quizzes[idx] || 85;
-  const currentProg = teacherDashboardData.progress[idx] || 'IELTS Target Band 6.0 Ch.5 Page 112';
-  const currentFeedback = teacherDashboardData.feedback[idx] || '';
-
-  // Select radio button
-  updateAttLabelStyle(currentAtt);
-  
-  // Set quiz range slider
-  document.getElementById('teacher-input-quiz-score').value = currentQuiz;
-  document.getElementById('teacher-quiz-score-val').textContent = `${currentQuiz} 점`;
-
-  // Set progress and feedback inputs
-  document.getElementById('teacher-input-progress').value = currentProg;
-  document.getElementById('teacher-input-feedback').value = currentFeedback;
+  // 이미 오늘 이 교시에 남겨둔 기록이 있으면(MOCK_CLASS_LOG) 그 값을 기본값으로 채운다.
+  const existingLog = MOCK_CLASS_LOG.find(l => l.studentId === studentId && l.date === SCHEDULE_TODAY_STR && l.period === period);
+  const statusLabelMap = { present: '출석', late: '지각', absent: '결석', early_leave: '조퇴' };
+  updateAttLabelStyle(existingLog ? (statusLabelMap[existingLog.status] || '출석') : '출석');
+  document.getElementById('teacher-input-material').value = existingLog ? (existingLog.material || '') : '';
+  document.getElementById('teacher-input-feedback').value = existingLog ? (existingLog.note || '') : '';
 
   openModal('modal-teacher-class-input');
 }
@@ -1541,48 +1459,66 @@ function updateAttLabelStyle(val) {
 
 function submitClassPerformanceInput() {
   const period = activeTeacherInput.period;
-  const studentNick = activeTeacherInput.studentNick;
-  const idx = period - 1;
+  const studentId = activeTeacherInput.studentId;
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  const studentNick = s ? (s.nick || s.name) : '학생';
 
   // Read values
   const attVal = document.querySelector('input[name="teacher-attendance-val"]:checked').value;
-  const quizVal = parseInt(document.getElementById('teacher-input-quiz-score').value);
-  const progVal = document.getElementById('teacher-input-progress').value.trim();
+  const materialVal = document.getElementById('teacher-input-material').value.trim();
   const feedbackVal = document.getElementById('teacher-input-feedback').value.trim();
 
-  if (!progVal) {
-    showToast('수업 진도를 입력해 주세요.', 'danger');
+  if (!materialVal) {
+    showToast('교재 정보를 입력해 주세요.', 'danger');
+    return;
+  }
+  if (!feedbackVal) {
+    showToast('수업 피드백 코멘트를 입력해 주세요.', 'danger');
     return;
   }
 
-  // Save to teacher memory
-  teacherDashboardData.completedSlots[idx] = true;
-  teacherDashboardData.attendance[idx] = attVal;
-  teacherDashboardData.quizzes[idx] = quizVal;
-  teacherDashboardData.progress[idx] = progVal;
-  teacherDashboardData.feedback[idx] = feedbackVal;
-
-  // Sync back to student database
-  const s = MOCK_STUDENTS.find(std => std.nick === studentNick);
+  // 학생 상세의 "수강 현황 > 스케줄" 탭이 읽는 MOCK_CLASS_LOG에 직접 기록해서,
+  // 강사가 입력한 출결·교재·피드백이 그 화면에 바로 나오게 한다.
   if (s) {
-    s.quiz.push(quizVal);
-    s.healthNotes = `[최종 수업 피드백] ${progVal} (${feedbackVal})`;
-    
-    // Recalculate student attendance average slightly
-    if (attVal === '결석') {
-      s.attendance = Math.max(60, Math.round(s.attendance * 0.98 * 10) / 10);
-    } else {
-      s.attendance = Math.min(100, Math.round(s.attendance * 1.01 * 10) / 10);
-    }
+    const teacher = resolveCurrentTeacher();
+    const allEntries = typeof buildFinalTimetableEntries === 'function' ? buildFinalTimetableEntries() : [];
+    const todayDay = todayScheduleDayLabel();
+    const entry = allEntries.find(e => e.teacherId === (teacher && teacher.id) && e.dayOfWeek === todayDay && e.period === period && e.studentIds.includes(studentId));
+
+    const statusMap = { '출석': 'present', '지각': 'late', '결석': 'absent', '조퇴': 'early_leave' };
+    const status = statusMap[attVal] || 'present';
+    const teacherNick = teacher ? teacher.nick : 'Sarah';
+    const type = (entry && entry.classType) || '1:1';
+    const subjectLabel = entry ? entry.subjectName : 'IELTS Speaking';
+    const date = SCHEDULE_TODAY_STR;
+
+    const logIdx = MOCK_CLASS_LOG.findIndex(l => l.studentId === s.id && l.date === date && l.period === period);
+    const entryLog = { studentId: s.id, date, period, type, teacherName: teacherNick, subject: subjectLabel, material: materialVal, status, note: feedbackVal };
+    if (logIdx >= 0) MOCK_CLASS_LOG[logIdx] = entryLog;
+    else MOCK_CLASS_LOG.push(entryLog);
+
+    // 출석률은 관리자 화면과 동일하게 MOCK_CLASS_LOG 누적 기준으로 재계산한다.
+    const logs = MOCK_CLASS_LOG.filter(l => l.studentId === s.id);
+    const total = logs.length;
+    const attended = logs.filter(l => l.status !== 'absent').length;
+    s.attendance = total > 0 ? Math.round(attended / total * 100 * 10) / 10 : 0;
   }
 
   closeModal('modal-teacher-class-input');
   setupTeacherDashboard();
-  showToast(`✓ [입력 완료] ${studentNick} 학생의 출결(${attVal}), 성적(${quizVal}점)이 반영 완료되었습니다.`, 'success');
+  showToast(`✓ [입력 완료] ${studentNick} 학생의 출결(${attVal})과 수업 기록이 저장되었습니다.`, 'success');
 }
 
 function openSubstituteHandoverModal() {
-  // Directly open input modal for 2교시 (substitute)
-  openTeacherInputModal(2, 'Minjun', true);
+  const teacher = resolveCurrentTeacher();
+  const subLog = teacher && MOCK_SUBSTITUTE_LOGS.find(l => l.date === SCHEDULE_TODAY_STR && l.subTeacher === teacher.nick);
+  if (!subLog) { showToast('오늘 배정된 대체 수업이 없습니다.', 'info'); return; }
+
+  const todayDay = todayScheduleDayLabel();
+  const allEntries = typeof buildFinalTimetableEntries === 'function' ? buildFinalTimetableEntries() : [];
+  const match = allEntries.find(e => e.teacherId === teacher.id && e.dayOfWeek === todayDay && e.subjectName === subLog.subject) || allEntries.find(e => e.teacherId === teacher.id && e.dayOfWeek === todayDay);
+  if (!match) { showToast('대체 수업 교시 정보를 찾을 수 없습니다.', 'danger'); return; }
+
+  openTeacherInputModal(match.period, match.studentIds[0], true);
 }
 

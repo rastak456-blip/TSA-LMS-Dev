@@ -35,7 +35,19 @@ function enhanceMockStudents() {
       s.emergencyContact = `010-9988-1234 (부)`;
     }
 
-    // 2. Arrival Date (도착 등록일)
+    // 2. Start Date — initAgencyStudentDB()가 항상 먼저 실행된다는 보장이 없어(예: 어드민 학생 상세 팝업 플로우),
+    // 여기서도 기본값을 채워둬야 아래 종료일 계산이 실제 수강 기간과 무관한 값으로 어긋나지 않는다.
+    if (!s.startDate) {
+      if (s.departureDate && s.duration) {
+        const departure = new Date(s.departureDate);
+        departure.setDate(departure.getDate() - s.duration * 7);
+        s.startDate = departure.toISOString().split('T')[0];
+      } else {
+        s.startDate = '2026-06-01';
+      }
+    }
+
+    // 2-1. Arrival Date (도착 등록일)
     if (!s.arrivalDate) {
       s.arrivalDate = s.startDate || '2026-06-15';
     }
@@ -46,6 +58,8 @@ function enhanceMockStudents() {
         const start = new Date(s.startDate);
         start.setDate(start.getDate() + s.duration * 7);
         s.endDate = start.toISOString().split('T')[0];
+      } else if (s.departureDate) {
+        s.endDate = s.departureDate;
       } else {
         s.endDate = '2026-07-13';
       }
@@ -1388,7 +1402,7 @@ function openRoomDetailModal(idx) {
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${occupied ? '#EEF2FF' : '#F9FAFB'};border-radius:7px;border:1px solid ${occupied ? '#C7D2FE' : '#E5E7EB'}">
       <span style="font-size:11px;font-weight:700;color:#6B7280;width:50px">Bed ${b.id}</span>
       ${occupied
-        ? `<span style="font-size:12px;font-weight:600;color:#1E3A8A;flex:1">${label}</span><span style="font-size:10px;color:#6B7280">${b.start} ~ ${b.end}</span>`
+        ? `<span style="font-size:12px;font-weight:600;color:#1E3A8A;flex:1">${label}</span><span style="font-size:10px;color:#6B7280">${b.start} ~ ${b.end}</span>${stu ? `<button style="font-size:11px;padding:3px 10px;background:#fff;color:#5E5CE6;border:1px solid #C7D2FE;border-radius:5px;cursor:pointer;margin-left:6px" onclick="closeModal('room-detail-modal');openDormRoomChangeModal(${stu.id})">🔄 이동</button>` : ''}`
         : `<span style="font-size:12px;color:#9CA3AF;flex:1">공실</span><button style="font-size:11px;padding:3px 10px;background:#5E5CE6;color:white;border:none;border-radius:5px;cursor:pointer" onclick="closeModal('room-detail-modal');openBedAssignModal(${idx},'${b.id}')">배정</button>`}
     </div>`;
   }).join('');
@@ -3237,52 +3251,106 @@ function initializePassportAccessLogMode() {
   setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
 }
 
+// 부모 창의 mock 배열들을 이 창의 배열에 그대로 반영한다. 참조가 아니라 내용만 바꿔치기해야
+// 이미 다른 함수들이 들고 있는 배열 참조가 계속 유효하다.
+function syncStudentPopupArrays(source) {
+  if (!source) return;
+  const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
+  syncArray(MOCK_STUDENTS, source.students);
+  if (typeof MOCK_GROUP_CLASSES !== 'undefined') syncArray(MOCK_GROUP_CLASSES, source.groupClasses);
+  if (typeof MOCK_DORM_ROOMS !== 'undefined') syncArray(MOCK_DORM_ROOMS, source.dormRooms);
+  if (typeof MOCK_PICKUP_MANAGERS !== 'undefined') syncArray(MOCK_PICKUP_MANAGERS, source.pickupManagers);
+  if (typeof MOCK_PICKUP_VEHICLES !== 'undefined') syncArray(MOCK_PICKUP_VEHICLES, source.pickupVehicles);
+  if (typeof PICKUP_DISPATCH_GROUPS !== 'undefined' && source.pickupDispatchGroups) Object.assign(PICKUP_DISPATCH_GROUPS, source.pickupDispatchGroups);
+  if (typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' && source.pickupDateAssignments) Object.assign(PICKUP_DATE_ASSIGNMENTS, source.pickupDateAssignments);
+}
+
+// 부모 창(opener)이 postMessage로 보내주는 mock 데이터 스냅샷 페이로드를 만든다.
+function buildStudentPopupSyncPayload() {
+  return {
+    students: MOCK_STUDENTS,
+    groupClasses: typeof MOCK_GROUP_CLASSES !== 'undefined' ? MOCK_GROUP_CLASSES : undefined,
+    dormRooms: typeof MOCK_DORM_ROOMS !== 'undefined' ? MOCK_DORM_ROOMS : undefined,
+    pickupManagers: typeof MOCK_PICKUP_MANAGERS !== 'undefined' ? MOCK_PICKUP_MANAGERS : undefined,
+    pickupVehicles: typeof MOCK_PICKUP_VEHICLES !== 'undefined' ? MOCK_PICKUP_VEHICLES : undefined,
+    pickupDispatchGroups: typeof PICKUP_DISPATCH_GROUPS !== 'undefined' ? PICKUP_DISPATCH_GROUPS : undefined,
+    pickupDateAssignments: typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' ? PICKUP_DATE_ASSIGNMENTS : undefined,
+  };
+}
+
+// 학생 상세 팝업이 'ready'라고 알려오면 최신 mock 데이터를 postMessage로 되돌려준다.
+// window.opener 직접 프로퍼티 접근은 file:// 환경에서 브라우저에 따라 막힐 수 있어(그룹 팝업이
+// 이미 postMessage 방식을 쓰는 이유와 동일), 그 경로가 막혀도 항상 최신 데이터를 받을 수 있게 한다.
+window.addEventListener('message', event => {
+  const message = event.data;
+  if (!message || message.channel !== 'tsa-student-popup' || message.action !== 'ready') return;
+  if (!event.source) return;
+  event.source.postMessage({ channel: 'tsa-student-popup', action: 'initialize', payload: buildStudentPopupSyncPayload() }, '*');
+});
+
 function initializeStudentPopupMode() {
   const params = new URLSearchParams(window.location.search);
   const studentId = parseInt(params.get('studentPopup'), 10);
   if (!studentId) return;
 
-  // 팝업은 lms.html을 완전히 새로 로드하기 때문에 원래 창(부모)에서 방금 한 수정·배정(픽업 담당자 배정 등)이
-  // 이 창의 초기 mock 데이터에는 반영되어 있지 않다. 부모 창이 열려 있으면 그 창의 실시간 상태를 그대로 이어받는다.
-  if (window.opener && !window.opener.closed) {
-    try {
-      const syncArray = (local, remote) => { if (Array.isArray(remote) && Array.isArray(local)) { local.length = 0; local.push(...remote); } };
-      syncArray(MOCK_STUDENTS, window.opener.MOCK_STUDENTS);
-      if (typeof MOCK_DORM_ROOMS !== 'undefined') syncArray(MOCK_DORM_ROOMS, window.opener.MOCK_DORM_ROOMS);
-      if (typeof MOCK_PICKUP_MANAGERS !== 'undefined') syncArray(MOCK_PICKUP_MANAGERS, window.opener.MOCK_PICKUP_MANAGERS);
-      if (typeof MOCK_PICKUP_VEHICLES !== 'undefined') syncArray(MOCK_PICKUP_VEHICLES, window.opener.MOCK_PICKUP_VEHICLES);
-      if (typeof PICKUP_DISPATCH_GROUPS !== 'undefined' && window.opener.PICKUP_DISPATCH_GROUPS) Object.assign(PICKUP_DISPATCH_GROUPS, window.opener.PICKUP_DISPATCH_GROUPS);
-      if (typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' && window.opener.PICKUP_DATE_ASSIGNMENTS) Object.assign(PICKUP_DATE_ASSIGNMENTS, window.opener.PICKUP_DATE_ASSIGNMENTS);
-    } catch (e) { /* 접근 불가 시(다른 오리진 등) 기본 mock 데이터로 진행 */ }
+  const portal = params.get('portal') === 'agency' ? 'agency' : 'admin';
+  const hubTab = params.get('hub');
+
+  function renderStudentPopup() {
+    APP.user = portal === 'agency' ? 'agency_head' : 'super_admin';
+    if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
+    if (typeof enhanceMockTeachers === 'function') enhanceMockTeachers();
+    if (typeof applyRoleUI === 'function') applyRoleUI();
+    document.body.classList.add('student-popup-mode');
+    const login = document.getElementById('login-screen');
+    const app = document.getElementById('app-layout');
+    if (login) login.style.display = 'none';
+    if (app) app.style.display = 'block';
+    openAgencyStudentDetailPage(studentId, portal);
+    // ?hub=... 로 들어오면 '수강 현황'의 해당 하위 탭까지 바로 펼쳐준다(예: 스케줄 버튼, 대시보드 일정 보기).
+    // 수업 현황·스케줄은 어드민 전용 탭이라 에이전시 포털에서는 무시한다.
+    const allowedHubTabs = ['class', 'dorm', 'flightdocs', 'settle', 'admdocs'].concat(portal === 'admin' ? ['schedule'] : []);
+    if (hubTab && allowedHubTabs.includes(hubTab) && typeof switchAgencyStudentDetailPageTab === 'function') {
+      currentAdetailTab = hubTab;
+      switchAgencyStudentDetailPageTab('enrollment');
+    }
+    const closeButtons = document.querySelectorAll('[onclick="closeStudentDetailPage()"]');
+    closeButtons.forEach((button, index) => {
+      if (index === 0) button.style.display = 'none';
+      else button.innerHTML = '<i data-lucide="x"></i> 창 닫기';
+    });
+    const student = MOCK_STUDENTS.find(item => item.id === studentId);
+    if (student) document.title = `${student.name} 학생 정보`;
+    setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
   }
 
-  const portal = params.get('portal') === 'agency' ? 'agency' : 'admin';
-  APP.user = portal === 'agency' ? 'agency_head' : 'super_admin';
-  if (typeof enhanceMockStudents === 'function') enhanceMockStudents();
-  if (typeof enhanceMockTeachers === 'function') enhanceMockTeachers();
-  if (typeof applyRoleUI === 'function') applyRoleUI();
-  document.body.classList.add('student-popup-mode');
-  const login = document.getElementById('login-screen');
-  const app = document.getElementById('app-layout');
-  if (login) login.style.display = 'none';
-  if (app) app.style.display = 'block';
-  openAgencyStudentDetailPage(studentId, portal);
-  // ?hub=... 로 들어오면 '수강 현황'의 해당 하위 탭까지 바로 펼쳐준다(예: 스케줄 버튼, 대시보드 일정 보기).
-  // 수업 현황·스케줄은 어드민 전용 탭이라 에이전시 포털에서는 무시한다.
-  const hubTab = params.get('hub');
-  const allowedHubTabs = ['class', 'dorm', 'flightdocs', 'settle'].concat(portal === 'admin' ? ['classlog', 'schedule'] : []);
-  if (hubTab && allowedHubTabs.includes(hubTab) && typeof switchAgencyStudentDetailPageTab === 'function') {
-    currentAdetailTab = hubTab;
-    switchAgencyStudentDetailPageTab('enrollment');
+  // 팝업은 lms.html을 완전히 새로 로드하기 때문에 원래 창(부모)에서 방금 한 수정·배정(코스 등록, 픽업 담당자
+  // 배정 등)이 이 창의 초기 mock 데이터에는 반영되어 있지 않다. 부모 창이 열려 있으면 그 창의 실시간 상태를
+  // 이어받는다 — 우선 직접 프로퍼티 접근을 시도해 바로 그려주고(빠른 경로), 동시에 postMessage로도 요청해서
+  // 직접 접근이 막힌 경우(브라우저별 file:// 정책 차이)에도 도착하는 대로 다시 동기화해 그린다.
+  if (window.opener && !window.opener.closed) {
+    try {
+      syncStudentPopupArrays({
+        students: window.opener.MOCK_STUDENTS,
+        groupClasses: typeof window.opener.MOCK_GROUP_CLASSES !== 'undefined' ? window.opener.MOCK_GROUP_CLASSES : undefined,
+        dormRooms: typeof window.opener.MOCK_DORM_ROOMS !== 'undefined' ? window.opener.MOCK_DORM_ROOMS : undefined,
+        pickupManagers: typeof window.opener.MOCK_PICKUP_MANAGERS !== 'undefined' ? window.opener.MOCK_PICKUP_MANAGERS : undefined,
+        pickupVehicles: typeof window.opener.MOCK_PICKUP_VEHICLES !== 'undefined' ? window.opener.MOCK_PICKUP_VEHICLES : undefined,
+        pickupDispatchGroups: window.opener.PICKUP_DISPATCH_GROUPS,
+        pickupDateAssignments: window.opener.PICKUP_DATE_ASSIGNMENTS,
+      });
+    } catch (e) { /* 접근 불가 시(다른 오리진 등) 무시하고 postMessage 응답을 기다린다 */ }
+
+    window.addEventListener('message', event => {
+      const message = event.data;
+      if (!message || message.channel !== 'tsa-student-popup' || message.action !== 'initialize') return;
+      syncStudentPopupArrays(message.payload);
+      renderStudentPopup();
+    });
+    try { window.opener.postMessage({ channel: 'tsa-student-popup', action: 'ready' }, '*'); } catch (e) { /* 무시 */ }
   }
-  const closeButtons = document.querySelectorAll('[onclick="closeStudentDetailPage()"]');
-  closeButtons.forEach((button, index) => {
-    if (index === 0) button.style.display = 'none';
-    else button.innerHTML = '<i data-lucide="x"></i> 창 닫기';
-  });
-  const student = MOCK_STUDENTS.find(item => item.id === studentId);
-  if (student) document.title = `${student.name} 학생 정보`;
-  setTimeout(() => { if (typeof refreshIcons === 'function') refreshIcons(); }, 0);
+
+  renderStudentPopup();
 }
 
 // '신규 학생 등록'을 모달 대신 별도 팝업 창으로 여는 모드. studentPopup(상세)과 달리 대상 id가 없으므로

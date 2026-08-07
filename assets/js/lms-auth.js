@@ -49,6 +49,12 @@ function handleLogin(type) {
   enhanceMockStudents();
   enhanceMockTeachers();
 
+  // 강사 포털은 로그인 즉시 특정 강사(Sarah)로 고정해서, 헤더·사이드바·오늘 시간표가
+  // 전부 그 강사 기준으로 보이게 한다. 실제 서비스라면 강사별 계정으로 분리될 부분.
+  if (role === 'teacher') {
+    APP.currentTeacher = MOCK_TEACHERS.find(t => t.nick === 'Sarah') || null;
+  }
+
   // Apply user info and menu visibility
   applyRoleUI();
 
@@ -110,11 +116,13 @@ function applyRoleUI() {
     }
   }
 
+  const teacherName = role === 'teacher' && APP.currentTeacher ? (APP.currentTeacher.nick || APP.currentTeacher.name) : null;
+
   const nameEl = document.getElementById('user-display-name');
-  if (nameEl) nameEl.textContent = cfg.label;
+  if (nameEl) nameEl.textContent = teacherName || cfg.label;
 
   const roleEl = document.getElementById('user-display-role');
-  if (roleEl) roleEl.textContent = cfg.label.toUpperCase();
+  if (roleEl) roleEl.textContent = teacherName ? cfg.label : cfg.label.toUpperCase();
 
   const badgeEl = document.getElementById('role-badge');
   if (badgeEl) badgeEl.textContent = cfg.label;

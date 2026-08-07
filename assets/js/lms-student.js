@@ -515,6 +515,9 @@ function setStudentActivityFilter(studentId, filter) {
 }
 
 // hubTab을 주면 '수강 현황' 탭의 해당 하위 탭(schedule, classlog 등)이 열린 상태로 팝업이 뜬다.
+// 팝업은 lms.html을 통째로 새로 로드해 부모 창의 최신 mock 데이터를 window.opener를 통해 동기화하는데(lms-main.js
+// initializeStudentPopupMode), 같은 학생의 팝업 창이 이미 열려 있으면 브라우저가 창만 재사용하고 새로고침을 안 해서
+// 그 동기화 코드가 다시 실행되지 않는 경우가 있다. 그래서 이미 열린 창이면 location을 강제로 다시 지정해 새로고침시킨다.
 function openStudentDetailPopup(id, portal, hubTab) {
   const student = MOCK_STUDENTS.find(item => item.id === id);
   if (!student) return;
@@ -525,10 +528,20 @@ function openStudentDetailPopup(id, portal, hubTab) {
   popupUrl.searchParams.set('studentPopup', String(id));
   popupUrl.searchParams.set('portal', portal || ((APP.user === 'agency_head' || APP.user === 'agency_branch') ? 'agency' : 'admin'));
   if (hubTab) popupUrl.searchParams.set('hub', hubTab);
-  const popup = window.open(popupUrl.toString(), `tsa-student-${id}`, 'popup=yes,width=1420,height=960,resizable=yes,scrollbars=yes');
+  const urlString = popupUrl.toString();
+
+  APP._studentPopupWindows = APP._studentPopupWindows || {};
+  const existing = APP._studentPopupWindows[id];
+  const reused = existing && !existing.closed;
+
+  const popup = window.open(urlString, `tsa-student-${id}`, 'popup=yes,width=1420,height=960,resizable=yes,scrollbars=yes');
   if (!popup) {
     if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해줘.', 'warning');
     return;
+  }
+  APP._studentPopupWindows[id] = popup;
+  if (reused) {
+    try { popup.location.href = urlString; } catch (e) { /* 다른 오리진 등으로 접근 불가 시 무시 */ }
   }
   popup.focus();
 }
@@ -981,12 +994,6 @@ function switchStudentTab(tab, el) {
       renderStudentDormTab();
       break;
 
-    case 'classlog':
-      APP._classLogContainerId = 'student-modal-tab-content';
-      APP._classLogDate = APP._classLogDate || '2026-06-16';
-      renderStudentClassLogTab();
-      break;
-
     case 'fees':
       renderFeesTab();
       break;
@@ -1236,347 +1243,9 @@ function getBellPeriods() {
   return periods;
 }
 
-let _classLogEditTarget = null; // { studentId, date, period }
-
-function renderStudentClassLogTab() {
-  const s = APP.currentStudent;
-  const container = document.getElementById(APP._classLogContainerId || 'student-modal-tab-content');
-  if (!s || !container) return;
-
-  const allLogs  = MOCK_CLASS_LOG.filter(l => l.studentId === s.id);
-  const today    = new Date('2026-06-16');
-  const todayStr = '2026-06-16';
-
-  // 현재 달력 월
-  if (!APP._classLogYear)  APP._classLogYear  = 2026;
-  if (!APP._classLogMonth) APP._classLogMonth = 6;
-  const calYear  = APP._classLogYear;
-  const calMonth = APP._classLogMonth;
-
-  // 선택된 날짜
-  const selDate = APP._classLogDate || todayStr;
-  const dayLogs = allLogs.filter(l => l.date === selDate);
-  const periods = getBellPeriods();
-
-  // KPI — 현재 달력 월 기준
-  const monthPrefix = `${calYear}-${String(calMonth).padStart(2,'0')}`;
-  const monthLogs   = allLogs.filter(l => l.date.startsWith(monthPrefix));
-  const mPresent = monthLogs.filter(l => l.status === 'present').length;
-  const mAbsent  = monthLogs.filter(l => l.status === 'absent').length;
-  const mLate    = monthLogs.filter(l => l.status === 'late').length;
-  const mEarly   = monthLogs.filter(l => l.status === 'early_leave').length;
-
-  // 패널티 판단은 전체 누적 기준
-  const totalAll   = allLogs.length;
-  const presentAll = allLogs.filter(l => l.status === 'present').length;
-  const lateAll    = allLogs.filter(l => l.status === 'late').length;
-  const earlyAll   = allLogs.filter(l => l.status === 'early_leave').length;
-  const attRate    = totalAll > 0 ? Math.round((presentAll + lateAll + earlyAll) / totalAll * 100) : 0;
-  const penalty    = s.penaltyActive || attRate < 80;
-
-  // ── 월간 캘린더 생성
-  const dayHeaders = ['일','월','화','수','목','금','토'];
-  const firstDay = new Date(calYear, calMonth - 1, 1);
-  const lastDay  = new Date(calYear, calMonth, 0);
-  // 일요일을 왼쪽, 토요일을 오른쪽에 배치 (0=일 ... 6=토)
-  const startDow = firstDay.getDay();
-  const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7;
-
-  const calCells = [];
-  for (let i = 0; i < totalCells; i++) {
-    const dayNum = i - startDow + 1;
-    if (dayNum < 1 || dayNum > lastDay.getDate()) { calCells.push(null); continue; }
-    const dateStr = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-    const dow = (firstDay.getDay() + dayNum - 1) % 7; // 0=일
-    calCells.push({ dateStr, dayNum, dow });
-  }
-
-  const calRows = [];
-  for (let r = 0; r < calCells.length / 7; r++) {
-    calRows.push(calCells.slice(r*7, r*7+7));
-  }
-
-  const calHtml = `
-    <div style="background:white;border-radius:12px;border:1px solid #E5E7EB;overflow:hidden">
-      <!-- 달력 헤더 -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #F3F4F6">
-        <button onclick="shiftClassLogMonth(-1)" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;color:#374151">&#8249;</button>
-        <span style="font-size:13px;font-weight:800;color:#1A1D23">${calYear}년 ${calMonth}월</span>
-        <button onclick="shiftClassLogMonth(1)" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;color:#374151">&#8250;</button>
-      </div>
-      <!-- 요일 헤더 -->
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #F3F4F6">
-        ${dayHeaders.map((d,i) => `<div style="text-align:center;padding:6px 0;font-size:10px;font-weight:700;color:${i===0?'#EF4444':i===6?'#3B82F6':'#6B7280'}">${d}</div>`).join('')}
-      </div>
-      <!-- 날짜 셀 -->
-      ${calRows.map(row => `
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #F9FAFB">
-          ${row.map((cell, ci) => {
-            if (!cell) return `<div style="padding:8px 4px;min-height:52px;background:#FAFAFA"></div>`;
-            const { dateStr, dayNum, dow } = cell;
-            const dLogs  = allLogs.filter(l => l.date === dateStr);
-            const tot    = dLogs.length;
-            const absN   = dLogs.filter(l => l.status==='absent').length;
-            const lateN  = dLogs.filter(l => l.status==='late').length;
-            const earlyN = dLogs.filter(l => l.status==='early_leave').length;
-            const presN  = dLogs.filter(l => l.status==='present').length;
-            const isToday = dateStr === todayStr;
-            const isSel   = dateStr === selDate;
-            const isSun   = dow === 0;
-            const isSat   = dow === 6;
-
-            const numColor = isSun ? '#EF4444' : isSat ? '#3B82F6' : '#1A1D23';
-            const cellBg   = isSel ? '#5E5CE6' : isToday ? '#EEF2FF' : 'white';
-            const numTc    = isSel ? 'white' : numColor;
-            const tagTc    = isSel ? 'rgba(255,255,255,0.9)' : null;
-
-            // 출석 현황 텍스트 태그
-            const tags = [];
-            if (presN  > 0) tags.push(`<span style="font-size:9px;font-weight:700;color:${tagTc||'#16A34A'}">출석 ${presN}</span>`);
-            if (absN   > 0) tags.push(`<span style="font-size:9px;font-weight:700;color:${tagTc||'#EF4444'}">결석 ${absN}</span>`);
-            if (lateN  > 0) tags.push(`<span style="font-size:9px;font-weight:700;color:${tagTc||'#D97706'}">지각 ${lateN}</span>`);
-            if (earlyN > 0) tags.push(`<span style="font-size:9px;font-weight:700;color:${tagTc||'#8B5CF6'}">조퇴 ${earlyN}</span>`);
-            const summaryHtml = tags.length > 0
-              ? `<div style="display:flex;flex-direction:column;gap:1px;margin-top:3px;align-items:center">${tags.join('')}</div>`
-              : '';
-
-            return `<div onclick="selectClassLogDate('${dateStr}')" style="padding:6px 4px;min-height:64px;cursor:pointer;background:${cellBg};border-right:1px solid #F3F4F6;transition:background 0.1s;display:flex;flex-direction:column;align-items:center" onmouseover="if('${dateStr}'!=='${selDate}')this.style.background='#F5F3FF'" onmouseout="if('${dateStr}'!=='${selDate}')this.style.background='${isToday?'#EEF2FF':'white'}'">
-              <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;${isToday&&!isSel?'border:2px solid #5E5CE6':''}">
-                <span style="font-size:12px;font-weight:${isToday||isSel?'800':'500'};color:${numTc}">${dayNum}</span>
-              </div>
-              ${summaryHtml}
-            </div>`;
-          }).join('')}
-        </div>`).join('')}
-      <!-- 범례 -->
-      <div style="display:flex;gap:14px;padding:10px 16px;background:#F9FAFB;border-top:1px solid #F3F4F6;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#10B981;display:inline-block"></span>출석</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#D97706;display:inline-block"></span>지각</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#8B5CF6;display:inline-block"></span>조퇴</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#6B7280"><span style="width:7px;height:7px;border-radius:50%;background:#EF4444;display:inline-block"></span>결석</div>
-      </div>
-    </div>`;
-
-  // ── 선택 날짜 교시 타임라인
-  const dayNames  = ['일','월','화','수','목','금','토'];
-  const statusMeta = {
-    present:     { label:'출석', color:'#16A34A', bg:'#DCFCE7', icon:'✓' },
-    absent:      { label:'결석', color:'#EF4444', bg:'#FEE2E2', icon:'✗' },
-    late:        { label:'지각', color:'#D97706', bg:'#FEF3C7', icon:'◔' },
-    early_leave: { label:'조퇴', color:'#8B5CF6', bg:'#EDE9FE', icon:'↩' },
-    none:        { label:'미기록', color:'#9CA3AF', bg:'#F3F4F6', icon:'–' },
-  };
-  const typeBadge = { '1:1':'#5E5CE6', '1:4':'#10B981', '1:6':'#F59E0B' };
-
-  const periodRows = periods.map(({ period, start, end }) => {
-    const log = dayLogs.find(l => l.period === period);
-    const sm  = log ? statusMeta[log.status] : statusMeta.none;
-    const isEditing = _classLogEditTarget?.studentId === s.id &&
-                      _classLogEditTarget?.date === selDate &&
-                      _classLogEditTarget?.period === period;
-    return `
-      <div style="display:flex;align-items:stretch;border-radius:10px;border:1.5px solid ${isEditing?'#5E5CE6':'#F3F4F6'};overflow:hidden;background:${isEditing?'#F5F3FF':'white'};margin-bottom:6px">
-        <div style="width:64px;flex-shrink:0;padding:10px 8px;background:#F9FAFB;border-right:1px solid #F3F4F6;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div style="font-size:10px;font-weight:800;color:#5E5CE6">${period}교시</div>
-          <div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">${start}</div>
-          <div style="font-size:9px;color:#D1D5DB">~${end}</div>
-        </div>
-        <div style="flex:1;padding:10px 12px;display:flex;align-items:center;gap:10px;min-width:0">
-          ${log ? `
-            <span style="font-size:10px;font-weight:700;color:${typeBadge[log.type]||'#6B7280'};background:${typeBadge[log.type]||'#6B7280'}18;padding:2px 7px;border-radius:4px;flex-shrink:0">${log.type}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;font-weight:700;color:#1A1D23;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${log.subject || '–'}</div>
-              <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${log.teacherName || '–'} 강사</div>
-              ${log.note ? `<div style="font-size:10px;color:#6B7280;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">💬 ${log.note}</div>` : ''}
-            </div>
-          ` : `<span style="font-size:11px;color:#D1D5DB">수업 없음</span>`}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0">
-          <span style="font-size:11px;font-weight:700;color:${sm.color};background:${sm.bg};padding:3px 9px;border-radius:20px">${sm.icon} ${sm.label}</span>
-          <button onclick="toggleClassLogEdit(${s.id},'${selDate}',${period})" style="background:none;border:1px solid ${isEditing?'#5E5CE6':'#E5E7EB'};border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:${isEditing?'#5E5CE6':'#6B7280'}">
-            ${isEditing ? '접기' : '편집'}
-          </button>
-        </div>
-      </div>
-      ${isEditing ? renderClassLogEditPanel(s.id, selDate, period, log) : ''}`;
-  }).join('');
-
-  const selDateObj   = new Date(selDate);
-  const selDateLabel = `${selDateObj.getMonth()+1}월 ${selDateObj.getDate()}일 (${dayNames[selDateObj.getDay()]})`;
-  const selPresent   = dayLogs.filter(l=>l.status==='present').length;
-  const selAbsent    = dayLogs.filter(l=>l.status==='absent').length;
-  const selLate      = dayLogs.filter(l=>l.status==='late').length;
-  const selEarly     = dayLogs.filter(l=>l.status==='early_leave').length;
-
-  container.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:14px;padding:2px 0">
-
-      <!-- KPI 바 (월별) -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-        <div style="padding:10px 12px;background:#F0FDF4;border-radius:10px;text-align:center;border:1px solid #D1FAE5">
-          <div style="font-size:22px;font-weight:800;color:#16A34A">${mPresent}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:2px">출석</div>
-        </div>
-        <div style="padding:10px 12px;background:#FEF2F2;border-radius:10px;text-align:center;border:1px solid #FECACA">
-          <div style="font-size:22px;font-weight:800;color:#EF4444">${mAbsent}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:2px">결석</div>
-        </div>
-        <div style="padding:10px 12px;background:#FFFBEB;border-radius:10px;text-align:center;border:1px solid #FDE68A">
-          <div style="font-size:22px;font-weight:800;color:#D97706">${mLate}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:2px">지각</div>
-        </div>
-        <div style="padding:10px 12px;background:#F5F3FF;border-radius:10px;text-align:center;border:1px solid #DDD6FE">
-          <div style="font-size:22px;font-weight:800;color:#8B5CF6">${mEarly}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:2px">조퇴</div>
-        </div>
-        <div style="padding:10px 12px;background:${penalty?'#FEF2F2':'#F0FDF4'};border-radius:10px;text-align:center;border:1px solid ${penalty?'#FECACA':'#D1FAE5'};cursor:pointer" onclick="toggleStudentPenalty(${s.id})" title="관리자 패널티 전환 (누적 출석률 ${attRate}%)">
-          <div style="font-size:12px;font-weight:800;color:${penalty?'#EF4444':'#16A34A'}">${penalty?'🔒 적용중':'✓ 정상'}</div>
-          <div style="font-size:10px;color:#6B7280;margin-top:2px">1:1 패널티</div>
-        </div>
-      </div>
-
-      <!-- 월간 캘린더 -->
-      ${calHtml}
-
-      <!-- 선택 날짜 상세 -->
-      <div style="border-top:2px solid #5E5CE6;padding-top:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:800;color:#1A1D23">${selDateLabel} 수업 현황</div>
-          <div style="display:flex;gap:6px;font-size:10.5px">
-            ${selPresent ? `<span style="background:#DCFCE7;color:#16A34A;padding:2px 8px;border-radius:10px;font-weight:700">출석 ${selPresent}</span>` : ''}
-            ${selAbsent  ? `<span style="background:#FEE2E2;color:#EF4444;padding:2px 8px;border-radius:10px;font-weight:700">결석 ${selAbsent}</span>` : ''}
-            ${selLate    ? `<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:10px;font-weight:700">지각 ${selLate}</span>` : ''}
-            ${selEarly   ? `<span style="background:#EDE9FE;color:#8B5CF6;padding:2px 8px;border-radius:10px;font-weight:700">조퇴 ${selEarly}</span>` : ''}
-          </div>
-        </div>
-        <div>${periodRows}</div>
-      </div>
-    </div>`;
-
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-function renderClassLogEditPanel(studentId, date, period, log) {
-  const subjects = ['Speaking','Grammar','Writing','Listening','Reading','Pronunciation','Vocabulary','Conversation'];
-  const teachers = [...new Set(MOCK_CLASS_LOG.map(l => l.teacherName).filter(Boolean))];
-  const cur = log || { type:'1:1', teacherName:'', subject:'', status:'present', note:'' };
-  return `
-    <div id="classlog-edit-${period}" style="margin:-6px 0 6px 0;padding:14px 16px;background:#EEF2FF;border:1.5px solid #C7D2FE;border-radius:0 0 10px 10px;display:flex;flex-direction:column;gap:10px">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div>
-          <label style="font-size:10px;font-weight:700;color:#4B5563;display:block;margin-bottom:4px">수업 유형</label>
-          <select id="cle-type-${period}" class="tsa-input" style="font-size:12px;padding:5px 8px">
-            ${['1:1','1:4','1:6'].map(t => `<option ${cur.type===t?'selected':''}>${t}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:10px;font-weight:700;color:#4B5563;display:block;margin-bottom:4px">담당 강사</label>
-          <input id="cle-teacher-${period}" class="tsa-input" style="font-size:12px;padding:5px 8px" value="${cur.teacherName||''}" placeholder="강사명" list="cle-teacher-list"/>
-          <datalist id="cle-teacher-list">${teachers.map(t=>`<option value="${t}">`).join('')}</datalist>
-        </div>
-        <div>
-          <label style="font-size:10px;font-weight:700;color:#4B5563;display:block;margin-bottom:4px">수업 과목</label>
-          <input id="cle-subject-${period}" class="tsa-input" style="font-size:12px;padding:5px 8px" value="${cur.subject||''}" placeholder="과목명" list="cle-subject-list"/>
-          <datalist id="cle-subject-list">${subjects.map(s=>`<option value="${s}">`).join('')}</datalist>
-        </div>
-      </div>
-      <div>
-        <label style="font-size:10px;font-weight:700;color:#4B5563;display:block;margin-bottom:4px">출석 상태</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${[['present','출석','#16A34A','#DCFCE7'],['absent','결석','#EF4444','#FEE2E2'],['late','지각','#D97706','#FEF3C7'],['early_leave','조퇴','#8B5CF6','#EDE9FE']].map(([v,lbl,c,bg]) =>
-            `<label style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid ${cur.status===v?c:'#E5E7EB'};background:${cur.status===v?bg:'white'};cursor:pointer;font-size:11px;font-weight:600;color:${cur.status===v?c:'#6B7280'}">
-              <input type="radio" name="cle-status-${period}" value="${v}" ${cur.status===v?'checked':''} style="display:none" onchange="refreshStatusBadges(${period})"> ${lbl}
-            </label>`
-          ).join('')}
-        </div>
-      </div>
-      <div>
-        <label style="font-size:10px;font-weight:700;color:#4B5563;display:block;margin-bottom:4px">강사 메모</label>
-        <textarea id="cle-note-${period}" class="tsa-input" style="font-size:12px;padding:6px 8px;resize:vertical;min-height:52px" placeholder="수업 진행 내용, 특이사항 등을 기록하세요">${cur.note||''}</textarea>
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px">
-        <button onclick="toggleClassLogEdit(null,null,null)" style="padding:5px 14px;background:none;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;color:#6B7280;cursor:pointer">취소</button>
-        <button onclick="saveClassLogEntry(${studentId},'${date}',${period})" style="padding:5px 16px;background:#5E5CE6;border:none;border-radius:6px;font-size:12px;color:white;font-weight:700;cursor:pointer">저장</button>
-      </div>
-    </div>`;
-}
-
-function selectClassLogDate(date) {
-  APP._classLogDate = date;
-  _classLogEditTarget = null;
-  // 달력 월도 선택된 날짜에 맞춤
-  const d = new Date(date);
-  APP._classLogYear  = d.getFullYear();
-  APP._classLogMonth = d.getMonth() + 1;
-  renderStudentClassLogTab();
-}
-
-function shiftClassLogMonth(delta) {
-  APP._classLogMonth = (APP._classLogMonth || 6) + delta;
-  if (APP._classLogMonth < 1)  { APP._classLogMonth = 12; APP._classLogYear--; }
-  if (APP._classLogMonth > 12) { APP._classLogMonth = 1;  APP._classLogYear++; }
-  renderStudentClassLogTab();
-}
-
-function toggleClassLogEdit(studentId, date, period) {
-  if (!studentId) {
-    _classLogEditTarget = null;
-  } else if (_classLogEditTarget?.studentId === studentId && _classLogEditTarget?.date === date && _classLogEditTarget?.period === period) {
-    _classLogEditTarget = null;
-  } else {
-    _classLogEditTarget = { studentId, date, period };
-  }
-  renderStudentClassLogTab();
-}
-
-function refreshStatusBadges(period) {
-  // 라디오 선택 시 레이블 스타일 즉시 갱신
-  const radios = document.querySelectorAll(`input[name="cle-status-${period}"]`);
-  const colorMap = { present:['#16A34A','#DCFCE7'], absent:['#EF4444','#FEE2E2'], late:['#D97706','#FEF3C7'], early_leave:['#8B5CF6','#EDE9FE'] };
-  radios.forEach(r => {
-    const lbl = r.closest('label');
-    if (!lbl) return;
-    const [c, bg] = colorMap[r.value] || ['#6B7280','white'];
-    lbl.style.borderColor  = r.checked ? c : '#E5E7EB';
-    lbl.style.background   = r.checked ? bg : 'white';
-    lbl.style.color        = r.checked ? c : '#6B7280';
-  });
-}
-
-function saveClassLogEntry(studentId, date, period) {
-  const type    = document.getElementById(`cle-type-${period}`)?.value || '1:1';
-  const teacher = document.getElementById(`cle-teacher-${period}`)?.value || '';
-  const subject = document.getElementById(`cle-subject-${period}`)?.value || '';
-  const note    = document.getElementById(`cle-note-${period}`)?.value || '';
-  const statusEl= document.querySelector(`input[name="cle-status-${period}"]:checked`);
-  const status  = statusEl?.value || 'present';
-
-  const idx = MOCK_CLASS_LOG.findIndex(l => l.studentId===studentId && l.date===date && l.period===period);
-  const entry = { studentId, date, period, type, teacherName:teacher, subject, status, note };
-  if (idx >= 0) MOCK_CLASS_LOG[idx] = entry;
-  else MOCK_CLASS_LOG.push(entry);
-
-  // 학생 출석률 재계산
-  const stu = MOCK_STUDENTS.find(s => s.id === studentId);
-  if (stu) {
-    const logs = MOCK_CLASS_LOG.filter(l => l.studentId === studentId);
-    const tot  = logs.length;
-    const att  = logs.filter(l => l.status !== 'absent').length;
-    stu.attendance = tot > 0 ? Math.round(att/tot*100*10)/10 : 0;
-  }
-
-  _classLogEditTarget = null;
-  showToast('✓ 수업 기록이 저장되었습니다.', 'success');
-  renderStudentClassLogTab();
-}
-
-function toggleStudentPenalty(studentId) {
-  const stu = MOCK_STUDENTS.find(s => s.id === studentId);
-  if (!stu) return;
-  stu.penaltyActive = !stu.penaltyActive;
-  showToast(stu.penaltyActive ? '⚠ 1:1 수업 패널티가 적용되었습니다.' : '✓ 패널티가 해제되었습니다.', stu.penaltyActive ? 'warning' : 'success');
-  renderStudentClassLogTab();
-}
+// (스케줄 탭에 통합됨: renderStudentClassLogTab / selectClassLogDate / shiftClassLogMonth 삭제,
+// renderClassLogEditPanel / toggleClassLogEdit / refreshStatusBadges / saveClassLogEntry / toggleStudentPenalty는
+// app/assets/js/lms-classroom.js로 이동)
 
 function onDormAccomChange(accomType) {
   const types = [...new Set(MOCK_DORM_TEMPLATES.filter(t => t.accomType === accomType).map(t => t.capacity + '인실'))];

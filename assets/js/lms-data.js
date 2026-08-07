@@ -1385,6 +1385,21 @@ const MOCK_SUBSTITUTE_LOGS = [
   { date: '2026-06-08', originalTeacher: 'Sarah', subTeacher: 'Mike', subject: 'IELTS 1:1', reason: 'Sarah Johnson 지각으로 대체 투입' }
 ];
 
+// 홈페이지(tsedu.co.kr) "에이전시 파트너십" 문의 폼과 동일한 항목으로 접수되는 리드 목록.
+// status: 'new'(신규) → 'contacted'(응대중) → 'closed'(완료)
+let MOCK_PARTNERSHIP_INQUIRIES = [
+  { id: 1, agencyName: 'Global Bridge Education', contactName: 'Nguyen Van An', country: 'Vietnam', phone: '+84 90 123 4567', email: 'an.nguyen@globalbridge.vn', message: '연 200명 규모 송출 가능. IELTS 코스 커미션 구조 문의드립니다.', submittedAt: '2026-06-14 10:22', status: 'contacted', partnerRegistered: false,
+    notes: [
+      { id: 1, text: '유선 통화 완료. 커미션 구조 자료 이메일 발송함.', author: '슈퍼 어드민', at: '2026-06-14 16:05' }
+    ] },
+  { id: 2, agencyName: 'Sakura Study Abroad', contactName: 'Yamamoto Kenji', country: 'Japan', phone: '+81 90 1234 5678', email: 'kenji@sakurastudy.jp', message: '단기 인텐시브 과정 위주로 상담 희망합니다.', submittedAt: '2026-06-15 15:40', status: 'new', partnerRegistered: false, notes: [] },
+  { id: 3, agencyName: '타이베이 어학연수', contactName: '陳美玲', country: 'Taiwan', phone: '+886 912 345 678', email: 'chen@taipei-edu.tw', message: '기숙사 시설 사진과 파트너 계약서 양식 요청드립니다.', submittedAt: '2026-06-16 09:05', status: 'closed', partnerRegistered: true,
+    notes: [
+      { id: 1, text: '기숙사 사진, 계약서 양식 첨부하여 회신 완료.', author: '슈퍼 어드민', at: '2026-06-16 11:30' },
+      { id: 2, text: '계약 조건 협의 완료, 파트너십 체결.', author: '슈퍼 어드민', at: '2026-06-18 14:00' }
+    ] }
+];
+
 const ROLE_CONFIG = {
   super_admin:       { label: '슈퍼 어드민', avatar: 'SA', bg: 'linear-gradient(135deg,#5E5CE6,#818CF8)', menus: ['admin','staff'], breadSec: '본사 관리' },
   head_teacher:      { label: '티칭 헤드', avatar: 'HT', bg: 'linear-gradient(135deg,#0EA5E9,#38BDF8)', menus: ['admin'], breadSec: '학사 관리' },

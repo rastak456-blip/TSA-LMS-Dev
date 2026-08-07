@@ -37,7 +37,7 @@
   <script src="assets/js/lms-student.js?v=0.6.6"></script>
   <script src="assets/js/lms-course.js?v=0.6.61"></script>
   <script src="assets/js/lms-tuition.js?v=0.7.8"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.114"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.121"></script>
   <script>
     function showPopupError(message) {
       const status = document.getElementById('popup-status');
@@ -85,13 +85,6 @@
       if (view === 'edit' && Number.isFinite(groupId)) {
         openGroupEditBrowserPopup(groupId, Number.isFinite(row) ? row : null, window);
         return;
-      }
-      if (view === 'size-assign' || view === 'badge-assign') {
-        const studentId = Number.parseInt(params.get('student'), 10);
-        if (Number.isFinite(studentId)) {
-          openSizeAssignPopup(studentId, params.get('subject') || '', params.get('type') || '1:4', window);
-          return;
-        }
       }
       if (view === 'student-assign') {
         const studentId = Number.parseInt(params.get('student'), 10);
