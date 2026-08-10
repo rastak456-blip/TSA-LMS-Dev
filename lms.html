@@ -3377,6 +3377,7 @@
                       <th style="text-align:center">구분</th>
                       <th style="text-align:center">커미션 적용</th>
                       <th style="text-align:right">금액</th>
+                      <th>관리 메모</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
@@ -3402,6 +3403,7 @@
                       <th style="text-align:center">구분</th>
                       <th style="text-align:center">커미션 적용</th>
                       <th style="text-align:right">금액</th>
+                      <th>관리 메모</th>
                       <th style="text-align:center">관리</th>
                     </tr>
                   </thead>
@@ -6765,21 +6767,39 @@
                 <span class="tsa-badge tsa-badge-gray">선택 입력</span>
               </div>
               <div class="tsa-card-body" style="padding:14px">
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px">
-                  <div class="tsa-form-group"><label class="tsa-label">입국 편명</label><input id="course-reg-flight-num" class="tsa-input" placeholder="예: KE631"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">입국일</label><input id="course-reg-arrival-date" type="date" class="tsa-input"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">도착 시간</label><input id="course-reg-flight-time" type="time" class="tsa-input"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">출국 편명</label><input id="course-reg-flight-out-num" class="tsa-input" placeholder="예: KE632"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">출국일</label><input id="course-reg-departure-date" type="date" class="tsa-input"/></div>
-                  <div class="tsa-form-group"><label class="tsa-label">출발 시간</label><input id="course-reg-flight-out-time" type="time" class="tsa-input"/></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+                  <div style="border:1px solid #BFDBFE;background:#EFF6FF;border-radius:10px;padding:11px">
+                    <div style="font-size:11.5px;font-weight:800;color:#1D4ED8;margin-bottom:8px">✈️ 최초 입국</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">출발 국가</label><select id="course-reg-arrival-from-country" class="tsa-input"></select></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">도착 국가</label><select id="course-reg-arrival-to-country" class="tsa-input"></select></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">항공편명</label><input id="course-reg-flight-num" class="tsa-input" placeholder="예: KE631"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">입국일</label><input id="course-reg-arrival-date" type="date" class="tsa-input"/></div>
+                      <div class="tsa-form-group" style="margin:0;grid-column:span 2"><label class="tsa-label">도착 시간</label><input id="course-reg-flight-time" type="time" class="tsa-input"/></div>
+                      <div style="grid-column:span 2;margin-top:2px;display:flex;align-items:center;gap:7px">
+                        <span style="font-size:10.5px;font-weight:700;color:#374151;flex-shrink:0">E-티켓</span>
+                        <label class="tsa-btn tsa-btn-outline tsa-btn-xs" style="cursor:pointer;flex-shrink:0"><i data-lucide="paperclip" style="width:11px;height:11px"></i> 파일 선택<input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('ticketArrival',this)"/></label>
+                        <span id="course-reg-file-ticketArrival" style="font-size:10px;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">파일 선택 안 함</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="border:1px solid #FBCFE8;background:#FDF2F8;border-radius:10px;padding:11px">
+                    <div style="font-size:11.5px;font-weight:800;color:#BE185D;margin-bottom:8px">🛫 최종 출국</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">출발 국가</label><select id="course-reg-departure-from-country" class="tsa-input"></select></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">도착 국가</label><select id="course-reg-departure-to-country" class="tsa-input"></select></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">항공편명</label><input id="course-reg-flight-out-num" class="tsa-input" placeholder="예: KE632"/></div>
+                      <div class="tsa-form-group" style="margin:0"><label class="tsa-label">출국일</label><input id="course-reg-departure-date" type="date" class="tsa-input"/></div>
+                      <div class="tsa-form-group" style="margin:0;grid-column:span 2"><label class="tsa-label">출발 시간</label><input id="course-reg-flight-out-time" type="time" class="tsa-input"/></div>
+                      <div style="grid-column:span 2;margin-top:2px;display:flex;align-items:center;gap:7px">
+                        <span style="font-size:10.5px;font-weight:700;color:#374151;flex-shrink:0">E-티켓</span>
+                        <label class="tsa-btn tsa-btn-outline tsa-btn-xs" style="cursor:pointer;flex-shrink:0"><i data-lucide="paperclip" style="width:11px;height:11px"></i> 파일 선택<input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('ticketDeparture',this)"/></label>
+                        <span id="course-reg-file-ticketDeparture" style="font-size:10px;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">파일 선택 안 함</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
-                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>여권 사본</b><span id="course-reg-file-passport" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('passport',this)"/></label>
-                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>E-티켓</b><span id="course-reg-file-ticket" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('ticket',this)"/></label>
-                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>증명사진</b><span id="course-reg-file-photo" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept="image/*" hidden onchange="handleCourseRegFileUpload('photo',this)"/></label>
-                  <label class="tsa-file-upload-box" style="padding:12px;cursor:pointer"><b>보험 증서</b><span id="course-reg-file-insurance" style="font-size:10px;color:#9CA3AF">파일 선택</span><input type="file" accept=".pdf,image/*" hidden onchange="handleCourseRegFileUpload('insurance',this)"/></label>
-                </div>
-                <div style="margin-top:10px;padding:9px 11px;border-radius:8px;background:#EEF2FF;color:#4338CA;font-size:10.5px;line-height:1.5">미등록 정보는 수강 등록 후 학생 상세 정보 → 수강 현황 → 항공편 &amp; 서류 관리에서 추가할 수 있습니다.</div>
+                <div style="margin-top:10px;padding:9px 11px;border-radius:8px;background:#EEF2FF;color:#4338CA;font-size:10.5px;line-height:1.5">여기서 입력한 항공 일정은 학생 상세 정보 → 수강 현황 → 입출국·비자 관리의 항공 일정 목록에 "최초 입국"/"최종 출국"으로 그대로 등록되며, 이후 그 화면에서 이어서 관리할 수 있습니다. 여권 사본·증명사진·보험 증서 등 다른 서류는 등록 후 학생 상세 정보에서 추가할 수 있습니다.</div>
               </div>
             </div>
             <div class="tsa-form-group">
@@ -7122,7 +7142,7 @@
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.9"></script>
 <script src="assets/js/lms-student.js?v=0.6.7"></script>
-    <script src="assets/js/lms-course.js?v=0.6.72"></script>
+    <script src="assets/js/lms-course.js?v=0.6.76"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.12"></script>
 <script src="assets/js/lms-classroom.js?v=0.8.128"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>

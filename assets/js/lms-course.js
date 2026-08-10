@@ -1782,7 +1782,7 @@ function handleCourseRegFileUpload(type, input) {
   APP.courseRegUploadedFiles[type] = fileName;
   const label = document.getElementById(`course-reg-file-${type}`);
   if (label) {
-    label.textContent = fileName || '파일 선택';
+    label.textContent = fileName || '파일 선택 안 함';
     label.style.color = fileName ? '#047857' : '#9CA3AF';
   }
 }
@@ -1820,23 +1820,39 @@ function openStudentCourseRegistration(studentId) {
   const memoEl = document.getElementById('course-reg-memo');
   if (memoEl) memoEl.value = '';
 
+  // 이미 등록된 항공 일정(입출국·비자 관리와 같은 소스)이 있으면 그 값을 그대로 불러온다.
+  ensureStudentStayData(student);
+  const firstEntry = student.flightSchedules.find(item => item.kind === 'first_entry' && item.status !== 'cancelled') || {};
+  const finalExit = student.flightSchedules.find(item => item.kind === 'final_exit' && item.status !== 'cancelled') || {};
+
+  const arrivalFromEl = document.getElementById('course-reg-arrival-from-country');
+  if (arrivalFromEl) arrivalFromEl.innerHTML = stayCountryOptionsHtml(firstEntry.fromCountry || student.nationality || '');
+  const arrivalToEl = document.getElementById('course-reg-arrival-to-country');
+  if (arrivalToEl) arrivalToEl.innerHTML = stayCountryOptionsHtml(firstEntry.toCountry || '필리핀');
+  const departureFromEl = document.getElementById('course-reg-departure-from-country');
+  if (departureFromEl) departureFromEl.innerHTML = stayCountryOptionsHtml(finalExit.fromCountry || '필리핀');
+  const departureToEl = document.getElementById('course-reg-departure-to-country');
+  if (departureToEl) departureToEl.innerHTML = stayCountryOptionsHtml(finalExit.toCountry || student.nationality || '');
+
   const optionalValues = {
-    'course-reg-flight-num': student.flightNum || '',
-    'course-reg-arrival-date': student.arrivalDate || '',
-    'course-reg-flight-time': student.flightTime || '',
-    'course-reg-flight-out-num': student.flightOutNum || '',
-    'course-reg-departure-date': student.departureDate || '',
-    'course-reg-flight-out-time': student.flightOutTime || '',
+    'course-reg-flight-num': firstEntry.flightNo || '',
+    'course-reg-arrival-date': firstEntry.arriveDate || '',
+    'course-reg-flight-time': firstEntry.arriveTime || '',
+    'course-reg-flight-out-num': finalExit.flightNo || '',
+    'course-reg-departure-date': finalExit.departDate || '',
+    'course-reg-flight-out-time': finalExit.departTime || '',
   };
   Object.entries(optionalValues).forEach(([id, value]) => {
     const el = document.getElementById(id);
     if (el) el.value = value;
   });
-  ['passport','ticket','photo','insurance'].forEach(type => {
+  APP.courseRegUploadedFiles.ticketArrival = firstEntry.ticketFile || '';
+  APP.courseRegUploadedFiles.ticketDeparture = finalExit.ticketFile || '';
+  ['ticketArrival','ticketDeparture'].forEach(type => {
     const label = document.getElementById(`course-reg-file-${type}`);
     const fileName = APP.courseRegUploadedFiles[type];
     if (label) {
-      label.textContent = fileName || '파일 선택';
+      label.textContent = fileName || '파일 선택 안 함';
       label.style.color = fileName ? '#047857' : '#9CA3AF';
     }
   });
@@ -1984,13 +2000,22 @@ function saveStudentCourseRegistration() {
     student.dormOut = '';
   }
   student.totalGross = totalGross;
-  student.flightNum = getOptionalValue('course-reg-flight-num');
-  student.arrivalDate = getOptionalValue('course-reg-arrival-date');
-  student.flightTime = getOptionalValue('course-reg-flight-time');
-  student.flightOutNum = getOptionalValue('course-reg-flight-out-num');
-  student.departureDate = getOptionalValue('course-reg-departure-date');
-  student.flightOutTime = getOptionalValue('course-reg-flight-out-time');
   student.requiredFiles = { ...(student.requiredFiles || {}), ...(APP.courseRegUploadedFiles || {}) };
+  // 여기서 입력한 입/출국 정보는 학생 상세 → 수강 현황 → 입출국·비자 관리가 읽는
+  // flightSchedules 목록에도 함께 반영해야 그 화면에서 바로 보인다(§5/§6과 동일 소스).
+  syncCourseRegFlightSchedules(
+    student,
+    {
+      flightNo: getOptionalValue('course-reg-flight-num'), date: getOptionalValue('course-reg-arrival-date'), time: getOptionalValue('course-reg-flight-time'),
+      fromCountry: getOptionalValue('course-reg-arrival-from-country'), toCountry: getOptionalValue('course-reg-arrival-to-country')
+    },
+    {
+      flightNo: getOptionalValue('course-reg-flight-out-num'), date: getOptionalValue('course-reg-departure-date'), time: getOptionalValue('course-reg-flight-out-time'),
+      fromCountry: getOptionalValue('course-reg-departure-from-country'), toCountry: getOptionalValue('course-reg-departure-to-country')
+    },
+    APP.courseRegUploadedFiles.ticketArrival,
+    APP.courseRegUploadedFiles.ticketDeparture
+  );
   student.extraItems = extraItems;
   student.pickupRequired = extraItems.some(item => /공항\s*픽업|Airport\s*Pickup/i.test(item.name || ''));
   student.courseRegistrationFees = {
@@ -4100,6 +4125,59 @@ function syncStudentFlightSummary(s) {
     s.flightOutTime = finalExit.departTime || '';
     s.flightOutNum = finalExit.flightNo || '';
   }
+}
+
+// 수강 등록 팝업(§5 항공편)에서 입력한 입/출국 정보를 flightSchedules 목록에 upsert한다.
+// 이미 취소되지 않은 first_entry/final_exit이 있으면 그 항목을 갱신하고, 없으면 새로 만든다.
+function syncCourseRegFlightSchedules(student, arrival, departure, arrivalTicketFileName, departureTicketFileName) {
+  if (!student) return;
+  ensureStudentStayData(student);
+
+  const nextId = () => student.flightSchedules.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
+
+  const hasArrivalInfo = !!(arrival && (arrival.flightNo || arrival.date || arrival.time));
+  if (hasArrivalInfo) {
+    let entry = student.flightSchedules.find(item => item.kind === 'first_entry' && item.status !== 'cancelled');
+    if (!entry) {
+      entry = {
+        id: nextId(), kind: 'first_entry', status: 'confirmed',
+        departDate: '', departTime: '', arriveDate: '', arriveTime: '',
+        fromCountry: student.nationality || '', fromAirport: '', toCountry: '필리핀', toAirport: 'CEB',
+        flightNo: '', terminal: '', pickupNeeded: true, note: '',
+        eticketCheck: 'unchecked', eticketCheckedAt: '', eticketCheckedBy: ''
+      };
+      student.flightSchedules.push(entry);
+    }
+    if (arrival.date) entry.arriveDate = arrival.date;
+    if (arrival.time) entry.arriveTime = arrival.time;
+    if (arrival.flightNo) entry.flightNo = arrival.flightNo;
+    if (arrival.fromCountry) entry.fromCountry = arrival.fromCountry;
+    if (arrival.toCountry) entry.toCountry = arrival.toCountry;
+    if (arrivalTicketFileName) entry.ticketFile = arrivalTicketFileName;
+  }
+
+  const hasDepartureInfo = !!(departure && (departure.flightNo || departure.date || departure.time));
+  if (hasDepartureInfo) {
+    let entry = student.flightSchedules.find(item => item.kind === 'final_exit' && item.status !== 'cancelled');
+    if (!entry) {
+      entry = {
+        id: nextId(), kind: 'final_exit', status: 'confirmed',
+        departDate: '', departTime: '', arriveDate: '', arriveTime: '',
+        fromCountry: '필리핀', fromAirport: 'CEB', toCountry: student.nationality || '', toAirport: '',
+        flightNo: '', terminal: '', pickupNeeded: true, note: '',
+        eticketCheck: 'unchecked', eticketCheckedAt: '', eticketCheckedBy: ''
+      };
+      student.flightSchedules.push(entry);
+    }
+    if (departure.date) entry.departDate = departure.date;
+    if (departure.time) entry.departTime = departure.time;
+    if (departure.flightNo) entry.flightNo = departure.flightNo;
+    if (departure.fromCountry) entry.fromCountry = departure.fromCountry;
+    if (departure.toCountry) entry.toCountry = departure.toCountry;
+    if (departureTicketFileName) entry.ticketFile = departureTicketFileName;
+  }
+
+  syncStudentFlightSummary(student);
 }
 
 // §10 이력: 신규 등록·수정·상태 변경·번호 변경·일정 취소·확인 처리

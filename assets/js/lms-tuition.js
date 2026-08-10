@@ -743,6 +743,7 @@ function renderTuitionFeeItemRow(item, idx) {
       <td style="text-align:center"><span class="tsa-badge ${item.type === 'required' ? 'tsa-badge-danger' : 'tsa-badge-gray'}">${item.type === 'required' ? '필수' : '옵션'}</span></td>
       <td style="text-align:center"><span class="tsa-badge ${item.commissionEnabled ? 'tsa-badge-primary' : 'tsa-badge-gray'}">${item.commissionEnabled ? '있음' : '없음'}</span></td>
       <td style="text-align:right;font-weight:800">$${item.amount.toLocaleString()}</td>
+      <td style="color:#6B7280">${item.memo ? item.memo : '<span style="color:#D1D5DB">-</span>'}</td>
       <td style="text-align:center">
         <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openTuitionExtraItemModal(${idx})">수정</button>
       </td>
