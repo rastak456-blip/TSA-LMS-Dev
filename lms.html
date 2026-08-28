@@ -1343,6 +1343,77 @@
       cursor: pointer;
     }
 
+    /* ===== LANGUAGE SWITCHER ===== */
+    .tsa-lang-switcher { position: relative; }
+    .tsa-login-lang-switcher {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+    }
+    .tsa-login-lang-switcher .tsa-lang-btn {
+      background: rgba(255,255,255,0.16);
+      border-color: rgba(255,255,255,0.3);
+      color: #FFFFFF;
+      backdrop-filter: blur(6px);
+    }
+    .tsa-login-lang-switcher .tsa-lang-btn:hover { background: rgba(255,255,255,0.26); }
+    .tsa-login-lang-switcher .tsa-lang-btn i { color: rgba(255,255,255,0.85); }
+    .tsa-lang-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #F8F9FC;
+      border: 1px solid #E9EDF4;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+    }
+    .tsa-lang-btn:hover { background: #EFF1F7; }
+    .tsa-lang-btn .tsa-lang-flag { font-size: 14px; line-height: 1; }
+    .tsa-lang-btn i { font-size: 11px; color: #9CA3AF; }
+    .tsa-lang-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 168px;
+      background: #FFFFFF;
+      border: 1px solid #E9EDF4;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(17,24,39,0.12);
+      padding: 6px;
+      z-index: 200;
+    }
+    .tsa-lang-menu.open { display: block; }
+    .tsa-lang-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      border: none;
+      background: none;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #374151;
+      cursor: pointer;
+    }
+    .tsa-lang-menu-item:hover { background: #F3F4F6; }
+    .tsa-lang-menu-item.active { background: #EEF2FF; color: #4F46E5; font-weight: 600; }
+    .tsa-lang-menu-item .tsa-lang-flag { font-size: 15px; }
+
+    /* Google 웹사이트 번역기 위젯 UI를 감추고, 커스텀 드롭다운만 노출한다 */
+    #google_translate_element { display: none !important; }
+    .goog-te-banner-frame.skiptranslate { display: none !important; }
+    body { top: 0 !important; }
+    .goog-text-highlight { background: none !important; box-shadow: none !important; }
+    .skiptranslate iframe { display: none !important; }
+
     /* ===== MISC UTILITIES ===== */
     .tsa-divider { height: 1px; background: #F1F4F9; margin: 16px 0; }
 
@@ -1470,6 +1541,15 @@
 <!--  LOGIN SCREEN                                               -->
 <!-- ========================================================== -->
 <div id="login-screen" class="tsa-login-screen">
+  <!-- Language Switcher -->
+  <div class="tsa-lang-switcher tsa-login-lang-switcher" data-lang-switcher>
+    <button type="button" class="tsa-lang-btn" data-lang-toggle aria-haspopup="true" aria-expanded="false">
+      <span class="tsa-lang-flag" data-lang-flag>🇰🇷</span>
+      <span data-lang-label>한국어</span>
+      <i data-lucide="chevron-down"></i>
+    </button>
+    <div class="tsa-lang-menu" data-lang-menu></div>
+  </div>
   <div class="tsa-login-card">
     <div class="tsa-login-hero">
       <div class="tsa-login-hero-icon">T</div>
@@ -1570,32 +1650,54 @@
       <!-- Admin 전용 -->
       <div class="tsa-sidebar-section admin-only" id="section-academic">Academic</div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
-        <a class="tsa-nav-item admin-only" id="menu-student-class-assign" onclick="navigate('student-class-assign')">
-          <i data-lucide="user-check"></i>
-          수업 편성 및 배정 관리
+        <a class="tsa-nav-item admin-only" id="menu-student-class-assign" onclick="navigateStudentClassAssign()">
+          <i data-lucide="calendar-days"></i>
+          주간 수업 배정
         </a>
         <a class="tsa-nav-item admin-only" id="menu-classroom-manage" onclick="navigate('classroom-manage')">
           <i data-lucide="building-2"></i>
           강의실 관리
         </a>
       </div>
-      <a class="tsa-nav-item admin-only" id="menu-students" onclick="navigate('students')">
-        <i data-lucide="users"></i>
-        학생 정보 관리
-      </a>
-      <a class="tsa-nav-item admin-only" id="menu-teachers" onclick="navigate('teachers')">
-        <i data-lucide="graduation-cap"></i>
-        강사 정보 관리
-      </a>
-
-      <a class="tsa-nav-item admin-only" id="menu-course-pricing" onclick="navigate('course-pricing')">
-        <i data-lucide="settings-2"></i>
-        과정 및 수업 기준 설정
-      </a>
-      <a class="tsa-nav-item admin-only" id="menu-tuition-config" onclick="navigate('tuition-config')">
-        <i data-lucide="receipt-text"></i>
-        수강료 구성
-      </a>
+      <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
+        <a class="tsa-nav-item" id="menu-student-manage-parent" aria-controls="student-manage-submenu" aria-expanded="false" onclick="toggleSidebarGroup('student-manage-submenu')">
+          <i data-lucide="users"></i>학생 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+        </a>
+        <div id="student-manage-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
+          <a class="tsa-nav-sub-item" id="menu-students" onclick="navigate('students')">학생 정보 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-student-requests" onclick="navigate('student-requests')">학생 요청 관리</a>
+        </div>
+      </div>
+      <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
+        <a class="tsa-nav-item" id="menu-teacher-manage-parent" aria-controls="teacher-manage-submenu" aria-expanded="false" onclick="toggleSidebarGroup('teacher-manage-submenu')">
+          <i data-lucide="graduation-cap"></i>강사 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+        </a>
+        <div id="teacher-manage-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
+          <a class="tsa-nav-sub-item" id="menu-teachers" onclick="navigate('teachers')">강사 정보 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-teacher-tags" onclick="navigate('teacher-tags')">배정 태그 설정 관리</a>
+        </div>
+      </div>
+      <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
+        <a class="tsa-nav-item" id="menu-course-settings-parent" aria-controls="course-settings-submenu" aria-expanded="false" onclick="toggleSidebarGroup('course-settings-submenu')">
+          <i data-lucide="settings-2"></i>과정 및 수업 기준 설정<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+        </a>
+        <div id="course-settings-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
+          <a class="tsa-nav-sub-item" id="menu-course-pricing" onclick="navigate('course-pricing')">수강 과정 등록 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-course-master" onclick="navigate('course-master')">과목·레벨·수업 유형</a>
+          <a class="tsa-nav-sub-item" id="menu-course-period" onclick="navigate('course-period')">교시 시간 설정</a>
+        </div>
+      </div>
+      <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
+        <a class="tsa-nav-item" id="menu-tuition-parent" aria-controls="tuition-submenu" aria-expanded="false" onclick="toggleSidebarGroup('tuition-submenu')">
+          <i data-lucide="receipt-text"></i>수강료 구성<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+        </a>
+        <div id="tuition-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
+          <a class="tsa-nav-sub-item" id="menu-tuition-config" onclick="navigate('tuition-config')">과정별 수강료</a>
+          <a class="tsa-nav-sub-item" id="menu-tuition-dorm" onclick="navigate('tuition-dorm')">기숙사 요금</a>
+          <a class="tsa-nav-sub-item" id="menu-tuition-registration" onclick="navigate('tuition-registration')">등록금</a>
+          <a class="tsa-nav-sub-item" id="menu-tuition-local" onclick="navigate('tuition-local')">기타 비용</a>
+        </div>
+      </div>
 
       <!-- Operations -->
       <div class="tsa-sidebar-section staff-only" id="section-ops">Operations</div>
@@ -1603,10 +1705,18 @@
         <i data-lucide="home"></i>
         기숙사 배정 관리
       </a>
-      <a class="tsa-nav-item admin-only" id="menu-pickup-managers" onclick="navigate('pickup-managers')">
-        <i data-lucide="car-front"></i>
-        픽업 담당자 관리
+      <a class="tsa-nav-item staff-only" id="menu-meal-plan" onclick="navigate('meal-plan')">
+        <i data-lucide="utensils"></i>
+        식단 관리
       </a>
+      <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
+        <a class="tsa-nav-item" id="menu-pickup-parent" aria-controls="pickup-submenu" aria-expanded="false" onclick="toggleSidebarGroup('pickup-submenu')">
+          <i data-lucide="car-front"></i>픽업 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+        </a>
+        <div id="pickup-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
+          <a class="tsa-nav-sub-item" id="menu-pickup-managers" onclick="navigate('pickup-managers')">픽업 담당자 관리</a>
+        </div>
+      </div>
 
       <!-- Agency 전용 -->
       <div class="tsa-sidebar-section agency-only" id="section-agency">Agency Portal</div>
@@ -1646,11 +1756,15 @@
       </a>
       <a class="tsa-nav-item student-only" id="menu-student-timetable-change" onclick="navigate('student-timetable-change')" style="display:none">
         <i data-lucide="file-pen"></i>
-        강사 변경 신청
+        학생 요청
       </a>
       <a class="tsa-nav-item student-only" id="menu-student-dorm" onclick="navigate('student-dorm')" style="display:none">
         <i data-lucide="home"></i>
         기숙사 현황
+      </a>
+      <a class="tsa-nav-item student-only" id="menu-student-meal" onclick="navigate('student-meal')" style="display:none">
+        <i data-lucide="utensils"></i>
+        점심 식단 신청
       </a>
       <a class="tsa-nav-item student-only" id="menu-student-feedback" onclick="navigate('student-feedback')" style="display:none">
         <i data-lucide="message-square"></i>
@@ -1659,13 +1773,13 @@
 
       <!-- Super Admin 글로벌 관리 전용 -->
       <div class="tsa-sidebar-section super-admin-only" id="section-global-admin" style="display:none">HQ Management</div>
-      <a class="tsa-nav-item super-admin-only" id="menu-global-dashboard" onclick="navigate('global-dashboard')" style="display:none">
-        <i data-lucide="trending-up"></i>
-        글로벌 대시보드
-      </a>
       <a class="tsa-nav-item admin-only" id="menu-agency-manage" onclick="navigate('agency-manage')">
         <i data-lucide="building-2"></i>
         에이전시 관리
+      </a>
+      <a class="tsa-nav-item admin-only" id="menu-agency-visits" onclick="navigate('agency-visits')">
+        <i data-lucide="calendar-check"></i>
+        에이전시 방문일정 캘린더
       </a>
       <a class="tsa-nav-item admin-only" id="menu-agency-map" onclick="navigate('agency-map')">
         <i data-lucide="map"></i>
@@ -1735,6 +1849,16 @@
         <div class="tsa-live-status">
           <div class="tsa-online-dot"></div>
           <span style="font-size:11px;color:#6B7280" id="current-time">로딩중...</span>
+        </div>
+
+        <!-- Language Switcher -->
+        <div class="tsa-lang-switcher" data-lang-switcher>
+          <button type="button" class="tsa-lang-btn" data-lang-toggle aria-haspopup="true" aria-expanded="false">
+            <span class="tsa-lang-flag" data-lang-flag>🇰🇷</span>
+            <span data-lang-label>한국어</span>
+            <i data-lucide="chevron-down"></i>
+          </button>
+          <div class="tsa-lang-menu" data-lang-menu></div>
         </div>
       </div>
     </header>
@@ -2259,6 +2383,58 @@
         </div>
 
         <!-- ================================================ -->
+        <!--  VIEW: STUDENT REQUESTS (학생 요청 관리)           -->
+        <!-- ================================================ -->
+        <div id="view-student-requests" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">🗂️ 학생 요청 관리</h2>
+              <p class="tsa-page-subtitle">외출증·외박·여행·선생님 변경·코스 변경·룸 변경 요청을 날짜/유형/상태별로 확인하고 승인·반려합니다.</p>
+            </div>
+          </div>
+          <div class="tsa-card">
+            <div class="tsa-card-body">
+              <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <label class="tsa-label" style="margin:0">제출일</label>
+                  <input type="date" class="tsa-input" id="sr-filter-date" style="width:160px" onchange="setStudentRequestDateFilter(this.value)"/>
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="document.getElementById('sr-filter-date').value='';setStudentRequestDateFilter('')">전체 보기</button>
+                </div>
+                <span id="sr-list-count" class="tsa-badge tsa-badge-primary" style="margin-left:auto">0건</span>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="all" onclick="setStudentRequestTypeFilter('all')">전체</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="outpass" onclick="setStudentRequestTypeFilter('outpass')">외출증</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="overnight" onclick="setStudentRequestTypeFilter('overnight')">외박</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="trip" onclick="setStudentRequestTypeFilter('trip')">여행(1박+)</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="teacher_change" onclick="setStudentRequestTypeFilter('teacher_change')">선생님 변경</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="course_change" onclick="setStudentRequestTypeFilter('course_change')">코스 변경</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-type="room_change" onclick="setStudentRequestTypeFilter('room_change')">룸 변경</button>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-status="all" onclick="setStudentRequestStatusFilter('all')">전체 상태</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-status="pending" onclick="setStudentRequestStatusFilter('pending')">대기중</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-status="approved" onclick="setStudentRequestStatusFilter('approved')">승인</button>
+                <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" data-sr-status="rejected" onclick="setStudentRequestStatusFilter('rejected')">반려</button>
+              </div>
+              <table class="tsa-table">
+                <thead>
+                  <tr>
+                    <th>학생</th>
+                    <th>유형</th>
+                    <th>제출일시</th>
+                    <th>요청 내용</th>
+                    <th style="text-align:center">상태</th>
+                    <th style="text-align:center">동작</th>
+                  </tr>
+                </thead>
+                <tbody id="sr-list-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
         <!--  VIEW: TEACHERS                                   -->
         <!-- ================================================ -->
         <div id="view-teachers" class="tsa-view">
@@ -2275,12 +2451,6 @@
           <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;margin-bottom:14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8F9FF;color:#3730A3;font-size:11.5px">
             <i data-lucide="refresh-cw" style="width:15px;height:15px;flex-shrink:0"></i>
             <span><b>성명·성별·생년월·입사일·학력·강사 등급</b> 등 기본정보는 톡스테이션 LMS에서 불러오며, <b>강의실·평점·근무시간·수업유형·과목·레벨·교시별 가능 여부</b>는 상세/수정에서 관리합니다.</span>
-          </div>
-
-          <!-- 서브 탭 네비게이션 -->
-          <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" onclick="switchTeacherManageTab('list', this)">강사 목록</div>
-            <div class="tsa-tab" onclick="switchTeacherManageTab('tags', this)">배정 태그 설정 관리</div>
           </div>
 
           <!-- [탭 A] 강사 목록 -->
@@ -2724,6 +2894,7 @@
                 <div class="tsa-tab active" id="adetail-page-tab-basic" onclick="switchAgencyStudentDetailPageTab('basic')">기본 정보</div>
                 <div class="tsa-tab" id="adetail-page-tab-enrollment" onclick="switchAgencyStudentDetailPageTab('enrollment')">수강 현황</div>
                 <div class="tsa-tab" id="adetail-page-tab-consultation" onclick="switchAgencyStudentDetailPageTab('consultation')">상담 노트</div>
+                <div class="tsa-tab" id="adetail-page-tab-request" onclick="switchAgencyStudentDetailPageTab('request')">학생 요청</div>
               </div>
               <div id="adetail-page-tab-content" style="min-height:520px"></div>
             </div>
@@ -3155,18 +3326,11 @@
             </div>
           </div>
 
-          <!-- 서브 탭 네비게이션 -->
-          <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" onclick="switchCoursePricingTab('curriculum', this)">수강 과정 및 교시 템플릿</div>
-            <div class="tsa-tab" onclick="switchCoursePricingTab('master', this)">과목·레벨·수업 유형</div>
-            <div class="tsa-tab" onclick="switchCoursePricingTab('period', this)">교시 시간 설정</div>
-          </div>
-
-          <!-- [탭 B] 수강 과정 및 교시 템플릿 -->
+          <!-- [탭 B] 수강 과정 등록관리 -->
           <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 및 교시 템플릿 목록</h3>
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 등록관리 목록</h3>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
                   <i data-lucide="plus-square"></i> 신규 과정 추가
                 </button>
@@ -3178,8 +3342,8 @@
                       <th style="text-align:center;width:36px">#</th>
                       <th>과정명</th>
                       <th>추천 레벨</th>
-                      <th style="text-align:center;width:90px">총 교시</th>
-                      <th style="min-width:520px">교시별 기본 시간표</th>
+                      <th style="text-align:center;width:90px">총 시간</th>
+                      <th style="min-width:520px">유형별 과목 구성</th>
                       <th style="text-align:center">노출 여부</th>
                       <th style="text-align:center">관리</th>
                     </tr>
@@ -3282,13 +3446,6 @@
             <div style="display:flex;gap:8px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openTuitionFormulaPolicyModal()"><i data-lucide="calendar-range"></i> 수강 기간 관리</button>
             </div>
-          </div>
-
-          <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" onclick="switchTuitionConfigTab('course', this)">과정별 수강료</div>
-            <div class="tsa-tab" onclick="switchTuitionConfigTab('dorm', this)">기숙사 요금</div>
-            <div class="tsa-tab" onclick="switchTuitionConfigTab('registration', this)">등록금</div>
-            <div class="tsa-tab" onclick="switchTuitionConfigTab('local', this)">기타</div>
           </div>
 
           <div id="tuition-config-tab-course" class="tuition-config-tab-content">
@@ -3426,8 +3583,8 @@
         <div id="view-student-class-assign" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
-              <h2 class="tsa-page-title">🧑‍🎓 수업 편성 및 배정 관리</h2>
-              <p class="tsa-page-subtitle">학생별 수업 배정과 그룹 수업 편성 현황을 확인하고 관리합니다.</p>
+              <h2 class="tsa-page-title" id="sca-page-title">🧑‍🎓 학생별 수업 배정</h2>
+              <p class="tsa-page-subtitle" id="sca-page-subtitle">학생별 과정에 필요한 1:1 및 그룹 수업의 배정 현황을 확인하고 관리합니다.</p>
             </div>
             <div id="sca-group-actions" style="display:none;gap:8px">
               <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
@@ -3435,10 +3592,11 @@
             </div>
           </div>
 
-          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
-            <button id="sca-tab-students" onclick="switchStudentClassAssignTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 수업 배정</button>
-            <button id="sca-tab-groups" onclick="switchStudentClassAssignTab('groups')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 수업 편성</button>
-          </div>
+          <div id="sca-week-header"></div>
+
+          <div id="sca-panel-step1" style="display:none"></div>
+
+          <div id="sca-panel-step3" style="display:none"></div>
 
           <div id="sca-panel-students">
             <div class="tsa-card">
@@ -4172,6 +4330,7 @@
                     <th>공식 SNS</th>
                     <th>이메일</th>
                     <th style="text-align:center">담당 직원</th>
+                    <th style="text-align:center">소통 · 방문</th>
                     <th style="text-align:center">소속 학생</th>
                     <th style="text-align:center">등록금 커미션</th>
                     <th style="text-align:center">수강료 커미션</th>
@@ -4370,6 +4529,289 @@
                 </thead>
                 <tbody id="pi-tbody"></tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: AGENCY VISIT CALENDAR (에이전시 방문일정)    -->
+        <!-- ================================================ -->
+        <div id="view-agency-visits" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:20px">
+            <div>
+              <h2 class="tsa-page-title">📅 에이전시 방문일정 캘린더</h2>
+              <p class="tsa-page-subtitle">에이전시별 담당자 소통 기록을 바탕으로 방문 일정을 예약하고 캘린더로 관리합니다.</p>
+            </div>
+            <button class="tsa-btn tsa-btn-primary" onclick="openAgencyVisitModal()">
+              <i data-lucide="calendar-plus"></i> 방문 일정 예약
+            </button>
+          </div>
+
+          <!-- KPI -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#6B7280;font-weight:600">이번 달 전체 방문</div>
+              <div id="avc-kpi-total" style="font-size:24px;font-weight:800;color:#111827">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#5E5CE6;font-weight:600">예정</div>
+              <div id="avc-kpi-scheduled" style="font-size:24px;font-weight:800;color:#5E5CE6">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#10B981;font-weight:600">완료</div>
+              <div id="avc-kpi-done" style="font-size:24px;font-weight:800;color:#10B981">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#0EA5E9;font-weight:600">방문 에이전시</div>
+              <div id="avc-kpi-agencies" style="font-size:24px;font-weight:800;color:#0EA5E9">-</div>
+            </div>
+          </div>
+
+          <!-- 필터 -->
+          <div class="tsa-card" style="padding:12px 16px;margin-bottom:18px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+              <div style="min-width:180px">
+                <label class="tsa-label">에이전시</label>
+                <select id="avc-filter-agency" class="tsa-input" onchange="setAgencyVisitFilter('agencyId', this.value)"></select>
+              </div>
+              <div style="min-width:150px">
+                <label class="tsa-label">담당 직원</label>
+                <select id="avc-filter-staff" class="tsa-input" onchange="setAgencyVisitFilter('staff', this.value)"></select>
+              </div>
+              <div style="min-width:170px">
+                <label class="tsa-label">방문 구분</label>
+                <select id="avc-filter-type" class="tsa-input" onchange="setAgencyVisitFilter('type', this.value)">
+                  <option value="all">전체</option>
+                  <option value="inbound">🏫 에이전시 캠퍼스 방문</option>
+                  <option value="outbound">✈️ 담당자 에이전시 출장</option>
+                </select>
+              </div>
+              <div style="min-width:130px">
+                <label class="tsa-label">상태</label>
+                <select id="avc-filter-status" class="tsa-input" onchange="setAgencyVisitFilter('status', this.value)">
+                  <option value="all">전체</option>
+                  <option value="scheduled">예정</option>
+                  <option value="done">완료</option>
+                  <option value="canceled">취소</option>
+                </select>
+              </div>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-bottom:2px" onclick="resetAgencyVisitFilters()">
+                <i data-lucide="rotate-ccw"></i> 필터 초기화
+              </button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:2fr 1.05fr;gap:18px;margin-bottom:18px">
+            <!-- 캘린더 -->
+            <div class="tsa-card">
+              <div class="tsa-card-header" style="background:#F8F9FC;flex-wrap:wrap;gap:8px">
+                <h3 class="tsa-card-title"><i data-lucide="calendar" style="color:#5E5CE6"></i> 방문 일정 캘린더</h3>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="goAgencyVisitToday()">오늘</button>
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="prevAgencyVisitMonth()"><i data-lucide="chevron-left"></i></button>
+                  <span id="avc-calendar-month-year" style="font-weight:700;font-size:14px;min-width:92px;text-align:center">-</span>
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="nextAgencyVisitMonth()"><i data-lucide="chevron-right"></i></button>
+                </div>
+              </div>
+              <div class="tsa-card-body" style="padding:16px">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;color:#6B7280;margin-bottom:10px">
+                  <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5E5CE6;margin-right:4px"></span>예정</span>
+                  <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:4px"></span>완료</span>
+                  <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9CA3AF;margin-right:4px"></span>취소</span>
+                  <span style="margin-left:auto">🏫 캠퍼스 방문 · ✈️ 에이전시 출장 · 날짜 더블클릭 시 바로 예약</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-weight:700;font-size:11px;color:#4B5563;margin-bottom:8px">
+                  <div style="color:#EF4444">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:#3B82F6">토</div>
+                </div>
+                <div id="avc-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:88px;gap:4px"></div>
+              </div>
+            </div>
+
+            <!-- 선택 날짜 상세 + 다가오는 일정 -->
+            <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="background:#F8F9FC">
+                  <h3 class="tsa-card-title" style="font-size:13px"><i data-lucide="clipboard-list" style="color:#5E5CE6"></i> 선택 날짜 일정</h3>
+                  <span id="avc-selected-date-label" style="font-size:11.5px;font-weight:700;color:#5E5CE6">-</span>
+                </div>
+                <div class="tsa-card-body" id="avc-day-list" style="padding:14px;max-height:430px;overflow-y:auto"></div>
+              </div>
+
+              <div class="tsa-card">
+                <div class="tsa-card-header" style="background:#F8F9FC">
+                  <h3 class="tsa-card-title" style="font-size:13px"><i data-lucide="alarm-clock" style="color:#F59E0B"></i> 다가오는 방문</h3>
+                </div>
+                <div class="tsa-card-body" id="avc-upcoming-list" style="padding:0"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 전체 목록 -->
+          <div class="tsa-card">
+            <div class="tsa-card-header" style="flex-wrap:wrap;gap:8px">
+              <div>
+                <h3 class="tsa-card-title"><i data-lucide="list" style="color:#5E5CE6"></i> 방문 일정 목록</h3>
+                <div style="font-size:11px;color:#6B7280" id="avc-table-count">-</div>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tsa-table" style="font-size:12px">
+                <thead>
+                  <tr>
+                    <th style="width:140px">방문 일시</th>
+                    <th>에이전시</th>
+                    <th style="width:96px;text-align:center">구분</th>
+                    <th style="width:120px">목적</th>
+                    <th style="width:90px">담당 직원</th>
+                    <th>장소</th>
+                    <th style="width:80px;text-align:center">상태</th>
+                    <th style="width:210px;text-align:center">동작</th>
+                  </tr>
+                </thead>
+                <tbody id="avc-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  MODAL: 에이전시 방문 일정 예약/수정                 -->
+        <!-- ================================================ -->
+        <div id="modal-agency-visit" style="display:none">
+          <div class="tsa-modal-backdrop" onclick="closeAgencyVisitModal()">
+            <div class="tsa-modal tsa-modal-md" onclick="event.stopPropagation()">
+              <div class="tsa-modal-header" style="background:#EEF2FF">
+                <div>
+                  <h3 class="tsa-modal-title" id="avm-modal-title" style="color:#5E5CE6"><i data-lucide="calendar-plus"></i> 에이전시 방문 일정 예약</h3>
+                  <p class="tsa-modal-subtitle">예약한 일정은 에이전시 방문일정 캘린더에 바로 표시됩니다.</p>
+                </div>
+                <button class="tsa-modal-close" onclick="closeAgencyVisitModal()"><i data-lucide="x"></i></button>
+              </div>
+              <div class="tsa-modal-body" style="display:flex;flex-direction:column;gap:12px">
+                <input type="hidden" id="avm-id"/>
+                <div class="tsa-form-group" style="margin:0">
+                  <label class="tsa-label">에이전시 <span style="color:#EF4444">*</span></label>
+                  <select id="avm-agency" class="tsa-input" onchange="syncAgencyVisitModalHints()"></select>
+                  <div id="avm-agency-hint" style="font-size:10.5px;color:#6B7280;margin-top:6px;line-height:1.6;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:8px 10px"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">방문 구분 <span style="color:#EF4444">*</span></label>
+                    <select id="avm-type" class="tsa-input" onchange="syncAgencyVisitModalHints()">
+                      <option value="inbound">🏫 에이전시 캠퍼스 방문</option>
+                      <option value="outbound">✈️ 담당자 에이전시 출장</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">방문 목적 <span style="color:#EF4444">*</span></label>
+                    <select id="avm-purpose" class="tsa-input"></select>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px">
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">방문일 <span style="color:#EF4444">*</span></label>
+                    <input id="avm-date" type="date" class="tsa-input"/>
+                  </div>
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">시작 시간 <span style="color:#EF4444">*</span></label>
+                    <input id="avm-start" type="time" class="tsa-input"/>
+                  </div>
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">종료 시간 <span style="color:#EF4444">*</span></label>
+                    <input id="avm-end" type="time" class="tsa-input"/>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">어학원 담당 직원 <span style="color:#EF4444">*</span></label>
+                    <select id="avm-staff" class="tsa-input"></select>
+                  </div>
+                  <div class="tsa-form-group" style="margin:0">
+                    <label class="tsa-label">진행 상태</label>
+                    <select id="avm-status" class="tsa-input">
+                      <option value="scheduled">예정</option>
+                      <option value="done">완료</option>
+                      <option value="canceled">취소</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="tsa-form-group" style="margin:0">
+                  <label class="tsa-label">방문 장소</label>
+                  <input id="avm-place" type="text" class="tsa-input" placeholder="예: 세부 캠퍼스 3F 상담실"/>
+                </div>
+                <div class="tsa-form-group" style="margin:0">
+                  <label class="tsa-label">참석자 (에이전시 측)</label>
+                  <input id="avm-attendees" type="text" class="tsa-input" placeholder="예: 김지훈 부장, 이수민 대리"/>
+                </div>
+                <div class="tsa-form-group" style="margin:0">
+                  <label class="tsa-label">방문 안건 / 사전 메모</label>
+                  <textarea id="avm-agenda" class="tsa-input" rows="3" style="resize:vertical" placeholder="논의할 안건과 준비 사항을 입력해 주세요."></textarea>
+                </div>
+                <div class="tsa-form-group" style="margin:0">
+                  <label class="tsa-label">방문 결과 <span style="font-weight:400;color:#9CA3AF">(완료 처리 시 작성)</span></label>
+                  <textarea id="avm-result" class="tsa-input" rows="2" style="resize:vertical" placeholder="방문 후 확정된 사항과 후속 조치를 입력해 주세요."></textarea>
+                </div>
+              </div>
+              <div class="tsa-modal-footer">
+                <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyVisitModal()">취소</button>
+                <button class="tsa-btn tsa-btn-primary" onclick="saveAgencyVisit()"><i data-lucide="check"></i> 저장</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  MODAL: 에이전시 소통 메모                          -->
+        <!-- ================================================ -->
+        <div id="modal-agency-notes" style="display:none">
+          <div class="tsa-modal-backdrop" onclick="closeAgencyNotesModal()">
+            <div class="tsa-modal tsa-modal-lg" onclick="event.stopPropagation()">
+              <div class="tsa-modal-header" style="background:#F8F9FF">
+                <div>
+                  <h3 class="tsa-modal-title" style="color:#5E5CE6"><i data-lucide="message-square-text"></i> <span id="anm-agency-name">에이전시</span> 소통 메모</h3>
+                  <p class="tsa-modal-subtitle" id="anm-agency-meta">-</p>
+                </div>
+                <button class="tsa-modal-close" onclick="closeAgencyNotesModal()"><i data-lucide="x"></i></button>
+              </div>
+              <div class="tsa-modal-body" style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px">
+                <div style="min-width:0">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div style="font-size:12.5px;font-weight:800;color:#111827">소통 기록 <span id="anm-note-count" style="color:#5E5CE6">0건</span></div>
+                    <span style="font-size:10.5px;color:#9CA3AF">최신순</span>
+                  </div>
+                  <div id="anm-note-list" style="max-height:340px;overflow-y:auto;padding-right:4px"></div>
+                </div>
+                <div style="min-width:0;display:flex;flex-direction:column;gap:14px">
+                  <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:13px 14px">
+                    <div style="font-size:12px;font-weight:800;color:#1F2937;margin-bottom:10px">✍️ 새 소통 메모</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                      <div><label class="tsa-label">작성자</label><select id="anm-author" class="tsa-input" style="padding:6px 9px"></select></div>
+                      <div><label class="tsa-label">소통 채널</label><select id="anm-channel" class="tsa-input" style="padding:6px 9px"></select></div>
+                    </div>
+                    <div style="margin-bottom:8px"><label class="tsa-label">소통 일자</label><input id="anm-date" type="date" class="tsa-input" style="padding:6px 9px"/></div>
+                    <div style="margin-bottom:8px">
+                      <label class="tsa-label">내용</label>
+                      <textarea id="anm-content" class="tsa-input" rows="4" style="resize:vertical" placeholder="에이전시 담당자와 나눈 내용을 기록하세요."></textarea>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#374151;margin-bottom:10px">
+                      <input type="checkbox" id="anm-important"/> 📌 중요 표시
+                    </label>
+                    <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center" onclick="addAgencyNote()">
+                      <i data-lucide="plus"></i> 메모 저장
+                    </button>
+                  </div>
+                  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:13px 14px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                      <div style="font-size:12px;font-weight:800;color:#1F2937">📅 방문 일정</div>
+                      <button class="tsa-btn tsa-btn-sm tsa-btn-outline" style="border-color:#5E5CE6;color:#5E5CE6" onclick="bookVisitFromNotesModal()">방문 예약</button>
+                    </div>
+                    <div id="anm-visit-list"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="tsa-modal-footer">
+                <button class="tsa-btn tsa-btn-outline" onclick="closeAgencyNotesModal()">닫기</button>
+              </div>
             </div>
           </div>
         </div>
@@ -4640,66 +5082,106 @@
         <div id="view-student-timetable-change" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">✍️ 강사 변경 신청 (Teacher Change Request)</h2>
-              <p class="tsa-page-subtitle">수업 강사 교체 신청 및 접수 (매주 수·목요일만 신청 가능)</p>
+              <h2 class="tsa-page-title">✍️ 학생 요청 (Student Requests)</h2>
+              <p class="tsa-page-subtitle">외출증·외박·여행·선생님 변경·코스 변경·룸 변경을 온라인으로 신청합니다.</p>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px">
             <!-- Form Card -->
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="file-pen" style="color:#10B981"></i> 강사 변경 신청서 작성</h3>
+                <h3 class="tsa-card-title"><i data-lucide="file-pen" style="color:#10B981"></i> 요청서 작성</h3>
               </div>
-              <div class="tsa-card-body" id="container-change-request-form">
-                <!-- Controlled by JS based on selected test day -->
-                <div id="form-timetable-change-active">
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">변경할 수업 및 강사 선택 <span style="color:#EF4444">*</span></label>
-                    <select class="tsa-input" id="student-change-current-teacher">
-                      <!-- Dynamically loaded in JS -->
-                    </select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">변경 희망 사유 <span style="color:#EF4444">*</span></label>
-                    <select class="tsa-input" id="student-change-reason">
-                      <option value="level">교재 및 난이도 수준 불일치</option>
-                      <option value="style">교수법 및 티칭 스타일 불만족</option>
-                      <option value="room">지정 강의실 또는 시간대 변경 희망</option>
-                      <option value="other">기타 개인 사유</option>
-                    </select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">희망하는 강사 성향 / 키워드</label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#F3F4F6;padding:4px 8px;border-radius:12px;cursor:pointer">
-                        <input type="checkbox" value="친절함" checked/> Friendly (친절한)
-                      </label>
-                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#F3F4F6;padding:4px 8px;border-radius:12px;cursor:pointer">
-                        <input type="checkbox" value="활발함"/> Energetic (활발한)
-                      </label>
-                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#F3F4F6;padding:4px 8px;border-radius:12px;cursor:pointer">
-                        <input type="checkbox" value="발음교정"/> Accent correction (발음)
-                      </label>
-                      <label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#F3F4F6;padding:4px 8px;border-radius:12px;cursor:pointer">
-                        <input type="checkbox" value="IELTS전문" checked/> IELTS Expert
-                      </label>
-                    </div>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">추가 요구사항 서술</label>
-                    <textarea class="tsa-input" id="student-change-details" rows="3" placeholder="구체적인 요청사항을 적어주세요..."></textarea>
-                  </div>
-                  <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentTeacherChange()">
-                    <i data-lucide="send"></i> 강사 변경 요청 접수하기
-                  </button>
+              <div class="tsa-card-body">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="sr-type-tabs">
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="outpass" onclick="switchStudentRequestType('outpass')">외출증</button>
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="overnight" onclick="switchStudentRequestType('overnight')">외박</button>
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="trip" onclick="switchStudentRequestType('trip')">여행(1박+)</button>
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="teacher_change" onclick="switchStudentRequestType('teacher_change')">선생님 변경</button>
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="course_change" onclick="switchStudentRequestType('course_change')">코스 변경</button>
+                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm sr-type-tab" data-sr-form-type="room_change" onclick="switchStudentRequestType('room_change')">룸 변경</button>
                 </div>
-                <div id="form-timetable-change-inactive" style="display:none;text-align:center;padding:30px;color:#EF4444">
-                  <i data-lucide="x-circle" style="font-size:36px;margin-bottom:12px"></i>
-                  <h4 style="font-weight:700;margin:0 0 6px">🚫 변경 신청 기한 초과</h4>
-                  <p style="margin:0;font-size:12.5px;color:#6B7280;line-height:1.4">
-                    강사 변경 요청은 매주 <strong>수요일 및 목요일</strong>에만 가능합니다.<br>
-                    현재 신청 불가능한 요일입니다.
-                  </p>
+
+                <!-- 외출증 -->
+                <div id="sr-form-outpass" class="sr-form-panel" style="display:none">
+                  <div class="tsa-form-group"><label class="tsa-label">외출 사유 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-outpass-reason" placeholder="예: 은행 업무, 병원 진료 등"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">목적지 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-outpass-destination" placeholder="예: BDO Cebu 지점"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">귀환 예정 시간 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-outpass-return" type="time" value="18:00"/><div style="font-size:10.5px;color:#9CA3AF;margin-top:4px">통상 오후 10시(22:00) 이전 귀환을 원칙으로 합니다.</div></div>
+                  <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('outpass')"><i data-lucide="send"></i> 외출증 신청 접수하기</button>
+                </div>
+
+                <!-- 외박 -->
+                <div id="sr-form-overnight" class="sr-form-panel" style="display:none">
+                  <div class="tsa-form-group"><label class="tsa-label">숙박 장소 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-overnight-location" placeholder="예: 친구 자취방 (IT Park 인근)"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">비상 연락처 (SNS 포함) <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-overnight-contact" placeholder="예: 카카오톡 ID, 전화번호 등"/></div>
+                  <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('overnight')"><i data-lucide="send"></i> 외박 신청 접수하기</button>
+                </div>
+
+                <!-- 여행(1박+) -->
+                <div id="sr-form-trip" class="sr-form-panel" style="display:none">
+                  <div class="tsa-form-group"><label class="tsa-label">목적지 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-trip-destination" placeholder="예: 보홀"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">숙박 호텔</label><input class="tsa-input" id="sr-trip-hotel" placeholder="예: Bohol Beach Resort"/></div>
+                  <div class="tsa-form-group"><label class="tsa-label">동행 여부</label><input class="tsa-input" id="sr-trip-companion" placeholder="예: 같은 반 친구 2명과 동행"/></div>
+                  <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('trip')"><i data-lucide="send"></i> 여행 신청 접수하기</button>
+                </div>
+
+                <!-- 선생님 변경 -->
+                <div id="sr-form-teacher_change" class="sr-form-panel" style="display:none">
+                  <div id="form-timetable-change-active">
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">현재 수업 및 강사 <span style="color:#EF4444">*</span></label>
+                      <select class="tsa-input" id="student-change-current-teacher"></select>
+                    </div>
+                    <div class="tsa-form-group"><label class="tsa-label">희망 강사 / 변경 요청 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-teacher-requested" placeholder="예: Sarah Johnson (IELTS 전문)"/></div>
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">변경 희망 사유</label>
+                      <select class="tsa-input" id="student-change-reason">
+                        <option value="level">교재 및 난이도 수준 불일치</option>
+                        <option value="style">교수법 및 티칭 스타일 불만족</option>
+                        <option value="room">지정 강의실 또는 시간대 변경 희망</option>
+                        <option value="other">기타 개인 사유</option>
+                      </select>
+                    </div>
+                    <div class="tsa-form-group"><label class="tsa-label">추가 요구사항 서술</label><textarea class="tsa-input" id="student-change-details" rows="3" placeholder="구체적인 요청사항을 적어주세요..."></textarea></div>
+                    <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('teacher_change')"><i data-lucide="send"></i> 선생님 변경 요청 접수하기</button>
+                  </div>
+                  <div id="form-timetable-change-inactive" style="display:none;text-align:center;padding:30px;color:#EF4444">
+                    <i data-lucide="x-circle" style="font-size:36px;margin-bottom:12px"></i>
+                    <h4 style="font-weight:700;margin:0 0 6px">🚫 변경 신청 기한 초과</h4>
+                    <p style="margin:0;font-size:12.5px;color:#6B7280;line-height:1.4">선생님/코스 변경 요청은 매주 <strong>수요일 및 목요일</strong>에만 접수합니다.<br>현재 접수 가능한 요일이 아닙니다.</p>
+                  </div>
+                </div>
+
+                <!-- 코스 변경 -->
+                <div id="sr-form-course_change" class="sr-form-panel" style="display:none">
+                  <div id="form-course-change-active">
+                    <div class="tsa-form-group"><label class="tsa-label">현재 코스</label><input class="tsa-input" id="sr-course-from" readonly style="background:#F9FAFB"/></div>
+                    <div class="tsa-form-group">
+                      <label class="tsa-label">변경 희망 코스 <span style="color:#EF4444">*</span></label>
+                      <select class="tsa-input" id="sr-course-to" onchange="updateStudentCourseChangePreview()"></select>
+                    </div>
+                    <div id="sr-course-change-preview" style="font-size:11.5px;color:#374151;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;margin-bottom:14px">코스를 선택하면 업그레이드/다운그레이드 여부와 예상 차액이 표시됩니다.</div>
+                    <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('course_change')"><i data-lucide="send"></i> 코스 변경 요청 접수하기</button>
+                  </div>
+                  <div id="form-course-change-inactive" style="display:none;text-align:center;padding:30px;color:#EF4444">
+                    <i data-lucide="x-circle" style="font-size:36px;margin-bottom:12px"></i>
+                    <h4 style="font-weight:700;margin:0 0 6px">🚫 변경 신청 기한 초과</h4>
+                    <p style="margin:0;font-size:12.5px;color:#6B7280;line-height:1.4">선생님/코스 변경 요청은 매주 <strong>수요일 및 목요일</strong>에만 접수합니다.<br>현재 접수 가능한 요일이 아닙니다.</p>
+                  </div>
+                </div>
+
+                <!-- 룸 변경 -->
+                <div id="sr-form-room_change" class="sr-form-panel" style="display:none">
+                  <div class="tsa-form-group"><label class="tsa-label">현재 룸</label><input class="tsa-input" id="sr-room-from" readonly style="background:#F9FAFB"/></div>
+                  <div class="tsa-form-group">
+                    <label class="tsa-label">변경 구분 <span style="color:#EF4444">*</span></label>
+                    <select class="tsa-input" id="sr-room-kind">
+                      <option value="일반">일반 변경 (동일 등급)</option>
+                      <option value="업그레이드">업그레이드 변경</option>
+                    </select>
+                  </div>
+                  <div class="tsa-form-group"><label class="tsa-label">희망 룸 <span style="color:#EF4444">*</span></label><input class="tsa-input" id="sr-room-to" placeholder="예: 1인실 (Premium A)"/></div>
+                  <button class="tsa-btn tsa-btn-primary" style="background:#10B981;border:none;width:100%;justify-content:center" onclick="submitStudentRequest('room_change')"><i data-lucide="send"></i> 룸 변경 요청 접수하기</button>
                 </div>
               </div>
             </div>
@@ -4710,15 +5192,15 @@
                 <h3 class="tsa-card-title" style="color:#6D28D9"><i data-lucide="settings"></i> 테스트 요일 시뮬레이터</h3>
               </div>
               <div class="tsa-card-body" style="font-size:12.5px;color:#374151">
-                <p style="margin-bottom:12px;line-height:1.4">수요일/목요일 외의 요일에 변경 신청 폼이 비활성화되는 정책을 테스트하기 위해 요일을 변경해 보세요.</p>
+                <p style="margin-bottom:12px;line-height:1.4"><strong>선생님 변경 / 코스 변경</strong>은 수·목요일에만 접수됩니다. 그 외 4개 요청 유형은 요일과 무관하게 상시 접수됩니다.</p>
                 <div class="tsa-form-group">
                   <label class="tsa-label">현재 가상 요일 설정</label>
                   <select class="tsa-input" id="student-simulated-day" onchange="onSimulatedDayChange(this.value)">
-                    <option value="Mon">월요일 (신청 불가)</option>
-                    <option value="Tue">화요일 (신청 불가)</option>
-                    <option value="Wed" selected>수요일 (신청 가능 🟢)</option>
-                    <option value="Thu">목요일 (신청 가능 🟢)</option>
-                    <option value="Fri">금요일 (신청 불가)</option>
+                    <option value="Mon">월요일 (선생님/코스 변경 불가)</option>
+                    <option value="Tue">화요일 (선생님/코스 변경 불가)</option>
+                    <option value="Wed" selected>수요일 (선생님/코스 변경 가능 🟢)</option>
+                    <option value="Thu">목요일 (선생님/코스 변경 가능 🟢)</option>
+                    <option value="Fri">금요일 (선생님/코스 변경 불가)</option>
                   </select>
                 </div>
               </div>
@@ -4903,158 +5385,156 @@
           </div>
         </div>
 
-
         <!-- ================================================ -->
-        <!--  VIEW: GLOBAL ADMIN DASHBOARD                     -->
+        <!--  VIEW: STUDENT LUNCH MEAL (점심 식단 신청)          -->
         <!-- ================================================ -->
-        <div id="view-global-dashboard" class="tsa-view">
-          <div class="tsa-section-header">
+        <div id="view-student-meal" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:18px">
             <div>
-              <h2 class="tsa-page-title">🏢 글로벌 통합 운영 대시보드 (Global HQ Dashboard)</h2>
-              <p class="tsa-page-subtitle">다중 지점(Multi-tenant) 성과 지표 비교 및 본사 통합 리스크 모니터링</p>
+              <h2 class="tsa-page-title">🍱 점심 식단 신청</h2>
+              <p class="tsa-page-subtitle">이번 주 점심 도시락 메뉴를 확인하고 요일별 메인 메뉴를 직접 선택합니다.</p>
             </div>
           </div>
 
-          <!-- Multi-campus Side-by-Side Grid -->
-          <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:20px;margin-bottom:24px">
-            <!-- PH-CEBU -->
-            <div class="tsa-card" style="border-left:4px solid #5E5CE6">
-              <div class="tsa-card-header" style="background:#F8F9FC">
-                <h3 class="tsa-card-title"><span style="font-size:18px">🇵🇭</span> 필리핀 세부 캠퍼스 (Cebu)</h3>
-                <span class="tsa-badge tsa-badge-success">운영 중</span>
-              </div>
-              <div class="tsa-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">재학생 수</div>
-                  <div style="font-size:20px;font-weight:800;color:#111827">128 명</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">주간 출석률 평균</div>
-                  <div style="font-size:20px;font-weight:800;color:#22C55E">94.2%</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">강사 결근율</div>
-                  <div style="font-size:20px;font-weight:800;color:#EF4444">4.1%</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">기숙사 공실률</div>
-                  <div style="font-size:20px;font-weight:800;color:#0EA5E9">12.0%</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- MT-MALTA -->
-            <div class="tsa-card" style="border-left:4px solid #9CA3AF;opacity:0.85">
-              <div class="tsa-card-header" style="background:#F8F9FC">
-                <h3 class="tsa-card-title"><span style="font-size:18px">🇲🇹</span> 몰타 캠퍼스 (Malta)</h3>
-                <span class="tsa-badge tsa-badge-gray">확장 준비 중</span>
-              </div>
-              <div class="tsa-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">재학생 수</div>
-                  <div style="font-size:20px;font-weight:800;color:#6B7280">0 명</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">주간 출석률 평균</div>
-                  <div style="font-size:20px;font-weight:800;color:#6B7280">- %</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">강사 결근율</div>
-                  <div style="font-size:20px;font-weight:800;color:#6B7280">- %</div>
-                </div>
-                <div style="background:#F3F4F6;padding:12px;border-radius:8px">
-                  <div style="font-size:11px;color:#6B7280;font-weight:600">기숙사 공실률</div>
-                  <div style="font-size:20px;font-weight:800;color:#6B7280">100.0%</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- HQ Financial Risk Control Widget & Agency Comparison -->
-          <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px">
-            <!-- HQ financial list -->
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="wallet" style="color:#5E5CE6"></i> 본사 통합 미납금 및 대기 액션</h3>
-              </div>
-              <div class="tsa-card-body" style="display:flex;flex-direction:column;gap:16px">
+          <!-- 주차 이동 & 안내 -->
+          <div class="tsa-card" style="padding:14px 18px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:10px">
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="changeStudentMealWeek(-1)"><i data-lucide="chevron-left"></i></button>
                 <div>
-                  <div style="font-size:11px;color:#6B7280;margin-bottom:2px">전체 에이전시 미납 인보이스 총액</div>
-                  <div style="font-size:28px;font-weight:800;color:#EF4444" id="global-total-unpaid">$12,450</div>
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span id="student-meal-week-label" style="font-size:15px;font-weight:800;color:#111827">-</span>
+                    <span id="student-meal-week-badge" class="tsa-badge" style="background:#D1FAE5;color:#065F46">이번 주</span>
+                  </div>
+                  <div id="student-meal-deadline" style="font-size:11px;color:#6B7280;margin-top:3px">-</div>
                 </div>
-                <div style="display:flex;justify-content:space-between;padding:10px;background:#FEF2F2;border-radius:8px;align-items:center">
-                  <span style="font-size:12px;font-weight:700;color:#991B1B">미승인 에이전시 변경 요청</span>
-                  <span class="tsa-badge tsa-badge-danger" id="global-pending-cr">3 건 대기 중</span>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="changeStudentMealWeek(1)"><i data-lucide="chevron-right"></i></button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="goStudentMealThisWeek()">이번 주</button>
+              </div>
+              <div id="student-meal-diet-info" style="font-size:11.5px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:7px 12px">-</div>
+            </div>
+          </div>
+
+          <!-- 선택 요약 & 저장 -->
+          <div class="tsa-card" id="student-meal-summary"
+            style="padding:12px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:8px;z-index:5"></div>
+
+          <!-- 요일별 메뉴 카드 -->
+          <div id="student-meal-week-body"></div>
+
+          <div style="font-size:11px;color:#9CA3AF;line-height:1.7;margin-top:6px">
+            ※ 점심 도시락은 주 5일(월~금) 제공되며, 밥·국·기본 반찬 2종은 공통이고 <b>메인 메뉴만 A/B 중 선택</b>합니다.<br/>
+            ※ 알레르기·종교식(할랄)·채식 등 개인 식단 정보는 학생 상세의 건강 정보 기준으로 표시됩니다. 변경이 필요하면 SS 스탭에게 요청해 주세요.
+          </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!--  VIEW: MEAL PLAN MANAGEMENT (관리자 식단 관리)      -->
+        <!-- ================================================ -->
+        <div id="view-meal-plan" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:18px">
+            <div>
+              <h2 class="tsa-page-title">🍽️ 식단 관리</h2>
+              <p class="tsa-page-subtitle">주간 점심 도시락 메뉴를 편성하고, 학생별 선택 현황과 일자별 발주 수량을 관리합니다.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="changeMealAdminWeek(-1)"><i data-lucide="chevron-left"></i></button>
+              <div style="text-align:center;min-width:170px">
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+                  <span id="meal-admin-week-label" style="font-size:14px;font-weight:800;color:#111827">-</span>
+                  <span id="meal-admin-week-state"></span>
                 </div>
-                <div style="font-size:11.5px;color:#6B7280;line-height:1.4">
-                  ※ 미수금 90일 초과 건은 정산 모듈에서 에이전시 포털 결제 화면에 자동 미납 경고 배너로 반영 연동됩니다.
+                <div id="meal-admin-deadline" style="font-size:10.5px;color:#9CA3AF;margin-top:2px">-</div>
+              </div>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="changeMealAdminWeek(1)"><i data-lucide="chevron-right"></i></button>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="goMealAdminThisWeek()">이번 주</button>
+            </div>
+          </div>
+
+          <!-- KPI -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#6B7280;font-weight:600">대상 재학생</div>
+              <div id="meal-kpi-students" style="font-size:24px;font-weight:800;color:#111827">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#10B981;font-weight:600">신청 확정 (건)</div>
+              <div id="meal-kpi-decided" style="font-size:24px;font-weight:800;color:#10B981">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#B45309;font-weight:600">미선택 (건)</div>
+              <div id="meal-kpi-missing" style="font-size:24px;font-weight:800;color:#B45309">-</div>
+            </div>
+            <div class="tsa-card" style="padding:14px 18px">
+              <div style="font-size:11px;color:#5E5CE6;font-weight:600">주간 선택률</div>
+              <div id="meal-kpi-rate" style="font-size:24px;font-weight:800;color:#5E5CE6">-</div>
+            </div>
+          </div>
+
+          <div class="tsa-tabs">
+            <div class="tsa-tab active" id="meal-tab-plan" onclick="switchMealTab('plan')">주간 식단 편성</div>
+            <div class="tsa-tab" id="meal-tab-status" onclick="switchMealTab('status')">학생별 선택 현황</div>
+            <div class="tsa-tab" id="meal-tab-aggregate" onclick="switchMealTab('aggregate')">일자별 집계 · 발주</div>
+          </div>
+
+          <!-- 탭 1 : 주간 식단 편성 -->
+          <div id="meal-panel-plan">
+            <div class="tsa-card" style="padding:12px 16px;margin-bottom:14px">
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div style="flex:1;min-width:240px">
+                  <label class="tsa-label">주간 안내 문구 <span style="font-weight:400;color:#9CA3AF">(학생 화면 상단 안내)</span></label>
+                  <input id="meal-plan-note" class="tsa-input" placeholder="예: 주 5일 점심 도시락 · 밥/국/반찬 2종 공통 + 메인 선택"/>
                 </div>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-bottom:2px" onclick="copyPrevMealWeek()"><i data-lucide="copy"></i> 지난 주 복사</button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-bottom:2px" onclick="saveMealPlanEditor(false)"><i data-lucide="save"></i> 임시 저장</button>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="margin-bottom:2px" onclick="saveMealPlanEditor(true)"><i data-lucide="send"></i> 저장 후 학생 공개</button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-bottom:2px;border-color:#FCA5A5;color:#DC2626" onclick="unpublishMealPlan()">공개 취소</button>
               </div>
             </div>
+            <div id="meal-plan-editor"></div>
+          </div>
 
-            <!-- Agency Registrations chart/table -->
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="trending-up" style="color:#5E5CE6"></i> 이번 달 에이전시별 신규 등록 실적</h3>
+          <!-- 탭 2 : 학생별 선택 현황 -->
+          <div id="meal-panel-status" style="display:none">
+            <div class="tsa-card" style="padding:12px 16px;margin-bottom:14px">
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div style="min-width:180px">
+                  <label class="tsa-label">에이전시</label>
+                  <select id="meal-filter-agency" class="tsa-input" onchange="setMealStatusFilter('agency', this.value)"></select>
+                </div>
+                <div style="min-width:150px">
+                  <label class="tsa-label">식단 구분</label>
+                  <select id="meal-filter-diet" class="tsa-input" onchange="setMealStatusFilter('diet', this.value)"></select>
+                </div>
+                <div style="min-width:200px;flex:1">
+                  <label class="tsa-label">검색</label>
+                  <input id="meal-filter-keyword" class="tsa-input" placeholder="이름/닉네임/국적/에이전시"
+                    oninput="setMealStatusFilter('keyword', this.value)"/>
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;margin-bottom:9px">
+                  <input type="checkbox" id="meal-filter-missing" onchange="setMealStatusFilter('onlyMissing', this.checked)"/> 미선택 학생만 보기
+                </label>
               </div>
-              <div class="tsa-card-body" style="padding:0">
-                <table class="tsa-table">
-                  <thead>
-                    <tr>
-                      <th>에이전시명</th>
-                      <th>국가</th>
-                      <th>이번 달 신규 유입</th>
-                      <th>누적 등록생 수</th>
-                      <th>점유율</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style="font-weight:700">한국 영어마을 (주)</td>
-                      <td>🇰🇷 한국</td>
-                      <td style="font-weight:700">18 명</td>
-                      <td>42 명</td>
-                      <td>
-                        <div style="display:flex;align-items:center;gap:8px">
-                          <div style="width:80px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
-                            <div style="width:45%;height:100%;background:#5E5CE6"></div>
-                          </div>
-                          <span style="font-size:11px;color:#6B7280">45%</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-weight:700">Global Edu Japan</td>
-                      <td>🇯🇵 일본</td>
-                      <td style="font-weight:700">12 명</td>
-                      <td>30 명</td>
-                      <td>
-                        <div style="display:flex;align-items:center;gap:8px">
-                          <div style="width:80px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
-                            <div style="width:30%;height:100%;background:#0EA5E9"></div>
-                          </div>
-                          <span style="font-size:11px;color:#6B7280">30%</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-weight:700">China Study Bridge</td>
-                      <td>🇨🇳 중국</td>
-                      <td style="font-weight:700">6 명</td>
-                      <td>18 명</td>
-                      <td>
-                        <div style="display:flex;align-items:center;gap:8px">
-                          <div style="width:80px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
-                            <div style="width:15%;height:100%;background:#10B981"></div>
-                          </div>
-                          <span style="font-size:11px;color:#6B7280">15%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
+            </div>
+            <div class="tsa-card">
+              <div class="tsa-card-header" style="flex-wrap:wrap;gap:8px">
+                <div>
+                  <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 학생별 선택 현황</h3>
+                  <div style="font-size:11px;color:#6B7280">표시 대상 <span id="meal-status-count">-</span> · 요일 배지를 클릭하면 A → B → 미신청 → 미선택 순서로 어드민이 직접 변경할 수 있습니다.</div>
+                </div>
+              </div>
+              <div style="overflow-x:auto">
+                <table class="tsa-table" style="font-size:12px">
+                  <thead id="meal-status-thead"></thead>
+                  <tbody id="meal-status-tbody"></tbody>
                 </table>
               </div>
             </div>
+          </div>
+
+          <!-- 탭 3 : 일자별 집계 -->
+          <div id="meal-panel-aggregate" style="display:none">
+            <div id="meal-aggregate-body"></div>
           </div>
         </div>
 
@@ -6421,18 +6901,15 @@
       </div>
       <div class="tsa-modal-body">
         <div style="padding:12px 14px;border-radius:10px;background:#EEF2FF;border:1px solid #C7D2FE;color:#3730A3;font-size:11px;line-height:1.6;margin-bottom:18px">
-          추가한 기간은 과정별 수강료와 기숙사 요금표에 공통으로 표시됩니다. 이미 제공 중인 기본 기간은 삭제할 수 없습니다.
+          추가한 기간은 과정별 수강료와 기숙사 요금표에 공통으로 표시됩니다. 최소 1개의 수강 기간은 남아 있어야 합니다.
         </div>
         <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">사용 중인 수강 기간</div>
         <div id="tuition-formula-policy-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px"></div>
         <div style="margin-top:20px;padding-top:18px;border-top:1px solid #E5E7EB">
           <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">새 기간 추가</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="position:relative;flex:1">
-              <input id="tuition-formula-add-input" type="number" min="1" placeholder="예: 36" class="tsa-input" style="height:42px;padding-right:38px">
-              <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;color:#6B7280">주</span>
-            </div>
-            <button type="button" class="tsa-btn tsa-btn-primary" onclick="handleAddFormulaPeriodClick()"><i data-lucide="plus"></i> 기간 추가</button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button type="button" class="tsa-btn tsa-btn-primary" onclick="handleAddFormulaPeriodClick()"><i data-lucide="plus"></i> <span id="tuition-formula-add-btn-label">4주 추가</span></button>
+            <div style="font-size:10.5px;color:#6B7280">클릭할 때마다 가장 긴 기간 기준으로 4주씩 늘어난 기간이 추가됩니다.</div>
           </div>
           <div style="font-size:10.5px;color:#6B7280;margin-top:8px">기간을 추가한 뒤 각 과정의 수정 화면에서 해당 기간의 수강료를 설정해 주세요.</div>
         </div>
@@ -6477,6 +6954,7 @@
           <div style="padding:10px 12px;border-radius:9px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
           <div style="padding:10px 12px;border-radius:9px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
         </div>
+        <div style="font-size:10.5px;color:#6B7280;margin-bottom:4px">계산된 금액은 10원 단위로 <b>무조건 올림</b> 처리됩니다. (예: $433.1 → $440)</div>
         <div style="font-size:10.5px;color:#6B7280;margin-bottom:8px">4주는 기준 요금으로 고정됩니다. 아래 행은 좌우로 이동해 모든 주차를 설정할 수 있습니다.</div>
         <div style="overflow-x:auto;padding-bottom:8px">
           <div id="tuition-course-formula-row" style="display:flex;gap:8px;min-width:max-content"></div>
@@ -6509,63 +6987,63 @@
 <!-- Tuition Dorm Policy Modal -->
 <div id="tuition-dorm-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('tuition-dorm-modal')">
-    <div class="tsa-modal" style="max-width:860px" onclick="event.stopPropagation()">
+    <div class="tsa-modal" style="max-width:1280px" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div>
           <h3 class="tsa-modal-title" id="tuition-dorm-modal-title">기숙사 요금 추가</h3>
-          <p class="tsa-modal-subtitle">4주 기준 기숙사비만 입력하면 수강료와 동일한 할증·할인 정책으로 자동 계산됩니다.</p>
+          <p class="tsa-modal-subtitle">4주 기준 기숙사비를 입력하고, 필요하면 이 기숙사에만 적용되는 할증·할인 공식을 따로 설정할 수 있습니다.</p>
         </div>
         <button class="tsa-modal-close" onclick="closeModal('tuition-dorm-modal')"><i data-lucide="x"></i></button>
       </div>
 
-      <div class="tsa-modal-body" style="max-height:72vh;overflow-y:auto">
+      <div class="tsa-modal-body" style="max-height:78vh;overflow-y:auto">
         <input type="hidden" id="tuition-dorm-edit-index" value=""/>
 
-        <div style="display:grid;grid-template-columns:1.15fr 0.85fr;gap:18px">
-          <div style="display:flex;flex-direction:column;gap:14px">
-            <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB">
-              <div class="tsa-card-body" style="padding:16px">
-                <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:12px">기숙사 정보</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">숙소 유형 <span style="color:#EF4444">*</span></label>
-                    <select id="tuition-dorm-accom-type" class="tsa-input"></select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">인실 기준 <span style="color:#EF4444">*</span></label>
-                    <select id="tuition-dorm-capacity" class="tsa-input"></select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">등급</label>
-                    <select id="tuition-dorm-condition" class="tsa-input"></select>
-                  </div>
-                  <div class="tsa-form-group" style="grid-column:span 2">
-                    <label class="tsa-label">4주 요금 (USD) <span style="color:#EF4444">*</span></label>
-                    <input id="tuition-dorm-base-fee" type="number" min="0" class="tsa-input" placeholder="예: 800" oninput="previewTuitionDormModal()"/>
-                  </div>
-                </div>
+        <div class="tsa-card" style="box-shadow:none;border:1px solid #E5E7EB;margin-bottom:14px">
+          <div class="tsa-card-body" style="padding:16px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+              <div class="tsa-form-group">
+                <label class="tsa-label">숙소 유형 <span style="color:#EF4444">*</span></label>
+                <select id="tuition-dorm-accom-type" class="tsa-input"></select>
               </div>
-            </div>
-
-            <div style="padding:11px 13px;border:1px solid #E5E7EB;border-radius:10px;background:#F9FAFB;color:#6B7280;font-size:11px;line-height:1.6">
-              기간별 금액은 수강료와 동일한 공통 할증·할인 정책으로 자동 계산됩니다. 이 팝업에서는 4주 기준 금액만 입력합니다.
-            </div>
-
-            <div class="tsa-form-group">
-              <label class="tsa-label">관리 메모</label>
-              <textarea id="tuition-dorm-memo" class="tsa-input" rows="3" placeholder="예: 2026년 세부 캠퍼스 기준 기숙사 요금, 시즌 요금 전 기본 정책 등"></textarea>
-            </div>
-          </div>
-
-          <div class="tsa-card" style="box-shadow:none;border:1px solid #A7F3D0;background:#F0FDF4">
-            <div class="tsa-card-body" style="padding:16px">
-              <div style="font-size:13px;font-weight:800;color:#047857;margin-bottom:12px">미리보기</div>
-              <div id="tuition-dorm-preview" style="display:flex;flex-direction:column;gap:8px"></div>
-              <div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:#ECFDF5;color:#4B5563;font-size:11px;line-height:1.55">
-                이 금액은 학생 청구의 <b>기숙사 요금</b> 항목으로 사용됩니다. 인실 기준별 기본 요금을 먼저 관리합니다.
+              <div class="tsa-form-group">
+                <label class="tsa-label">인실 기준 <span style="color:#EF4444">*</span></label>
+                <select id="tuition-dorm-capacity" class="tsa-input"></select>
+              </div>
+              <div class="tsa-form-group">
+                <label class="tsa-label">등급</label>
+                <select id="tuition-dorm-condition" class="tsa-input"></select>
+              </div>
+              <div class="tsa-form-group">
+                <label class="tsa-label">4주 요금 (USD) <span style="color:#EF4444">*</span></label>
+                <input id="tuition-dorm-base-fee" type="number" min="0" class="tsa-input" placeholder="예: 800" oninput="previewTuitionDormModal()"/>
               </div>
             </div>
           </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;font-size:11px;line-height:1.55">
+          <div style="padding:10px 12px;border-radius:9px;background:#F8FAFC;border:1px solid #E2E8F0"><b>기본 비례</b><br/>(4주 요금 ÷ 4) × N주</div>
+          <div style="padding:10px 12px;border-radius:9px;background:#FFF7ED;border:1px solid #FED7AA;color:#9A3412"><b>할증</b><br/>기본 비례 금액 × (1 + 할증률)</div>
+          <div style="padding:10px 12px;border-radius:9px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46"><b>할인</b><br/>기본 비례 금액 × (1 - 할인율)</div>
+        </div>
+        <div style="font-size:10.5px;color:#6B7280;margin-bottom:4px">계산된 금액은 10원 단위로 <b>무조건 올림</b> 처리됩니다. (예: $433.1 → $440)</div>
+        <div style="font-size:10.5px;color:#6B7280;margin-bottom:8px">4주는 기준 요금으로 고정됩니다. 아래 행은 좌우로 이동해 모든 주차를 설정할 수 있습니다.</div>
+        <div style="overflow-x:auto;padding-bottom:8px">
+          <div id="tuition-dorm-formula-row" style="display:flex;gap:8px;min-width:max-content"></div>
+        </div>
+
+        <div class="tsa-form-group" style="margin-top:14px">
+          <label class="tsa-label">관리 메모</label>
+          <textarea id="tuition-dorm-memo" class="tsa-input" rows="2" placeholder="예: 2026년 세부 캠퍼스 기준 기숙사 요금, 시즌 요금 전 기본 정책 등"></textarea>
+        </div>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #E5E7EB">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+            <b style="font-size:12.5px;color:#111827">공식 변경 히스토리</b>
+            <span style="font-size:10.5px;color:#6B7280">최신 저장 순</span>
+          </div>
+          <div id="tuition-dorm-formula-history" style="display:grid;gap:8px"></div>
         </div>
       </div>
 
@@ -6682,9 +7160,9 @@
                 <div id="course-reg-segment-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end;margin-bottom:14px">
                   <div class="tsa-form-group">
-                    <label class="tsa-label">① 수강 시작일 <span style="color:#EF4444">*</span></label>
+                    <label class="tsa-label">① 수강 시작일 (월요일만 선택 가능) <span style="color:#EF4444">*</span></label>
                     <input id="course-reg-start" type="date" class="tsa-input" onchange="handleCourseRegStartChange()"/>
-                    <div style="font-size:10px;color:#6B7280;margin-top:4px">시작일을 선택하면 아래 과정별 기간 선택이 활성화돼.</div>
+                    <div style="font-size:10px;color:#6B7280;margin-top:4px">시작일을 선택하면 아래 과정별 기간 선택이 활성화돼. 월요일이 아니면 같은 주 월요일로 자동 변경돼.</div>
                   </div>
                   <div class="tsa-form-group">
                     <label class="tsa-label">② 수강 종료일 <span style="font-size:10px;color:#4F46E5">자동 계산</span></label>
@@ -7136,16 +7614,20 @@
 
 <!-- Toast Notification Container -->
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+<div id="google_translate_element"></div>
 
-<script src="assets/js/lms-data.js?v=0.6.13"></script>
-<script src="assets/js/lms-util.js?v=0.6.6"></script>
+<script src="assets/js/lms-data.js?v=0.6.15"></script>
+<script src="assets/js/lms-util.js?v=0.6.9"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.9"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.10"></script>
 <script src="assets/js/lms-student.js?v=0.6.7"></script>
     <script src="assets/js/lms-course.js?v=0.6.76"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.12"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.128"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.225"></script>
+<script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
+<script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>
+<script src="assets/js/lms-i18n.js?v=0.1.0"></script>
 <script>
   // 그룹 팝업은 로그인/포털 초기화보다 먼저 전용 화면으로 전환한다.
   if (new URLSearchParams(window.location.search).has('groupPopup')) {

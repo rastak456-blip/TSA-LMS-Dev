@@ -1,18 +1,4 @@
 /* =============================================
-   GLOBAL HEADQUARTERS DASHBOARD LOGIC
-   ============================================= */
-function initGlobalDashboard() {
-  setupGlobalDashboard();
-}
-
-function setupGlobalDashboard() {
-  // Render multi-tenant stats Cebu vs Malta
-  document.getElementById('global-total-unpaid').textContent = '$12,450';
-  document.getElementById('global-pending-cr').textContent = '3 건 대기 중';
-}
-
-
-/* =============================================
    V0.3 FUNCTIONS & HELPERS
    ============================================= */
 
@@ -3313,6 +3299,9 @@ function initializeStudentPopupMode() {
     if (hubTab && allowedHubTabs.includes(hubTab) && typeof switchAgencyStudentDetailPageTab === 'function') {
       currentAdetailTab = hubTab;
       switchAgencyStudentDetailPageTab('enrollment');
+    } else if (hubTab === 'request' && typeof switchAgencyStudentDetailPageTab === 'function') {
+      // '학생 요청 관리' 리스트에서 넘어온 경우 — 최상위 탭인 '학생 요청'을 바로 연다.
+      switchAgencyStudentDetailPageTab('request');
     }
     const closeButtons = document.querySelectorAll('[onclick="closeStudentDetailPage()"]');
     closeButtons.forEach((button, index) => {

@@ -3,8 +3,10 @@
    수강료 구성
    ============================================= */
 
-const TUITION_RATE_TABLE_BASE_WEEKS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
+let TUITION_RATE_TABLE_BASE_WEEKS = [1, 2, 3, 4, 8, 12, 16, 20, 24];
 let TUITION_RATE_TABLE_EXTRA_WEEKS = Array.isArray(window.MOCK_TUITION_EXTRA_DURATIONS) ? window.MOCK_TUITION_EXTRA_DURATIONS : (window.MOCK_TUITION_EXTRA_DURATIONS = []);
+const TUITION_DURATION_ADD_STEP_WEEKS = 4;
+const TUITION_DURATION_MIN_COUNT = 1;
 const TUITION_LONG_DISCOUNT_WEEKS = [17, 18, 19, 20, 21, 22, 23, 24];
 
 // 기간 옵션(주차) 관리: 실제 선택 가능한 기간(기본 9개 + 추가된 옵션)만 다룬다.
@@ -33,9 +35,19 @@ function addTuitionDurationWeeks(weeksInput) {
 }
 
 function removeTuitionDurationWeeks(weeks) {
-  const idx = TUITION_RATE_TABLE_EXTRA_WEEKS.indexOf(Number(weeks));
-  if (idx === -1) return;
-  TUITION_RATE_TABLE_EXTRA_WEEKS.splice(idx, 1);
+  const target = Number(weeks);
+  if (getTuitionDurationWeeks().length <= TUITION_DURATION_MIN_COUNT) {
+    showToast('최소 1개의 수강 기간은 남아 있어야 해.', 'warning');
+    return;
+  }
+  const extraIdx = TUITION_RATE_TABLE_EXTRA_WEEKS.indexOf(target);
+  if (extraIdx !== -1) {
+    TUITION_RATE_TABLE_EXTRA_WEEKS.splice(extraIdx, 1);
+  } else {
+    const baseIdx = TUITION_RATE_TABLE_BASE_WEEKS.indexOf(target);
+    if (baseIdx === -1) return;
+    TUITION_RATE_TABLE_BASE_WEEKS.splice(baseIdx, 1);
+  }
   renderTuitionDurationOptions();
   renderTuitionCourseList();
   renderTuitionDormList();
@@ -68,7 +80,7 @@ function getTuitionRatePolicy() {
         { startWeek: 21, endWeek: 23, rate: 0 },
         { startWeek: 24, endWeek: 24, rate: 0 },
       ],
-      rounding: 'nearest10',
+      rounding: 'roundUp10',
     };
   }
   const policy = window.MOCK_TUITION_RATE_POLICY;
@@ -89,8 +101,10 @@ function getTuitionRatePolicy() {
   return policy;
 }
 
+// 엑셀 원본 수식(ROUNDUP(값,-1))과 동일하게 10원 단위 "무조건 올림"으로 계산한다.
+// 일반 반올림(Math.round)을 쓰면 433.125 같은 값이 430으로 내려가 엑셀 결과(440)와 어긋난다.
 function roundTuitionAmount(amount) {
-  return Math.round(Number(amount || 0) / 10) * 10;
+  return Math.ceil(Number(amount || 0) / 10) * 10;
 }
 
 // 주차별 규칙(weeklyRules)을 받아 실제 금액을 계산하는 공용 함수.
@@ -131,7 +145,9 @@ function renderTuitionRateCells(baseFee, course) {
 function openTuitionFormulaPolicyModal() {
   const row = document.getElementById('tuition-formula-policy-row');
   if (!row) return;
-  row.innerHTML = getTuitionDurationWeeks().map(weeks => {
+  const weeksList = getTuitionDurationWeeks();
+  const canRemove = weeksList.length > TUITION_DURATION_MIN_COUNT;
+  row.innerHTML = weeksList.map(weeks => {
     const isBase = TUITION_RATE_TABLE_BASE_WEEKS.includes(weeks);
     return `
       <div style="height:64px;border:1px solid ${isBase ? '#E5E7EB' : '#C7D2FE'};background:${isBase ? '#F9FAFB' : '#EEF2FF'};border-radius:10px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between">
@@ -139,19 +155,22 @@ function openTuitionFormulaPolicyModal() {
           <div style="font-size:14px;font-weight:900;color:${isBase ? '#111827' : '#4338CA'}">${weeks}주</div>
           <div style="font-size:10px;color:#6B7280;margin-top:3px">${isBase ? '기본 기간' : '추가 기간'}</div>
         </div>
-        ${isBase
-          ? '<span style="font-size:10px;color:#9CA3AF">고정</span>'
-          : `<button type="button" onclick="handleRemoveFormulaPeriod(${weeks})" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="color:#DC2626;border-color:#FECACA" title="기간 삭제">삭제</button>`}
+        ${canRemove
+          ? `<button type="button" onclick="handleRemoveFormulaPeriod(${weeks})" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="color:#DC2626;border-color:#FECACA" title="기간 삭제">삭제</button>`
+          : '<span style="font-size:10px;color:#9CA3AF">필수</span>'}
       </div>`;
   }).join('');
+  const nextWeeks = (weeksList.length ? Math.max(...weeksList) : 0) + TUITION_DURATION_ADD_STEP_WEEKS;
+  const addLabel = document.getElementById('tuition-formula-add-btn-label');
+  if (addLabel) addLabel.textContent = `${nextWeeks}주 추가`;
   openModal('tuition-formula-policy-modal');
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
 
 function handleAddFormulaPeriodClick() {
-  const input = document.getElementById('tuition-formula-add-input');
-  if (!input) return;
-  if (addTuitionDurationWeeks(input.value)) openTuitionFormulaPolicyModal();
+  const weeksList = getTuitionDurationWeeks();
+  const nextWeeks = (weeksList.length ? Math.max(...weeksList) : 0) + TUITION_DURATION_ADD_STEP_WEEKS;
+  if (addTuitionDurationWeeks(nextWeeks)) openTuitionFormulaPolicyModal();
 }
 
 function handleRemoveFormulaPeriod(weeks) {
@@ -526,7 +545,7 @@ function renderTuitionDormList() {
         <td>${capacityLabel}</td>
         <td>${template.condition || '-'}</td>
         <td>4주</td>
-        ${renderTuitionRateCells(baseFee)}
+        ${renderTuitionRateCells(baseFee, template)}
         <td style="text-align:center">
           <span class="tsa-badge ${visible ? 'tsa-badge-success' : 'tsa-badge-gray'}" style="cursor:pointer" onclick="toggleTuitionDormVisibility(${idx})">${visible ? '노출' : '숨김'}</span>
         </td>
@@ -624,37 +643,113 @@ function openTuitionDormModal(idx = null) {
   populateTuitionDormMasterSelects(template);
   setVal('tuition-dorm-edit-index', isEdit ? idx : '');
   setVal('tuition-dorm-base-fee', template?.cost || '');
-  setVal('tuition-dorm-calc-mode', template?.tuitionPolicy?.calcMode || 'auto');
-  setVal('tuition-dorm-fee-8w', template?.tuitionPolicy?.fee8 || '');
-  setVal('tuition-dorm-fee-12w', template?.tuitionPolicy?.fee12 || '');
-  setVal('tuition-dorm-fee-16w', template?.tuitionPolicy?.fee16 || '');
-  setVal('tuition-dorm-fee-20w', template?.tuitionPolicy?.fee20 || '');
-  setVal('tuition-dorm-fee-24w', template?.tuitionPolicy?.fee24 || '');
   setVal('tuition-dorm-memo', template?.tuitionPolicy?.memo || '');
 
+  const seedRules = (template?.tuitionPolicy?.weeklyRules) || getTuitionRatePolicy().weeklyRules;
+  renderTuitionDormFormulaGrid(seedRules);
   previewTuitionDormModal();
+  renderTuitionDormFormulaHistory(template);
+
   openModal('tuition-dorm-modal');
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
 
+// 기숙사 전용 할증·할인 그리드. 구조는 과정별 수강료 그리드와 동일하다.
+function renderTuitionDormFormulaGrid(weeklyRules) {
+  const row = document.getElementById('tuition-dorm-formula-row');
+  if (!row) return;
+  row.innerHTML = getTuitionDurationWeeks().map(weeks => {
+    const rule = weeklyRules?.[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
+    const locked = weeks === 4;
+    return `
+      <div style="min-width:150px;border:1px solid ${locked ? '#C7D2FE' : '#E5E7EB'};background:${locked ? '#EEF2FF' : '#fff'};border-radius:10px;padding:9px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <div style="font-weight:900;font-size:11px;color:${locked ? '#4338CA' : '#111827'}">${weeks}주${locked ? ' · 기준' : ''}</div>
+        </div>
+        <select id="tuition-dorm-formula-type-${weeks}" class="tsa-input" style="height:32px;font-size:10.5px;margin-bottom:6px" ${locked ? 'disabled' : ''} onchange="handleTuitionDormFormulaTypeChange(${weeks})">
+          <option value="proportional" ${rule.type === 'proportional' ? 'selected' : ''}>기본 비례</option>
+          <option value="premium" ${rule.type === 'premium' ? 'selected' : ''}>할증</option>
+          <option value="discount" ${rule.type === 'discount' ? 'selected' : ''}>할인</option>
+          ${locked ? '<option value="base" selected>4주 기준</option>' : ''}
+        </select>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input id="tuition-dorm-formula-rate-${weeks}" type="number" min="0" max="100" step="1" class="tsa-input" style="height:32px;font-size:10.5px" value="${Number(rule.rate || 0)}" ${locked || rule.type === 'proportional' ? 'disabled' : ''} oninput="previewTuitionDormModal()"/>
+          <span style="font-size:10.5px;color:#6B7280">%</span>
+        </div>
+        <div id="tuition-dorm-formula-preview-${weeks}" style="font-size:10px;font-weight:800;margin-top:8px;color:#374151"></div>
+      </div>`;
+  }).join('');
+}
+
+function handleTuitionDormFormulaTypeChange(weeks) {
+  const type = document.getElementById(`tuition-dorm-formula-type-${weeks}`)?.value || 'proportional';
+  const rate = document.getElementById(`tuition-dorm-formula-rate-${weeks}`);
+  if (rate) {
+    rate.disabled = type === 'proportional' || type === 'base';
+    if (rate.disabled) rate.value = '0';
+  }
+  previewTuitionDormModal();
+}
+
+function readTuitionDormFormulaRulesFromForm() {
+  return Object.fromEntries(getTuitionDurationWeeks().map(weeks => {
+    const type = weeks === 4 ? 'base' : (document.getElementById(`tuition-dorm-formula-type-${weeks}`)?.value || 'proportional');
+    const rate = type === 'premium' || type === 'discount'
+      ? Math.min(100, Math.max(0, Number(document.getElementById(`tuition-dorm-formula-rate-${weeks}`)?.value || 0)))
+      : 0;
+    return [weeks, { type, rate }];
+  }));
+}
+
+// 4주 요금 입력에 맞춰 각 주차 카드의 원 금액·조정 금액·최종 금액을 갱신한다.
 function previewTuitionDormModal() {
   const base = parseInt(document.getElementById('tuition-dorm-base-fee')?.value, 10) || 0;
-  const preview = document.getElementById('tuition-dorm-preview');
-  if (preview) {
-    const rows = getTuitionDurationWeeks().map(weeks => ({ label: `${weeks}주`, value: calculateManagedTuitionFee(base, weeks), active: weeks === 4 }));
-    preview.innerHTML = rows.map(row => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;background:${row.active ? '#ECFDF5' : '#fff'};border:1px solid ${row.active ? '#A7F3D0' : '#E5E7EB'}">
-        <div style="font-size:12px;font-weight:700;color:${row.active ? '#047857' : '#374151'}">${row.label}</div>
-        <div style="font-size:14px;font-weight:900;color:#111827">$${Number(row.value || 0).toLocaleString()}</div>
-      </div>
-    `).join('');
-  }
+  const rules = readTuitionDormFormulaRulesFromForm();
+  Object.entries(rules).forEach(([weeksKey, rule]) => {
+    const weeks = Number(weeksKey);
+    const regular = (base / 4) * weeks;
+    const amount = rule.type === 'premium'
+      ? roundTuitionAmount(regular * (1 + rule.rate / 100))
+      : rule.type === 'discount'
+        ? roundTuitionAmount(regular * (1 - rule.rate / 100))
+        : roundTuitionAmount(regular);
+    const originalAmount = roundTuitionAmount(regular);
+    const adjustment = Math.abs(amount - originalAmount);
+    const target = document.getElementById(`tuition-dorm-formula-preview-${weeks}`);
+    if (target) {
+      const sign = rule.type === 'premium' ? `+${rule.rate}%` : rule.type === 'discount' ? `-${rule.rate}%` : '비례';
+      const adjustmentLabel = rule.type === 'premium' ? '할증 금액' : rule.type === 'discount' ? '할인 금액' : '조정 금액';
+      const adjustmentColor = rule.type === 'premium' ? '#C2410C' : rule.type === 'discount' ? '#047857' : '#9CA3AF';
+      const adjustmentSign = rule.type === 'premium' ? '+' : rule.type === 'discount' ? '-' : '';
+      target.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:6px;padding-top:6px;border-top:1px solid #E5E7EB;font-size:9.5px;color:#6B7280"><span>원 금액</span><b style="color:#374151">$${originalAmount.toLocaleString()}</b></div>
+        <div style="display:flex;justify-content:space-between;gap:6px;margin-top:3px;font-size:9.5px;color:${adjustmentColor}"><span>${adjustmentLabel} <b>${sign}</b></span><b>${adjustmentSign}$${adjustment.toLocaleString()}</b></div>
+        <div style="display:flex;justify-content:space-between;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed #CBD5E1;font-size:10.5px"><span style="color:#111827">최종 금액</span><b style="font-size:13px;color:#111827">$${amount.toLocaleString()}</b></div>`;
+    }
+  });
+}
+
+function renderTuitionDormFormulaHistory(template) {
+  const target = document.getElementById('tuition-dorm-formula-history');
+  if (!target) return;
+  const history = template?.tuitionPolicy?.formulaHistory || [];
+  target.innerHTML = history.length ? history.map((entry, index) => `
+    <details ${index === 0 ? 'open' : ''} style="border:1px solid #E5E7EB;border-radius:10px;background:#fff;overflow:hidden">
+      <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;cursor:pointer;list-style:none">
+        <div><b style="font-size:11.5px;color:#111827">${entry.savedBy}</b><span style="font-size:10.5px;color:#6B7280;margin-left:8px">${entry.savedAt}</span></div>
+        <span class="tsa-badge tsa-badge-primary">${entry.changes.length}개 주차 변경</span>
+      </summary>
+      <div style="border-top:1px solid #E5E7EB;padding:8px 13px 11px;display:grid;gap:6px">${formatTuitionCourseFormulaHistoryChanges(entry.changes)}</div>
+    </details>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:10px;color:#94A3B8;font-size:11px">아직 저장된 공식 변경 이력이 없습니다.</div>';
 }
 
 function saveTuitionDormPolicy() {
   if (typeof MOCK_DORM_TEMPLATES === 'undefined') return;
 
   const editIdxRaw = document.getElementById('tuition-dorm-edit-index')?.value || '';
+  const editIdx = editIdxRaw !== '' ? parseInt(editIdxRaw, 10) : -1;
+  const existing = editIdx >= 0 ? MOCK_DORM_TEMPLATES[editIdx] : null;
+
   const accomType = document.getElementById('tuition-dorm-accom-type')?.value.trim() || '';
   const capacityLabel = document.getElementById('tuition-dorm-capacity')?.value || '';
   const capacity = parseInt(capacityLabel, 10) || 0;
@@ -669,35 +764,67 @@ function saveTuitionDormPolicy() {
     showToast('인실 기준을 선택해줘.', 'warning');
     return;
   }
-  if (baseFee < 0) {
-    showToast('4주 요금은 0 이상으로 입력해줘.', 'warning');
+  if (baseFee <= 0) {
+    showToast('4주 요금을 입력해줘.', 'warning');
     return;
   }
 
+  const normalizedCondition = condition || '스탠다드';
+  const isDuplicate = MOCK_DORM_TEMPLATES.some((tpl, i) =>
+    i !== editIdx &&
+    tpl.accomType === accomType &&
+    Number(tpl.capacity) === capacity &&
+    (tpl.condition || '스탠다드') === normalizedCondition
+  );
+  if (isDuplicate) {
+    showToast(`이미 등록된 조합이야. (${accomType} · ${capacity}인실 · ${normalizedCondition})`, 'warning');
+    return;
+  }
+
+  const previousRules = existing?.tuitionPolicy?.weeklyRules || getTuitionRatePolicy().weeklyRules;
+  const nextRules = readTuitionDormFormulaRulesFromForm();
+  const changes = getTuitionDurationWeeks().filter(weeks => {
+    const before = previousRules[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 };
+    const after = nextRules[weeks];
+    return before.type !== after.type || Number(before.rate || 0) !== Number(after.rate || 0);
+  }).map(weeks => ({ weeks, before: previousRules[weeks] || { type: weeks === 4 ? 'base' : 'proportional', rate: 0 }, after: nextRules[weeks] }));
+
+  const formulaHistory = Array.isArray(existing?.tuitionPolicy?.formulaHistory) ? existing.tuitionPolicy.formulaHistory.slice() : [];
+  if (changes.length) {
+    const roleKey = typeof APP !== 'undefined' ? APP.user : null;
+    const savedBy = roleKey && typeof ROLE_CONFIG !== 'undefined' && ROLE_CONFIG[roleKey] ? ROLE_CONFIG[roleKey].label : '슈퍼 어드민';
+    formulaHistory.unshift({
+      id: Date.now(),
+      savedAt: new Date().toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      savedBy,
+      changes,
+    });
+  }
+
   const nextTemplate = {
-    id: editIdxRaw !== '' && MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)] ? MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)].id : Date.now(),
+    id: existing ? existing.id : Date.now(),
     accomType,
     capacity,
-    condition: condition || '스탠다드',
-    count: editIdxRaw !== '' && MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)] ? MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)].count : 0,
+    condition: normalizedCondition,
+    count: existing ? existing.count : 0,
     costDay: 0,
     costWeek: 0,
     cost: baseFee,
-    active: editIdxRaw !== '' && MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)]
-      ? MOCK_DORM_TEMPLATES[parseInt(editIdxRaw, 10)].active !== false
-      : true,
+    active: existing ? existing.active !== false : true,
     tuitionPolicy: {
       basePeriod: 4,
       baseFee,
       calcMode: 'managed',
-      ...Object.fromEntries(getTuitionDurationWeeks().map(weeks => [`fee${weeks}`, calculateManagedTuitionFee(baseFee, weeks)])),
+      useCustomFormula: true,
+      weeklyRules: nextRules,
+      formulaHistory,
+      ...Object.fromEntries(getTuitionDurationWeeks().map(weeks => [`fee${weeks}`, computeTuitionRuleAmount(baseFee, weeks, nextRules)])),
       memo: document.getElementById('tuition-dorm-memo')?.value.trim() || '',
     },
   };
 
-  if (editIdxRaw !== '') {
-    const idx = parseInt(editIdxRaw, 10);
-    if (MOCK_DORM_TEMPLATES[idx]) MOCK_DORM_TEMPLATES[idx] = nextTemplate;
+  if (existing) {
+    MOCK_DORM_TEMPLATES[editIdx] = nextTemplate;
   } else {
     MOCK_DORM_TEMPLATES.push(nextTemplate);
   }

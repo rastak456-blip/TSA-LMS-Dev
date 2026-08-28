@@ -565,7 +565,8 @@ function openStudentRegisterPopup(portal) {
 
 // 등록 팝업(신규 학생) 저장 성공 후 부모 창 상태를 갱신하고 팝업을 닫는다
 function finishStudentRegisterPopup(newStudent, portal) {
-  if (window.opener && !window.opener.closed) {
+  const hasOpener = window.opener && !window.opener.closed;
+  if (hasOpener) {
     try {
       window.opener.MOCK_STUDENTS.push(newStudent);
       if (typeof window.opener.enhanceMockStudents === 'function') window.opener.enhanceMockStudents();
@@ -578,9 +579,13 @@ function finishStudentRegisterPopup(newStudent, portal) {
       }
       if (typeof window.opener.renderUnassignedQueue === 'function') window.opener.renderUnassignedQueue();
       if (typeof window.opener.showToast === 'function') window.opener.showToast(`✓ [학생 등록 완료] ${newStudent.nick} (${newStudent.name})이 등록되었습니다.`, 'success');
-    } catch (e) { /* 팝업 차단·접근 불가 시 무시하고 팝업만 닫는다 */ }
+      window.close();
+      return;
+    } catch (e) { /* 부모 창 접근 불가 시(다른 오리진 등) 아래 폴백으로 진행 */ }
   }
-  window.close();
+  // 부모 창이 없는 상태(예: 이 팝업 URL을 새 탭에 직접 접속)에서는 window.close()가 동작하지 않고
+  // 등록 결과를 알려줄 곳도 없으므로, 이 창 자체에 완료 메시지를 띄우고 창은 열어둔다.
+  showToast(`✓ [학생 등록 완료] ${newStudent.nick} (${newStudent.name})이 등록되었습니다. 이 창은 "신규 학생 등록" 버튼으로 열어야 원래 목록에 자동 반영됩니다.`, 'success');
 }
 
 function renderStudentConsultationTab(student, container) {
@@ -644,6 +649,78 @@ function renderStudentConsultationTab(student, container) {
       </div>
     </div>`;
   if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// '학생 요청' 최상위 탭 — 외출증/외박/여행/선생님 변경/코스 변경/룸 변경 요청을 상담 노트 탭과 동일한
+// (유형 필터 + 카드형 타임라인) 구조로 보여준다. 관리자 리스트에서 이 학생 요청 건을 클릭했을 때도 여기로 온다.
+function renderStudentRequestTab(student, container) {
+  if (!student || !container) return;
+  const esc = escapeStudentPopupHtml;
+  const isAgencyUser = APP.user === 'agency_head' || APP.user === 'agency_branch';
+  const all = (typeof MOCK_STUDENT_REQUESTS !== 'undefined' ? MOCK_STUDENT_REQUESTS : [])
+    .filter(r => r.studentId === student.id)
+    .slice()
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  const requestTypes = ['outpass', 'overnight', 'trip', 'teacher_change', 'course_change', 'room_change'];
+  const activeFilter = requestTypes.concat('all').includes(student._requestFilter) ? student._requestFilter : 'all';
+  const filtered = activeFilter === 'all' ? all : all.filter(r => r.type === activeFilter);
+  const filterOptions = [
+    { key: 'all', label: '전체', count: all.length },
+    ...requestTypes.map(type => ({ key: type, label: getStudentRequestTypeLabel(type), count: all.filter(r => r.type === type).length })),
+  ];
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;background:#fff">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div><div style="font-size:13px;font-weight:800;color:#111827">학생 요청 이력</div><div style="font-size:10.5px;color:#6B7280;margin-top:4px">외출증·외박·여행·선생님 변경·코스 변경·룸 변경 요청을 한눈에 확인합니다.</div></div>
+          <span class="tsa-badge tsa-badge-primary">${filtered.length}건</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          ${filterOptions.map(option => {
+            const selected = option.key === activeFilter;
+            return `<button type="button" onclick="setStudentRequestTabFilter(${student.id},'${option.key}')" style="border:1px solid ${selected ? '#6366F1' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};color:${selected ? '#4F46E5' : '#6B7280'};border-radius:999px;padding:6px 10px;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer">${esc(option.label)} ${option.count}</button>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${filtered.length ? filtered.map(r => {
+            const typeColor = getStudentRequestTypeColor(r.type);
+            const deadlineNote = (r.type === 'teacher_change' || r.type === 'course_change') && r.status === 'pending'
+              ? `<div style="font-size:10px;color:${isWithinTeacherCourseChangeDeadline() ? '#059669' : '#DC2626'};margin-top:4px">${isWithinTeacherCourseChangeDeadline() ? '수·목 접수 가능일 — 승인 시 차주 월요일 반영' : '수·목 마감 — 지금 승인해도 차차주 반영'}</div>`
+              : '';
+            return `
+              <div style="border-left:3px solid ${typeColor.color};background:${typeColor.bg};border-radius:8px;padding:12px 14px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span style="display:inline-flex;align-items:center;border-radius:999px;background:#fff;color:${typeColor.color};border:1px solid ${typeColor.border};padding:3px 8px;font-size:9.5px;font-weight:800">${esc(getStudentRequestTypeLabel(r.type))}</span>
+                    ${renderStudentRequestStatusBadge(r.status)}
+                  </div>
+                  <span style="font-size:10.5px;color:#6B7280">${esc(r.submittedAt)} · ${esc(r.submittedBy || '학생')}</span>
+                </div>
+                <div style="font-size:12px;color:#374151;line-height:1.6;margin-top:8px">${esc(summarizeStudentRequestPayload(r))}</div>
+                ${deadlineNote}
+                ${r.status !== 'pending' ? `<div style="font-size:11px;color:#6B7280;margin-top:6px">${r.reviewNote ? `검토 의견: ${esc(r.reviewNote)}<br>` : ''}${esc(r.reviewedBy || '-')} · ${esc(r.reviewedAt || '-')}</div>` : ''}
+                <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px">
+                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentRequestDocument(${r.id})"><i data-lucide="file-text"></i> 서류 보기</button>
+                  ${(r.status === 'pending' && !isAgencyUser) ? `
+                    <button class="tsa-btn tsa-btn-success tsa-btn-xs" style="background:#10B981;border:none" onclick="approveStudentRequest(${r.id})">승인</button>
+                    <button class="tsa-btn tsa-btn-danger tsa-btn-xs" onclick="rejectStudentRequest(${r.id})">반려</button>
+                  ` : ''}
+                </div>
+              </div>`;
+          }).join('') : `<div style="padding:30px;text-align:center;border:1px dashed #D1D5DB;border-radius:10px;color:#9CA3AF;font-size:12px">등록된 요청이 없습니다.</div>`}
+        </div>
+      </div>
+    </div>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function setStudentRequestTabFilter(studentId, key) {
+  const student = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!student) return;
+  student._requestFilter = key;
+  const container = document.getElementById('adetail-page-tab-content');
+  if (container) renderStudentRequestTab(student, container);
 }
 
 function openStudentConsultationNoteDetail(studentId, noteId) {
@@ -1779,6 +1856,12 @@ function openStudentRegisterModal() {
   if (sectionB) sectionB.style.display = 'none';
   const sectionCD = document.getElementById('sf-section-cd');
   if (sectionCD) sectionCD.style.display = 'none';
+  // 숨긴 Section B/C 안에 required 필드가 남아있으면, 포커스할 수 없는 숨김 필드 때문에
+  // 브라우저 기본 폼 검증이 조용히 제출 자체를 막아버린다 — 신규 등록에서는 required를 꺼둔다.
+  ['sf-passportNum', 'sf-passportExpiry', 'sf-startDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.required = false;
+  });
   const outerGrid = document.getElementById('sf-outer-grid');
   if (outerGrid) outerGrid.style.gridTemplateColumns = '1fr';
   const modalBox = document.getElementById('student-form-modal-box');
@@ -1849,6 +1932,11 @@ function openStudentEditModal(id) {
   if (sectionBEl) sectionBEl.style.display = '';
   const sectionCDEl = document.getElementById('sf-section-cd');
   if (sectionCDEl) sectionCDEl.style.display = '';
+  // 수정 화면에서는 Section B/C가 다시 보이므로 required를 되돌린다.
+  ['sf-passportNum', 'sf-passportExpiry', 'sf-startDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.required = true;
+  });
   const outerGridEl = document.getElementById('sf-outer-grid');
   if (outerGridEl) outerGridEl.style.gridTemplateColumns = '1fr 1fr';
   const modalBoxEl = document.getElementById('student-form-modal-box');
@@ -2640,7 +2728,7 @@ let studentPortalDay = 'Wed'; // Simulated weekday for Wed/Thu check request lim
 
 function initStudentPortal() {
   setupStudentDashboard();
-  setupStudentTimetableChange();
+  switchStudentRequestType('outpass');
   setupStudentDorm();
   setupStudentFeedback();
 }
@@ -2774,6 +2862,24 @@ function simulateStudentAttendanceChange(val) {
   }
 }
 
+// 학생 요청 6개 유형 탭 전환 — 선택한 유형의 폼만 보여주고, 유형별로 필요한 동적 옵션을 채운다.
+function switchStudentRequestType(type) {
+  document.querySelectorAll('.sr-type-tab').forEach(btn => {
+    const active = btn.dataset.srFormType === type;
+    btn.classList.toggle('tsa-btn-primary', active);
+    btn.classList.toggle('tsa-btn-outline', !active);
+  });
+  document.querySelectorAll('.sr-form-panel').forEach(panel => {
+    panel.style.display = panel.id === `sr-form-${type}` ? 'block' : 'none';
+  });
+
+  if (type === 'teacher_change') setupStudentTimetableChange();
+  else if (type === 'course_change') setupStudentCourseChangeForm();
+  else if (type === 'room_change') populateStudentRoomChangeFrom();
+
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
 function setupStudentTimetableChange() {
   const select = document.getElementById('student-change-current-teacher');
   if (!select) return;
@@ -2783,37 +2889,133 @@ function setupStudentTimetableChange() {
     <option value="Mike">2교시: Michael Cruz 강사 (1:1 General)</option>
   `;
 
-  // Control active day form visibility (Wed/Thu)
-  const simulatedDay = studentPortalDay;
-  const isActiveDay = (simulatedDay === 'Wed' || simulatedDay === 'Thu');
-
+  const isActiveDay = isWithinTeacherCourseChangeDeadline();
   document.getElementById('form-timetable-change-active').style.display = isActiveDay ? 'block' : 'none';
   document.getElementById('form-timetable-change-inactive').style.display = isActiveDay ? 'none' : 'block';
+}
+
+// 코스 변경 폼 — 현재 코스를 자동 표시하고, 현재 코스를 제외한 나머지 코스로 변경 옵션을 채운다.
+function setupStudentCourseChangeForm() {
+  const s = MOCK_STUDENTS.find(std => std.nick === 'Minjun');
+  const fromEl = document.getElementById('sr-course-from');
+  const toEl = document.getElementById('sr-course-to');
+  if (s && fromEl) fromEl.value = s.course || '-';
+  if (toEl && typeof MOCK_COURSES !== 'undefined') {
+    toEl.innerHTML = MOCK_COURSES.filter(c => c.active && c.name !== (s && s.course)).map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  }
+  updateStudentCourseChangePreview();
+
+  const isActiveDay = isWithinTeacherCourseChangeDeadline();
+  document.getElementById('form-course-change-active').style.display = isActiveDay ? 'block' : 'none';
+  document.getElementById('form-course-change-inactive').style.display = isActiveDay ? 'none' : 'block';
+}
+
+// 선택한 변경 희망 코스를 기준으로 업그레이드/다운그레이드 여부와 예상 차액을 미리 보여준다.
+function updateStudentCourseChangePreview() {
+  const s = MOCK_STUDENTS.find(std => std.nick === 'Minjun');
+  const toEl = document.getElementById('sr-course-to');
+  const previewEl = document.getElementById('sr-course-change-preview');
+  if (!s || !toEl || !previewEl || !toEl.value) return;
+  const fromCourse = s.course;
+  const toCourse = toEl.value;
+  const fromIdx = MOCK_COURSES.findIndex(c => c.name === fromCourse);
+  const toIdx = MOCK_COURSES.findIndex(c => c.name === toCourse);
+  const direction = toIdx > fromIdx ? 'upgrade' : 'downgrade';
+  const priceDiff = direction === 'upgrade' ? computeCoursePriceDiff(fromCourse, toCourse, s.duration || 0) : 0;
+  previewEl.innerHTML = direction === 'upgrade'
+    ? `<strong style="color:#DC2626">업그레이드</strong> · 잔여 ${s.duration || 0}주 기준 예상 추가 결제액 <strong>$${priceDiff.toLocaleString()}</strong> (승인 후 별도 청구)`
+    : `<strong style="color:#059669">다운그레이드</strong> · 환불은 발생하지 않습니다.`;
+}
+
+// 룸 변경 폼 — 현재 배정된 룸을 읽기 전용으로 보여준다.
+function populateStudentRoomChangeFrom() {
+  const s = MOCK_STUDENTS.find(std => std.nick === 'Minjun');
+  const fromEl = document.getElementById('sr-room-from');
+  if (s && fromEl) fromEl.value = [s.dormAccomType, s.dormType, s.dormGrade].filter(Boolean).join(' · ') || s.dorm || '미배정';
 }
 
 function onSimulatedDayChange(val) {
   studentPortalDay = val;
   setupStudentTimetableChange();
-  showToast(`📅 시뮬레이터 요일이 "${val === 'Wed' || val === 'Thu' ? val + '요일(신청 가능)' : val + '요일(신청 불가)'}"로 전환되었습니다.`, 'info');
+  if (document.getElementById('sr-form-course_change')?.style.display !== 'none') setupStudentCourseChangeForm();
+  showToast(`📅 시뮬레이터 요일이 "${val === 'Wed' || val === 'Thu' ? val + '요일(선생님/코스 변경 접수 가능)' : val + '요일(선생님/코스 변경 접수 불가)'}"로 전환되었습니다.`, 'info');
 }
 
-function submitStudentTeacherChange() {
-  const teacher = document.getElementById('student-change-current-teacher').value;
-  const reason = document.getElementById('student-change-reason').options[document.getElementById('student-change-reason').selectedIndex].text;
-  const details = document.getElementById('student-change-details').value.trim();
+// 6개 유형 공용 제출 함수 — 유형별 필드를 읽어 payload를 구성하고 MOCK_STUDENT_REQUESTS에 pending으로 push한다.
+function submitStudentRequest(type) {
+  const s = MOCK_STUDENTS.find(std => std.nick === 'Minjun');
+  if (!s) return;
 
-  // Create audit log
-  MOCK_TIMETABLE_HISTORY.unshift({
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-    actor: 'Student (Minjun)',
-    change: `${teacher} 강사 변경 요청 제출`,
-    reason: `[사유: ${reason}] ${details}`,
-    type: 'warn'
+  if ((type === 'teacher_change' || type === 'course_change') && !isWithinTeacherCourseChangeDeadline()) {
+    showToast('선생님/코스 변경 신청은 매주 수·목요일 접수건만 검토합니다. 현재는 접수 가능한 요일이 아닙니다.', 'warning');
+    return;
+  }
+
+  let payload = null;
+  if (type === 'outpass') {
+    const reason = document.getElementById('sr-outpass-reason')?.value.trim();
+    const destination = document.getElementById('sr-outpass-destination')?.value.trim();
+    const returnTime = document.getElementById('sr-outpass-return')?.value;
+    if (!reason || !destination || !returnTime) { showToast('외출 사유·목적지·귀환 시간을 모두 입력해줘.', 'warning'); return; }
+    payload = { reason, destination, returnTime };
+  } else if (type === 'overnight') {
+    const location = document.getElementById('sr-overnight-location')?.value.trim();
+    const emergencyContact = document.getElementById('sr-overnight-contact')?.value.trim();
+    if (!location || !emergencyContact) { showToast('숙박 장소와 비상 연락처를 입력해줘.', 'warning'); return; }
+    payload = { location, emergencyContact };
+  } else if (type === 'trip') {
+    const destination = document.getElementById('sr-trip-destination')?.value.trim();
+    if (!destination) { showToast('여행 목적지를 입력해줘.', 'warning'); return; }
+    const hotel = document.getElementById('sr-trip-hotel')?.value.trim();
+    const companion = document.getElementById('sr-trip-companion')?.value.trim();
+    payload = { destination, hotel: hotel || '숙소 미정', companion: companion || '동행 정보 없음' };
+  } else if (type === 'teacher_change') {
+    const currentTeacher = document.getElementById('student-change-current-teacher')?.value;
+    const requestedTeacher = document.getElementById('sr-teacher-requested')?.value.trim();
+    if (!requestedTeacher) { showToast('희망 강사 또는 변경 요청 내용을 입력해줘.', 'warning'); return; }
+    const reasonSelect = document.getElementById('student-change-reason');
+    const reasonLabel = reasonSelect ? reasonSelect.options[reasonSelect.selectedIndex].text : '';
+    const details = document.getElementById('student-change-details')?.value.trim();
+    payload = { currentTeacher, requestedTeacher, reason: details ? `[${reasonLabel}] ${details}` : reasonLabel };
+    const detailsEl = document.getElementById('student-change-details');
+    if (detailsEl) detailsEl.value = '';
+  } else if (type === 'course_change') {
+    const fromCourse = s.course;
+    const toCourse = document.getElementById('sr-course-to')?.value;
+    if (!toCourse) { showToast('변경할 코스를 선택해줘.', 'warning'); return; }
+    const fromIdx = MOCK_COURSES.findIndex(c => c.name === fromCourse);
+    const toIdx = MOCK_COURSES.findIndex(c => c.name === toCourse);
+    const direction = toIdx > fromIdx ? 'upgrade' : 'downgrade';
+    const priceDiff = direction === 'upgrade' ? computeCoursePriceDiff(fromCourse, toCourse, s.duration || 0) : 0;
+    payload = { fromCourse, toCourse, direction, priceDiff };
+  } else if (type === 'room_change') {
+    const toRoom = document.getElementById('sr-room-to')?.value.trim();
+    if (!toRoom) { showToast('희망하는 룸 정보를 입력해줘.', 'warning'); return; }
+    const changeKind = document.getElementById('sr-room-kind')?.value || '일반';
+    payload = { changeKind, fromRoom: document.getElementById('sr-room-from')?.value || s.dorm || '미배정', toRoom };
+  }
+  if (!payload) return;
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const submittedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  if (typeof MOCK_STUDENT_REQUESTS === 'undefined') return;
+  MOCK_STUDENT_REQUESTS.unshift({
+    id: Date.now(),
+    studentId: s.id,
+    studentName: `${s.name} (${s.nick})`,
+    type,
+    submittedAt,
+    submittedBy: '학생',
+    status: 'pending',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewNote: null,
+    payload,
   });
 
-  showToast(`✓ [신청 접수] ${teacher} 강사 변경 요청이 정상 제출되었습니다. (어드민 검증대장 반영)`, 'success');
-  document.getElementById('student-change-details').value = '';
+  showToast(`✓ [신청 접수] ${getStudentRequestTypeLabel(type)} 요청이 정상 제출되었습니다.`, 'success');
 }
 
 function setupStudentDorm() {

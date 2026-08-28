@@ -770,6 +770,22 @@ const MOCK_TEACHERS = [
     education: 'Bachelor of Elementary Education — University of San Carlos', hobby: 'Basketball, Gaming, Cooking' },
 ];
 
+// 외부(talkstation.co.kr) 화상수업 LMS에서 끌어온 강사별 화상 수업 스케줄을 흉내낸 목업 데이터.
+// 실제 연동 전까지는 이 배열을 채워 "어학원 수업 + 화상 수업"이 강사 주간 스케줄 화면에 함께 보이는 형태만 미리 확인한다.
+// 어학원 수업은 50분 교시 단위지만 화상수업은 그 사이트 특성상 30분 단위라 교시 개념이 없다 —
+// 그래서 period 대신 실제 시계 시간(startTime~endTime, HH:MM)을 그대로 들고 있다.
+// teacherId: 우리 MOCK_TEACHERS.id, dayOfWeek: LESSON_DAYS 값.
+const MOCK_ONLINE_CLASSES = [
+  { id: 'ONL-001', teacherId: 1, dayOfWeek: '월', startTime: '16:00', endTime: '16:30', studentLabel: 'Lawrence', subjectName: 'Regular Class', status: 'regular' },
+  { id: 'ONL-002', teacherId: 1, dayOfWeek: '화', startTime: '16:00', endTime: '16:30', studentLabel: 'Lawrence', subjectName: 'Regular Class', status: 'regular' },
+  { id: 'ONL-003', teacherId: 1, dayOfWeek: '수', startTime: '16:00', endTime: '16:30', studentLabel: 'Lawrence', subjectName: 'Reservation', status: 'reservation' },
+  { id: 'ONL-004', teacherId: 1, dayOfWeek: '목', startTime: '16:00', endTime: '16:30', studentLabel: 'Lawrence', subjectName: 'Regular Class', status: 'regular' },
+  { id: 'ONL-005', teacherId: 1, dayOfWeek: '금', startTime: '16:00', endTime: '16:30', studentLabel: 'Lawrence', subjectName: 'Regular Class', status: 'regular' },
+  { id: 'ONL-006', teacherId: 1, dayOfWeek: '월', startTime: '17:00', endTime: '17:30', studentLabel: 'Min-jun', subjectName: 'Make-up', status: 'makeup' },
+  { id: 'ONL-007', teacherId: 1, dayOfWeek: '수', startTime: '17:00', endTime: '17:30', studentLabel: 'Min-jun', subjectName: 'Regular Class', status: 'regular' },
+  { id: 'ONL-008', teacherId: 1, dayOfWeek: '금', startTime: '17:30', endTime: '18:00', studentLabel: 'Yuna', subjectName: 'Regular Class', status: 'regular' },
+];
+
 const MOCK_TIMETABLE = [
   { teacher: 'Sarah', room: 'A-101', color: '#5E5CE6', bg: '#EEF2FF', slots: [
     { p:1, student:'Kevin', type:'IELTS 1:1', locked: true },
@@ -935,22 +951,22 @@ let MOCK_MASTER_SUBJECTS = [
 
 let MOCK_MASTER_LEVELS = [
   { id: 'LV_01', name: 'Beginner', order: 1, desc: '입문 기초 레벨', visible: true,
-    subLevels: [{ id: 'LV_01_1', name: 'Beginner-1', order: 1, visible: true }, { id: 'LV_01_2', name: 'Beginner-2', order: 2, visible: true }] },
+    subLevels: [{ id: 'LV_01_1', name: 'GL1', order: 1, visible: true }, { id: 'LV_01_2', name: 'GL2', order: 2, visible: true }] },
   { id: 'LV_02', name: 'Low-Inter', order: 2, desc: '초급 기초 회화 레벨', visible: true,
-    subLevels: [{ id: 'LV_02_1', name: 'Low-Inter-1', order: 1, visible: true }, { id: 'LV_02_2', name: 'Low-Inter-2', order: 2, visible: true }] },
+    subLevels: [{ id: 'LV_02_1', name: 'GL3', order: 1, visible: true }, { id: 'LV_02_2', name: 'GL4', order: 2, visible: true }] },
   { id: 'LV_03', name: 'Intermediate', order: 3, desc: '중급 프리토킹 준비 레벨', visible: true,
-    subLevels: [{ id: 'LV_03_1', name: 'Intermediate-1', order: 1, visible: true }, { id: 'LV_03_2', name: 'Intermediate-2', order: 2, visible: true }] },
+    subLevels: [{ id: 'LV_03_1', name: 'GL5', order: 1, visible: true }, { id: 'LV_03_2', name: 'GL6', order: 2, visible: true }] },
   { id: 'LV_04', name: 'Upper-Int', order: 4, desc: '중상급 프리토킹 심화 레벨', visible: true,
-    subLevels: [{ id: 'LV_04_1', name: 'Upper-Int-1', order: 1, visible: true }, { id: 'LV_04_2', name: 'Upper-Int-2', order: 2, visible: true }] },
+    subLevels: [{ id: 'LV_04_1', name: 'GL7', order: 1, visible: true }, { id: 'LV_04_2', name: 'GL8', order: 2, visible: true }] },
   { id: 'LV_05', name: 'Advanced', order: 5, desc: '고급 토론 및 아카데믹 레벨', visible: true,
-    subLevels: [{ id: 'LV_05_1', name: 'Advanced-1', order: 1, visible: true }, { id: 'LV_05_2', name: 'Advanced-2', order: 2, visible: true }] }
+    subLevels: [{ id: 'LV_05_1', name: 'GL9', order: 1, visible: true }, { id: 'LV_05_2', name: 'GL10', order: 2, visible: true }] }
 ];
 
-// 그룹 수업은 중그룹/대그룹 규모로 운영한다. (초과 정원 허용은 이번 단계 범위 밖 — 보류)
+// 그룹 수업은 소그룹/중그룹 규모로 운영한다. (초과 정원 허용은 이번 단계 범위 밖 — 보류)
 let MOCK_MASTER_CLASS_TYPES = [
   { id: 'CT_01', code: '1:1', name: '개인 수업', classMode: 'individual', minStudents: 1, maxStudents: 1, order: 1, desc: '강사 1인 · 학생 1인 개인 수업', visible: true },
-  { id: 'CT_02', code: '1:4', name: '중그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
-  { id: 'CT_03', code: '1:8', name: '대그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 그룹 수업', visible: true },
+  { id: 'CT_02', code: '1:4', name: '소그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 4, order: 2, desc: '강사 1인 · 학생 최대 4인 그룹 수업', visible: true },
+  { id: 'CT_03', code: '1:8', name: '중그룹 수업', classMode: 'group', minStudents: 1, maxStudents: 8, order: 3, desc: '강사 1인 · 학생 최대 8인 그룹 수업', visible: true },
 ];
 
 // 구버전/IELTS Band 등 표준 5단계(Beginner/Low-Inter/Intermediate/Upper-Int/Advanced) 외 레벨값 매핑
@@ -1001,7 +1017,7 @@ function getSubLevelRange(levelOrder) {
 // subjectsByType: 그룹 수업 유형(1:1/Small Group=1:4/Midium Group=1:8)별 과목-시수 매핑. oneone/group1on4/group은 각 유형 시수 합계(하위 호환용, saveCourse()에서 자동 재계산됨)
 // 2026-07-30 실제 운영 시수표 기준 재정렬(박정완 실장 데이터). 1:1은 스피킹/라이팅을 기본 포함.
 const MOCK_COURSES = [
-  { name: 'Regular', type: '일반 영어', fee: 700, active: true,
+  { name: 'Regular', type: '일반 영어', fee: 990, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
@@ -1011,7 +1027,7 @@ const MOCK_COURSES = [
     oneone: 4, group1on4: 2, group: 2,
     subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Regular +', type: '일반 영어', fee: 800, active: true,
+  { name: 'Regular +', type: '일반 영어', fee: 1050, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }, { id: 'SUB_09', hours: 1 }, { id: 'SUB_02', hours: 1 }],
@@ -1021,7 +1037,7 @@ const MOCK_COURSES = [
     oneone: 4, group1on4: 4, group: 0,
     subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Intensive', type: '일반 영어', fee: 850, active: true,
+  { name: 'Intensive', type: '일반 영어', fee: 1150, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
@@ -1031,7 +1047,7 @@ const MOCK_COURSES = [
     oneone: 5, group1on4: 2, group: 1,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Power Speaking 6', type: '일반 영어', fee: 900, active: true,
+  { name: 'Power Speaking 6', type: '일반 영어', fee: 1250, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
@@ -1041,7 +1057,7 @@ const MOCK_COURSES = [
     oneone: 6, group1on4: 2, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Power Speaking 8', type: '일반 영어', fee: 980, active: true,
+  { name: 'Power Speaking 8', type: '일반 영어', fee: 1450, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
       '1:4': [], '1:8': [],
@@ -1050,7 +1066,7 @@ const MOCK_COURSES = [
     oneone: 8, group1on4: 0, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
     levels: ['LV_03', 'LV_04', 'LV_05'] },
-  { name: '6Hrs Regular', type: '일반 영어', fee: 600, active: true,
+  { name: '6Hrs Regular', type: '일반 영어', fee: 900, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
@@ -1060,7 +1076,7 @@ const MOCK_COURSES = [
     oneone: 4, group1on4: 2, group: 0,
     subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: '6Hrs Intensive', type: '일반 영어', fee: 650, active: true,
+  { name: '6Hrs Intensive', type: '일반 영어', fee: 1050, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }],
@@ -1070,7 +1086,7 @@ const MOCK_COURSES = [
     oneone: 5, group1on4: 1, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_03', 'LV_04', 'LV_05'] },
-  { name: '6Hrs Power Speaking', type: '일반 영어', fee: 700, active: true,
+  { name: '6Hrs Power Speaking', type: '일반 영어', fee: 1150, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [], '1:8': [],
@@ -1079,7 +1095,7 @@ const MOCK_COURSES = [
     oneone: 6, group1on4: 0, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: 'IELTS Intensive', type: 'IELTS', fee: 950, active: true,
+  { name: 'IELTS Intensive', type: 'IELTS', fee: 1550, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
       '1:4': [], '1:8': [],
@@ -1088,7 +1104,7 @@ const MOCK_COURSES = [
     oneone: 8, group1on4: 0, group: 0,
     subjects: [{ id: 'SUB_01', hours: 2 }, { id: 'SUB_04', hours: 2 }, { id: 'SUB_03', hours: 2 }, { id: 'SUB_05', hours: 2 }],
     levels: ['LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Special English(TOEIC, Business)', type: '비즈니스', fee: 900, active: true,
+  { name: 'Special English(TOEIC, Business)', type: '비즈니스', fee: 1250, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }, { id: 'SUB_09', hours: 1 }, { id: 'SUB_02', hours: 1 }],
@@ -1098,7 +1114,7 @@ const MOCK_COURSES = [
     oneone: 4, group1on4: 4, group: 0,
     subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Junior ESL', type: '주니어', fee: 880, active: true,
+  { name: 'Junior ESL', type: '주니어', fee: 1200, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],
@@ -1108,7 +1124,7 @@ const MOCK_COURSES = [
     oneone: 4, group1on4: 2, group: 2,
     subjects: [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
     levels: ['LV_01', 'LV_02', 'LV_03', 'LV_04', 'LV_05'] },
-  { name: 'Junior Camp', type: '주니어', fee: 650, active: true,
+  { name: 'Junior Camp', type: '주니어', fee: 3000, active: true,
     subjectsByType: {
       '1:1': [{ id: 'SUB_01', hours: 1 }, { id: 'SUB_04', hours: 1 }, { id: 'SUB_03', hours: 1 }, { id: 'SUB_05', hours: 1 }],
       '1:4': [{ id: 'SUB_08', hours: 1 }, { id: 'SUB_10', hours: 1 }],

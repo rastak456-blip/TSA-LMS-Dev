@@ -220,6 +220,8 @@
   .tsa-view [style*="grid-template-columns:1.2fr 1fr"],
   .tsa-view [style*="grid-template-columns:2.5fr 1fr"],
   .tsa-view [style*="grid-template-columns:1.15fr 0.85fr"],
+  .tsa-view [style*="grid-template-columns:2fr 1.05fr"],
+  .tsa-modal-body [style*="grid-template-columns:1.35fr 1fr"],
   .tsa-modal-body [style*="grid-template-columns:minmax(0,1fr) 320px"],
   .tsa-modal-body [style*="grid-template-columns:minmax(0, 1fr) 320px"] {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -251,13 +253,15 @@
 
   #admin-calendar-grid,
   #agency-calendar-grid,
-  #pickup-calendar-grid {
+  #pickup-calendar-grid,
+  #avc-calendar-grid {
     min-width: 760px;
   }
 
   .tsa-card-body:has(#admin-calendar-grid),
   .tsa-card-body:has(#agency-calendar-grid),
-  .tsa-card-body:has(#pickup-calendar-grid) {
+  .tsa-card-body:has(#pickup-calendar-grid),
+  .tsa-card-body:has(#avc-calendar-grid) {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -321,6 +325,14 @@
   .tsa-branch-switcher-wrap > span,
   .tsa-live-status,
   #role-badge {
+    display: none !important;
+  }
+
+  .tsa-lang-btn {
+    padding: 6px 8px !important;
+  }
+
+  .tsa-header-actions [data-lang-label] {
     display: none !important;
   }
 

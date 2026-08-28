@@ -79,9 +79,6 @@ function handleLogin(type) {
   } else if (cfg.menus.includes('agency')) {
     navigate('agency-home');
   } else {
-    if (role === 'super_admin') {
-      initGlobalDashboard();
-    }
     navigate('dashboard');
   }
 

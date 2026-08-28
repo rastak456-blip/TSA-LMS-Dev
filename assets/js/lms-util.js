@@ -4,19 +4,22 @@
 const VIEW_MAP = {
   dashboard: { el: 'view-dashboard', menu: 'menu-dashboard', label: '대시보드', sec: '개요' },
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
-  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '수업 편성 및 배정 관리', sec: '학사 관리' },
+  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '주간 수업 배정', sec: '학사 관리' },
   'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '1:1 수업 관리', sec: '학사 관리' },
   'group-management': { el: 'view-group-management', menu: 'menu-group-management', label: '그룹 관리', sec: '학사 관리' },
   'classroom-manage': { el: 'view-classroom-manage', menu: 'menu-classroom-manage', label: '강의실 관리', sec: '학사 관리' },
   'timetable-status': { el: 'view-timetable-status', menu: 'menu-timetable-status', label: '시간표 현황', sec: '학사 관리' },
   'weekly-timetable': { el: 'view-weekly-timetable', menu: 'menu-weekly-timetable', label: '주간 시간표', sec: '학사 관리' },
-  students: { el: 'view-students', menu: 'menu-students', label: '학생 정보 관리', sec: '학사 관리' },
+  students: { el: 'view-students', menu: 'menu-students', parent: 'menu-student-manage-parent', label: '학생 정보 관리', sec: '학생 관리' },
+  'student-requests': { el: 'view-student-requests', menu: 'menu-student-requests', parent: 'menu-student-manage-parent', label: '학생 요청 관리', sec: '학생 관리' },
   'admin-student-detail': { el: 'view-agency-student-detail', menu: 'menu-students', label: '학생 상세 정보', sec: '학사 관리' },
-  'pickup-managers': { el: 'view-pickup-managers', menu: 'menu-pickup-managers', label: '픽업 담당자 관리', sec: '학사 관리' },
-  teachers: { el: 'view-teachers', menu: 'menu-teachers', label: '강사 정보 관리', sec: '학사 관리' },
+  'pickup-managers': { el: 'view-pickup-managers', menu: 'menu-pickup-managers', parent: 'menu-pickup-parent', label: '픽업 담당자 관리', sec: '픽업 관리' },
+  teachers: { el: 'view-teachers', menu: 'menu-teachers', parent: 'menu-teacher-manage-parent', label: '강사 정보 관리', sec: '강사 관리' },
+  'teacher-tags': { el: 'view-teachers', menu: 'menu-teacher-tags', parent: 'menu-teacher-manage-parent', label: '배정 태그 설정 관리', sec: '강사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 관리', sec: '학사 관리' },
   'passport-access-log': { el: 'view-passport-access-log', menu: 'menu-passport-access-log', label: '여권번호 조회 기록', sec: '관리' },
   'agency-manage': { el: 'view-agency-manage', menu: 'menu-agency-manage', label: '에이전시 관리', sec: '관리' },
+  'agency-visits': { el: 'view-agency-visits', menu: 'menu-agency-visits', label: '에이전시 방문일정 캘린더', sec: '관리' },
   'agency-map': { el: 'view-agency-map', menu: 'menu-agency-map', label: '에이전시 맵', sec: '관리' },
   'partnership-inquiries': { el: 'view-partnership-inquiries', menu: 'menu-partnership-inquiries', label: '에이전시 제휴 문의', sec: '관리' },
   'agency-home': { el: 'view-agency-home', menu: 'menu-agency-home', label: '에이전시 홈', sec: '에이전시' },
@@ -25,15 +28,21 @@ const VIEW_MAP = {
   'agency-dorm': { el: 'view-agency-dorm', menu: 'menu-agency-dorm', label: '기숙사 공실 조회', sec: '에이전시' },
   'agency-invoice': { el: 'view-agency-invoice', menu: 'menu-agency-invoice', label: '월별 정산 통계', sec: '에이전시' },
   'dorm-erp': { el: 'view-dorm-erp', menu: 'menu-dorm-erp', label: '기숙사 배정 관리', sec: '운영' },
-  'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', label: '과정 및 수업 기준 설정', sec: '학사 관리' },
-  'tuition-config': { el: 'view-tuition-config', menu: 'menu-tuition-config', label: '수강료 구성', sec: '학사 관리' },
+  'meal-plan': { el: 'view-meal-plan', menu: 'menu-meal-plan', label: '식단 관리', sec: '운영' },
+  'course-pricing': { el: 'view-course-pricing', menu: 'menu-course-pricing', parent: 'menu-course-settings-parent', label: '수강 과정 등록 관리', sec: '과정 및 수업 기준 설정' },
+  'course-master': { el: 'view-course-pricing', menu: 'menu-course-master', parent: 'menu-course-settings-parent', label: '과목·레벨·수업 유형', sec: '과정 및 수업 기준 설정' },
+  'course-period': { el: 'view-course-pricing', menu: 'menu-course-period', parent: 'menu-course-settings-parent', label: '교시 시간 설정', sec: '과정 및 수업 기준 설정' },
+  'tuition-config': { el: 'view-tuition-config', menu: 'menu-tuition-config', parent: 'menu-tuition-parent', label: '과정별 수강료', sec: '수강료 구성' },
+  'tuition-dorm': { el: 'view-tuition-config', menu: 'menu-tuition-dorm', parent: 'menu-tuition-parent', label: '기숙사 요금', sec: '수강료 구성' },
+  'tuition-registration': { el: 'view-tuition-config', menu: 'menu-tuition-registration', parent: 'menu-tuition-parent', label: '등록금', sec: '수강료 구성' },
+  'tuition-local': { el: 'view-tuition-config', menu: 'menu-tuition-local', parent: 'menu-tuition-parent', label: '기타 비용', sec: '수강료 구성' },
   'teacher-dashboard': { el: 'view-teacher-dashboard', menu: 'menu-teacher-dashboard', label: '강사 대시보드', sec: '수업 관리' },
   'teacher-timetable': { el: 'view-teacher-timetable', menu: 'menu-teacher-timetable', label: '주간 시간표', sec: '수업 관리' },
   'student-dashboard': { el: 'view-student-dashboard', menu: 'menu-student-dashboard', label: '학생 대시보드', sec: '학생 서비스' },
   'student-timetable-change': { el: 'view-student-timetable-change', menu: 'menu-student-timetable-change', label: '강사 변경 신청', sec: '학생 서비스' },
   'student-dorm': { el: 'view-student-dorm', menu: 'menu-student-dorm', label: '기숙사 현황', sec: '학생 서비스' },
   'student-feedback': { el: 'view-student-feedback', menu: 'menu-student-feedback', label: '강사 평점 입력', sec: '학생 서비스' },
-  'global-dashboard': { el: 'view-global-dashboard', menu: 'menu-global-dashboard', label: '글로벌 대시보드', sec: '본사 관리' },
+  'student-meal': { el: 'view-student-meal', menu: 'menu-student-meal', label: '점심 식단 신청', sec: '학생 서비스' },
 };
 
 function navigate(view) {
@@ -51,6 +60,7 @@ function navigate(view) {
   const menuId = (view === 'agency-invoice' && !isAgencyUser) ? 'menu-admin-invoice' : cfg.menu;
   const menuEl = document.getElementById(menuId);
   if (menuEl) menuEl.classList.add('active');
+  if (cfg.parent) document.getElementById(cfg.parent)?.classList.add('active');
 
   // Highlight parent menu for timetable sub-items and expand/collapse submenu accordingly
   const parentMenu = document.getElementById('menu-timetable-parent');
@@ -120,10 +130,15 @@ function navigate(view) {
     if (typeof setFinalTimetableView === 'function') setFinalTimetableView('all', document.getElementById('ft-tab-all'));
   } else if (view === 'students') {
     applyStudentFilters();
+  } else if (view === 'student-requests') {
+    if (typeof initStudentRequestListPage === 'function') initStudentRequestListPage();
   } else if (view === 'pickup-managers') {
     if (typeof initPickupManagerView === 'function') initPickupManagerView();
   } else if (view === 'teachers') {
     if (typeof initTeacherList === 'function') initTeacherList();
+    if (typeof switchTeacherManageTab === 'function') switchTeacherManageTab('list');
+  } else if (view === 'teacher-tags') {
+    if (typeof switchTeacherManageTab === 'function') switchTeacherManageTab('tags');
   } else if (view === 'dorm-erp') {
     if (typeof syncDormTemplatesFromRooms === 'function') syncDormTemplatesFromRooms();
     renderDormErpGrid();
@@ -131,16 +146,35 @@ function navigate(view) {
     renderClassroomManage();
   } else if (view === 'course-pricing') {
     initCoursePricing();
+    if (typeof switchCoursePricingTab === 'function') switchCoursePricingTab('curriculum');
+  } else if (view === 'course-master') {
+    if (typeof switchCoursePricingTab === 'function') switchCoursePricingTab('master');
+  } else if (view === 'course-period') {
+    if (typeof switchCoursePricingTab === 'function') switchCoursePricingTab('period');
   } else if (view === 'tuition-config') {
     if (typeof initTuitionConfig === 'function') initTuitionConfig();
+    if (typeof switchTuitionConfigTab === 'function') switchTuitionConfigTab('course');
+  } else if (view === 'tuition-dorm') {
+    if (typeof initTuitionConfig === 'function') initTuitionConfig();
+    if (typeof switchTuitionConfigTab === 'function') switchTuitionConfigTab('dorm');
+  } else if (view === 'tuition-registration') {
+    if (typeof initTuitionConfig === 'function') initTuitionConfig();
+    if (typeof switchTuitionConfigTab === 'function') switchTuitionConfigTab('registration');
+  } else if (view === 'tuition-local') {
+    if (typeof initTuitionConfig === 'function') initTuitionConfig();
+    if (typeof switchTuitionConfigTab === 'function') switchTuitionConfigTab('local');
   } else if (view === 'agency-manage') {
     renderAgencyManage();
+  } else if (view === 'agency-visits') {
+    if (typeof renderAgencyVisitView === 'function') renderAgencyVisitView();
+  } else if (view === 'meal-plan') {
+    if (typeof renderMealAdminView === 'function') renderMealAdminView();
+  } else if (view === 'student-meal') {
+    if (typeof initStudentMealView === 'function') initStudentMealView();
   } else if (view === 'agency-map') {
     if (typeof renderAgencyMap === 'function') renderAgencyMap();
   } else if (view === 'partnership-inquiries') {
     if (typeof renderPartnershipInquiries === 'function') renderPartnershipInquiries();
-  } else if (view === 'global-dashboard') {
-    if (typeof initGlobalDashboard === 'function') initGlobalDashboard();
   } else if (view === 'teacher-dashboard') {
     if (typeof initTeacherPortal === 'function') initTeacherPortal();
   } else if (view === 'teacher-timetable') {
@@ -153,6 +187,19 @@ function navigate(view) {
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 300);
   closeMobileSidebar();
+}
+
+function toggleSidebarGroup(groupId) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const shouldOpen = group.style.display === 'none';
+  group.style.display = shouldOpen ? 'flex' : 'none';
+  const trigger = document.querySelector(`[aria-controls="${groupId}"]`);
+  if (trigger) {
+    trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    const arrow = trigger.querySelector('[data-lucide="chevron-down"]');
+    if (arrow) arrow.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
 }
 
 function isMobileSidebarMode() {

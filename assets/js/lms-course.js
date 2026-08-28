@@ -176,6 +176,17 @@ function calculatePrices(s) {
   };
 }
 
+// 코스 변경(업그레이드) 요청의 예상 차액 — MOCK_COURSES의 주당 요금(fee) 차이 × 잔여 수강 주수.
+// 실제 청구/인보이스 반영은 승인 후 별도 처리(코스 변경 승인 시 수정 인보이스 발행 등)로 분리한다.
+function computeCoursePriceDiff(fromCourseName, toCourseName, weeks) {
+  if (typeof MOCK_COURSES === 'undefined') return 0;
+  const from = MOCK_COURSES.find(c => c.name === fromCourseName);
+  const to = MOCK_COURSES.find(c => c.name === toCourseName);
+  const fromFee = from ? Number(from.fee || 0) : 0;
+  const toFee = to ? Number(to.fee || 0) : 0;
+  return Math.max(0, Math.round((toFee - fromFee) * Number(weeks || 0)));
+}
+
 function initAgencyKPIs() {
   updateAgencyKPIs();
 }
@@ -285,6 +296,325 @@ const MOCK_CHANGE_REQUESTS = [
   { id:2, studentName:'박민준 (Minjun)', field:'수강 기간',     oldVal:'8주',               newVal:'12주',              reason:'학생 요청으로 연장', reqDate:'2026-06-02', status:'pending'  },
   { id:3, studentName:'김수빈 (Subin)',  field:'비자 만료일',   oldVal:'2026-08-01',         newVal:'2026-10-01',        reason:'비자 갱신 완료',     reqDate:'2026-06-05', status:'rejected' },
 ];
+
+// ===== 학생 요청(외출증/외박/여행/선생님변경/코스변경/룸변경) 온라인화 =====
+// 요청은 학생별 배열이 아니라 전역 큐에 studentId로 저장한다 (MOCK_CHANGE_REQUESTS/MOCK_DORM_BOOK_REQUESTS와 동일 관례).
+// 관리자 리스트 화면에서 날짜별로 한번에 훑어보고, 학생 상세의 '학생 요청' 탭에서는 studentId로 필터링해 보여준다.
+let MOCK_STUDENT_REQUESTS = [
+  { id: 9001, studentId: 1, studentName: 'HONG GILDONG (Kevin)', type: 'outpass', submittedAt: '2026-08-13 09:20', submittedBy: '학생', status: 'pending', reviewedBy: null, reviewedAt: null, reviewNote: null,
+    payload: { reason: '은행 업무', destination: 'BDO Cebu 지점', returnTime: '18:00' } },
+  { id: 9002, studentId: 5, studentName: 'PARK SOYEON (Sophie)', type: 'overnight', submittedAt: '2026-08-13 11:05', submittedBy: '학생', status: 'pending', reviewedBy: null, reviewedAt: null, reviewNote: null,
+    payload: { location: '친구 자취방 (IT Park 인근)', emergencyContact: '카카오톡 ID: soyeon_p' } },
+  { id: 9003, studentId: 9, studentName: 'KIM MINJUN', type: 'teacher_change', submittedAt: '2026-08-12 15:40', submittedBy: '학생', status: 'approved', reviewedBy: '슈퍼 어드민', reviewedAt: '2026-08-12 17:00', reviewNote: '수·목 접수건 확인, 차주 월요일 시간표 반영 예정',
+    payload: { currentTeacher: 'Mike', requestedTeacher: 'Sarah', reason: 'IELTS 집중 대비를 위해 전문 강사로 변경 희망' } },
+  { id: 9004, studentId: 13, studentName: 'PHAM MINH DUC', type: 'course_change', submittedAt: '2026-08-11 10:00', submittedBy: '학생', status: 'rejected', reviewedBy: '슈퍼 어드민', reviewedAt: '2026-08-11 14:20', reviewNote: '잔여 수강 기간 부족으로 반려, 다음 차수에 재신청 안내',
+    payload: { fromCourse: 'Regular', toCourse: 'Intensive', direction: 'upgrade', priceDiff: 420 } },
+];
+
+function getStudentRequestTypeLabel(type) {
+  return ({ outpass: '외출증', overnight: '외박', trip: '여행(1박+)', teacher_change: '선생님 변경', course_change: '코스 변경', room_change: '룸 변경' })[type] || type;
+}
+
+function getStudentRequestTypeColor(type) {
+  return ({
+    outpass: { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
+    overnight: { bg: '#FDF4FF', color: '#7E22CE', border: '#E9D5FF' },
+    trip: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+    teacher_change: { bg: '#FFF7ED', color: '#C2410C', border: '#FED7AA' },
+    course_change: { bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
+    room_change: { bg: '#F0F9FF', color: '#0369A1', border: '#BAE6FD' },
+  })[type] || { bg: '#F3F4F6', color: '#374151', border: '#E5E7EB' };
+}
+
+function renderStudentRequestStatusBadge(status) {
+  if (status === 'approved') return '<span class="tsa-badge tsa-badge-success">승인</span>';
+  if (status === 'rejected') return '<span class="tsa-badge tsa-badge-danger">반려</span>';
+  return '<span class="tsa-badge tsa-badge-warning">대기중</span>';
+}
+
+// 요청 payload를 리스트/상세 화면에서 한 줄로 요약해서 보여준다.
+function summarizeStudentRequestPayload(request) {
+  const p = request.payload || {};
+  switch (request.type) {
+    case 'outpass': return `${p.destination || '-'} · 귀환 예정 ${p.returnTime || '-'}`;
+    case 'overnight': return `${p.location || '-'} · 비상연락처 ${p.emergencyContact || '-'}`;
+    case 'trip': return `${p.destination || '-'} · ${p.hotel || '숙소 미정'} · ${p.companion || '동행 정보 없음'}`;
+    case 'teacher_change': return `${p.currentTeacher || '-'} → ${p.requestedTeacher || '-'}`;
+    case 'course_change': return `${p.fromCourse || '-'} → ${p.toCourse || '-'} (${p.direction === 'upgrade' ? `업그레이드 · 차액 $${p.priceDiff || 0}` : '다운그레이드 · 환불 없음'})`;
+    case 'room_change': return `${p.fromRoom || '-'} → ${p.toRoom || '-'} (${p.changeKind || '일반'})`;
+    default: return '-';
+  }
+}
+
+// 유형별 신청서 제목 — 서류(인쇄/열람)용 공식 문서 명칭.
+function getStudentRequestDocumentTitle(type) {
+  return ({
+    outpass: '외출증 신청서', overnight: '외박 신청서', trip: '여행 신청서 (1박 이상)',
+    teacher_change: '선생님 변경 신청서', course_change: '코스 변경 신청서', room_change: '룸 변경 신청서',
+  })[type] || '학생 요청 신청서';
+}
+
+// 요청 payload를 신청서 양식의 항목-값 목록으로 변환한다. renderStudentRequestDocumentHTML에서 표로 렌더링.
+function getStudentRequestDocumentFields(request) {
+  const p = request.payload || {};
+  switch (request.type) {
+    case 'outpass':
+      return [
+        { label: '외출 사유', value: p.reason || '-' },
+        { label: '목적지', value: p.destination || '-' },
+        { label: '귀환 예정 시각', value: p.returnTime || '-' },
+      ];
+    case 'overnight':
+      return [
+        { label: '숙박 장소', value: p.location || '-' },
+        { label: '비상 연락처', value: p.emergencyContact || '-' },
+      ];
+    case 'trip':
+      return [
+        { label: '목적지', value: p.destination || '-' },
+        { label: '숙박 호텔', value: p.hotel || '숙소 미정' },
+        { label: '동행 여부', value: p.companion || '동행 정보 없음' },
+      ];
+    case 'teacher_change':
+      return [
+        { label: '현재 담당 교사', value: p.currentTeacher || '-' },
+        { label: '변경 희망 교사', value: p.requestedTeacher || '-' },
+        { label: '변경 사유', value: p.reason || '-' },
+        { label: '접수 마감 정책', value: '매주 수·목요일 이전 접수건에 한해 검토, 승인 시 차주 월요일 시간표부터 적용' },
+      ];
+    case 'course_change':
+      return [
+        { label: '현재 코스', value: p.fromCourse || '-' },
+        { label: '변경 희망 코스', value: p.toCourse || '-' },
+        { label: '변경 구분', value: p.direction === 'upgrade' ? '업그레이드 (차액 추가 결제)' : '다운그레이드 (환불 없음)' },
+        { label: '예상 차액', value: p.direction === 'upgrade' ? `$${Number(p.priceDiff || 0).toLocaleString()}` : '$0' },
+        { label: '접수 마감 정책', value: '매주 수·목요일 이전 접수건에 한해 검토, 승인 시 차주 월요일부터 적용' },
+      ];
+    case 'room_change':
+      return [
+        { label: '현재 룸', value: p.fromRoom || '-' },
+        { label: '변경 희망 룸', value: p.toRoom || '-' },
+        { label: '변경 구분', value: p.changeKind || '일반' },
+        { label: '예상 차액', value: p.changeKind === '업그레이드' ? `$${Number(p.priceDiff || 0).toLocaleString()}` : '$0' },
+      ];
+    default:
+      return [];
+  }
+}
+
+// 학생 요청 1건을 공식 서류 양식(레터헤드 + 학생정보 + 항목표 + 승인란)으로 렌더링한다.
+// 인보이스 문서(renderInvoiceDocumentSnapshot)와 동일한 톤앤매너를 사용해 나중에 뽑아서(인쇄) 확인할 수 있게 한다.
+function renderStudentRequestDocumentHTML(request, student) {
+  const esc = (typeof escapeStudentPopupHtml === 'function') ? escapeStudentPopupHtml : (v => v);
+  const fields = getStudentRequestDocumentFields(request);
+  const statusLabel = { pending: '검토 대기중', approved: '승인', rejected: '반려' }[request.status] || request.status;
+  const statusColor = request.status === 'approved' ? '#047857' : request.status === 'rejected' ? '#B91C1C' : '#B45309';
+  const reviewRows = request.status !== 'pending' ? `
+    <div style="display:flex;justify-content:space-between"><span style="color:#64748B">검토자</span><strong>${esc(request.reviewedBy || '-')}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:#64748B">검토 일시</span><strong>${esc(request.reviewedAt || '-')}</strong></div>
+    ${request.reviewNote ? `<div style="margin-top:6px;color:#475569">검토 의견: ${esc(request.reviewNote)}</div>` : ''}
+  ` : '';
+
+  return `
+    <div class="sr-doc-print" style="max-width:820px;margin:0 auto;background:#fff;border:1px solid #DDE3EC;color:#1F2937;font-family:Arial, sans-serif">
+      <div style="padding:22px 26px;background:#172554;color:#fff;display:flex;justify-content:space-between;align-items:start">
+        <div><div style="font-size:20px;font-weight:900;letter-spacing:1px">TALKSTATION ACADEMY</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">Cebu Campus · Student Request Form</div></div>
+        <div style="text-align:right"><div style="font-size:20px;font-weight:300;letter-spacing:1px">${esc(getStudentRequestDocumentTitle(request.type))}</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">No. SR-${request.id} · ${esc(request.submittedAt)}</div></div>
+      </div>
+      <div style="padding:22px 26px">
+        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:18px">
+          <div><div style="font-size:10px;font-weight:800;color:#64748B;margin-bottom:7px">STUDENT INFORMATION</div><div style="font-size:15px;font-weight:900">${esc(request.studentName)}</div><div style="font-size:11.5px;line-height:1.7;color:#475569;margin-top:5px">Nick: ${esc(student?.nick || '-')} · ${esc(student?.nationality || '-')}<br>Course: ${esc(student?.course || '-')}</div></div>
+          <div style="font-size:11.5px;line-height:1.8">
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Submitted By</span><strong>${esc(request.submittedBy || '학생')}</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Status</span><strong style="color:${statusColor}">${statusLabel}</strong></div>
+            ${reviewRows}
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">REQUEST DETAILS</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:24px">
+          <tbody>
+            ${fields.map(f => `
+              <tr>
+                <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;background:#F8FAFC;width:170px;font-weight:700;color:#475569">${esc(f.label)}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${esc(String(f.value))}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:space-between;align-items:end;margin-top:10px"><div style="font-size:10.5px;line-height:1.6;color:#64748B">TalkStation Academy · Cebu Campus<br>Official Student Request Document</div><div style="width:190px;text-align:center;font-size:10.5px"><div style="height:30px;border-bottom:1px solid #334155;margin-bottom:6px"></div><strong>Authorized Signature / Seal</strong></div></div>
+      </div>
+    </div>`;
+}
+
+// 서류 열람 모달 — 학생 요청 리스트/상세 탭 어디서든 호출해서 인쇄용 양식을 확인한다.
+function openStudentRequestDocument(requestId) {
+  const request = MOCK_STUDENT_REQUESTS.find(r => r.id === requestId);
+  if (!request) return;
+  const student = MOCK_STUDENTS.find(s => s.id === request.studentId);
+  let modal = document.getElementById('student-request-doc-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'student-request-doc-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:2500;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:24px';
+    modal.addEventListener('click', event => { if (event.target === modal) closeStudentRequestDocument(); });
+    document.body.appendChild(modal);
+  }
+  modal.dataset.requestId = String(requestId);
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div style="width:min(880px,100%);max-height:90vh;background:#F1F5F9;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.25);display:flex;flex-direction:column;overflow:hidden" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid #E5E7EB;background:#fff">
+        <div style="font-size:14px;font-weight:900;color:#111827">${getStudentRequestDocumentTitle(request.type)} 서류 보기</div>
+        <div style="display:flex;gap:8px">
+          <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="printStudentRequestDocument()"><i data-lucide="printer"></i> 인쇄 / PDF 저장</button>
+          <button class="tsa-modal-close" onclick="closeStudentRequestDocument()"><i data-lucide="x"></i></button>
+        </div>
+      </div>
+      <div style="padding:22px;overflow-y:auto">${renderStudentRequestDocumentHTML(request, student)}</div>
+    </div>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function closeStudentRequestDocument() {
+  const modal = document.getElementById('student-request-doc-modal');
+  if (modal) {
+    modal.innerHTML = '';
+    modal.style.display = 'none';
+  }
+}
+
+// 모달 내용을 새 창으로 열어 인쇄(=서류로 뽑기)한다. 인보이스 문서 인쇄(printAgencyInlineDocument)와 동일한 패턴.
+function printStudentRequestDocument() {
+  const modal = document.getElementById('student-request-doc-modal');
+  const requestId = Number(modal?.dataset.requestId);
+  const request = MOCK_STUDENT_REQUESTS.find(r => r.id === requestId);
+  if (!request) return;
+  const student = MOCK_STUDENTS.find(s => s.id === request.studentId);
+  const printHtml = renderStudentRequestDocumentHTML(request, student);
+  const printWindow = window.open('', '_blank', 'width=960,height=900');
+  if (!printWindow) {
+    showToast('인쇄 창을 열 수 없어. 브라우저 팝업 허용을 확인해줘.', 'warning');
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${getStudentRequestDocumentTitle(request.type)} · ${request.studentName}</title><style>body{margin:0;padding:24px;font-family:Pretendard,Arial,sans-serif;color:#111827;background:#fff}*{box-sizing:border-box}@media print{body{padding:0}}</style></head><body>${printHtml}</body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 200);
+}
+
+// 선생님/코스 변경은 수·목요일 접수분만 검토 대상 — Focus_TimeTable.md 정책과 동일하게, 학생 포탈의
+// studentPortalDay 시뮬레이터를 그대로 참조해 마감 배지를 계산한다 (실제 요일 판정 로직 통일).
+function isWithinTeacherCourseChangeDeadline() {
+  const day = (typeof studentPortalDay !== 'undefined') ? studentPortalDay : 'Wed';
+  return day === 'Wed' || day === 'Thu';
+}
+
+// 관리자 '학생 요청 관리' 리스트 화면. 날짜(제출일) / 유형 / 상태로 필터링해서 전체 학생의 요청을 한번에 훑어본다.
+let _studentRequestFilters = { date: '', type: 'all', status: 'all' };
+
+function initStudentRequestListPage() {
+  const dateEl = document.getElementById('sr-filter-date');
+  if (dateEl) dateEl.value = _studentRequestFilters.date;
+  renderStudentRequestListFilters();
+  renderStudentRequestListTable();
+}
+
+function renderStudentRequestListFilters() {
+  document.querySelectorAll('[data-sr-type]').forEach(btn => {
+    const active = btn.dataset.srType === _studentRequestFilters.type;
+    btn.style.borderColor = active ? '#6366F1' : '#E5E7EB';
+    btn.style.background = active ? '#EEF2FF' : '#fff';
+    btn.style.color = active ? '#4F46E5' : '#6B7280';
+  });
+  document.querySelectorAll('[data-sr-status]').forEach(btn => {
+    const active = btn.dataset.srStatus === _studentRequestFilters.status;
+    btn.style.borderColor = active ? '#6366F1' : '#E5E7EB';
+    btn.style.background = active ? '#EEF2FF' : '#fff';
+    btn.style.color = active ? '#4F46E5' : '#6B7280';
+  });
+}
+
+function setStudentRequestDateFilter(value) {
+  _studentRequestFilters.date = value || '';
+  renderStudentRequestListTable();
+}
+
+function setStudentRequestTypeFilter(type) {
+  _studentRequestFilters.type = type;
+  renderStudentRequestListFilters();
+  renderStudentRequestListTable();
+}
+
+function setStudentRequestStatusFilter(status) {
+  _studentRequestFilters.status = status;
+  renderStudentRequestListFilters();
+  renderStudentRequestListTable();
+}
+
+function getFilteredStudentRequests() {
+  return MOCK_STUDENT_REQUESTS.filter(r => {
+    if (_studentRequestFilters.date && !r.submittedAt.startsWith(_studentRequestFilters.date)) return false;
+    if (_studentRequestFilters.type !== 'all' && r.type !== _studentRequestFilters.type) return false;
+    if (_studentRequestFilters.status !== 'all' && r.status !== _studentRequestFilters.status) return false;
+    return true;
+  }).slice().sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+function renderStudentRequestListTable() {
+  const body = document.getElementById('sr-list-body');
+  const countEl = document.getElementById('sr-list-count');
+  if (!body) return;
+  const list = getFilteredStudentRequests();
+  if (countEl) countEl.textContent = `${list.length}건`;
+
+  body.innerHTML = list.length ? list.map(r => {
+    const typeColor = getStudentRequestTypeColor(r.type);
+    const deadlineNote = (r.type === 'teacher_change' || r.type === 'course_change') && r.status === 'pending'
+      ? `<div style="font-size:9.5px;color:${isWithinTeacherCourseChangeDeadline() ? '#059669' : '#DC2626'};margin-top:3px">${isWithinTeacherCourseChangeDeadline() ? '수·목 접수 가능일' : '수·목 마감 — 차차주 반영 대상'}</div>`
+      : '';
+    return `
+      <tr>
+        <td style="font-weight:700">${r.studentName}</td>
+        <td><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${typeColor.bg};color:${typeColor.color};border:1px solid ${typeColor.border};font-size:10.5px;font-weight:800">${getStudentRequestTypeLabel(r.type)}</span></td>
+        <td style="font-size:11px;color:#6B7280;white-space:nowrap">${r.submittedAt}${deadlineNote}</td>
+        <td style="font-size:11.5px;color:#374151">${summarizeStudentRequestPayload(r)}</td>
+        <td style="text-align:center">${renderStudentRequestStatusBadge(r.status)}</td>
+        <td style="text-align:center;white-space:nowrap">
+          ${r.status === 'pending' ? `
+            <button class="tsa-btn tsa-btn-success tsa-btn-xs" style="background:#10B981;border:none" onclick="approveStudentRequest(${r.id})">승인</button>
+            <button class="tsa-btn tsa-btn-danger tsa-btn-xs" onclick="rejectStudentRequest(${r.id})">반려</button>
+          ` : ''}
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentRequestDocument(${r.id})"><i data-lucide="file-text"></i> 서류 보기</button>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openStudentDetail(${r.studentId}, 'request')">학생 상세</button>
+        </td>
+      </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#9CA3AF;font-size:12px">해당 조건의 요청이 없습니다.</td></tr>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function approveStudentRequest(id) {
+  const r = MOCK_STUDENT_REQUESTS.find(item => item.id === id);
+  if (!r) return;
+  r.status = 'approved';
+  r.reviewedBy = stayCurrentActor();
+  r.reviewedAt = stayNowStamp();
+  showToast(`✓ [${getStudentRequestTypeLabel(r.type)}] ${r.studentName} 요청을 승인했습니다.`, 'success');
+  renderStudentRequestListTable();
+  if (typeof refreshStudentRequestTabIfOpen === 'function') refreshStudentRequestTabIfOpen(r.studentId);
+}
+
+function rejectStudentRequest(id) {
+  const r = MOCK_STUDENT_REQUESTS.find(item => item.id === id);
+  if (!r) return;
+  const note = prompt('반려 사유를 입력하십시오:');
+  if (note === null) return;
+  r.status = 'rejected';
+  r.reviewedBy = stayCurrentActor();
+  r.reviewedAt = stayNowStamp();
+  r.reviewNote = note.trim() || '사유 미입력';
+  showToast(`🗑️ [${getStudentRequestTypeLabel(r.type)}] ${r.studentName} 요청을 반려했습니다.`, 'success');
+  renderStudentRequestListTable();
+  if (typeof refreshStudentRequestTabIfOpen === 'function') refreshStudentRequestTabIfOpen(r.studentId);
+}
 
 function switchReqTab(tab) {
   ['remit', 'change'].forEach(t => {
@@ -1199,7 +1529,27 @@ function resetCourseRegCourseSelection() {
   renderCourseRegSegments();
 }
 
+// 시간표는 매주 월요일 기준으로 재작성되므로, 수강 시작일도 월요일로만 강제한다.
+// 다른 요일을 고르면 같은 주의 월요일로 스냅해서 항상 유효한 값만 남긴다.
+function snapToCourseRegMonday(dateStr) {
+  if (!dateStr) return dateStr;
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  const day = date.getUTCDay();
+  if (day === 1) return dateStr;
+  const offset = day === 0 ? -6 : 1 - day;
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().split('T')[0];
+}
+
 function handleCourseRegStartChange() {
+  const startEl = document.getElementById('course-reg-start');
+  if (startEl && startEl.value) {
+    const snapped = snapToCourseRegMonday(startEl.value);
+    if (snapped !== startEl.value) {
+      startEl.value = snapped;
+      showToast('수강 시작일은 월요일만 선택할 수 있어 같은 주 월요일로 자동 변경했어.', 'warning');
+    }
+  }
   updateCourseRegSegmentEndPreview();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
@@ -3163,6 +3513,7 @@ let currentAdetailStudentId = null;
 let currentAdetailTab = 'basic';
 let currentAdetailPortal = 'agency';
 let currentAdetailEnrollmentId = 'current';
+let currentAdetailTopTab = 'basic'; // 기본 정보 / 수강 현황 / 상담 노트 / 학생 요청 최상위 탭 추적
 let adetailUploadedFiles = { passport: null, ticket: null, photo: null, insurance: null, visa: null, ssp: null };
 let adpProfilePhotoData = null;
 
@@ -3298,13 +3649,16 @@ function renderAgencyStudentDetailPageHeader(s) {
 }
 
 function switchAgencyStudentDetailPageTab(tab) {
+  currentAdetailTopTab = tab;
   const basicTab = document.getElementById('adetail-page-tab-basic');
   const enrollmentTab = document.getElementById('adetail-page-tab-enrollment');
   const consultationTab = document.getElementById('adetail-page-tab-consultation');
+  const requestTab = document.getElementById('adetail-page-tab-request');
   const saveBtn = document.getElementById('adetail-page-save-btn');
   if (basicTab) basicTab.classList.toggle('active', tab === 'basic');
   if (enrollmentTab) enrollmentTab.classList.toggle('active', tab === 'enrollment');
   if (consultationTab) consultationTab.classList.toggle('active', tab === 'consultation');
+  if (requestTab) requestTab.classList.toggle('active', tab === 'request');
   if (saveBtn) saveBtn.style.display = tab === 'basic' ? '' : 'none';
 
   if (tab === 'basic') {
@@ -3313,6 +3667,8 @@ function switchAgencyStudentDetailPageTab(tab) {
     renderAgencyStudentEnrollmentHub();
   } else if (tab === 'consultation') {
     renderAgencyStudentConsultationPage();
+  } else if (tab === 'request') {
+    renderAgencyStudentRequestPage();
   }
   setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
@@ -3323,6 +3679,21 @@ function renderAgencyStudentConsultationPage() {
   const container = document.getElementById('adetail-page-tab-content');
   if (!s || !container) return;
   renderStudentConsultationTab(s, container);
+}
+
+// '학생 요청' 최상위 탭 — 관리자 리스트에서 넘어오거나 직접 클릭했을 때 해당 학생의 요청만 필터링해 보여준다.
+function renderAgencyStudentRequestPage() {
+  const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  const container = document.getElementById('adetail-page-tab-content');
+  if (!s || !container || typeof renderStudentRequestTab !== 'function') return;
+  renderStudentRequestTab(s, container);
+}
+
+// 관리자 리스트에서 승인/반려한 직후, 그 학생의 상세 페이지가 이미 열려있다면 '학생 요청' 탭을 다시 그린다.
+function refreshStudentRequestTabIfOpen(studentId) {
+  if (currentAdetailStudentId === studentId && currentAdetailTopTab === 'request') {
+    renderAgencyStudentRequestPage();
+  }
 }
 
 function renderAgencyStudentEnrollmentHub() {
@@ -3336,20 +3707,23 @@ function renderAgencyStudentEnrollmentHub() {
       <div style="border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;padding:14px">
         <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">수강 목록</div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${enrollments.map((e, idx) => {
+          ${!enrollments.length ? `<div style="text-align:center;padding:20px 10px;color:#9CA3AF;font-size:11.5px">등록된 수강 정보가 없습니다.</div>` : enrollments.map((e, idx) => {
             const selected = String(e.id) === String(currentAdetailEnrollmentId);
+            // 아직 확정되지 않은 '입학 대기' 상태의 등록만 삭제를 허용한다 (Active 이후 등록은 변경 요청 흐름으로 처리).
+            const deletable = e.status === 'waiting';
             return `
-            <button type="button" onclick="selectAgencyStudentEnrollment('${e.id}')" style="width:100%;padding:12px;border-radius:10px;border:1px solid ${selected ? '#C7D2FE' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};text-align:left;cursor:pointer;font-family:inherit">
+            <div onclick="selectAgencyStudentEnrollment('${e.id}')" style="width:100%;padding:12px;border-radius:10px;border:1px solid ${selected ? '#C7D2FE' : '#E5E7EB'};background:${selected ? '#EEF2FF' : '#fff'};text-align:left;cursor:pointer;font-family:inherit">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:9.5px;font-weight:800;color:#5E5CE6;background:#EEF2FF;border-radius:999px;padding:1px 7px;white-space:nowrap">${e.sessionNumber}차 수강</span>
-                <div style="font-size:12.5px;font-weight:800;color:#111827">${e.course}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#111827;flex:1">${e.course}</div>
+                ${deletable ? `<button type="button" title="이 등록 삭제" onclick="event.stopPropagation(); deleteAgencyStudentEnrollment('${e.id}')" style="border:none;background:none;padding:2px;cursor:pointer;color:#9CA3AF;line-height:0"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>` : ''}
               </div>
               <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)} · ${e.duration}주${e.segments && e.segments.length > 1 ? ` · ${e.segments.length}개 구간` : ''}</div>
               <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
                 <span class="tsa-badge ${e.status === 'current' ? 'tsa-badge-success' : e.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(e.status)}</span>
                 ${selected ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
               </div>
-            </button>`;
+            </div>`;
           }).join('')}
         </div>
         <div style="margin-top:12px;font-size:11px;color:#6B7280;line-height:1.5">
@@ -3412,6 +3786,8 @@ function getStudentEnrollmentSnapshots(s) {
   }) : [];
   current.sessionNumber = saved.length || 1;
   const history = saved.filter(e => !(e.course === current.course && e.startDate === current.startDate));
+  // 등록된 코스가 하나도 없는(no_course) 학생은 대표 카드를 만들지 않고 목록을 완전히 비운다.
+  if (s.status === 'no_course') return history.slice(0, 4);
   return [current, ...history].slice(0, 4);
 }
 
@@ -3423,6 +3799,94 @@ function getSelectedStudentEnrollment(s) {
 function selectAgencyStudentEnrollment(enrollmentId) {
   currentAdetailEnrollmentId = String(enrollmentId);
   renderAgencyStudentEnrollmentHub();
+}
+
+// '입학 대기' 상태의 등록만 삭제 가능하다 — Active 이후 등록은 인보이스·기숙사 배정 등과 얽혀 있어
+// 변경 요청(Change Request) 흐름으로만 수정하도록 잠근다는 기존 Lock Policy와 일관되게 처리한다.
+function deleteAgencyStudentEnrollment(enrollmentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === currentAdetailStudentId);
+  if (!s) return;
+  const target = getStudentEnrollmentSnapshots(s).find(e => String(e.id) === String(enrollmentId));
+  if (!target || target.status !== 'waiting') return;
+
+  if (!confirm(`"${target.course}" (${target.sessionNumber}차 수강) 등록을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+
+  if (Array.isArray(s.enrollments)) {
+    const idx = enrollmentId === 'current'
+      ? s.enrollments.findIndex(e => e.course === s.course && e.startDate === s.startDate)
+      : s.enrollments.findIndex(e => String(e.id) === String(enrollmentId));
+    if (idx >= 0) s.enrollments.splice(idx, 1);
+  }
+
+  if (enrollmentId === 'current') {
+    const next = Array.isArray(s.enrollments) && s.enrollments.length ? s.enrollments[0] : null;
+    if (next) applyEnrollmentAsCurrentStudentState(s, next);
+    else resetStudentToNoCourseState(s);
+  }
+
+  currentAdetailEnrollmentId = 'current';
+  showToast('수강 등록이 삭제되었습니다.', 'success');
+  renderAgencyStudentEnrollmentHub();
+}
+
+// 삭제된 최신 등록 대신, 남아있던 이전 등록 이력을 학생의 현재 등록 정보로 되살린다.
+function applyEnrollmentAsCurrentStudentState(s, enrollment) {
+  const extraItems = Array.isArray(enrollment.extraItems) ? enrollment.extraItems : [];
+  const registrationAmount = extraItems
+    .filter(item => /등록금|Registration/i.test(item.name || ''))
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const otherExtrasTotal = Math.max(0, Number(enrollment.extrasTotal || 0) - registrationAmount);
+
+  s.course = enrollment.course;
+  s.level = enrollment.level || '';
+  s.courseSegments = Array.isArray(enrollment.segments) ? enrollment.segments : [];
+  s.startDate = enrollment.startDate || '';
+  s.endDate = enrollment.endDate || '';
+  s.duration = Number(enrollment.duration || 0);
+  s.status = enrollment.status || 'waiting';
+  s.remittanceStatus = enrollment.paymentStatus || 'unpaid';
+  s.remittanceRoute = enrollment.remittanceRoute || s.remittanceRoute;
+  s.dorm = enrollment.dorm || '미사용';
+  s.dormSegments = Array.isArray(enrollment.dormSegments) ? enrollment.dormSegments : [];
+  s.dormAccomType = enrollment.dormAccomType || null;
+  s.dormType = enrollment.dormType || null;
+  s.dormGrade = enrollment.dormGrade || null;
+  s.dormIn = enrollment.dormIn || '';
+  s.dormOut = enrollment.dormOut || '';
+  s.totalGross = Number(enrollment.totalGross || 0);
+  s.extraItems = extraItems;
+  s.courseRegistrationFees = {
+    registration: registrationAmount,
+    tuition: Number(enrollment.tuitionAmount || 0),
+    dorm: Number(enrollment.dormAmount || 0),
+    extras: otherExtrasTotal,
+    total: Number(enrollment.totalGross || 0),
+    extraItems,
+  };
+  s.billingItemStatuses = { registration: 'unpaid', education: 'unpaid', dorm: 'unpaid', local: 'unpaid' };
+}
+
+// 남은 등록 이력이 없을 때 학생을 '미수강' 상태로 초기화한다.
+function resetStudentToNoCourseState(s) {
+  s.course = '코스 미등록';
+  s.level = '';
+  s.courseSegments = [];
+  s.startDate = '';
+  s.endDate = '';
+  s.duration = 0;
+  s.status = 'no_course';
+  s.remittanceStatus = 'unpaid';
+  s.dorm = '미사용';
+  s.dormSegments = [];
+  s.dormAccomType = null;
+  s.dormType = null;
+  s.dormGrade = null;
+  s.dormIn = '';
+  s.dormOut = '';
+  s.totalGross = 0;
+  s.extraItems = [];
+  s.courseRegistrationFees = { registration: 0, tuition: 0, dorm: 0, extras: 0, total: 0, extraItems: [] };
+  s.billingItemStatuses = { registration: 'unpaid', education: 'unpaid', dorm: 'unpaid', local: 'unpaid' };
 }
 
 // 과정 자체에 설정된 추천 레벨(복수 가능)을 우선 사용하고, 과정을 못 찾을 때만 학생 개인의 단일 level 값으로 폴백
@@ -3936,6 +4400,7 @@ function getEnrollmentStatusLabel(status) {
   if (status === 'completed') return '졸업';
   if (status === 'resigned') return '퇴원';
   if (status === 'extended') return '연장';
+  if (status === 'no_course') return '미수강';
   return '입학 대기';
 }
 
@@ -5513,6 +5978,8 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
   } else if (tab === 'settle') {
     const prices = calculatePrices(s);
     const billingBreakdown = getStudentBillingBreakdown(s);
+    // 발행된(폐기되지 않은) 기준 인보이스가 없는 동안에는 이 표에서 바로 발행 항목을 체크한다.
+    const invoiceSelectMode = !getActiveBaseInvoice(s);
 
     const crHistoryHtml = '';
 
@@ -5522,10 +5989,11 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       <div style="padding:10px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">항목별 청구 금액 · 납부 여부 · 커미션 지급 여부</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">${invoiceSelectMode ? '발행할 청구 항목 선택' : '항목별 청구 금액 · 납부 여부 · 커미션 지급 여부'}</div>
             <div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:11.5px;margin-bottom:10px">
               ${billingBreakdown.items.map(item => `
-                <div style="display:grid;grid-template-columns:96px 1fr 76px 150px 80px;gap:10px;align-items:center;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
+                <div style="display:grid;grid-template-columns:${invoiceSelectMode ? '20px ' : ''}96px 1fr 76px 150px 80px;gap:10px;align-items:center;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
+                  ${invoiceSelectMode ? `<input type="checkbox" id="inv-check-${item.key}" checked style="accent-color:#5E5CE6;width:15px;height:15px"/>` : ''}
                   <div>
                     <div style="font-weight:800;color:#374151">${item.label}</div>
                     <div style="font-size:10px;color:#9CA3AF">${item.key === 'registration' ? '학생 등록 시 1회' : item.key === 'education' ? '수강 과정 기준' : item.key === 'dorm' ? '기숙사 배정 기준' : '기타 현지 비용'}</div>
@@ -5547,17 +6015,15 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
               ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
             </div>
+            ${renderInvoiceActionPanel(s)}
           </div>
 
           <div style="border-left:1px solid #CBD5E1;padding:0 0 0 18px;min-width:0">
-            <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">공식 인보이스 (Invoice)</div>
-            <div style="height:520px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
-              <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">크게 보기</button>
-              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
-            </div>
+            ${renderInvoiceDocumentPanel(s)}
+          </div>
+
+          <div style="grid-column:span 2">
+            ${renderInvoiceHistoryPanel(s)}
           </div>
           ${localFeesHtml}
 
@@ -7282,60 +7748,6 @@ function savePickupManager() {
   showToast('픽업 담당자 프로필이 저장되었습니다.', 'success');
 }
 
-function renderRecommendedStudentInvoice(std) {
-  const billing = getStudentBillingBreakdown(std);
-  const savedFees = std.courseRegistrationFees || {};
-  const extraItems = Array.isArray(savedFees.extraItems) ? savedFees.extraItems : [];
-  const route = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
-  const routeLabel = getRemittanceRouteLabel(route);
-  const paidAmount = billing.items.filter(item => item.paymentStatus === 'paid').reduce((sum, item) => sum + item.amount, 0);
-  const balance = Math.max(0, billing.gross - paidAmount);
-  const issueDate = new Date().toISOString().substring(0, 10);
-  const dueDate = std.paymentDueDate || std.startDate || issueDate;
-  const invoiceNo = `TSA-${std.id}-${(std.startDate || issueDate).replace(/-/g, '')}`;
-  const statusLabel = balance <= 0 ? 'PAID · 완납' : paidAmount > 0 ? 'PARTIAL · 부분납' : 'UNPAID · 미납';
-  const statusColor = balance <= 0 ? '#047857' : paidAmount > 0 ? '#B45309' : '#DC2626';
-  const statusBg = balance <= 0 ? '#D1FAE5' : paidAmount > 0 ? '#FEF3C7' : '#FEE2E2';
-  const paymentGuide = route === 'direct'
-    ? `<strong>어학원 직접 송금</strong><br>Bank: BDO Cebu Branch · Account Name: TalkStation Academy<br>Account No: 0000-0000-0000 · SWIFT: BNORPHMM<br>송금 메모에 학생 영문명과 인보이스 번호를 입력해줘.`
-    : route === 'onsite'
-      ? `<strong>어학원 현장 결제</strong><br>세부 캠퍼스 Admin Office에서 입학 첫날 결제해줘.<br>현장 결제 가능 통화와 결제 수단은 방문 전 확인이 필요해.`
-      : `<strong>에이전시 납부</strong><br>담당 에이전시를 통해 청구 금액을 납부해줘.<br>납부 확인 및 영수증은 담당 에이전시에 요청할 수 있어.`;
-  const chargeRows = billing.items.map(item => `
-    <tr>
-      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.label}</td>
-      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.key === 'education' ? `${std.course} · ${std.duration}주` : item.key === 'dorm' ? (std.dorm || '기숙사') : '-'}</td>
-      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:center"><span style="font-size:10px;font-weight:800;color:${item.paymentStatus === 'paid' ? '#047857' : '#DC2626'}">${item.paymentStatus === 'paid' ? '완납' : '미납'}</span></td>
-      <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:800">$${Number(item.amount).toLocaleString()}</td>
-    </tr>`).join('');
-  const localRows = extraItems.length
-    ? extraItems.map(item => `<tr><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB">${item.name || item.label || '기타 비용'}</td><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;text-align:right">${item.currency === 'PHP' ? '₱' : '$'}${Number(item.amount || 0).toLocaleString()}</td><td style="padding:7px 9px;border-bottom:1px solid #E5E7EB;color:#6B7280">${item.paymentLocation || '등록 시 선택한 경로'}</td></tr>`).join('')
-    : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#9CA3AF">별도로 등록된 현지 납부 항목이 없습니다.</td></tr>`;
-
-  return `
-    <div style="max-width:920px;margin:0 auto;background:#fff;border:1px solid #DDE3EC;color:#1F2937;font-family:Arial, sans-serif">
-      <div style="padding:24px 28px;background:#172554;color:#fff;display:flex;justify-content:space-between;align-items:start">
-        <div><div style="font-size:22px;font-weight:900;letter-spacing:1px">TALKSTATION ACADEMY</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">Cebu Campus · Official Student Invoice</div></div>
-        <div style="text-align:right"><div style="font-size:24px;font-weight:300;letter-spacing:2px">INVOICE</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">${invoiceNo}</div></div>
-      </div>
-      <div style="padding:24px 28px">
-        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:20px">
-          <div><div style="font-size:10px;font-weight:800;color:#64748B;margin-bottom:7px">STUDENT INFORMATION</div><div style="font-size:16px;font-weight:900">${std.name}</div><div style="font-size:11.5px;line-height:1.7;color:#475569;margin-top:5px">Nick: ${std.nick} · ${std.nationality || '-'}<br>Passport: ${std.passportNum || 'N/A'}<br>Agency: ${std.agency || 'Direct Student'}</div></div>
-          <div style="font-size:11.5px;line-height:1.8"><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Issue Date</span><strong>${issueDate}</strong></div><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Due</span><strong>${dueDate}</strong></div><div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Route</span><strong>${routeLabel}</strong></div><div style="margin-top:8px;text-align:right"><span style="display:inline-block;padding:5px 10px;border-radius:999px;background:${statusBg};color:${statusColor};font-weight:900">${statusLabel}</span></div></div>
-        </div>
-        <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;margin-bottom:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:11px"><div><span style="color:#64748B">Course</span><br><strong>${std.course}</strong></div><div><span style="color:#64748B">Study Period</span><br><strong>${std.startDate || '-'} ~ ${std.endDate || '-'}</strong></div><div><span style="color:#64748B">Accommodation</span><br><strong>${std.dorm || '-'}</strong></div><div><span style="color:#64748B">Dorm Period</span><br><strong>${std.dormIn || '-'} ~ ${std.dormOut || '-'}</strong></div></div>
-        <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">USD BILLING DETAILS</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:#E0E7FF;color:#312E81"><th style="padding:9px 10px;text-align:left">항목</th><th style="padding:9px 10px;text-align:left">상세</th><th style="padding:9px 10px;text-align:center">납부 상태</th><th style="padding:9px 10px;text-align:right">금액 (USD)</th></tr></thead><tbody>${chargeRows}</tbody></table>
-        <div style="display:flex;justify-content:flex-end;margin:12px 0 22px"><div style="width:300px;font-size:12px"><div style="display:flex;justify-content:space-between;padding:5px 0"><span>총 청구액</span><strong>$${billing.gross.toLocaleString()}</strong></div><div style="display:flex;justify-content:space-between;padding:5px 0;color:#047857"><span>납부 완료</span><strong>-$${paidAmount.toLocaleString()}</strong></div><div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #172554;font-size:15px;color:#172554"><strong>남은 금액</strong><strong>$${balance.toLocaleString()}</strong></div></div></div>
-        <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">LOCAL / ADDITIONAL PAYMENT</div>
-        <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:20px"><thead><tr style="background:#F1F5F9"><th style="padding:8px 9px;text-align:left">현지 비용 항목</th><th style="padding:8px 9px;text-align:right">금액</th><th style="padding:8px 9px;text-align:left">납부 안내</th></tr></thead><tbody>${localRows}</tbody></table>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"><div style="padding:13px 15px;border:1px solid #C7D2FE;background:#EEF2FF;border-radius:8px;font-size:11px;line-height:1.7;color:#3730A3"><div style="font-weight:900;margin-bottom:5px">PAYMENT INSTRUCTIONS</div>${paymentGuide}</div><div style="padding:13px 15px;border:1px solid #D1FAE5;background:#ECFDF5;border-radius:8px;font-size:11px;line-height:1.7;color:#065F46"><div style="font-weight:900;margin-bottom:5px">INCLUDED SERVICES</div>수강료, 등록된 기숙사 이용료 및 등록금이 포함됩니다.<br>식사 제공 여부와 포함 범위는 등록 과정 정책을 따릅니다.</div></div>
-        <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;line-height:1.7;color:#475569"><strong>IMPORTANT TERMS</strong><br>1. SSP, 비자 연장, ACR I-Card 등 정부 관련 비용은 현지 통화로 별도 청구될 수 있으며 고지 없이 변경될 수 있습니다.<br>2. 기숙사 체크인·체크아웃 시간 외 입퇴실에는 추가 숙박비가 발생할 수 있습니다.<br>3. 취소 및 환불은 어학원 공식 환불 정책과 과정별 조건을 따릅니다.<br>4. 해외 송금 수수료와 중개은행 수수료의 부담 주체는 결제 안내를 확인해줘.</div>
-        <div style="display:flex;justify-content:space-between;align-items:end;margin-top:28px"><div style="font-size:10.5px;line-height:1.6;color:#64748B">TalkStation Academy · Cebu Campus<br>Official Student Billing Document</div><div style="width:190px;text-align:center;font-size:10.5px"><div style="height:30px;border-bottom:1px solid #334155;margin-bottom:6px"></div><strong>Authorized Signature / Seal</strong></div></div>
-      </div>
-    </div>`;
-}
-
 function switchInvoiceTab(tab) {
   APP.selectedInvoiceTab = tab;
   
@@ -7352,101 +7764,11 @@ function switchInvoiceTab(tab) {
   const std = MOCK_STUDENTS.find(m => s.name.includes(m.nick) || s.name.includes(m.name));
   if (!std) return;
 
-  const prices = calculatePrices(std);
   const avatarSrc = std.profilePhoto || (std.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
-  const invoiceRemittanceRoute = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
-  const invoiceRemittanceLabel = ({ agency: 'Agency Payment', direct: 'Direct Bank Transfer', onsite: 'On-site Payment' })[invoiceRemittanceRoute] || 'Agency Payment';
-  const invoiceAgency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(agency => agency.name === std.agency) : null;
-  const invoiceAgencyBankDetails = invoiceAgency && invoiceAgency.bankName
-    ? `<br><strong>Bank Name:</strong> ${invoiceAgency.bankName}<br><strong>Account Name:</strong> ${invoiceAgency.accountName || '-'}<br><strong>Account Number:</strong> ${invoiceAgency.accountNumber || '-'}<br><strong>SWIFT Code:</strong> ${invoiceAgency.swiftCode || '-'}<br><strong>Bank Address:</strong> ${invoiceAgency.bankAddress || '-'}<br><strong>Agency Contact:</strong> ${invoiceAgency.contact || '-'} · ${invoiceAgency.phone || '-'} · ${invoiceAgency.email || '-'}`
-    : `<br><strong>Agency:</strong> ${std.agency || '-'}<br>Please contact the agency for its official bank account details before making payment.`;
-  const invoicePaymentGuide = invoiceRemittanceRoute === 'direct'
-    ? 'Please transfer the invoiced amount directly to the academy-designated bank account. Enter the student’s full English name and invoice number in the transfer reference. All remittance and intermediary bank charges are borne by the sender.'
-    : invoiceRemittanceRoute === 'onsite'
-      ? 'Please make payment at the Cebu Campus Administration Office. Confirm the accepted currency and available cash or card payment methods with the academy before arrival.'
-      : `Please pay the invoiced amount to the designated agency account. Verify the account holder and account number with the agency before making payment.${invoiceAgencyBankDetails}`;
 
   if (tab === 'invoice') {
     content.style.position = 'relative';
-    content.innerHTML = `
-      <div style="text-align:center;margin-bottom:20px;border-bottom:2px solid #1E3A8A;padding-bottom:12px">
-        <h2 style="font-size:22px;font-weight:800;color:#1E3A8A;margin:0;letter-spacing:1px">TALKSTATION ACADEMY</h2>
-        <p style="font-size:12px;color:#6B7280;margin:4px 0 0 0">Official Invoice & Student Billing Statement</p>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;margin-bottom:20px;font-size:12px">
-        <div>
-          <div><strong>Bill To:</strong> ${std.name}</div>
-          <div><strong>Nickname:</strong> ${std.nick}</div>
-          <div><strong>Nationality:</strong> ${std.nationality}</div>
-          <div><strong>Course Program:</strong> ${std.course}</div>
-        </div>
-        <div style="text-align:right">
-          <div><strong>Invoice No:</strong> TSA-${std.id}-${std.startDate ? std.startDate.replace(/-/g, '') : '2026'}</div>
-          <div><strong>Issue Date:</strong> ${new Date().toISOString().substring(0, 10)}</div>
-          <div><strong>Start Date:</strong> ${std.startDate || '2026-06-01'}</div>
-          <div><strong>Study Duration:</strong> ${std.duration} Weeks</div>
-        </div>
-      </div>
-
-      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:12px">
-        <thead>
-          <tr style="background:#EEF2FF;border-bottom:2px solid #312E81;font-weight:700">
-            <th style="padding:8px;text-align:left">Description (수강 청구 항목)</th>
-            <th style="padding:8px;text-align:right">Weeks</th>
-            <th style="padding:8px;text-align:right">Amount (USD)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid #E9EDF4">Tuition Fee (기본 수강료)</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">${std.duration}</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">$${prices.tuition.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid #E9EDF4">Accommodation Fee (${std.dorm} 기숙사 사용료)</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">${std.duration}</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">$${prices.dorm.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid #E9EDF4">Registration Fee (입학 행정비 - 비환불)</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">-</td>
-            <td style="padding:8px;text-align:right;border-bottom:1px solid #E9EDF4">$${prices.registration}</td>
-          </tr>
-          <tr style="font-weight:700;background:#F8F9FC;border-top:1.5px solid #312E81">
-            <td style="padding:8px" colspan="2">Total Billing (학생 납부 총액)</td>
-            <td style="padding:8px;text-align:right;color:#5E5CE6;font-size:14px">$${prices.gross.toLocaleString()}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style="font-size:11px;color:#3730A3;background:#EEF2FF;padding:12px;border-radius:8px;border:1px solid #C7D2FE;line-height:1.65;margin-bottom:10px">
-        <strong>Payment Instructions</strong><br>
-        <span style="display:inline-block;margin:5px 0 3px;padding:3px 8px;border-radius:999px;background:#fff;border:1px solid #C7D2FE;font-weight:800">${invoiceRemittanceLabel}</span><br>
-        ${invoicePaymentGuide}
-      </div>
-
-      <div style="font-size:11px;color:#6B7280;background:#F9FAFB;padding:12px;border-radius:8px;border:1px solid #E5E7EB;line-height:1.65">
-        <strong>Important Notices</strong><br>
-        1. <strong>Refunds:</strong> All cancellations and refunds are subject to the academy’s official refund policy and the applicable enrollment conditions for the selected program.<br>
-        2. <strong>Government and Local Fees:</strong> SSP, visa extension fees, ACR I-Card, electricity charges, deposits, and other local fees may not be included in the invoice total and may be collected separately in local currency. Government fees and exchange-rate-based charges are subject to change without prior notice.<br>
-        3. <strong>Accommodation:</strong> Students must follow the designated dormitory check-in and check-out times. Early check-in or late check-out may incur an additional nightly charge. Accommodation changes and cancellations are subject to the academy’s separate dormitory policy.
-      </div>
-
-      <div style="position:absolute;bottom:15px;right:25px;opacity:0.85;transform:rotate(-12deg);pointer-events:none">
-        <svg width="110" height="110" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="44" fill="none" stroke="#EF4444" stroke-width="2"/>
-          <circle cx="50" cy="50" r="38" fill="none" stroke="#EF4444" stroke-width="1" stroke-dasharray="2 2"/>
-          <path id="seal-text-path" d="M 16 50 A 34 34 0 1 1 84 50" fill="none"/>
-          <text fill="#EF4444" font-size="6.5" font-family="Pretendard, sans-serif" font-weight="700">
-            <textPath href="#seal-text-path" startOffset="50%" text-anchor="middle">★ TALKSTATION ACADEMY CEBU ★</textPath>
-          </text>
-          <text fill="#EF4444" font-size="9" font-family="Pretendard, sans-serif" font-weight="bold" x="50" y="48" text-anchor="middle">OFFICIAL</text>
-          <text fill="#EF4444" font-size="9" font-family="Pretendard, sans-serif" font-weight="bold" x="50" y="59" text-anchor="middle">ACADEMY</text>
-          <text fill="#EF4444" font-size="8" font-family="Pretendard, sans-serif" font-weight="bold" x="50" y="70" text-anchor="middle">SEAL</text>
-        </svg>
-      </div>
-    `;
+    content.innerHTML = renderInvoiceDocumentSnapshot(getDisplayInvoice(std), std);
   } else if (tab === 'loa') {
     content.innerHTML = `
       <div style="text-align:center;margin-bottom:24px;border-bottom:1px double #9CA3AF;padding-bottom:12px">
@@ -7914,20 +8236,20 @@ function renderCourseList() {
       '1:8': { bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
     };
     const timetableTemplate = getCourseTimetableTemplate(c);
-    const timetableItems = timetableTemplate.map((item, periodIndex) => {
-      const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === item.subjectId);
-      const type = MOCK_MASTER_CLASS_TYPES.find(typeItem => typeItem.code === item.classType);
-      const color = typeColors[item.classType] || { bg: '#F3F4F6', color: '#4B5563', border: '#E5E7EB' };
+    const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
+    const timetableItems = types.flatMap(type => (c.subjectsByType?.[type.code] || []).map(ref => {
+      const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === ref.id);
+      const color = typeColors[type.code] || { bg: '#F3F4F6', color: '#4B5563', border: '#E5E7EB' };
+      const hours = Math.max(1, Number(ref.hours) || 1);
       return `
         <span style="display:inline-flex;align-items:center;overflow:hidden;border:1px solid ${color.border};background:#fff;border-radius:7px;white-space:nowrap">
-          <strong style="align-self:stretch;display:inline-flex;align-items:center;padding:4px 6px;background:${color.bg};color:${color.color};font-size:10px">${periodIndex + 1}교시</strong>
-          <span style="padding:4px 6px;font-size:10px;color:#374151">
-            <strong style="color:${color.color}">${type?.code || item.classType}</strong>
-            · ${subject?.name || item.subjectId || '과목 미선택'}
+          <span style="padding:4px 7px;font-size:10px;color:#374151">
+            <strong style="color:${color.color}">${type.code}</strong>
+            · ${subject?.name || ref.id || '과목 미선택'}${hours > 1 ? ` ${hours}시간` : ''}
           </span>
         </span>
       `;
-    }).join('');
+    })).join('');
 
     // 추천 레벨 배지
     const levelsBadge = (c.levels || [])
@@ -7945,11 +8267,11 @@ function renderCourseList() {
         </td>
         <td>${levelsBadge}</td>
         <td style="text-align:center">
-          <span style="font-weight:900;font-size:13px;color:#111827">${timetableTemplate.length}</span><span style="font-size:10.5px;color:#6B7280">교시</span>
+          <span style="font-weight:900;font-size:13px;color:#111827">${timetableTemplate.length}</span><span style="font-size:10.5px;color:#6B7280">시간</span>
         </td>
         <td style="min-width:520px">
           <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px">
-            ${timetableItems || '<span style="color:#9CA3AF;font-size:11px">등록된 교시 없음</span>'}
+            ${timetableItems || '<span style="color:#9CA3AF;font-size:11px">등록된 과목 없음</span>'}
           </div>
         </td>
         <td style="text-align:center">
@@ -7972,26 +8294,33 @@ function renderCourseList() {
 }
 
 let _editingCourseIdx = null;
+// 과정 수정 팝업 임시 상태. { '1:1': [{id,hours}], '1:4': [...], '1:8': [...] } — 순서 없이 유형별로만 관리한다.
+let _courseSubjectDraft = { '1:1': [], '1:4': [], '1:8': [] };
+
+function cloneCourseSubjectsByType(subjectsByType) {
+  const draft = { '1:1': [], '1:4': [], '1:8': [] };
+  Object.entries(subjectsByType || {}).forEach(([classType, refs]) => {
+    if (!draft[classType]) draft[classType] = [];
+    (refs || []).forEach(ref => {
+      if (ref && ref.id) draft[classType].push({ id: ref.id, hours: Math.max(1, Number(ref.hours) || 1) });
+    });
+  });
+  return draft;
+}
 
 function openCourseModal() {
   _editingCourseIdx = null;
   document.getElementById('course-modal-title').textContent = '신규 과정 및 기본 시간표 추가';
-  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 교시별 수업 유형·과목 순서를 설정해.';
+  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 유형별 과목 구성을 설정해.';
   document.getElementById('add-course-name').value = '';
 
   renderCourseLevelCheckboxes([]);
-  renderCourseClassTypeSections({
-    timetableTemplate: [
-      { classType: '1:1', subjectId: 'SUB_01' },
-      { classType: '1:1', subjectId: 'SUB_03' },
-      { classType: '1:1', subjectId: 'SUB_04' },
-      { classType: '1:1', subjectId: 'SUB_05' },
-      { classType: '1:4', subjectId: 'SUB_08' },
-      { classType: '1:4', subjectId: 'SUB_10' },
-      { classType: '1:8', subjectId: 'SUB_02' },
-      { classType: '1:8', subjectId: 'SUB_03' },
-    ],
+  _courseSubjectDraft = cloneCourseSubjectsByType({
+    '1:1': [{ id: 'SUB_01' }, { id: 'SUB_03' }, { id: 'SUB_04' }, { id: 'SUB_05' }],
+    '1:4': [{ id: 'SUB_08' }, { id: 'SUB_10' }],
+    '1:8': [{ id: 'SUB_02' }, { id: 'SUB_03' }],
   });
+  renderCourseClassTypeSections();
   openModal('course-add-modal');
   updateCourseCurriculumPreview();
 }
@@ -8002,11 +8331,12 @@ function openEditCourseModal(idx) {
   if (!c) return;
 
   document.getElementById('course-modal-title').textContent = '과정 및 기본 시간표 수정';
-  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 교시별 수업 유형·과목 순서를 수정해.';
+  document.getElementById('course-modal-subtitle').textContent = '과정 정보와 유형별 과목 구성을 수정해.';
   document.getElementById('add-course-name').value = c.name;
 
   renderCourseLevelCheckboxes(c.levels || []);
-  renderCourseClassTypeSections(c);
+  _courseSubjectDraft = cloneCourseSubjectsByType(c.subjectsByType);
+  renderCourseClassTypeSections();
   openModal('course-add-modal');
   updateCourseCurriculumPreview();
 }
@@ -8179,6 +8509,382 @@ function renderAgencyCommissionBadge(status) {
   return `<span class="tsa-badge ${paid ? 'tsa-badge-success' : 'tsa-badge-danger'}" style="font-size:10px">${paid ? '지급' : '미지급'}</span>`;
 }
 
+// ===== 인보이스 발행/폐기/재발행/수정(차액) 발행 =====
+
+// 학생별로 현재 유효한(폐기되지 않은) 기준 인보이스(정발행/재발행) — 수정(차액) 인보이스는 제외
+function getActiveBaseInvoice(s) {
+  const list = s.invoices || [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const inv = list[i];
+    if (inv.status === 'issued' && inv.type !== 'amendment') return inv;
+  }
+  return null;
+}
+
+// 기준 인보이스에 포함된 모든 항목이 현재 완납 상태인지 확인 (결제 전/후 액션 분기용)
+function isBaseInvoiceFullyPaid(s, invoice) {
+  if (!invoice) return false;
+  const breakdown = getStudentBillingBreakdown(s);
+  return invoice.items.every(item => {
+    const billed = breakdown.items.find(b => b.key === item.key);
+    return billed && billed.paymentStatus === 'paid';
+  });
+}
+
+function nextInvoiceSeq(s) {
+  return (s.invoices || []).length + 1;
+}
+
+// 발행 이력 표에 쓰는 인보이스별 결제 상태. 정발행/재발행은 청구 항목, 수정(차액) 인보이스는
+// 차액 대상 항목의 현재 납부 여부(항목별 paymentStatus, 납부 내역 관리 승인 결과)를 기준으로 판정한다.
+// 폐기된 건은 이미 "폐기" 배지로 상태를 표시하므로 결제 상태는 계산하지 않는다.
+function getInvoicePaymentStatus(s, invoice) {
+  if (invoice.status === 'void') return null;
+  const keys = invoice.type === 'amendment'
+    ? (invoice.deltaItems || []).map(item => item.key)
+    : invoice.items.map(item => item.key);
+  if (!keys.length) return null;
+  const breakdown = getStudentBillingBreakdown(s);
+  const paidCount = keys.filter(key => breakdown.items.find(b => b.key === key)?.paymentStatus === 'paid').length;
+  if (paidCount === 0) return 'unpaid';
+  if (paidCount === keys.length) return 'paid';
+  return 'partial';
+}
+
+function renderInvoicePaymentStatusBadge(status) {
+  if (status === 'paid') return '<span class="tsa-badge tsa-badge-success">완납</span>';
+  if (status === 'partial') return '<span class="tsa-badge tsa-badge-warning">부분납</span>';
+  if (status === 'unpaid') return '<span class="tsa-badge tsa-badge-danger">미납</span>';
+  return '<span style="font-size:10px;color:#9CA3AF">-</span>';
+}
+
+// 정산 탭/에이전시 허브 탭을 현재 상태 그대로 다시 그린다 (기존 submitRemittanceReceipt와 동일 패턴)
+function reopenSettleTab(studentId) {
+  APP._invoiceViewingId = null;
+  if (document.getElementById('adetail-page-enrollment-content')) {
+    switchAgencyEnrollmentHubTab('settle');
+  } else {
+    switchAdetailTab('settle', undefined, studentId);
+  }
+}
+
+function issueOrReissueInvoice(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const breakdown = getStudentBillingBreakdown(s);
+  const checkedItems = breakdown.items.filter(item => document.getElementById(`inv-check-${item.key}`)?.checked);
+  if (!checkedItems.length) { showToast('발행할 청구 항목을 하나 이상 선택해 주세요.', 'warning'); return; }
+
+  if (!s.invoices) s.invoices = [];
+  const seq = nextInvoiceSeq(s);
+  const items = checkedItems.map(item => ({ key: item.key, label: item.label, amount: item.amount }));
+  const gross = items.reduce((sum, item) => sum + item.amount, 0);
+  const invoice = {
+    id: `${studentId}-${Date.now()}`,
+    seq,
+    type: seq === 1 ? 'issue' : 'reissue',
+    status: 'issued',
+    invoiceNo: `TSA-${studentId}-${seq}`,
+    issueDate: new Date().toISOString().slice(0, 10),
+    issuedBy: stayCurrentActor(),
+    items,
+    gross,
+    voidedAt: null,
+    voidedBy: null,
+    voidReason: null,
+    baseInvoiceId: null,
+    deltaItems: null,
+    deltaTotal: null,
+  };
+  s.invoices.push(invoice);
+
+  MOCK_AGENCY_NOTIFICATIONS.unshift({
+    id: 'N-' + Date.now(),
+    text: `[인보이스 ${invoice.type === 'issue' ? '발행' : '재발행'}] ${s.name} 학생 ${seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다.`,
+    type: 'info',
+    date: new Date().toISOString().replace('T', ' ').substring(0, 16)
+  });
+
+  showToast(`✅ ${invoice.invoiceNo} (${seq}차) 인보이스가 발행되었습니다.`, 'success');
+  reopenSettleTab(studentId);
+}
+
+function voidActiveInvoice(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const invoice = getActiveBaseInvoice(s);
+  if (!invoice) return;
+
+  const reason = prompt('인보이스 폐기 사유를 입력하십시오:');
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('폐기 사유를 입력해 주세요.', 'warning'); return; }
+
+  invoice.status = 'void';
+  invoice.voidedAt = new Date().toISOString().slice(0, 10);
+  invoice.voidedBy = stayCurrentActor();
+  invoice.voidReason = reason.trim();
+
+  MOCK_AGENCY_NOTIFICATIONS.unshift({
+    id: 'N-' + Date.now(),
+    text: `[인보이스 폐기] ${s.name} 학생 ${invoice.seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 폐기되었습니다. 사유: ${reason.trim()}`,
+    type: 'warning',
+    date: new Date().toISOString().replace('T', ' ').substring(0, 16)
+  });
+
+  showToast(`🗑️ ${invoice.invoiceNo} 인보이스가 폐기되었습니다.`, 'success');
+  reopenSettleTab(studentId);
+}
+
+function issueAmendmentInvoice(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const base = getActiveBaseInvoice(s);
+  if (!base || !isBaseInvoiceFullyPaid(s, base)) {
+    showToast('완납된 기준 인보이스가 있을 때만 수정 인보이스를 발행할 수 있습니다.', 'warning');
+    return;
+  }
+
+  const deltaItems = [];
+  base.items.forEach(item => {
+    const input = document.getElementById(`inv-amend-${item.key}`);
+    if (!input) return;
+    const newAmount = parseFloat(input.value || 0);
+    const previousAmount = Number(item.amount);
+    const diff = newAmount - previousAmount;
+    if (Math.abs(diff) > 0.001) {
+      deltaItems.push({ key: item.key, label: item.label, previousAmount, newAmount, diff });
+    }
+  });
+
+  if (!deltaItems.length) { showToast('변경된 금액이 없습니다.', 'warning'); return; }
+
+  const seq = nextInvoiceSeq(s);
+  const deltaTotal = deltaItems.reduce((sum, item) => sum + item.diff, 0);
+  const invoice = {
+    id: `${studentId}-${Date.now()}`,
+    seq,
+    type: 'amendment',
+    status: 'issued',
+    invoiceNo: `TSA-${studentId}-${seq}A`,
+    issueDate: new Date().toISOString().slice(0, 10),
+    issuedBy: stayCurrentActor(),
+    items: deltaItems.map(item => ({ key: item.key, label: item.label, amount: item.diff })),
+    gross: deltaTotal,
+    voidedAt: null,
+    voidedBy: null,
+    voidReason: null,
+    baseInvoiceId: base.id,
+    deltaItems,
+    deltaTotal,
+  };
+  s.invoices.push(invoice);
+
+  MOCK_AGENCY_NOTIFICATIONS.unshift({
+    id: 'N-' + Date.now(),
+    text: `[수정 인보이스 발행] ${s.name} 학생 ${seq}차 수정 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 차액 ${deltaTotal >= 0 ? '+' : ''}$${deltaTotal.toLocaleString()}`,
+    type: 'info',
+    date: new Date().toISOString().replace('T', ' ').substring(0, 16)
+  });
+
+  showToast(`✅ ${invoice.invoiceNo} 수정 인보이스가 발행되었습니다 (차액 ${deltaTotal >= 0 ? '+' : ''}$${deltaTotal.toLocaleString()}).`, 'success');
+  reopenSettleTab(studentId);
+}
+
+function viewInvoiceHistoryDocument(studentId, invoiceId) {
+  APP._invoiceViewingId = invoiceId;
+  renderAgencyInlineDocument(studentId, 'invoice');
+}
+
+// 정산 탭 우측 "공식 인보이스" 패널 전체 — 발행/폐기/재발행/수정(차액) 액션과 발행 이력을 조립한다.
+// 좌측 패널: 발행 전에는 "발행할 청구 항목 선택" 체크리스트, 결제 전 발행 상태에서는 폐기 안내,
+// 완납 후에는 "수정 인보이스 발행" 금액 수정 폼을 보여준다. (기존 항목별 청구 금액 표 아래에 이어서 배치)
+function renderInvoiceActionPanel(s) {
+  const activeInvoice = getActiveBaseInvoice(s);
+
+  if (!activeInvoice) {
+    const hasVoidHistory = (s.invoices || []).some(inv => inv.status === 'void');
+    return `
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="issueOrReissueInvoice(${s.id})">
+          <i data-lucide="file-plus-2"></i> ${hasVoidHistory ? '인보이스 재발행' : '인보이스 발행'}
+        </button>
+      </div>`;
+  }
+
+  if (!isBaseInvoiceFullyPaid(s, activeInvoice)) {
+    return `
+      <div style="border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px;background:#FEF2F2;margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="font-size:11.5px;color:#991B1B"><strong>${activeInvoice.seq}차 발행 · ${activeInvoice.invoiceNo}</strong> (${activeInvoice.issueDate} 발행) — 결제 확인 전입니다. 청구 항목 변경이 필요하면 폐기 후 재발행하세요.</div>
+        <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="color:#DC2626;border-color:#FCA5A5;white-space:nowrap" type="button" onclick="voidActiveInvoice(${s.id})"><i data-lucide="trash-2"></i> 폐기</button>
+      </div>`;
+  }
+
+  return `
+    <div style="border:1px solid #C7D2FE;border-radius:10px;padding:14px;background:#F8F9FF;margin-top:16px">
+      <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:4px">수정 인보이스 발행 (결제 완료 · ${activeInvoice.seq}차 기준 차액 청구/환불)</div>
+      <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">금액을 수정한 항목만 차액으로 새로 발행됩니다. 완납된 원본 인보이스(${activeInvoice.invoiceNo})는 폐기되지 않고 그대로 보존됩니다.</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+        ${activeInvoice.items.map(item => `
+          <div style="display:grid;grid-template-columns:1fr 90px 100px;gap:8px;align-items:center;padding:8px 10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:12px">
+            <span style="font-weight:700;color:#374151">${item.label}</span>
+            <span style="text-align:right;color:#9CA3AF;font-size:10.5px">기존 $${item.amount.toLocaleString()}</span>
+            <input type="number" id="inv-amend-${item.key}" class="tsa-input" style="font-size:11.5px;padding:5px 8px;text-align:right" value="${item.amount}"/>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="issueAmendmentInvoice(${s.id})">
+          <i data-lucide="file-diff"></i> 수정 인보이스 발행(차액)
+        </button>
+      </div>
+    </div>`;
+}
+
+// 우측 패널: 발행된 인보이스 문서 미리보기 전용 (발행 시 이 영역에 결과가 표시된다)
+function renderInvoiceDocumentPanel(s) {
+  return `
+    <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">공식 인보이스 (Invoice)</div>
+    <div style="height:560px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
+      <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">크게 보기</button>
+      <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
+    </div>
+  `;
+}
+
+// 하단 전체 폭 패널: 발행 이력 (1차/2차 등 차수, 종류, 발행일, 상태를 한눈에 확인)
+function renderInvoiceHistoryPanel(s) {
+  const history = (s.invoices || []).slice().reverse();
+  const typeLabel = { issue: '정발행', reissue: '재발행', amendment: '수정(차액)' };
+
+  const historyHtml = history.length ? `
+    <table class="tsa-table" style="font-size:11px;margin-top:2px">
+      <thead><tr><th>No</th><th>종류</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
+      <tbody>
+        ${history.map(inv => `
+          <tr>
+            <td>${inv.seq}차</td>
+            <td>${typeLabel[inv.type] || inv.type}</td>
+            <td>${inv.issueDate}</td>
+            <td>${inv.issuedBy || '-'}</td>
+            <td style="text-align:right;font-weight:700">${inv.type === 'amendment' ? `${inv.deltaTotal >= 0 ? '+' : ''}$${Number(inv.deltaTotal).toLocaleString()}` : `$${Number(inv.gross).toLocaleString()}`}</td>
+            <td style="text-align:center">${inv.status === 'void' ? `<span class="tsa-badge tsa-badge-gray" title="폐기 사유: ${inv.voidReason || '-'}">폐기</span>` : '<span class="tsa-badge tsa-badge-success">발행중</span>'}</td>
+            <td style="text-align:center">${renderInvoicePaymentStatusBadge(getInvoicePaymentStatus(s, inv))}</td>
+            <td style="text-align:center"><button class="tsa-btn tsa-btn-outline tsa-btn-xs" type="button" onclick="viewInvoiceHistoryDocument(${s.id}, '${inv.id}')">보기</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>` : `<div style="text-align:center;padding:14px;color:#9CA3AF;font-size:11.5px">발행된 인보이스가 없습니다.</div>`;
+
+  return `
+    <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA">
+      <div style="font-size:12.5px;font-weight:700;color:#1E3A8A;margin-bottom:10px">🧾 인보이스 발행 이력</div>
+      ${historyHtml}
+    </div>
+  `;
+}
+
+// 인보이스 문서 뷰어(모달/정산 탭 인라인 미리보기 공용)에 표시할 인보이스를 결정한다.
+// 발행 이력에서 특정 건을 "보기"로 선택했으면 그 건을, 아니면 가장 최근 발행 건을 보여준다.
+function getDisplayInvoice(std) {
+  const list = std.invoices || [];
+  if (APP._invoiceViewingId) {
+    const found = list.find(inv => inv.id === APP._invoiceViewingId);
+    if (found) return found;
+  }
+  return list.length ? list[list.length - 1] : null;
+}
+
+// 발행된 인보이스 스냅샷을 문서 형태로 렌더링한다. 실시간 재계산이 아니라
+// 발행 당시 저장된 items 스냅샷만 사용해 발행 시점 금액이 이후 변경에 영향받지 않게 한다.
+function renderInvoiceDocumentSnapshot(invoice, std) {
+  if (!invoice) {
+    return `
+      <div style="max-width:920px;margin:0 auto;padding:60px 20px;text-align:center;color:#9CA3AF;border:1px dashed #CBD5E1;border-radius:10px">
+        <div style="font-size:14px;font-weight:800;margin-bottom:6px;color:#6B7280">발행된 인보이스가 없습니다</div>
+        <div style="font-size:11.5px">정산 탭에서 청구 항목을 선택하고 인보이스를 발행해 주세요.</div>
+      </div>`;
+  }
+
+  const route = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
+  const routeLabel = getRemittanceRouteLabel(route);
+  const isAmendment = invoice.type === 'amendment';
+  const typeLabelKo = { issue: '정발행', reissue: '재발행', amendment: '수정(차액)' }[invoice.type] || invoice.type;
+  const statusNote = invoice.status === 'void'
+    ? `<div style="margin-top:8px;text-align:right"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#FEE2E2;color:#B91C1C;font-weight:900">VOIDED · 폐기됨 (${invoice.voidedAt})</span></div>`
+    : '';
+
+  const baseInvoice = isAmendment ? (std.invoices || []).find(inv => inv.id === invoice.baseInvoiceId) : null;
+
+  const bodyHtml = isAmendment ? `
+    <div style="font-size:12px;font-weight:900;color:#7C2D12;margin:0 0 8px">AMENDMENT DETAILS (기준: ${baseInvoice ? baseInvoice.invoiceNo : '-'})</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+      <thead><tr style="background:#FFEDD5;color:#7C2D12"><th style="padding:9px 10px;text-align:left">항목</th><th style="padding:9px 10px;text-align:right">기존 금액</th><th style="padding:9px 10px;text-align:right">수정 금액</th><th style="padding:9px 10px;text-align:right">차액</th></tr></thead>
+      <tbody>
+        ${invoice.deltaItems.map(item => `
+          <tr>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.label}</td>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right">$${item.previousAmount.toLocaleString()}</td>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right">$${item.newAmount.toLocaleString()}</td>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:900;color:${item.diff >= 0 ? '#DC2626' : '#047857'}">${item.diff >= 0 ? '+' : ''}$${item.diff.toLocaleString()}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin:12px 0 22px">
+      <div style="width:280px;font-size:14px;display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #7C2D12">
+        <strong>차액 합계 (${invoice.deltaTotal >= 0 ? '추가 청구' : '환불'})</strong>
+        <strong style="color:${invoice.deltaTotal >= 0 ? '#DC2626' : '#047857'}">${invoice.deltaTotal >= 0 ? '+' : ''}$${Number(invoice.deltaTotal).toLocaleString()}</strong>
+      </div>
+    </div>
+  ` : `
+    <div style="font-size:12px;font-weight:900;color:#172554;margin:0 0 8px">USD BILLING DETAILS</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+      <thead><tr style="background:#E0E7FF;color:#312E81"><th style="padding:9px 10px;text-align:left">항목</th><th style="padding:9px 10px;text-align:right">금액 (USD)</th></tr></thead>
+      <tbody>
+        ${invoice.items.map(item => `
+          <tr>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB">${item.label}</td>
+            <td style="padding:9px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-weight:800">$${item.amount.toLocaleString()}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin:12px 0 22px">
+      <div style="width:280px;font-size:15px;display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #172554;color:#172554">
+        <strong>총 청구액</strong><strong>$${Number(invoice.gross).toLocaleString()}</strong>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div style="max-width:920px;margin:0 auto;background:#fff;border:1px solid #DDE3EC;color:#1F2937;font-family:Arial, sans-serif">
+      <div style="padding:24px 28px;background:${isAmendment ? '#7C2D12' : '#172554'};color:#fff;display:flex;justify-content:space-between;align-items:start">
+        <div><div style="font-size:22px;font-weight:900;letter-spacing:1px">TALKSTATION ACADEMY</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">Cebu Campus · ${isAmendment ? 'Amendment Invoice (차액 청구/환불)' : 'Official Student Invoice'}</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:300;letter-spacing:2px">${isAmendment ? 'AMENDMENT' : 'INVOICE'}</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">${invoice.invoiceNo} · ${invoice.seq}차 발행 (${typeLabelKo})</div></div>
+      </div>
+      <div style="padding:24px 28px">
+        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:20px">
+          <div><div style="font-size:10px;font-weight:800;color:#64748B;margin-bottom:7px">STUDENT INFORMATION</div><div style="font-size:16px;font-weight:900">${std.name}</div><div style="font-size:11.5px;line-height:1.7;color:#475569;margin-top:5px">Nick: ${std.nick} · ${std.nationality || '-'}<br>Passport: ${APP._invoiceRevealPassport ? (std.passportNum || 'N/A') : maskPassportNumber(std.passportNum, 'N/A')}<br>Agency: ${std.agency || 'Direct Student'}</div></div>
+          <div style="font-size:11.5px;line-height:1.8">
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Issue Date</span><strong>${invoice.issueDate}</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Invoice No</span><strong>${invoice.invoiceNo}</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Route</span><strong>${routeLabel}</strong></div>
+            ${statusNote}
+          </div>
+        </div>
+        ${bodyHtml}
+        <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;line-height:1.7;color:#475569">
+          <strong>IMPORTANT TERMS</strong><br>
+          1. SSP, 비자 연장, ACR I-Card 등 정부 관련 비용은 현지 통화로 별도 청구될 수 있으며 고지 없이 변경될 수 있습니다.<br>
+          2. 본 문서는 ${invoice.seq}차 발행 인보이스이며, 이전 차수 인보이스는 발행 이력에서 확인할 수 있습니다.<br>
+          3. 취소 및 환불은 어학원 공식 환불 정책과 과정별 조건을 따릅니다.
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:end;margin-top:28px"><div style="font-size:10.5px;line-height:1.6;color:#64748B">TalkStation Academy · Cebu Campus<br>Official Student Billing Document</div><div style="width:190px;text-align:center;font-size:10.5px"><div style="height:30px;border-bottom:1px solid #334155;margin-bottom:6px"></div><strong>Authorized Signature / Seal</strong></div></div>
+      </div>
+    </div>`;
+}
+
 function renderAgencyBillingCompactCell(item) {
   const amount = Number(item.amount || 0);
   const commission = Number(item.commission || 0);
@@ -8279,63 +8985,95 @@ function renderAgencyPaymentSummary(s, breakdown) {
   `;
 }
 
-function renderCourseClassTypeSections(course) {
+const COURSE_TYPE_THEME = {
+  '1:1': { name: '1:1 개인 수업', border: '#A7F3D0', bg: '#ECFDF5', text: '#047857', textStrong: '#065F46', chipOn: '#059669' },
+  '1:4': { name: '1:4 소그룹 수업', border: '#FED7AA', bg: '#FFF7ED', text: '#C2410C', textStrong: '#9A3412', chipOn: '#EA580C' },
+  '1:8': { name: '1:8 중그룹 수업', border: '#C7D2FE', bg: '#EEF2FF', text: '#4338CA', textStrong: '#3730A3', chipOn: '#4338CA' },
+};
+
+function renderCourseClassTypeSections() {
   const container = document.getElementById('course-classtype-sections');
   if (!container) return;
 
   const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
-  const timetableTemplate = getCourseTimetableTemplate(course);
 
   container.innerHTML = `
     <div class="tsa-form-group">
-      <label class="tsa-label">기본 시간표 구성</label>
-      <div style="font-size:10.5px;color:#6B7280;margin:3px 0 8px">학생 1명 기준으로 적용할 교시 순서와 수업 유형, 과목을 등록해.</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <div style="border:1px solid #A7F3D0;background:#ECFDF5;border-radius:10px;padding:11px;text-align:center">
-          <div style="font-size:10.5px;color:#047857">1:1 개인 수업</div>
-          <div style="font-size:20px;font-weight:900;color:#065F46;margin-top:3px"><span id="course-total-1-1">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
-        </div>
-        <div style="border:1px solid #FED7AA;background:#FFF7ED;border-radius:10px;padding:11px;text-align:center">
-          <div style="font-size:10.5px;color:#C2410C">1:4 그룹 수업</div>
-          <div style="font-size:20px;font-weight:900;color:#9A3412;margin-top:3px"><span id="course-total-1-4">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
-        </div>
-        <div style="border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px;padding:11px;text-align:center">
-          <div style="font-size:10.5px;color:#4338CA">1:8 그룹 수업</div>
-          <div style="font-size:20px;font-weight:900;color:#3730A3;margin-top:3px"><span id="course-total-1-8">0</span><small style="font-size:11px;margin-left:2px">교시</small></div>
-        </div>
-      </div>
-    </div>
-    <div class="tsa-form-group">
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:8px">
-        <div>
-          <label class="tsa-label" style="margin:0">교시별 수업 템플릿 <span style="color:#EF4444">*</span></label>
-          <div style="font-size:10.5px;color:#6B7280;margin-top:3px">
-            교시 순서대로 수업 유형과 과목을 선택해. 실제 요일·시간·강사·그룹·강의실은 배정 단계에서 정해.
-          </div>
-        </div>
-        <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addCourseTemplateRow()">+ 교시 추가</button>
-      </div>
-      <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;background:#fff">
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;min-width:560px">
-            <thead>
-              <tr style="background:#F8FAFC">
-                <th style="width:80px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:center">순서</th>
-                <th style="width:180px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:left">수업 유형</th>
-                <th style="width:200px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:left">과목</th>
-                <th style="width:80px;padding:9px 10px;font-size:11px;color:#6B7280;text-align:center">관리</th>
-              </tr>
-            </thead>
-            <tbody id="course-template-rows"></tbody>
-          </table>
-        </div>
-      </div>
+      <label class="tsa-label">유형별 과목 구성 <span style="color:#EF4444">*</span></label>
+      <div style="font-size:10.5px;color:#6B7280;margin:3px 0 10px">필요한 과목을 클릭해서 켜. 실제 요일·시간·강사·그룹·강의실은 배정 단계에서 정해.</div>
+      <div id="course-type-groups" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
     <div id="course-curriculum-preview" style="border:1px solid #C7D2FE;background:#EEF2FF;border-radius:10px;padding:13px">
     </div>
   `;
-  timetableTemplate.forEach(item => addCourseTemplateRow(item, false));
-  if (!timetableTemplate.length) addCourseTemplateRow({}, false);
+  const groupsEl = document.getElementById('course-type-groups');
+  groupsEl.innerHTML = types.map(type => renderCourseTypeGroup(type.code)).join('');
+}
+
+function renderCourseTypeGroup(classType) {
+  const theme = COURSE_TYPE_THEME[classType] || { name: classType, border: '#E5E7EB', bg: '#F9FAFB', text: '#4B5563', textStrong: '#111827', chipOn: '#4B5563' };
+  const subjects = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false).sort((a, b) => a.order - b.order);
+  const selected = _courseSubjectDraft[classType] || [];
+  const totalHours = selected.reduce((sum, ref) => sum + (ref.hours || 1), 0);
+
+  const chips = subjects.map(subject => {
+    const ref = selected.find(item => item.id === subject.id);
+    const on = !!ref;
+    const hours = ref ? ref.hours : 1;
+    return `
+      <div class="course-subject-chip" style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <button type="button" onclick="toggleCourseSubjectChip('${classType}','${subject.id}')"
+          style="width:100%;border-radius:8px;padding:7px 4px;text-align:center;font-size:11.5px;font-weight:${on ? 800 : 600};cursor:pointer;border:1.3px solid ${on ? theme.chipOn : '#E5E7EB'};color:${on ? '#fff' : '#6B7280'};background:${on ? theme.chipOn : '#F9FAFB'}">
+          ${subject.name}
+        </button>
+        ${on ? `
+          <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:${theme.text}">
+            <button type="button" onclick="adjustCourseSubjectHours('${classType}','${subject.id}',-1)" style="width:16px;height:16px;border-radius:4px;border:1px solid ${theme.border};background:#fff;color:${theme.text};font-weight:800;line-height:1;cursor:pointer">-</button>
+            <span style="font-weight:700;min-width:26px;text-align:center">${hours}시간</span>
+            <button type="button" onclick="adjustCourseSubjectHours('${classType}','${subject.id}',1)" style="width:16px;height:16px;border-radius:4px;border:1px solid ${theme.border};background:#fff;color:${theme.text};font-weight:800;line-height:1;cursor:pointer">+</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="type-group" style="border:1px solid ${theme.border};border-radius:10px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:${theme.bg}">
+        <span style="font-size:12px;font-weight:800;color:${theme.text}">${theme.name}</span>
+        <span style="font-size:11px;font-weight:700;color:${theme.textStrong}">총 ${totalHours}시간</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px 12px 12px;background:#fff">
+        ${chips}
+      </div>
+    </div>
+  `;
+}
+
+function toggleCourseSubjectChip(classType, subjectId) {
+  if (!_courseSubjectDraft[classType]) _courseSubjectDraft[classType] = [];
+  const list = _courseSubjectDraft[classType];
+  const idx = list.findIndex(ref => ref.id === subjectId);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push({ id: subjectId, hours: 1 });
+  refreshCourseTypeGroup(classType);
+}
+
+function adjustCourseSubjectHours(classType, subjectId, delta) {
+  const ref = (_courseSubjectDraft[classType] || []).find(item => item.id === subjectId);
+  if (!ref) return;
+  ref.hours = Math.max(1, Math.min(8, (ref.hours || 1) + delta));
+  refreshCourseTypeGroup(classType);
+}
+
+function refreshCourseTypeGroup(classType) {
+  const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
+  const idx = types.findIndex(t => t.code === classType);
+  const groupsEl = document.getElementById('course-type-groups');
+  if (groupsEl && idx >= 0 && groupsEl.children[idx]) {
+    groupsEl.children[idx].outerHTML = renderCourseTypeGroup(classType);
+  }
+  updateCourseCurriculumPreview();
 }
 
 function getCourseTimetableTemplate(course) {
@@ -8361,113 +9099,40 @@ function getCourseTimetableTemplate(course) {
   return rows;
 }
 
-function addCourseTemplateRow(item = {}, shouldUpdate = true) {
-  const body = document.getElementById('course-template-rows');
-  if (!body) return;
-  const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
-  const subjects = MOCK_MASTER_SUBJECTS.filter(s => s.visible !== false);
-  const row = document.createElement('tr');
-  row.className = 'course-template-row';
-  row.draggable = true;
-  row.innerHTML = `
-    <td style="padding:8px 10px;border-top:1px solid #EEF0F4;text-align:center">
-      <span class="course-template-drag" title="드래그해서 순서 변경" style="cursor:grab;color:#9CA3AF;margin-right:7px">⋮⋮</span>
-      <strong class="course-template-order" style="font-size:12px;color:#374151"></strong>
-    </td>
-    <td style="padding:8px 10px;border-top:1px solid #EEF0F4">
-      <select class="tsa-input course-template-type" onchange="refreshCourseTemplateRows()" style="height:34px;padding:4px 8px">
-        ${types.map(type => `<option value="${type.code}" ${type.code === (item.classType || '1:1') ? 'selected' : ''}>${getClassTypeDisplayName(type)}</option>`).join('')}
-      </select>
-    </td>
-    <td style="padding:8px 10px;border-top:1px solid #EEF0F4">
-      <select class="tsa-input course-template-subject" onchange="updateCourseCurriculumPreview()" style="height:34px;padding:4px 8px">
-        <option value="">과목 선택</option>
-        ${subjects.map(subject => `<option value="${subject.id}" ${subject.id === item.subjectId ? 'selected' : ''}>${subject.name}</option>`).join('')}
-      </select>
-    </td>
-    <td style="padding:8px 10px;border-top:1px solid #EEF0F4;text-align:center;white-space:nowrap">
-      <button type="button" class="tsa-btn tsa-btn-xs" onclick="deleteCourseTemplateRow(this)" title="삭제" style="background:#FEE2E2;color:#DC2626;border:0">삭제</button>
-    </td>
-  `;
-  row.addEventListener('dragstart', event => {
-    row.classList.add('course-template-row-dragging');
-    event.dataTransfer.effectAllowed = 'move';
-  });
-  row.addEventListener('dragend', () => {
-    row.classList.remove('course-template-row-dragging');
-    refreshCourseTemplateRows();
-  });
-  row.addEventListener('dragover', event => {
-    event.preventDefault();
-    const dragging = body.querySelector('.course-template-row-dragging');
-    if (dragging && dragging !== row) {
-      const rect = row.getBoundingClientRect();
-      body.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
-    }
-  });
-  body.appendChild(row);
-  refreshCourseTemplateRows(shouldUpdate);
-}
-
-function deleteCourseTemplateRow(button) {
-  const body = document.getElementById('course-template-rows');
-  button.closest('.course-template-row')?.remove();
-  if (body && !body.children.length) addCourseTemplateRow({}, false);
-  refreshCourseTemplateRows();
-}
-
-function refreshCourseTemplateRows(shouldUpdate = true) {
-  [...document.querySelectorAll('.course-template-row')].forEach((row, index) => {
-    const order = row.querySelector('.course-template-order');
-    if (order) order.textContent = `${index + 1}교시`;
-  });
-  if (shouldUpdate) updateCourseCurriculumPreview();
-}
-
-function toggleCourseCurriculumRow() {
-  updateCourseCurriculumPreview();
-}
-
 function getCourseCurriculumDraft() {
   const subjectsByType = {};
   const classHours = { '1:1': 0, '1:4': 0, '1:8': 0 };
-  const timetableTemplate = [];
-  document.querySelectorAll('.course-template-row').forEach((row, index) => {
-    const classType = row.querySelector('.course-template-type')?.value || '';
-    const subjectId = row.querySelector('.course-template-subject')?.value || '';
-    if (!classType || !subjectId) return;
-    timetableTemplate.push({ order: index + 1, classType, subjectId });
-    classHours[classType] = (classHours[classType] || 0) + 1;
-    if (!subjectsByType[classType]) subjectsByType[classType] = [];
-    const existing = subjectsByType[classType].find(ref => ref.id === subjectId);
-    if (existing) existing.hours += 1;
-    else subjectsByType[classType].push({ id: subjectId, hours: 1 });
+  Object.entries(_courseSubjectDraft).forEach(([classType, refs]) => {
+    // 클릭한 순서가 아니라 과목 마스터의 고정 순서로 정렬해서, 저장할 때마다 결과가 흔들리지 않게 한다.
+    subjectsByType[classType] = (refs || [])
+      .map(ref => ({ id: ref.id, hours: Math.max(1, Number(ref.hours) || 1) }))
+      .sort((a, b) => (MOCK_MASTER_SUBJECTS.find(s => s.id === a.id)?.order ?? 999) - (MOCK_MASTER_SUBJECTS.find(s => s.id === b.id)?.order ?? 999));
+    classHours[classType] = subjectsByType[classType].reduce((sum, ref) => sum + ref.hours, 0);
   });
-  return { subjectsByType, classHours, timetableTemplate };
+  return { subjectsByType, classHours };
 }
 
 function updateCourseCurriculumPreview() {
   const preview = document.getElementById('course-curriculum-preview');
   if (!preview) return;
   const courseName = document.getElementById('add-course-name')?.value.trim() || '과정명 미입력';
-  const { subjectsByType, classHours, timetableTemplate } = getCourseCurriculumDraft();
+  const { subjectsByType, classHours } = getCourseCurriculumDraft();
   const selectedLevels = [...document.querySelectorAll('input[name="course-levels-cb"]:checked')]
     .map(cb => MOCK_MASTER_LEVELS.find(level => level.id === cb.value)?.name)
     .filter(Boolean);
   const types = [...MOCK_MASTER_CLASS_TYPES].filter(t => t.visible !== false).sort((a, b) => a.order - b.order);
   const totalDaily = Object.values(classHours).reduce((sum, value) => sum + value, 0);
   const compositionCode = `[${classHours['1:1'] || 0}/${classHours['1:4'] || 0}/${classHours['1:8'] || 0}]`;
-  const totalOneToOne = document.getElementById('course-total-1-1');
-  const totalOneToFour = document.getElementById('course-total-1-4');
-  const totalOneToEight = document.getElementById('course-total-1-8');
-  if (totalOneToOne) totalOneToOne.textContent = classHours['1:1'] || 0;
-  if (totalOneToFour) totalOneToFour.textContent = classHours['1:4'] || 0;
-  if (totalOneToEight) totalOneToEight.textContent = classHours['1:8'] || 0;
-  const typeSummary = timetableTemplate.map((item, index) => {
-    const type = types.find(typeItem => typeItem.code === item.classType);
-    const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === item.subjectId);
+  const hasAnySubject = Object.values(subjectsByType).some(refs => refs.length > 0);
+  const typeSummary = types.map(type => {
+    const refs = subjectsByType[type.code] || [];
+    if (!refs.length) return '';
+    const names = refs.map(ref => {
+      const subject = MOCK_MASTER_SUBJECTS.find(subjectItem => subjectItem.id === ref.id);
+      return `${subject?.name || ref.id}${ref.hours > 1 ? ` ${ref.hours}시간` : ''}`;
+    }).join(', ');
     return `<span style="display:inline-flex;align-items:center;gap:4px;margin:5px 6px 0 0;padding:4px 7px;border-radius:6px;background:#fff;border:1px solid #DDE4FF">
-      <strong>${index + 1}교시</strong> ${getClassTypeDisplayName(type || { code: item.classType, name: item.classType })} · ${subject?.name || item.subjectId}
+      <strong>${getClassTypeDisplayName(type)}</strong> ${names}
     </span>`;
   }).join('');
   preview.innerHTML = `
@@ -8476,17 +9141,17 @@ function updateCourseCurriculumPreview() {
         <div style="font-size:11px;color:#4F46E5;font-weight:800">등록 결과 미리보기</div>
         <div style="font-size:13px;font-weight:800;color:#1F2937;margin-top:3px">${courseName}</div>
         <div style="font-size:10.5px;color:#4F46E5;font-weight:700;margin-top:4px">
-          기본형 ${compositionCode} · 1:1 ${classHours['1:1'] || 0}교시 · 1:4 ${classHours['1:4'] || 0}교시 · 1:8 ${classHours['1:8'] || 0}교시
+          기본형 ${compositionCode} · 1:1 ${classHours['1:1'] || 0}시간 · 1:4 ${classHours['1:4'] || 0}시간 · 1:8 ${classHours['1:8'] || 0}시간
         </div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:12px;font-weight:800;color:#4338CA">일 ${totalDaily}교시 · 템플릿 완성</div>
+        <div style="font-size:12px;font-weight:800;color:#4338CA">총 ${totalDaily}시간</div>
         <div style="font-size:10px;color:#6B7280;margin-top:2px">실제 시간과 자원은 추후 배정</div>
       </div>
     </div>
     <div style="font-size:11px;color:#4B5563;margin-top:7px">
       추천레벨: ${selectedLevels.length ? selectedLevels.join(', ') : '-'}
-      <div style="margin-top:4px">${typeSummary || '<span style="color:#B45309">교시별 수업 구성을 한 개 이상 선택해.</span>'}</div>
+      <div style="margin-top:4px">${hasAnySubject ? typeSummary : '<span style="color:#B45309">과목을 한 개 이상 선택해.</span>'}</div>
     </div>
   `;
 }
@@ -8504,11 +9169,10 @@ function saveCourse() {
     levels.push(cb.value);
   });
 
-  const { subjectsByType, classHours, timetableTemplate } = getCourseCurriculumDraft();
+  const { subjectsByType, classHours } = getCourseCurriculumDraft();
   const curriculumRefs = Object.values(subjectsByType).flat();
-  const rowCount = document.querySelectorAll('.course-template-row').length;
-  if (!timetableTemplate.length || timetableTemplate.length !== rowCount) {
-    showToast('모든 교시의 수업 유형과 과목을 선택해줘.', 'warning');
+  if (!curriculumRefs.length) {
+    showToast('과목을 한 개 이상 선택해줘.', 'warning');
     return;
   }
   const subjects = [...new Set(curriculumRefs.map(ref => ref.id))].map(id => ({ id }));
@@ -8520,7 +9184,8 @@ function saveCourse() {
 
   const courseData = {
     name, type, fee,
-    active, subjects, subjectsByType, classHours, levels, timetableTemplate,
+    active, subjects, subjectsByType, classHours, levels,
+    timetableTemplate: undefined, // 순서 개념을 없앴으므로 과거에 저장된 값이 있어도 subjectsByType을 우선하도록 비워둠
     oneone: classHours['1:1'] || 0,
     group1on4: classHours['1:4'] || 0,
     group: classHours['1:8'] || 0,
@@ -8894,7 +9559,7 @@ function addLevelModalSubRow(value = '') {
   row.style.cssText = 'display:flex;gap:6px;align-items:center';
   const escaped = String(value).replace(/"/g, '&quot;');
   row.innerHTML = `
-    <input type="text" class="tsa-input level-modal-sub-input" placeholder="예: Beginner-1" value="${escaped}" style="flex:1"/>
+    <input type="text" class="tsa-input level-modal-sub-input" placeholder="예: GL1" value="${escaped}" style="flex:1"/>
     <button type="button" onclick="this.closest('div').remove()" style="border:0;background:none;color:#EF4444;cursor:pointer;font-size:11px;flex-shrink:0;padding:4px 6px">삭제</button>
   `;
   container.appendChild(row);

@@ -1116,16 +1116,26 @@ function getAvailState(t, d, p) {
   return 'open';
 }
 
+// 강사 가용성 그리드의 교시 수는 과정 기준 설정의 종(벨) 시간표를 그대로 따른다 —
+// 예전엔 8교시로 고정돼 있어서 9교시 이후 시간대의 가용성을 아예 설정할 수 없었다.
+function teacherAvailPeriodCount() {
+  const periods = typeof getBellPeriods === 'function' ? getBellPeriods() : null;
+  return (periods && periods.length) || ((APP && APP.bellSystem && APP.bellSystem.total) || 8);
+}
+
 function cycleAvailState(teacherId, d, p) {
   const t = MOCK_TEACHERS.find(x => x.id === teacherId);
   if (!t) return;
+  const periodCount = teacherAvailPeriodCount();
   if (!t.availState) {
     t.availState = {};
     ['월','화','수','목','금','토','일'].forEach(day => {
-      t.availState[day] = [1,2,3,4,5,6,7,8].map(period => getAvailState(t, day, period));
+      t.availState[day] = Array.from({ length: periodCount }, (_, i) => getAvailState(t, day, i + 1));
     });
   }
-  if (!t.availState[d]) t.availState[d] = Array(8).fill('open');
+  if (!t.availState[d] || t.availState[d].length < periodCount) {
+    t.availState[d] = Array.from({ length: periodCount }, (_, i) => (t.availState[d] && t.availState[d][i]) || 'open');
+  }
   const cur = t.availState[d][p-1];
   const next = cur === 'open' ? 'gray' : cur === 'gray' ? 'black' : 'open';
   t.availState[d][p-1] = next;
@@ -1156,6 +1166,8 @@ function renderTeacherAvailabilityTab() {
     gray:  { bg:'#FEF3C7', color:'#B45309', border:'#FDE68A', text:'화상' },
     black: { bg:'#F3F4F6', color:'#6B7280', border:'#D1D5DB', text:'차단' }
   };
+  const bellPeriods = typeof getBellPeriods === 'function' ? getBellPeriods() : [];
+  const periodList = bellPeriods.length ? bellPeriods : Array.from({ length: teacherAvailPeriodCount() }, (_, i) => ({ period: i + 1, start: '', end: '' }));
 
   container.innerHTML = `
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
@@ -1175,9 +1187,9 @@ function renderTeacherAvailabilityTab() {
           </tr>
         </thead>
         <tbody>
-          ${[1,2,3,4,5,6,7,8].map(p => `
+          ${periodList.map(({ period: p, start, end }) => `
             <tr>
-              <td style="font-weight:700;text-align:left;white-space:nowrap">${p}교시</td>
+              <td style="font-weight:700;text-align:left;white-space:nowrap">${p}교시${start ? `<div style="font-size:9px;font-weight:500;color:#9CA3AF">${start}~${end}</div>` : ''}</td>
               ${days.map(d => {
                 const state = getAvailState(t, d, p);
                 const s = stateStyles[state];
@@ -1201,11 +1213,12 @@ function saveTeacherAvailability(id) {
   const t = MOCK_TEACHERS.find(tch => tch.id === id);
   if (t) {
     const days = ['월', '화', '수', '목', '금', '토', '일'];
-    
+    const periodCount = teacherAvailPeriodCount();
+
     // Conflict Detection
     let conflicts = [];
     days.forEach(d => {
-      for (let p = 1; p <= 8; p++) {
+      for (let p = 1; p <= periodCount; p++) {
         const isBlocked = getAvailState(t, d, p) === 'black';
         if (isBlocked) {
           const tTimetable = MOCK_TIMETABLE.find(time => time.teacher === t.nick);
@@ -1240,10 +1253,10 @@ function saveTeacherAvailability(id) {
       t.availability = {};
     }
     days.forEach(d => {
-      if (!t.availability[d]) {
-        t.availability[d] = [true, true, true, true, true, true, true, true];
+      if (!t.availability[d] || t.availability[d].length < periodCount) {
+        t.availability[d] = Array.from({ length: periodCount }, (_, i) => (t.availability[d] && t.availability[d][i]) ?? true);
       }
-      for (let p = 1; p <= 8; p++) {
+      for (let p = 1; p <= periodCount; p++) {
         t.availability[d][p-1] = getAvailState(t, d, p) !== 'black';
       }
     });

@@ -37,7 +37,7 @@
   <script src="assets/js/lms-student.js?v=0.6.6"></script>
   <script src="assets/js/lms-course.js?v=0.6.61"></script>
   <script src="assets/js/lms-tuition.js?v=0.7.8"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.121"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.225"></script>
   <script>
     function showPopupError(message) {
       const status = document.getElementById('popup-status');
@@ -55,6 +55,9 @@
 
     function renderPopupFromRequest() {
       const params = new URLSearchParams(window.location.search);
+      // 부모 창이 보고 있는 주를 그대로 따라간다 — 배정 후보가 그 주 재원 학생만 나오게.
+      const weekParam = params.get('week');
+      if (weekParam && typeof _scaWeek !== 'undefined') _scaWeek = weekParam;
       const view = params.get('view');
       const row = Number.parseInt(params.get('row'), 10);
       const groupId = Number.parseInt(params.get('groupId'), 10);
@@ -64,13 +67,18 @@
         const sequence = Number.parseInt(params.get('sequence'), 10);
         let curriculumParam = [];
         try { curriculumParam = JSON.parse(params.get('curriculum') || '[]'); } catch (error) { curriculumParam = []; }
+        const levels = (params.get('levels') || '')
+          .split(',')
+          .map(value => Number.parseInt(value, 10))
+          .filter(Number.isFinite);
         openGroupCreateBrowserPopup(
           curriculumParam,
           params.get('type') || '1:4',
           Number.parseInt(params.get('level'), 10) || 1,
           window,
           Number.isFinite(seedStudentId) ? seedStudentId : undefined,
-          Number.isFinite(sequence) ? sequence : undefined
+          Number.isFinite(sequence) ? sequence : undefined,
+          { levels, assignAfterCreate: params.get('assign') === '1' }
         );
         return;
       }
@@ -90,6 +98,13 @@
         const studentId = Number.parseInt(params.get('student'), 10);
         if (Number.isFinite(studentId)) {
           openStudentLessonAssignment(studentId, window, params.get('type') || '');
+          return;
+        }
+      }
+      if (view === 'student-schedule') {
+        const studentId = Number.parseInt(params.get('student'), 10);
+        if (Number.isFinite(studentId)) {
+          openStudentScheduleAssignment(studentId, window, null);
           return;
         }
       }
