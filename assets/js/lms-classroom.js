@@ -1664,7 +1664,10 @@ function switchStudentClassAssignTab(tab) {
 // ═════════════════════════════════════════════════════════════
 
 let _scaWeek = null;                 // 지금 보고 있는 주(그 주 월요일 날짜)
-let MOCK_WEEK_PLANS = {};            // { '2026-08-24': { groupId: {studentIds, periods, teacherId, roomId} } }
+// { '2026-08-24': { groups: { groupId: {studentIds, periods, teacherId, roomId} },
+//                    oneToOne: { studentId: [ {subjectId, templateSequence, teacherId, dayOfWeek, period} ] } } }
+// 1:1도 여기 같이 담는다. 안 담으면 학생한테 그냥 붙어 있어서 몇 주를 넘겨도 따라온다.
+let MOCK_WEEK_PLANS = {};
 
 // 아무 날짜나 주면 그 주 월요일을 돌려준다.
 function getMondayOfWeek(dateStr) {
@@ -1721,16 +1724,21 @@ function getScaWeek() {
 
 // 지금 화면에 올라와 있는 배정을 그 주 계획으로 저장한다.
 function captureWeekPlan(weekOf) {
-  const plan = {};
+  const groups = {};
   MOCK_GROUP_CLASSES.forEach(group => {
-    plan[group.id] = {
+    groups[group.id] = {
       studentIds: [...(group.studentIds || [])],
       periods: [...(group.periods || [])],
       teacherId: group.teacherId ?? null,
       roomId: group.roomId ?? null
     };
   });
-  MOCK_WEEK_PLANS[weekOf] = plan;
+  const oneToOne = {};
+  MOCK_STUDENTS.forEach(student => {
+    if (!Array.isArray(student.oneToOneSchedule) || !student.oneToOneSchedule.length) return;
+    oneToOne[student.id] = student.oneToOneSchedule.map(item => ({ ...item, dayOfWeek: [...(item.dayOfWeek || [])] }));
+  });
+  MOCK_WEEK_PLANS[weekOf] = { groups, oneToOne };
 }
 
 function hasWeekPlan(weekOf) {
@@ -1740,12 +1748,21 @@ function hasWeekPlan(weekOf) {
 // 그 주 계획을 화면 데이터에 올린다. 계획이 없으면 빈 종이 — 명단도 시간도 비운다.
 function applyWeekPlan(weekOf) {
   const plan = MOCK_WEEK_PLANS[weekOf] || null;
+  const groups = plan ? (plan.groups || {}) : null;
   MOCK_GROUP_CLASSES.forEach(group => {
-    const saved = plan ? plan[group.id] : null;
+    const saved = groups ? groups[group.id] : null;
     group.studentIds = saved ? [...saved.studentIds] : [];
     group.periods = saved ? [...saved.periods] : [];
     group.teacherId = saved ? saved.teacherId : null;
     group.roomId = saved ? saved.roomId : null;
+  });
+  // 1:1도 같이 갈아끼운다. 계획이 없는 주는 0건에서 시작한다.
+  const oneToOne = plan ? (plan.oneToOne || {}) : null;
+  MOCK_STUDENTS.forEach(student => {
+    const saved = oneToOne ? oneToOne[student.id] : null;
+    student.oneToOneSchedule = saved
+      ? saved.map(item => ({ ...item, dayOfWeek: [...(item.dayOfWeek || [])] }))
+      : [];
   });
 }
 
@@ -1769,7 +1786,8 @@ function copyPreviousWeekPlan() {
     showToast('지난주에 저장된 배정이 없어.', 'warning');
     return;
   }
-  const already = MOCK_GROUP_CLASSES.some(g => (g.studentIds || []).length || (g.periods || []).length);
+  const already = MOCK_GROUP_CLASSES.some(g => (g.studentIds || []).length || (g.periods || []).length)
+    || MOCK_STUDENTS.some(s => (s.oneToOneSchedule || []).length);
   if (already && !window.confirm('이번 주에 이미 짜둔 배정이 있어. 지난주 것으로 덮어쓸까?')) return;
   MOCK_WEEK_PLANS[week] = JSON.parse(JSON.stringify(MOCK_WEEK_PLANS[previous]));
   applyWeekPlan(week);
@@ -1946,6 +1964,11 @@ function renderScaWeekHeader() {
       ${stepCard(1, '그룹 편성', `학생 ${progress.students}명 전원 배정`, progress.step1.missing, `학생 ${progress.step1.students.length}명 · 수업 ${progress.step1.missing}개 남음`)}
       ${stepCard(2, '그룹 시간표', `${progress.step2.total}개 반 전부 배치`, progress.step2.missing, `${progress.step2.total - progress.step2.missing}/${progress.step2.total}반 배치 · ${progress.step2.missing}반 남음`, progress.step2.total === 0 ? '학생이 있는 반이 아직 없어' : null)}
       ${stepCard(3, '1:1 배정', `${progress.step3.total}건 전부 배정`, progress.step3.missing, `${progress.step3.total - progress.step3.missing}/${progress.step3.total}건 배정 · ${progress.step3.missing}건 남음`)}
+      <button onclick="setScaStep(4)" title="이번 주에 짜인 수업을 한눈에 본다" style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:12px 16px;border:0;background:${_scaStep === 4 ? '#EEF2FF' : '#F8FAFC'};cursor:pointer;text-align:left;position:relative">
+        <span style="display:inline-grid;place-items:center;width:24px;height:24px;flex:0 0 24px;border-radius:7px;border:1.5px dashed ${_scaStep === 4 ? '#5E5CE6' : '#D1D5DB'};color:${_scaStep === 4 ? '#4F46E5' : '#9CA3AF'};font-size:11px">▦</span>
+        <span><b style="display:block;font-size:12px;font-weight:700;color:${_scaStep === 4 ? '#4F46E5' : '#6B7280'}">전체 시간표</b><span style="display:block;font-size:10.5px;margin-top:2px;color:#9CA3AF">보기 전용</span></span>
+        ${_scaStep === 4 ? '<span style="position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#5E5CE6"></span>' : ''}
+      </button>
     </div>
     ${todoLine}
   </div>`;
@@ -2005,6 +2028,23 @@ function releaseOneToOneClashingWithGroup(student, group) {
   const released = student.oneToOneSchedule.filter(item => periods.includes(Number(item.period)));
   if (!released.length) return [];
   student.oneToOneSchedule = student.oneToOneSchedule.filter(item => !periods.includes(Number(item.period)));
+  return released;
+}
+
+// 그룹이 이 강사의 이 교시를 가져가면, 같은 자리에 있던 1:1은 놓아준다. 3단계에서 다시 잡는다.
+function releaseTeacherOneToOneAtPeriod(teacherId, period) {
+  const target = Number(period);
+  const owner = Number(teacherId);
+  const released = [];
+  MOCK_STUDENTS.forEach(student => {
+    if (!Array.isArray(student.oneToOneSchedule)) return;
+    const hit = student.oneToOneSchedule.filter(item =>
+      Number(item.teacherId) === owner && Number(item.period) === target);
+    if (!hit.length) return;
+    student.oneToOneSchedule = student.oneToOneSchedule.filter(item =>
+      !(Number(item.teacherId) === owner && Number(item.period) === target));
+    hit.forEach(item => released.push({ student, entry: item }));
+  });
   return released;
 }
 
@@ -2322,8 +2362,8 @@ function unassignScaOneToOne(studentId, sequence, subjectId) {
 // 3단계 자동 배정 — 남은 1:1을 빈 자리에 알아서 끼운다.
 //
 // 그룹이 이미 앉아 있으니 여기서는 "그 교시에 비는 강사"만 찾으면 된다.
-// 한 학생의 1:1은 되도록 같은 강사에게 몰아준다 — 학생도 강사도 그게 편하고,
-// 지금 데이터도 그렇게 짜여 있다(Sarah가 James의 네 과목을 1~4교시에 연달아 맡는 식).
+// 한 강사는 여러 학생을 맡을 수 있다. 한 사람에게 하루를 통째로 몰아주면
+// 그 강사가 다른 학생을 못 받으니, 수업이 적은 강사부터 채워 골고루 퍼뜨린다.
 function runScaStep3AutoAssign() {
   const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
   const pending = getScaOneToOnePending();
@@ -2339,8 +2379,6 @@ function runScaStep3AutoAssign() {
   const failed = [];
 
   pending.forEach(({ student, requirement }) => {
-    // 이미 이 학생을 맡고 있는 강사를 먼저 본다.
-    const owned = new Set((student.oneToOneSchedule || []).map(item => Number(item.teacherId)));
     let done = false;
     for (let period = 1; period <= totalPeriods && !done; period += 1) {
       if (!isStudentFreeAtPeriod(student, period, requirement.sequence)) continue;
@@ -2348,10 +2386,7 @@ function runScaStep3AutoAssign() {
         canTeacherTakeOneToOne(teacher) && getScaOneToOneCellState(teacher, period, null).kind === 'free'
       );
       if (!free.length) continue;
-      free.sort((a, b) =>
-        (owned.has(b.id) ? 1 : 0) - (owned.has(a.id) ? 1 : 0)
-        || teacherLoad(a) - teacherLoad(b)
-      );
+      free.sort((a, b) => teacherLoad(a) - teacherLoad(b) || a.id - b.id);
       const result = saveStudentOneToOneSchedule(student.id, requirement.subjectId, free[0].id, period, requirement.sequence);
       if (result.ok) { placed += 1; done = true; }
     }
@@ -2363,6 +2398,196 @@ function runScaStep3AutoAssign() {
   showToast(`${placed ? '✓ ' : ''}${parts.join('. ')}.`, failed.length ? 'warning' : 'success');
   _scaOnePick = null;
   renderStudentClassAssignView();
+}
+// ═════════════════════════════════════════════════════════════
+// 전체 시간표 — 다 짜고 나서 확인하는 화면. 여기서는 배정하지 않는다.
+//
+// 강사별은 만들지 않는다. 3단계 표가 이미 강사 × 교시라 그 일을 겸한다.
+// 여기서는 축이 다른 두 가지만 본다 — 학생별(시간표 뽑기), 강의실별(빈 방 찾기).
+// ═════════════════════════════════════════════════════════════
+
+let _scaScheduleView = 'student';
+
+function setScaScheduleView(view) {
+  _scaScheduleView = view === 'room' ? 'room' : 'student';
+  renderStudentClassAssignView();
+}
+
+// 이번 주에 실제로 열리는 수업을 교시 단위로 모두 편다.
+// 그룹은 반 하나가 한 줄, 1:1은 학생 한 명이 한 줄이다.
+function getScaWeekLessons() {
+  const lessons = [];
+  MOCK_GROUP_CLASSES.forEach(group => {
+    if (group.status !== 'active') return;
+    if (!Array.isArray(group.periods) || !group.periods.length) return;
+    const teacher = group.teacherId != null ? MOCK_TEACHERS.find(item => item.id === group.teacherId) : null;
+    const room = group.roomId != null ? MOCK_CLASS_ROOMS.find(item => item.id === group.roomId) : null;
+    group.periods.map(Number).forEach(period => lessons.push({
+      kind: 'group',
+      period,
+      groupId: group.id,
+      title: getGroupDisplayName(group),
+      teacherId: teacher ? teacher.id : null,
+      teacherName: teacher ? (teacher.nick || teacher.name) : '강사 미정',
+      roomNo: room ? room.roomNo : null,
+      studentIds: [...(group.studentIds || [])],
+      capacity: getGroupClassCapacity(group.classType),
+      merged: isMergedLevelGroup(group)
+    }));
+  });
+  getScaWeekStudents().forEach(student => {
+    (student.oneToOneSchedule || []).forEach(item => {
+      if (item.period == null) return;
+      const teacher = MOCK_TEACHERS.find(row => row.id === Number(item.teacherId));
+      const subject = MOCK_MASTER_SUBJECTS.find(row => row.id === item.subjectId);
+      lessons.push({
+        kind: 'one',
+        period: Number(item.period),
+        title: `${student.nick || student.name} · ${subject?.name || item.subjectId}`,
+        studentName: student.nick || student.name,
+        subjectName: subject?.name || item.subjectId,
+        teacherId: teacher ? teacher.id : null,
+        teacherName: teacher ? (teacher.nick || teacher.name) : '강사 미정',
+        roomNo: teacher?.room || null,
+        studentIds: [student.id]
+      });
+    });
+  });
+  return lessons;
+}
+
+// 같은 시간에 두 번 잡힌 것. 다 짜고 난 뒤 마지막으로 훑는 용도다.
+function getScaScheduleConflicts(lessons) {
+  const conflicts = [];
+  const bump = (map, key, lesson) => {
+    if (key == null) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(lesson);
+  };
+  const teachers = new Map();
+  const rooms = new Map();
+  const students = new Map();
+  lessons.forEach(lesson => {
+    bump(teachers, lesson.teacherId != null ? `${lesson.teacherId}|${lesson.period}` : null, lesson);
+    bump(rooms, lesson.roomNo ? `${lesson.roomNo}|${lesson.period}` : null, lesson);
+    lesson.studentIds.forEach(id => bump(students, `${id}|${lesson.period}`, lesson));
+  });
+  const collect = (map, label, nameOf) => {
+    map.forEach((list, key) => {
+      if (list.length < 2) return;
+      const period = key.split('|')[1];
+      conflicts.push(`${label} ${nameOf(key, list)} — ${period}교시에 ${list.length}개`);
+    });
+  };
+  collect(teachers, '강사', (key, list) => list[0].teacherName);
+  collect(rooms, '강의실', key => key.split('|')[0]);
+  collect(students, '학생', key => {
+    const student = MOCK_STUDENTS.find(item => item.id === Number(key.split('|')[0]));
+    return student ? (student.nick || student.name) : '?';
+  });
+  return conflicts;
+}
+
+function renderScaScheduleBoard() {
+  const panel = document.getElementById('sca-panel-schedule');
+  if (!panel) return;
+  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const periods = Array.from({ length: totalPeriods }, (_, i) => i + 1);
+  const lessons = getScaWeekLessons();
+  const conflicts = getScaScheduleConflicts(lessons);
+  const isRoom = _scaScheduleView === 'room';
+
+  const tab = (view, label) => {
+    const on = _scaScheduleView === view;
+    return `<button onclick="setScaScheduleView('${view}')" style="border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#6B7280'};border-radius:8px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer">${label}</button>`;
+  };
+
+  const chip = (lesson, mode, hideTeacher) => {
+    const one = lesson.kind === 'one';
+    const color = one ? '#5E5CE6' : '#059669';
+    const main = mode === 'room'
+      ? (one ? lessonEsc(lesson.title) : lessonEsc(lesson.title))
+      : (one ? `1:1 ${lessonEsc(lesson.subjectName)}` : lessonEsc(lesson.title));
+    const sub = mode === 'room'
+      ? (hideTeacher ? '' : lessonEsc(lesson.teacherName)) + (one ? '' : `${hideTeacher ? '' : ' · '}${lesson.studentIds.length}/${lesson.capacity}명`)
+      : `${lessonEsc(lesson.teacherName)}${lesson.roomNo ? ` · ${lessonEsc(lesson.roomNo)}` : ''}`;
+    return `<div style="border:1px ${lesson.merged ? 'dashed' : 'solid'} #E5E7EB;border-left:3px ${lesson.merged ? 'dashed' : 'solid'} ${color};border-radius:7px;padding:5px 7px;margin-bottom:3px;background:#fff;line-height:1.35">
+      <b style="display:block;font-size:9.5px;color:#111827">${main}</b>
+      <span style="font-size:8.5px;color:#9CA3AF">${sub}</span>
+    </div>`;
+  };
+
+  let rows = '';
+  let headLabel = '';
+
+  if (isRoom) {
+    headLabel = '강의실';
+    const used = new Set(lessons.map(lesson => lesson.roomNo).filter(Boolean));
+    const roomList = MOCK_CLASS_ROOMS.filter(room => room.roomNo && (['1:4', '1:8'].includes(room.type) || used.has(room.roomNo)));
+    rows = roomList.map(room => {
+      // 1:1 강의실은 담당 강사가 고정이라 방 이름만으로는 누구 방인지 알 수 없다. 이름을 같이 건다.
+      const owner = MOCK_TEACHERS.find(teacher => teacher.status !== 'resigned' && teacher.room === room.roomNo);
+      const cells = periods.map(period => {
+        const here = lessons.filter(lesson => lesson.roomNo === room.roomNo && lesson.period === period);
+        // 강사 이름이 줄 머리에 있으면 칸마다 또 쓰지 않는다.
+        const hideTeacher = Boolean(owner) && here.every(lesson => lesson.teacherId === owner.id);
+        return `<td style="padding:4px;border-top:1px solid #F3F4F6;border-left:1px solid #F3F4F6;vertical-align:top">${here.map(lesson => chip(lesson, 'room', hideTeacher)).join('') || '<div style="text-align:center;color:#E5E7EB;font-size:9px;padding:7px 0">·</div>'}</td>`;
+      }).join('');
+      const busy = periods.filter(period => lessons.some(lesson => lesson.roomNo === room.roomNo && lesson.period === period)).length;
+      return `<tr>
+        <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
+          <b style="display:block;font-size:11px;color:#111827">${lessonEsc(room.roomNo)}${owner ? `<span style="font-weight:600;color:#5E5CE6;margin-left:5px">${lessonEsc(owner.nick || owner.name)}</span>` : ''}</b>
+          <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(room.type)} · 빈 교시 ${totalPeriods - busy}</span>
+        </td>${cells}
+      </tr>`;
+    }).join('');
+  } else {
+    headLabel = '학생';
+    const students = getScaWeekStudents();
+    rows = students.map(student => {
+      const cells = periods.map(period => {
+        const here = lessons.filter(lesson => lesson.period === period && lesson.studentIds.includes(student.id));
+        return `<td style="padding:4px;border-top:1px solid #F3F4F6;border-left:1px solid #F3F4F6;vertical-align:top">${here.map(lesson => chip(lesson, 'student')).join('') || '<div style="text-align:center;color:#E5E7EB;font-size:9px;padding:7px 0">·</div>'}</td>`;
+      }).join('');
+      const count = periods.filter(period => lessons.some(lesson => lesson.period === period && lesson.studentIds.includes(student.id))).length;
+      return `<tr>
+        <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
+          <b style="display:block;font-size:11px;color:#111827">${lessonEsc(student.nick || student.name)}</b>
+          <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(student.level || '-')} · ${count}교시</span>
+        </td>${cells}
+      </tr>`;
+    }).join('');
+  }
+
+  const conflictBar = conflicts.length
+    ? `<div style="padding:9px 12px;border:1.5px solid #DC2626;border-radius:10px;background:#FEE2E2;margin-bottom:11px;font-size:11px;color:#B91C1C;line-height:1.7">
+        <b>같은 시간에 두 번 잡힌 게 ${conflicts.length}건 있어.</b><br>${conflicts.slice(0, 5).map(lessonEsc).join('<br>')}${conflicts.length > 5 ? `<br>외 ${conflicts.length - 5}건` : ''}
+      </div>`
+    : `<div style="padding:9px 12px;border:1.5px solid #047857;border-radius:10px;background:#ECFDF5;margin-bottom:11px;font-size:11px;color:#047857;font-weight:700">겹치는 수업이 없어. 강사 · 강의실 · 학생 모두 깨끗해.</div>`;
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:11px">
+      <span style="font-size:10.5px;color:#6B7280">보기</span>
+      ${tab('student', '학생별')}
+      ${tab('room', '강의실별')}
+      <span style="margin-left:auto;font-size:10.5px;color:#9CA3AF">이 화면에서는 배정하지 않아. 고치려면 1~3단계로 가.</span>
+    </div>
+    ${conflictBar}
+    <div style="overflow-x:auto;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
+      <table style="border-collapse:collapse;width:100%;font-size:10.5px">
+        <thead><tr>
+          <th style="padding:8px 11px;font-size:10px;font-weight:700;color:#9CA3AF;background:#F8FAFC;border-bottom:1px solid #E5E7EB;text-align:left;width:120px">${headLabel}</th>
+          ${periods.map(period => `<th style="padding:8px 6px;font-size:10px;font-weight:700;color:#6B7280;background:#F8FAFC;border-bottom:1px solid #E5E7EB;border-left:1px solid #F3F4F6;text-align:center;min-width:100px">${period}교시</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows || `<tr><td colspan="${periods.length + 1}" style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">이번 주에 열리는 수업이 없어.</td></tr>`}</tbody>
+      </table>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;padding:9px 13px;border-top:1px solid #F3F4F6;font-size:10.5px;color:#9CA3AF">
+        <span><i style="display:inline-block;width:3px;height:10px;border-radius:2px;background:#059669;vertical-align:-1px;margin-right:5px"></i>그룹 수업</span>
+        <span><i style="display:inline-block;width:3px;height:10px;border-radius:2px;background:#5E5CE6;vertical-align:-1px;margin-right:5px"></i>1:1 수업</span>
+        <span>점선 — 통합 레벨 그룹</span>
+        <span>모든 수업은 주 5회(월~금) 같은 교시야.</span>
+      </div>
+    </div>`;
 }
 function renderScaStep3Board() {
   const panel = document.getElementById('sca-panel-step3');
@@ -2474,13 +2699,14 @@ function navigateStudentClassAssign(tab) {
 const SCA_PAGE_META = {
   students: { title: '🗓️ 주간 수업 배정', subtitle: '1단계 — 이번 주에 누가 어느 반인지 정합니다. 교시·선생님·강의실은 2단계에서 정합니다.' },
   groups: { title: '🗓️ 주간 수업 배정', subtitle: '2단계 — 반마다 교시·담당 선생님·강의실을 정합니다. 학생이 겹치는 자리는 고를 수 없습니다.' },
-  one: { title: '🗓️ 주간 수업 배정', subtitle: '3단계 — 그룹이 앉고 남은 자리에 1:1 수업을 끼웁니다. 1:1도 주 5회 월~금 같은 교시입니다.' }
+  one: { title: '🗓️ 주간 수업 배정', subtitle: '3단계 — 그룹이 앉고 남은 자리에 1:1 수업을 끼웁니다. 1:1도 주 5회 월~금 같은 교시입니다.' },
+  schedule: { title: '🗓️ 주간 수업 배정', subtitle: '전체 시간표 — 이번 주에 짜인 수업을 학생별·강의실별로 확인합니다. 여기서는 배정하지 않습니다.' }
 };
 
 function renderStudentClassAssignView() {
   const step = _scaStep;
   const showGroups = step === 2;
-  const meta = SCA_PAGE_META[step === 2 ? 'groups' : step === 3 ? 'one' : 'students'];
+  const meta = SCA_PAGE_META[step === 2 ? 'groups' : step === 3 ? 'one' : step === 4 ? 'schedule' : 'students'];
   const titleEl = document.getElementById('sca-page-title');
   const subtitleEl = document.getElementById('sca-page-subtitle');
   const breadcrumbEl = document.getElementById('breadcrumb-current');
@@ -2494,14 +2720,17 @@ function renderStudentClassAssignView() {
   // 그룹 생성·자동 매칭 버튼은 그룹 편성 탭에서만 의미가 있어.
   const groupActions = document.getElementById('sca-group-actions');
   const step3Panel = document.getElementById('sca-panel-step3');
+  const schedulePanel = document.getElementById('sca-panel-schedule');
   if (step1Panel) step1Panel.style.display = step === 1 ? 'block' : 'none';
   if (step3Panel) step3Panel.style.display = step === 3 ? 'block' : 'none';
+  if (schedulePanel) schedulePanel.style.display = step === 4 ? 'block' : 'none';
   if (studentsPanel) studentsPanel.style.display = 'none';
   if (groupsPanel) groupsPanel.style.display = step === 2 ? 'block' : 'none';
   if (groupActions) groupActions.style.display = showGroups ? 'flex' : 'none';
   renderScaWeekHeader();
   if (step === 2) renderStudentClassAssignGroupPanel();
   else if (step === 3) renderScaStep3Board();
+  else if (step === 4) renderScaScheduleBoard();
   else renderScaStep1Board();
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
 }
@@ -5546,9 +5775,16 @@ function getGroupPlacementTeacherOptions(classType, period, excludeGroupId) {
       if (clash) {
         return { teacher, ok: false, reason: `${period}교시에 ${getGroupDisplayName(clash)} 담당 중` };
       }
+      // 1:1도 한 교시에 한 명이다. 여기를 안 보면 같은 강사에게 그룹과 1:1이 겹쳐 잡힌다.
+      const oneToOne = findOneToOneAt(teacher.id, period);
+      if (oneToOne) {
+        const who = oneToOne.student.nick || oneToOne.student.name;
+        return { teacher, ok: false, busyOneToOne: true, reason: `${period}교시에 ${who} 1:1 수업 중` };
+      }
       return { teacher, ok: true, reason: `${period}교시 비어 있음` };
     })
-    .sort((a, b) => (a.ok ? 0 : 1) - (b.ok ? 0 : 1));
+    .sort((a, b) => (a.ok ? 0 : 1) - (b.ok ? 0 : 1)
+      || (a.busyOneToOne ? 0 : 1) - (b.busyOneToOne ? 0 : 1));
 }
 
 // 배치 팝업용 강의실 목록. 다른 그룹뿐 아니라 강의실 배정(1:1 주간 세션)까지 같이 본다.
@@ -5819,7 +6055,14 @@ function findBestPlacementForGroup(group, totalPeriods) {
   const candidates = [];
   for (let period = 1; period <= totalPeriods; period += 1) {
     if (getGroupStudentsClashingAtPeriod(group, period).length) continue;
-    const teachers = getGroupPlacementTeacherOptions(group.classType, period, group.id).filter(option => option.ok);
+    const options = getGroupPlacementTeacherOptions(group.classType, period, group.id);
+    // 1:1이 없는 강사가 먼저다. 아무도 없을 때만 1:1 중인 강사를 쓰고, 그 1:1은 3단계로 되돌린다.
+    let teachers = options.filter(option => option.ok);
+    let teacherReleases = 0;
+    if (!teachers.length) {
+      teachers = options.filter(option => option.busyOneToOne);
+      teacherReleases = 1;
+    }
     if (!teachers.length) continue;
     const rooms = getGroupPlacementRoomOptions(group.classType, period, need, group.id).filter(option => option.ok);
     if (!rooms.length) continue;
@@ -5827,7 +6070,8 @@ function findBestPlacementForGroup(group, totalPeriods) {
       other.id !== group.id && other.status === 'active' &&
       Array.isArray(other.periods) && other.periods.map(Number).includes(period)
     ).length;
-    candidates.push({ period, teachers, rooms, releases: countOneToOneClashesAtPeriod(group, period), load });
+    candidates.push({ period, teachers, rooms, teacherReleases, load,
+      releases: countOneToOneClashesAtPeriod(group, period) + teacherReleases });
   }
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.releases - b.releases || a.period - b.period);
@@ -5848,7 +6092,7 @@ function explainPlacementFailure(group, totalPeriods) {
   let noRoom = 0;
   for (let period = 1; period <= totalPeriods; period += 1) {
     if (getGroupStudentsClashingAtPeriod(group, period).length) { studentBlocked += 1; continue; }
-    if (!getGroupPlacementTeacherOptions(group.classType, period, group.id).some(option => option.ok)) { noTeacher += 1; continue; }
+    if (!getGroupPlacementTeacherOptions(group.classType, period, group.id).some(option => option.ok || option.busyOneToOne)) { noTeacher += 1; continue; }
     if (!getGroupPlacementRoomOptions(group.classType, period, need, group.id).some(option => option.ok)) { noRoom += 1; }
   }
   if (noRoom >= noTeacher && noRoom >= studentBlocked) return '빈 강의실이 없어';
@@ -5883,6 +6127,7 @@ function runScaStep2AutoPlace() {
     group.teacherId = best.teacher.id;
     group.roomId = best.room.id;
     // 그룹이 앉은 자리와 겹치는 1:1은 놓아준다. 3단계에서 남은 자리에 다시 잡는다.
+    released += releaseTeacherOneToOneAtPeriod(best.teacher.id, best.period).length;
     (group.studentIds || []).forEach(id => {
       const student = MOCK_STUDENTS.find(item => item.id === id);
       if (student) released += releaseOneToOneClashingWithGroup(student, group).length;
