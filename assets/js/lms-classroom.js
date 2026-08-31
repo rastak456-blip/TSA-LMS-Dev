@@ -5259,13 +5259,7 @@ function getGroupManagementSubjectLabel(curriculum) {
 let _gmCourseFilter = 'all';
 let _gmLevelFilter = 'all';
 let _gmTypeFilter = 'all';
-let _gmSortMode = 'level'; // 'level' | 'subject' | 'waiting' | 'need'
 let _gmLevelScope = 'single'; // 그룹 편성 안에서 'single'(개별) | 'merged'(통합)
-
-function setGroupManagementSortMode(mode) {
-  _gmSortMode = ['level', 'subject', 'waiting', 'need'].includes(mode) ? mode : 'level';
-  renderGroupManagement();
-}
 
 // 예전 코드가 부르던 자리. 이제 보는 화면은 단계 줄이 정한다.
 function setGroupManagementBoardView(view) {
@@ -5342,11 +5336,6 @@ function renderGroupLevelToolbar(subjectIds) {
           <option value="all">그룹 수업 유형 전체</option>
           ${[...MOCK_MASTER_CLASS_TYPES].filter(type => type.classMode === 'group' && type.visible !== false).map(type => `<option value="${type.code}" ${_gmTypeFilter === type.code ? 'selected' : ''}>${lessonEsc(getGroupSizeShortLabel(type.code))}(${type.code})</option>`).join('')}
         </select>
-        ${_gmLevelScope === 'merged' ? '' : `<select class="tsa-input" style="width:150px;height:34px;font-size:11px" onchange="setGroupManagementSortMode(this.value)">
-          ${[['level','레벨순'],['subject','과목순'],['waiting','대기 인원 많은 순'],['need','그룹 추가 필요 순']].map(option =>
-            `<option value="${option[0]}" ${_gmSortMode === option[0] ? 'selected' : ''}>${option[1]}</option>`
-          ).join('')}
-        </select>`}
       </div>`;
 }
 
@@ -5372,11 +5361,8 @@ function renderGroupScheduleSubjectBar(subjectIds) {
 // 배정 완료는 자리가 한 칸이라도 남으면 배정 필요로 넘어가 개강 초기엔 거의 항상 0이었다.
 function renderGroupManagementBoard(rows, toolbarHtml) {
   const summaries = buildGroupLevelSummaries();
+  // 레벨 안에서 소그룹(1:4) → 중그룹(1:8) 순으로 묶는다. 통합 레벨과 같은 순서다.
   const levelRows = [...rows].sort((a, b) => {
-    if (_gmSortMode === 'waiting') return b.waitingCount - a.waitingCount || a.levelGroup - b.levelGroup;
-    if (_gmSortMode === 'need') return b.additionalGroups - a.additionalGroups || b.waitingCount - a.waitingCount;
-    if (_gmSortMode === 'subject') return a.subjectName.localeCompare(b.subjectName, 'ko') || a.levelGroup - b.levelGroup;
-    // 기본(레벨순)은 레벨 안에서 소그룹(1:4) → 중그룹(1:8) 순으로 묶는다. 통합 레벨과 같은 순서다.
     return a.levelGroup - b.levelGroup
       || getGroupTypeRank(a.classType) - getGroupTypeRank(b.classType)
       || a.subjectName.localeCompare(b.subjectName, 'ko');
@@ -5453,7 +5439,7 @@ function renderGroupDemandSingleTable(rows, summaries) {
   <div style="padding:2px 4px 11px;display:flex;flex-direction:column;gap:4px;font-size:11px;color:#9CA3AF">
     <span>· 과목별 운영 그룹의 강사·강의실·교시·배정 인원을 한 행에서 확인해. 운영 그룹이 여러 개일 때만 A/B로 구분해.</span>
     <span>· <b style="color:#DC2626">생성 필요 +N</b>은 기존 그룹의 남은 자리로 대기 인원을 감당할 수 없어 추가로 열어야 할 그룹 수야.</span>
-    <span>· 요일은 예외만 적어 — 표시가 없으면 <b>주 5회(월~금)</b>야. <b style="color:#5E5CE6">통합 그룹 N개 운영</b>은 값이 아니라 안내로, 합계에 더해지지 않아.</span>
+    <span>· 요일은 예외만 적어 — 표시가 없으면 <b>주 5회(월~금)</b>야. <b style="color:#5E5CE6">통합</b>으로 표시된 반은 옆 레벨과 함께 쓰는 반이라, 이 레벨의 필요 반 수에는 세지 않아.</span>
   </div>`;
 }
 
@@ -5469,58 +5455,73 @@ function toggleGroupLevelTable(levelGroup, trigger) {
   }
 }
 
+// 한 줄 = 반 하나. 반마다 진도율과 상세 버튼이 나란히 붙는다.
+// 왼쪽(운영 그룹)과 오른쪽(진도율)을 같은 목록에서 만들어야 줄이 어긋나지 않는다.
+const GM_ROW_LINE_HEIGHT = 30;
+
 function renderGroupDemandRow(row, showLevelPrefix) {
   const allGroups = getGroupManagementRowGroups(row);
   const ownGroups = allGroups.filter(group => !isMergedLevelGroup(group));
-  const mergedCount = allGroups.length - ownGroups.length;
+  const mergedGroups = allGroups.filter(group => isMergedLevelGroup(group));
   const capacity = getGroupClassCapacity(row.classType);
-  const cell = (html, extra) => `<td style="padding:10px 13px;font-size:12.5px;color:#6B7280;border-top:1px solid #F3F4F6;vertical-align:middle;${extra || ''}">${html}</td>`;
+  const cell = (html, extra) => `<td style="padding:8px 13px;font-size:12.5px;color:#6B7280;border-top:1px solid #F3F4F6;vertical-align:top;${extra || ''}">${html}</td>`;
+  // 오른쪽 진도율 줄과 높이를 맞춰야 하니 한 줄은 절대 두 줄로 넘기지 않는다. 넘칠 땐 말줄임으로 자른다.
+  const line = html => `<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;gap:7px;white-space:nowrap">${html}</div>`;
 
-  const mergedPointer = mergedCount
-    ? `<span title="이 수요는 통합 레벨 그룹이 함께 맡고 있어. 통합 레벨을 확인해." style="display:inline-block;padding:3px 8px;border-radius:999px;background:#EEF2FF;color:#5E5CE6;font-size:10px;font-weight:700;cursor:help">통합 그룹 ${mergedCount}개 운영</span>`
-    : '';
+  // 개별 반 먼저, 그 아래 통합 반. 통합은 이 레벨과 옆 레벨이 함께 쓰는 반이라 따로 표시한다.
+  const lines = [
+    ...ownGroups.map((group, index) => ({ group, code: `${String.fromCharCode(65 + index)}반`, merged: false })),
+    ...mergedGroups.map(group => ({ group, code: '통합', merged: true }))
+  ];
 
-  const groupItems = ownGroups.map((group, groupIndex) => {
+  const groupLine = item => {
+    const group = item.group;
     const count = group.studentIds.length;
-    const groupCode = String.fromCharCode(65 + groupIndex);
     const placed = Array.isArray(group.periods) && group.periods.length;
-    return `<button type="button" onclick="event.stopPropagation();openActiveGroupDetail(${group.id})" title="${lessonEsc(getGroupDisplayName(group))} — 눌러서 상세 보기" style="width:100%;border:0;background:none;padding:3px 0;display:flex;align-items:center;gap:7px;text-align:left;cursor:pointer;color:#475569;font-size:11.5px" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='none'">
-      <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;padding:0 6px;border-radius:6px;background:#E0E7FF;color:#4F46E5;font-size:10px;font-weight:800">${groupCode}반</span>
-      ${placed
+    return line(`
+      <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;padding:0 6px;border-radius:6px;background:${item.merged ? '#EEF2FF' : '#E0E7FF'};color:#4F46E5;font-size:10px;font-weight:800">${item.code}</span>
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.merged ? `<span style="color:#8A90A2;font-size:10.5px">${lessonEsc(getGroupLevelSetLabel(group))}</span>
+      ` : ''}${placed
         ? `<b style="color:#111827">${lessonEsc(getGroupTeacherLabel(group))}</b>
-           <span style="color:#CBD5E1">·</span><span>${lessonEsc(getGroupRoomLabel(group))}</span>
-           <span style="color:#CBD5E1">·</span><span>${getGroupDayPeriodHtml(group)}</span>`
+           <span style="color:#CBD5E1;margin:0 3px">·</span><span>${lessonEsc(getGroupRoomLabel(group))}</span>
+           <span style="color:#CBD5E1;margin:0 3px">·</span><span>${getGroupDayPeriodHtml(group)}</span>`
         : `<span style="padding:2px 7px;border-radius:999px;background:#FEF3C7;color:#B45309;font-size:9.5px;font-weight:800">시간 미정</span>`}
-      <span style="color:#CBD5E1">·</span><b style="color:#475569">${count}/${capacity}명</b>
-      <span style="margin-left:auto;color:#C4C9D4;font-size:10px">상세 ›</span>
-    </button>`;
-  }).join('');
+      <span style="color:#CBD5E1;margin:0 3px">·</span><b style="color:#475569">${count}/${capacity}명</b></span>
+      <button type="button" onclick="event.stopPropagation();openActiveGroupDetail(${group.id})" title="${lessonEsc(getGroupDisplayName(group))} 상세" style="margin-left:auto;border:1px solid #D8DCE6;background:#fff;color:#475569;border-radius:7px;padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer" onmouseover="this.style.borderColor='#5E5CE6';this.style.color='#5E5CE6'" onmouseout="this.style.borderColor='#D8DCE6';this.style.color='#475569'">상세</button>`);
+  };
 
-  const progressItems = ownGroups.length
-    ? ownGroups.map(group => {
-        const rate = Math.max(0, Math.min(100, Number(group.progressRate) || 0));
-        const color = rate >= 70 ? '#059669' : rate >= 50 ? '#5E5CE6' : '#D97706';
-        return `<div style="height:26px;display:flex;align-items:center;justify-content:flex-end;gap:6px">
-          <span style="width:54px;height:5px;border-radius:999px;background:#E5E7EB;overflow:hidden"><span style="display:block;width:${rate}%;height:100%;background:${color}"></span></span>
-          <b style="min-width:30px;color:${color};font-size:11px">${rate}%</b>
-        </div>`;
-      }).join('')
-    : '<span style="color:#CBD5E1">—</span>';
+  const progressLine = item => {
+    const rate = Math.max(0, Math.min(100, Number(item.group.progressRate) || 0));
+    const color = rate >= 70 ? '#059669' : rate >= 50 ? '#5E5CE6' : '#D97706';
+    return `<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;justify-content:flex-end;gap:6px">
+      <span style="width:54px;height:5px;border-radius:999px;background:#E5E7EB;overflow:hidden"><span style="display:block;width:${rate}%;height:100%;background:${color}"></span></span>
+      <b style="min-width:30px;color:${color};font-size:11px">${rate}%</b>
+    </div>`;
+  };
 
   const needBadge = row.additionalGroups > 0
-    ? `<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700">${ownGroups.length ? '추가 생성 필요' : '운영 그룹 없음 · 생성 필요'} +${row.additionalGroups}</span>`
-    : (!ownGroups.length && !mergedCount ? '<span style="color:#94A3B8;font-size:11px">운영 그룹 없음</span>' : '');
-  const operatingGroupsHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px">${groupItems}${mergedPointer}${needBadge}</div>`;
+    ? line(`<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700">${lines.length ? '추가 생성 필요' : '운영 그룹 없음 · 생성 필요'} +${row.additionalGroups}</span>`)
+    : (!lines.length ? line('<span style="color:#94A3B8;font-size:11px">운영 그룹 없음</span>') : '');
 
-  return `<tr onclick="openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})" style="cursor:pointer">
-    <td style="padding:10px 13px 10px 22px;font-size:12.5px;font-weight:700;color:#111827;white-space:nowrap;border-top:1px solid #F3F4F6">
-      ${showLevelPrefix ? `<span style="font-weight:400;color:#9CA3AF;margin-right:6px">${lessonEsc(getLevelGroupName(row.levelGroup))}</span>` : ''}
-      ${lessonEsc(row.subjectName)}
+  const createButton = line(`<button type="button" onclick="event.stopPropagation();openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})" style="border:1px dashed #A5B4FC;background:#fff;color:#5E5CE6;border-radius:7px;padding:4px 11px;font-size:10.5px;font-weight:700;cursor:pointer" onmouseover="this.style.background='#EEF2FF'" onmouseout="this.style.background='#fff'">+ 그룹 만들기</button>`);
+
+  // 오른쪽도 같은 수의 줄을 만든다. 반이 아닌 줄(생성 필요·그룹 만들기)은 빈 줄로 자리만 맞춘다.
+  const blank = `<div style="min-height:${GM_ROW_LINE_HEIGHT}px"></div>`;
+  const progressHtml = lines.map(progressLine).join('')
+    + (needBadge ? blank : '')
+    + blank;
+
+  return `<tr>
+    <td style="padding:8px 13px 8px 22px;font-size:12.5px;font-weight:700;color:#111827;white-space:nowrap;border-top:1px solid #F3F4F6;vertical-align:top">
+      <div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center">
+        ${showLevelPrefix ? `<span style="font-weight:400;color:#9CA3AF;margin-right:6px">${lessonEsc(getLevelGroupName(row.levelGroup))}</span>` : ''}
+        ${lessonEsc(row.subjectName)}
+      </div>
     </td>
-    ${cell(getGroupTypeTagHtml(row.classType))}
-    ${cell(operatingGroupsHtml)}
-    ${cell(progressItems, 'text-align:right;white-space:nowrap')}
-    ${cell(`<b style="font-size:13.5px;color:${row.waitingCount ? '#B45309' : '#9CA3AF'}">${row.waitingCount}명</b>`, 'text-align:right;white-space:nowrap')}
+    ${cell(`<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center">${getGroupTypeTagHtml(row.classType)}</div>`)}
+    ${cell(`${lines.map(groupLine).join('')}${needBadge}${createButton}`)}
+    ${cell(progressHtml, 'text-align:right;white-space:nowrap')}
+    ${cell(`<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;justify-content:flex-end"><b style="font-size:13.5px;color:${row.waitingCount ? '#B45309' : '#9CA3AF'}">${row.waitingCount}명</b></div>`, 'text-align:right;white-space:nowrap')}
   </tr>`;
 }
 
@@ -5638,7 +5639,8 @@ function renderGroupMergedLevelSections() {
     const live = section.groups.length > 0;
 
     const body = section.rows.length
-      ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">
+      ? `<div style="overflow-x:auto"><table style="width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums">
+          <colgroup><col style="width:20%"><col style="width:13%"><col style="width:25%"><col style="width:30%"><col style="width:12%"></colgroup>
           <thead><tr>${['과목', '그룹 수업 유형', '대기 인원', '상태', ''].map((label, index) =>
             `<th style="padding:8px 13px;font-size:10.5px;font-weight:700;color:#9CA3AF;text-align:${index === 4 ? 'right' : 'left'};border-bottom:1px solid #E5E7EB;white-space:nowrap">${label}</th>`
           ).join('')}</tr></thead>
