@@ -2218,6 +2218,13 @@ function getScaStep1Gaps() {
   }).filter(Boolean);
 }
 
+// 학생 사진. 등록된 사진이 없으면 성별 기본 이미지로 떨어진다.
+function getStudentPhotoSrc(student) {
+  if (!student) return 'assets/images/student_male.png';
+  return student.profilePhoto
+    || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
+}
+
 function renderScaGapList() {
   const gaps = getScaStep1Gaps();
   if (!gaps.length) {
@@ -2235,9 +2242,12 @@ function renderScaGapList() {
       </button>`
     ).join('');
     return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
-      <span style="flex:0 0 150px;min-width:0">
-        <b style="display:block;font-size:11.5px;color:#111827">${lessonEsc(gap.student.nick || gap.student.name)}</b>
-        <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px">${lessonEsc(gap.student.level || '-')}${gap.isNew ? '<span style="display:inline-block;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857;margin-left:4px">신규</span>' : ''}</span>
+      <span style="flex:0 0 172px;min-width:0;display:flex;align-items:center;gap:8px">
+        <img src="${lessonEsc(getStudentPhotoSrc(gap.student))}" alt="${lessonEsc(gap.student.nick || gap.student.name)}" style="flex:0 0 auto;width:28px;height:28px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
+        <span style="min-width:0">
+          <b style="display:block;font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(gap.student.nick || gap.student.name)}</b>
+          <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px;white-space:nowrap">${lessonEsc(gap.student.level || '-')}${gap.isNew ? '<span style="display:inline-block;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857;margin-left:4px">신규</span>' : ''}</span>
+        </span>
       </span>
       ${chips}
       <span style="margin-left:auto;font-size:9.5px;font-weight:800;color:#DC2626;background:#FEE2E2;border-radius:999px;padding:2px 8px;white-space:nowrap">${gap.total - gap.missing.length}/${gap.total}</span>
