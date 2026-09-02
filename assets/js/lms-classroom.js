@@ -6622,7 +6622,24 @@ function initializeGroupPopupMessageBridge() {
 initializeGroupPopupMessageBridge();
 
 function openGroupManagementBrowserPopup(rowIndex, popupTarget, selectedGroupId) {
-  const row = buildGroupManagementDisplayRows()[rowIndex];
+  // 행 순서는 '추가 생성 필요 수 -> 대기 인원'으로 정렬돼서, 학생을 반에 넣거나 뺄 때마다 바뀐다.
+  // 그래서 URL에 박아둔 순번은 그 다음 새로고침이면 이미 다른 행을 가리킨다.
+  // 반 번호는 안 바뀌니, 번호가 있으면 그 반이 실제로 들어 있는 행을 먼저 찾고 순번은 대비책으로만 쓴다.
+  const displayRows = buildGroupManagementDisplayRows();
+  const selectedGroupRow = selectedGroupId != null
+    ? (() => {
+        const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(selectedGroupId));
+        if (!group) return null;
+        const subjectId = getGroupSubjectId(group);
+        const levels = getGroupLevelSet(group);
+        return displayRows.find(item =>
+          item.subjectId === subjectId &&
+          item.classType === group.classType &&
+          levels.includes(item.levelGroup)
+        ) || null;
+      })()
+    : null;
+  const row = selectedGroupRow || displayRows[rowIndex];
   if (!row) return;
   if (!popupTarget) {
     const popupUrl = createGroupPopupUrl('detail');
