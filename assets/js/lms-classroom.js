@@ -2630,22 +2630,33 @@ function renderScaStep3Board() {
     if (!byStudent.has(item.student.id)) byStudent.set(item.student.id, { student: item.student, items: [] });
     byStudent.get(item.student.id).items.push(item.requirement);
   });
-  // 1단계 미배정 목록과 같은 정보(사진·이름·레벨·국적·나이)를 보여준다.
-  // 다만 여기는 학생이 훨씬 많은 스크롤 목록이라 두 줄로 쌓지 않고 한 줄에 열을 맞춰 세운다.
+  // 1단계 미배정 목록과 줄 구조·CSS를 똑같이 맞춘다.
+  // 사진 32px, 이름 위 · 국적·나이 아래(158px), 레벨은 제 열(104px), 칩, 맨 끝에 배정 건수.
+  // 여기만 다른 건 학생이 13명까지 늘어서 목록에 스크롤 상한을 둔다는 것뿐이다.
   const chips = pending.length
-    ? `<div style="width:100%;max-height:168px;overflow:auto;display:flex;flex-direction:column;gap:4px;padding-right:2px">
-      ${[...byStudent.values()].map(entry => `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <img src="${lessonEsc(getStudentPhotoSrc(entry.student))}" alt="${lessonEsc(entry.student.nick || entry.student.name)}" style="flex:0 0 auto;width:24px;height:24px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
-        <b style="flex:0 0 64px;min-width:0;font-size:10.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(entry.student.nick || entry.student.name)}</b>
-        <span style="flex:0 0 92px;min-width:0">${entry.student.level
-          ? `<span style="display:inline-block;max-width:100%;font-size:10px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(entry.student.level)}</span>`
-          : '<span style="font-size:9px;color:#C4C9D4">레벨 없음</span>'}</span>
-        <span style="flex:0 0 104px;min-width:0;font-size:9px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${getStudentOriginMetaText(entry.student)}</span>
+    ? `<div style="width:100%;max-height:250px;overflow:auto">
+      ${[...byStudent.values()].map(entry => {
+        const oneToOneTotal = getStudentLessonRequirements(entry.student).filter(item => item.classType === '1:1').length;
+        return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
+        <span style="flex:0 0 158px;min-width:0;display:flex;align-items:center;gap:8px">
+          <img src="${lessonEsc(getStudentPhotoSrc(entry.student))}" alt="${lessonEsc(entry.student.nick || entry.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
+          <span style="min-width:0">
+            <span style="display:flex;align-items:center;gap:5px;min-width:0">
+              <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(entry.student.nick || entry.student.name)}</b>
+            </span>
+            <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${getStudentOriginMetaText(entry.student)}</span>
+          </span>
+        </span>
+        <span style="flex:0 0 104px;min-width:0">${entry.student.level
+          ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(entry.student.level)}</span>`
+          : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
         ${entry.items.map(requirement => {
           const on = pick && pick.studentId === entry.student.id && pick.sequence === requirement.sequence;
           return `<button onclick="pickScaOneToOne(${entry.student.id},${requirement.sequence})" style="padding:3px 10px;border-radius:999px;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#4B5563'};font-size:9.5px;font-weight:600;cursor:pointer">${lessonEsc(requirement.subjectName)}</button>`;
         }).join('')}
-      </div>`).join('')}
+        <span style="margin-left:auto;font-size:9.5px;font-weight:800;color:#DC2626;background:#FEE2E2;border-radius:999px;padding:2px 8px;white-space:nowrap">${oneToOneTotal - entry.items.length}/${oneToOneTotal}</span>
+      </div>`;
+      }).join('')}
     </div>`
     : '<span style="font-size:11px;color:#047857;font-weight:700">1:1 수업이 전부 배정됐어.</span>';
 
@@ -2700,10 +2711,10 @@ function renderScaStep3Board() {
   }).join('');
 
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border:1.5px dashed ${pending.length ? '#B45309' : '#047857'};border-radius:11px;background:${pending.length ? '#FEF3C7' : '#ECFDF5'};margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:10px;width:100%">
-        <span style="font-size:10.5px;font-weight:800;color:${pending.length ? '#B45309' : '#047857'}">아직 못 붙인 1:1 ${pending.length}건${byStudent.size ? ` · 학생 ${byStudent.size}명` : ''}</span>
-        ${pending.length ? '<button onclick="runScaStep3AutoAssign()" title="남은 1:1을 빈 자리에 알아서 끼운다" style="margin-left:auto;border:0;border-radius:8px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:800;padding:6px 13px;cursor:pointer">⚡ 자동 배정</button>' : ''}
+    <div style="border:1.5px solid ${pending.length ? '#B45309' : '#047857'};border-radius:11px;background:${pending.length ? '#FEF3C7' : '#ECFDF5'};overflow:hidden;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;${pending.length ? 'border-bottom:1px solid #F3D89B' : ''}">
+        <b style="font-size:11.5px;color:${pending.length ? '#B45309' : '#047857'}">아직 못 붙인 1:1 ${pending.length}건${byStudent.size ? ` · 학생 ${byStudent.size}명` : ''}</b>
+        ${pending.length ? '<span style="font-size:10.5px;color:#8A90A2">과목 칩을 누르면 놓을 수 있는 자리가 떠.</span><button onclick="runScaStep3AutoAssign()" title="남은 1:1을 빈 자리에 알아서 끼운다" style="margin-left:auto;border:0;border-radius:8px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:700;padding:6px 13px;cursor:pointer">⚡ 자동 배정</button>' : ''}
       </div>
       ${chips}
     </div>
