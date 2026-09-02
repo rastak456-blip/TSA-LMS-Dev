@@ -6049,7 +6049,43 @@ function unplaceGroupSchedule(groupId) {
 let _gmHighlightUnscheduled = false;
 function toggleUnscheduledHighlight() {
   _gmHighlightUnscheduled = !_gmHighlightUnscheduled;
+  _gmPickedUnscheduledGroupId = null;
   renderCsGroupPanel();
+}
+
+// 시간 미정 목록에서 반 하나를 고르면 그 반을 놓을 수 있는 칸만 켜진다.
+// 전체 하이라이트가 "이 레벨에 안 놓인 반이 있다"까지만 알려주는 걸 반 단위로 좁힌 것.
+let _gmPickedUnscheduledGroupId = null;
+
+function pickUnscheduledGroup(groupId) {
+  const id = Number(groupId);
+  _gmPickedUnscheduledGroupId = _gmPickedUnscheduledGroupId === id ? null : id;
+  _gmHighlightUnscheduled = false;
+  renderCsGroupPanel();
+}
+
+// 이 반을 이 교시에 놓을 수 있나.
+// 자동 배치가 쓰는 판정과 같은 순서·같은 조건이다(학생 겹침 -> 담당 강사 -> 강의실).
+function canPlaceGroupAtPeriod(group, period) {
+  if (!group) return false;
+  if (getGroupStudentsClashingAtPeriod(group, period).length) return false;
+  const teacherOptions = getGroupPlacementTeacherOptions(group.classType, period, group.id);
+  if (!teacherOptions.some(option => option.ok || option.busyOneToOne)) return false;
+  const need = Math.max(1, (group.studentIds || []).length);
+  return getGroupPlacementRoomOptions(group.classType, period, need, group.id).some(option => option.ok);
+}
+
+// 시간 미정 반 한 줄에 붙일 상태. 학생이 없으면 자동 배치가 건너뛰니 그것부터 구분한다.
+function getUnscheduledGroupStatus(group, totalPeriods) {
+  if (!(group.studentIds || []).length) {
+    return { tone: 'empty', text: '학생 없음', hint: '학생이 없어 자동 배치는 건너뛴다. 직접 놓거나 반을 지워줘.' };
+  }
+  for (let period = 1; period <= totalPeriods; period += 1) {
+    if (canPlaceGroupAtPeriod(group, period)) {
+      return { tone: 'ok', text: '놓을 수 있어', hint: '눌러서 놓을 수 있는 칸 보기' };
+    }
+  }
+  return { tone: 'blocked', text: explainPlacementFailure(group, totalPeriods), hint: '지금은 놓을 자리가 없어' };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -6190,6 +6226,10 @@ function renderGroupManagementMatrix() {
   const unscheduled = MOCK_GROUP_CLASSES.filter(group => isUnscheduledGroup(group) && inScope(group));
   const levelHasUnscheduled = new Set();
   unscheduled.forEach(group => getGroupLevelSet(group).forEach(order => levelHasUnscheduled.add(order)));
+  // 고른 반이 배치되거나 필터 밖으로 나가면 선택은 스스로 풀린다.
+  const pickedGroup = _gmPickedUnscheduledGroupId != null
+    ? unscheduled.find(group => group.id === _gmPickedUnscheduledGroupId) || null
+    : null;
 
   const columnIndex = new Map(levels.map((level, index) => [level.order, index]));
 
@@ -6197,7 +6237,10 @@ function renderGroupManagementMatrix() {
   // 놓을 반이 없을 때는 팝업이 이유와 다음 행동(그룹 편성으로 가기)을 알려준다.
   const placeButton = (period, level) => {
     const has = levelHasUnscheduled.has(level.order);
-    const lit = has && _gmHighlightUnscheduled;
+    // 반을 하나 골랐으면 그 반이 실제로 들어갈 수 있는 칸만 켠다. 아니면 예전대로 레벨 단위로 켠다.
+    const lit = pickedGroup
+      ? getGroupLevelSet(pickedGroup).includes(level.order) && canPlaceGroupAtPeriod(pickedGroup, period)
+      : has && _gmHighlightUnscheduled;
     const border = lit ? 'solid #5E5CE6' : has ? 'dashed #D8DCEA' : 'dashed #EEF0F5';
     const color = lit ? '#4F46E5' : has ? '#9CA3AF' : '#D1D5DB';
     return `<button onclick="event.stopPropagation();openGroupPlacementModal(${period},${level.order})" title="${has ? '이 칸에 놓을 반 고르기' : '이 레벨에는 시간 미정인 반이 없어'}" style="width:100%;padding:5px 0;border:1.5px ${border};border-radius:8px;background:${lit ? '#EEF2FF' : '#fff'};color:${color};font-size:10.5px;font-weight:700;cursor:pointer">+ 배치</button>`;
@@ -6276,9 +6319,42 @@ function renderGroupManagementMatrix() {
     ? `<button onclick="runScaStep2AutoPlace()" title="시간 미정인 반을 빈 교시에 알아서 놓는다" style="border:0;border-radius:8px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:800;padding:6px 13px;cursor:pointer">⚡ 자동 배치</button>`
     : '';
 
+  // 시간 미정 목록. 1단계·3단계처럼 "남은 일"을 이름으로 세워두고, 왜 못 놓는지까지 붙인다.
+  // 순서는 자동 배치와 같다 — 자리 맞추기 어려운 중그룹·인원 많은 반 먼저, 학생 없는 반은 맨 뒤.
+  const toneStyle = {
+    ok: 'color:#047857;background:#ECFDF5;border-color:#A7F3D0',
+    blocked: 'color:#B45309;background:#FFFBEB;border-color:#FCD34D',
+    empty: 'color:#8A90A2;background:#F8FAFC;border-color:#E5E7EB'
+  };
   const undecidedBadge = unscheduled.length
-    ? `<button onclick="toggleUnscheduledHighlight()" style="border:1px solid ${_gmHighlightUnscheduled ? '#5E5CE6' : '#FCD34D'};border-radius:999px;background:${_gmHighlightUnscheduled ? '#EEF2FF' : '#FFFBEB'};color:${_gmHighlightUnscheduled ? '#4F46E5' : '#92400E'};font-size:10.5px;font-weight:700;padding:5px 12px;cursor:pointer">시간 미정 ${unscheduled.length}${_gmHighlightUnscheduled ? ' · 놓을 수 있는 칸이 켜져 있어' : ' · 눌러서 놓을 수 있는 칸 보기'}</button>`
-    : `<span style="font-size:10.5px;color:#9CA3AF">시간 미정인 반이 없어 — 지금 있는 반은 모두 배치됐어. 새 반은 <b>그룹 편성</b>에서 만들어.</span>`;
+    ? (() => {
+        const items = unscheduled
+          .map(group => ({ group, status: getUnscheduledGroupStatus(group, totalPeriods) }))
+          .sort((a, b) =>
+            (a.status.tone === 'empty' ? 1 : 0) - (b.status.tone === 'empty' ? 1 : 0) ||
+            (a.group.classType === '1:8' ? 0 : 1) - (b.group.classType === '1:8' ? 0 : 1) ||
+            b.group.studentIds.length - a.group.studentIds.length
+          );
+        const rows = items.map(({ group, status }) => {
+          const on = pickedGroup && pickedGroup.id === group.id;
+          const capacity = getGroupClassCapacity(group.classType);
+          const count = group.studentIds.length;
+          return `<button onclick="pickUnscheduledGroup(${group.id})" title="${lessonEsc(status.hint)}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 9px;border:1px solid ${on ? '#5E5CE6' : '#F3E3B8'};border-radius:8px;background:${on ? '#EEF2FF' : '#fff'};cursor:pointer">
+            <b style="flex:1;min-width:0;font-size:10.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(getGroupDisplayName(group))}</b>
+            ${isMergedLevelGroup(group) ? '<span style="flex:0 0 auto;font-size:9px;font-weight:800;color:#4F46E5;background:#EEF2FF;border-radius:4px;padding:1px 5px">통합</span>' : ''}
+            <span style="flex:0 0 50px;font-size:10px;color:#6B7280;text-align:right;white-space:nowrap"><b style="color:${count >= capacity ? '#9CA3AF' : '#059669'}">${count}</b>/${capacity}명</span>
+            <span style="flex:0 0 auto;max-width:150px;font-size:9.5px;font-weight:700;border:1px solid;border-radius:999px;padding:1px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${toneStyle[status.tone]}">${lessonEsc(status.text)}</span>
+          </button>`;
+        }).join('');
+        return `<div style="width:100%;padding:9px 11px;border:1.5px dashed #B45309;border-radius:11px;background:#FEF3C7">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px">
+            <b style="font-size:10.5px;color:#B45309">아직 시간을 못 정한 반 ${unscheduled.length}개</b>
+            <span style="font-size:10px;color:#8A90A2">${pickedGroup ? '켜진 칸이 이 반을 놓을 수 있는 자리야. 다시 누르면 꺼져.' : '반을 누르면 놓을 수 있는 칸이 켜져.'}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;max-height:168px;overflow:auto;padding-right:2px">${rows}</div>
+        </div>`;
+      })()
+    : `<div style="width:100%;padding:9px 11px;border:1.5px dashed #047857;border-radius:11px;background:#ECFDF5;font-size:10.5px;color:#047857">시간 미정인 반이 없어 — 지금 있는 반은 모두 배치됐어. 새 반은 <b>그룹 편성</b>에서 만들어.</div>`;
 
   const legend = `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:9px 13px;border-top:1px solid #F3F4F6;font-size:10.5px;color:#9CA3AF">
     <span><i style="display:inline-block;width:3px;height:11px;border-radius:2px;background:#059669;vertical-align:-1px;margin-right:5px"></i>자리 있음</span>
@@ -6287,7 +6363,10 @@ function renderGroupManagementMatrix() {
     <span>모든 그룹 수업은 <b>주 5회(월~금)</b>, 요일마다 같은 교시다.</span>
   </div>`;
 
-  return `<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:9px">${undecidedBadge}${autoButton}</div>
+  return `<div style="margin-bottom:9px">
+    ${autoButton ? `<div style="display:flex;justify-content:flex-end;margin-bottom:7px">${autoButton}</div>` : ''}
+    ${undecidedBadge}
+  </div>
   <div style="overflow-x:auto;border:1px solid #E5E7EB;border-radius:10px;background:#fff">
     <table style="border-collapse:collapse;width:100%">
       <thead><tr><th style="padding:8px 12px;font-size:11px;color:#9CA3AF;text-align:left;background:#F8FAFC;border-bottom:1px solid #E5E7EB">교시 \\ 레벨</th>${headerCells}</tr></thead>
