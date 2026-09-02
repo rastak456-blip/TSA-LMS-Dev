@@ -1957,7 +1957,6 @@ function renderScaWeekHeader() {
       <span style="font-size:10.5px;color:#6B7280">재원 <b style="color:#111827">${progress.students}명</b>${arrivals.length ? ` · 신규 <b style="color:#047857">${arrivals.length}명</b>` : ''}${departures.length ? ` · 퇴소 <b style="color:#B45309">${departures.length}명</b>` : ''}</span>
       <span style="margin-left:auto;display:flex;gap:6px">
         ${planned && hasWeekPlan(previous) ? `<button onclick="resetScaWeekToPrevious()" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 12px;background:#fff;color:#6B7280;font-size:10.5px;font-weight:700;cursor:pointer">이번 주 되돌리기</button>` : ''}
-        ${hasWeekPlan(previous) ? `<button onclick="copyPreviousWeekPlan()" style="border:1px solid #E5E7EB;border-radius:8px;padding:6px 12px;background:#fff;color:#6B7280;font-size:10.5px;font-weight:700;cursor:pointer">지난주 그대로 가져오기</button>` : ''}
       </span>
     </div>
     <div style="display:flex;align-items:stretch;flex-wrap:wrap;border-bottom:1px solid #E5E7EB">
