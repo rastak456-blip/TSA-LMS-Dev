@@ -2241,12 +2241,21 @@ function renderScaGapList() {
         ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(requirement.classType)}</span>
       </button>`
     ).join('');
+    // 국적 · 나이 · 레벨. 다른 화면과 같은 순서로 적는다. 값이 없는 항목은 빼서 점만 남지 않게 한다.
+    const meta = [
+      `${lessonEsc(gap.student.flag || '')} ${lessonEsc(gap.student.nationality || '-')}`.trim(),
+      gap.student.age != null ? `${lessonEsc(String(gap.student.age))}세` : '',
+      lessonEsc(gap.student.level || '')
+    ].filter(Boolean).join(' · ');
     return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
-      <span style="flex:0 0 172px;min-width:0;display:flex;align-items:center;gap:8px">
+      <span style="flex:0 0 200px;min-width:0;display:flex;align-items:center;gap:8px">
         <img src="${lessonEsc(getStudentPhotoSrc(gap.student))}" alt="${lessonEsc(gap.student.nick || gap.student.name)}" style="flex:0 0 auto;width:28px;height:28px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
         <span style="min-width:0">
-          <b style="display:block;font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(gap.student.nick || gap.student.name)}</b>
-          <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px;white-space:nowrap">${lessonEsc(gap.student.level || '-')}${gap.isNew ? '<span style="display:inline-block;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857;margin-left:4px">신규</span>' : ''}</span>
+          <b style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:#111827;min-width:0">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(gap.student.nick || gap.student.name)}</span>
+            ${gap.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
+          </b>
+          <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
         </span>
       </span>
       ${chips}
