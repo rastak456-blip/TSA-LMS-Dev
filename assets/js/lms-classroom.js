@@ -2225,6 +2225,14 @@ function getStudentPhotoSrc(student) {
     || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
 }
 
+// 국적 · 나이. 값이 없는 항목은 빼서 구분점만 남지 않게 한다.
+function getStudentOriginMetaText(student) {
+  return [
+    `${lessonEsc(student?.flag || '')} ${lessonEsc(student?.nationality || '-')}`.trim(),
+    student?.age != null ? `${lessonEsc(String(student.age))}세` : ''
+  ].filter(Boolean).join(' · ');
+}
+
 function renderScaGapList() {
   const gaps = getScaStep1Gaps();
   if (!gaps.length) {
@@ -2243,10 +2251,7 @@ function renderScaGapList() {
     ).join('');
     // 이름 옆에 붙이면 이름 길이에 따라 레벨 시작 위치가 들쭉날쭉해진다.
     // 레벨은 줄끼리 비교하며 읽는 값이라 폭이 고정된 제 열에 세워 세로로 맞춘다.
-    const meta = [
-      `${lessonEsc(gap.student.flag || '')} ${lessonEsc(gap.student.nationality || '-')}`.trim(),
-      gap.student.age != null ? `${lessonEsc(String(gap.student.age))}세` : ''
-    ].filter(Boolean).join(' · ');
+    const meta = getStudentOriginMetaText(gap.student);
     return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
       <span style="flex:0 0 158px;min-width:0;display:flex;align-items:center;gap:8px">
         <img src="${lessonEsc(getStudentPhotoSrc(gap.student))}" alt="${lessonEsc(gap.student.nick || gap.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
@@ -2625,10 +2630,17 @@ function renderScaStep3Board() {
     if (!byStudent.has(item.student.id)) byStudent.set(item.student.id, { student: item.student, items: [] });
     byStudent.get(item.student.id).items.push(item.requirement);
   });
+  // 1단계 미배정 목록과 같은 정보(사진·이름·레벨·국적·나이)를 보여준다.
+  // 다만 여기는 학생이 훨씬 많은 스크롤 목록이라 두 줄로 쌓지 않고 한 줄에 열을 맞춰 세운다.
   const chips = pending.length
-    ? `<div style="width:100%;max-height:132px;overflow:auto;display:flex;flex-direction:column;gap:4px;padding-right:2px">
+    ? `<div style="width:100%;max-height:168px;overflow:auto;display:flex;flex-direction:column;gap:4px;padding-right:2px">
       ${[...byStudent.values()].map(entry => `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <b style="flex:0 0 78px;font-size:10.5px;color:#111827">${lessonEsc(entry.student.nick || entry.student.name)}</b>
+        <img src="${lessonEsc(getStudentPhotoSrc(entry.student))}" alt="${lessonEsc(entry.student.nick || entry.student.name)}" style="flex:0 0 auto;width:24px;height:24px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
+        <b style="flex:0 0 64px;min-width:0;font-size:10.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(entry.student.nick || entry.student.name)}</b>
+        <span style="flex:0 0 92px;min-width:0">${entry.student.level
+          ? `<span style="display:inline-block;max-width:100%;font-size:10px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(entry.student.level)}</span>`
+          : '<span style="font-size:9px;color:#C4C9D4">레벨 없음</span>'}</span>
+        <span style="flex:0 0 104px;min-width:0;font-size:9px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${getStudentOriginMetaText(entry.student)}</span>
         ${entry.items.map(requirement => {
           const on = pick && pick.studentId === entry.student.id && pick.sequence === requirement.sequence;
           return `<button onclick="pickScaOneToOne(${entry.student.id},${requirement.sequence})" style="padding:3px 10px;border-radius:999px;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#4B5563'};font-size:9.5px;font-weight:600;cursor:pointer">${lessonEsc(requirement.subjectName)}</button>`;
