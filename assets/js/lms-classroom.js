@@ -2657,7 +2657,7 @@ function renderScaStep3Board() {
       </div>`;
       }).join('')}
     </div>`
-    : '<span style="font-size:11px;color:#047857;font-weight:700">1:1 수업이 전부 배정됐어.</span>';
+    : '';  // 다 배정된 상태의 안내는 아래 머리줄이 맡는다. 여기에 두면 패딩 없이 테두리에 붙는다.
 
   const rows = teachers.map(teacher => {
     const cells = periods.map(period => {
@@ -2712,8 +2712,10 @@ function renderScaStep3Board() {
   panel.innerHTML = `
     <div style="border:1.5px solid ${pending.length ? '#B45309' : '#047857'};border-radius:11px;background:${pending.length ? '#FEF3C7' : '#ECFDF5'};overflow:hidden;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;${pending.length ? 'border-bottom:1px solid #F3D89B' : ''}">
-        <b style="font-size:11.5px;color:${pending.length ? '#B45309' : '#047857'}">아직 못 붙인 1:1 ${pending.length}건${byStudent.size ? ` · 학생 ${byStudent.size}명` : ''}</b>
-        ${pending.length ? '<span style="font-size:10.5px;color:#8A90A2">과목 칩을 누르면 놓을 수 있는 자리가 떠.</span><button onclick="runScaStep3AutoAssign()" title="남은 1:1을 빈 자리에 알아서 끼운다" style="margin-left:auto;border:0;border-radius:8px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:700;padding:6px 13px;cursor:pointer">⚡ 자동 배정</button>' : ''}
+        <b style="font-size:11.5px;color:${pending.length ? '#B45309' : '#047857'}">${pending.length ? `아직 못 붙인 1:1 ${pending.length}건${byStudent.size ? ` · 학생 ${byStudent.size}명` : ''}` : '1:1 수업이 전부 배정됐어'}</b>
+        ${pending.length
+          ? '<span style="font-size:10.5px;color:#8A90A2">과목 칩을 누르면 놓을 수 있는 자리가 떠.</span><button onclick="runScaStep3AutoAssign()" title="남은 1:1을 빈 자리에 알아서 끼운다" style="margin-left:auto;border:0;border-radius:8px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:700;padding:6px 13px;cursor:pointer">⚡ 자동 배정</button>'
+          : '<span style="font-size:10.5px;color:#8A90A2">남은 1:1이 없어. 아래 표에서 배정을 바꿀 수 있어.</span>'}
       </div>
       ${chips}
     </div>
