@@ -2241,24 +2241,26 @@ function renderScaGapList() {
         ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(requirement.classType)}</span>
       </button>`
     ).join('');
-    // 레벨은 어느 반에 갈 수 있는지를 가르는 값이라 이름과 같은 크기로 이름 옆에 세운다.
-    // 아래 작은 줄에는 국적 · 나이만 남긴다. 값이 없는 항목은 빼서 점만 남지 않게 한다.
+    // 이름 옆에 붙이면 이름 길이에 따라 레벨 시작 위치가 들쭉날쭉해진다.
+    // 레벨은 줄끼리 비교하며 읽는 값이라 폭이 고정된 제 열에 세워 세로로 맞춘다.
     const meta = [
       `${lessonEsc(gap.student.flag || '')} ${lessonEsc(gap.student.nationality || '-')}`.trim(),
       gap.student.age != null ? `${lessonEsc(String(gap.student.age))}세` : ''
     ].filter(Boolean).join(' · ');
     return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
-      <span style="flex:0 0 236px;min-width:0;display:flex;align-items:center;gap:8px">
+      <span style="flex:0 0 158px;min-width:0;display:flex;align-items:center;gap:8px">
         <img src="${lessonEsc(getStudentPhotoSrc(gap.student))}" alt="${lessonEsc(gap.student.nick || gap.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
         <span style="min-width:0">
           <span style="display:flex;align-items:center;gap:5px;min-width:0">
             <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(gap.student.nick || gap.student.name)}</b>
-            ${gap.student.level ? `<span style="flex:0 0 auto;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;white-space:nowrap">${lessonEsc(gap.student.level)}</span>` : ''}
             ${gap.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
           </span>
           <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
         </span>
       </span>
+      <span style="flex:0 0 104px;min-width:0">${gap.student.level
+        ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(gap.student.level)}</span>`
+        : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
       ${chips}
       <span style="margin-left:auto;font-size:9.5px;font-weight:800;color:#DC2626;background:#FEE2E2;border-radius:999px;padding:2px 8px;white-space:nowrap">${gap.total - gap.missing.length}/${gap.total}</span>
     </div>`;
