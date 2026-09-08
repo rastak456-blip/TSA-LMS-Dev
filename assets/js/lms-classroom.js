@@ -5117,7 +5117,7 @@ function buildGroupAssignCandidateRows(group) {
 }
 
 function renderCsGroupPanel() {
-  if (document.getElementById('group-management-content')) renderGroupManagement();
+  renderGroupManagement();
 }
 
 function buildCsGroupDemandRows() {
@@ -5307,59 +5307,11 @@ function getGroupTeacherLabel(group) {
     : '강사 미배정';
 }
 
-let _groupManagementTab = 'students';
-
-function initGroupManagement() {
-  renderGroupManagement();
-}
-
-function switchGroupManagementTab(tab) {
-  _groupManagementTab = ['students', 'active', 'rooms'].includes(tab) ? tab : 'students';
-  renderGroupManagement();
-}
-
 function renderGroupManagement() {
-  // 그룹 편성 내용은 주간 수업 배정 화면(1단계 아래쪽, 2단계 표)에도 붙어 있어서 같이 갱신해줘.
+  // 그룹 편성 표는 이제 주간 수업 배정 화면(1단계 아래쪽, 2단계 표)에만 붙는다.
+  // 예전 「그룹 수업 관리」 화면이 있던 자리라 이름은 그대로 두고, 하는 일만 그쪽 갱신으로 남겼다.
   const scaView = document.getElementById('view-student-class-assign');
   if (scaView && scaView.classList.contains('active')) renderStudentClassAssignView();
-  const content = document.getElementById('group-management-content');
-  if (!content) return;
-
-  ['students', 'active', 'rooms'].forEach(tab => {
-    const button = document.getElementById(`gm-tab-${tab}`);
-    if (!button) return;
-    const selected = tab === _groupManagementTab;
-    button.style.color = selected ? '#5E5CE6' : '#6B7280';
-    button.style.borderBottomColor = selected ? '#5E5CE6' : 'transparent';
-  });
-
-  if (_groupManagementTab === 'students') {
-    renderGroupManagementStudents(content);
-  } else if (_groupManagementTab === 'active') {
-    renderGroupManagementActive(content);
-  } else if (_groupManagementTab === 'rooms') {
-    renderGroupManagementRooms(content);
-  }
-  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
-}
-
-function renderGroupManagementStudents(content) {
-  content.innerHTML = `
-    <div class="tsa-card" style="overflow:hidden">
-      <div class="tsa-card-header">
-        <h3 class="tsa-card-title">🧑‍🎓 학생별 그룹 배정 현황</h3>
-        <div style="font-size:11px;color:#6B7280">과정 템플릿의 그룹 교시를 확인하고 소그룹·중그룹을 배정하거나 변경해.</div>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="tsa-table">
-          <thead><tr>
-            <th style="text-align:center;width:36px">#</th><th>학생 정보</th><th>과정 및 수강 기간</th><th>레벨</th><th>그룹 배정 현황</th><th>수업 리스트</th><th style="text-align:center">관리</th>
-          </tr></thead>
-          <tbody id="gm-student-assign-body"></tbody>
-        </table>
-      </div>
-    </div>`;
-  renderStudentAssignmentTable('gm-student-assign-body', 'group');
 }
 
 function getGroupManagementSubjectLabel(curriculum) {
@@ -6471,168 +6423,6 @@ function openActiveGroupDetail(groupId) {
     return;
   }
   openGroupManagementBrowserPopup(rowIndex, undefined, group.id);
-}
-
-let _gmActiveSortDir = 'desc';
-function setGroupManagementActiveSort() {
-  _gmActiveSortDir = _gmActiveSortDir === 'desc' ? 'asc' : 'desc';
-  renderGroupManagement();
-}
-
-// 강의실별 탭: 빈 강의실 교시를 먼저 선택하고, 미배정 그룹과 해당 교시에 가능한 강사를 순서대로 배정한다.
-function renderGroupManagementRooms(content) {
-  const rooms = MOCK_CLASS_ROOMS.filter(r => ['1:4', '1:8'].includes(r.type) && r.roomNo);
-  const periods = getPeriodList();
-
-  const cards = rooms.map(room => {
-    const rows = periods.map(p => {
-      const group = MOCK_GROUP_CLASSES.find(g =>
-        g.status === 'active' && g.roomId === room.id &&
-        Array.isArray(g.periods) && g.periods.includes(p.order)
-      );
-      const timeLabel = `<div style="font-size:9.5px;color:#9CA3AF">${p.startTime}-${p.endTime}</div>`;
-      if (group) {
-        const students = group.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-        const capacity = getGroupClassCapacity(group.classType);
-        const teacherLabel = group.teacherId != null ? (MOCK_TEACHERS.find(t => t.id === group.teacherId)?.nick || '-') : '-';
-        const hasSeat = students.length < capacity;
-        return `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:#EEF2FF;margin-bottom:5px">
-          <div style="font-size:11px;color:#5E5CE6;width:36px;flex-shrink:0">${p.order}교시</div>
-          <div style="flex:1;font-size:11.5px;color:#111827;min-width:0;cursor:pointer" onclick="openGroupEditBrowserPopup(${group.id})"><b>${lessonEsc(getGroupDisplayName(group))}</b> <span style="color:#6B7280">· ${lessonEsc(teacherLabel)} · ${students.length}/${capacity}명</span></div>
-          ${hasSeat ? `<button onclick="openGroupAssignPopup(${group.id})" style="font-size:10px;padding:2px 6px;border:none;background:#C7D2FE;color:#3730A3;border-radius:4px;cursor:pointer;flex-shrink:0">+</button>` : ''}
-          <button onclick="unassignGroupFromRoomSlot(${group.id})" style="font-size:9.5px;padding:3px 6px;border:none;background:#FEE2E2;color:#B91C1C;border-radius:4px;cursor:pointer;flex-shrink:0;white-space:nowrap" title="강의실과 담당 강사 배정 해지">해지</button>
-        </div>`;
-      }
-      return `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:#F9FAFB;margin-bottom:5px">
-        <div style="font-size:11px;color:#9CA3AF;width:36px;flex-shrink:0">${p.order}교시</div>
-        <button onclick="openGroupSlotPendingPicker(${room.id},${p.order})" style="flex:1;text-align:left;font-size:11.5px;color:#5E5CE6;cursor:pointer;padding:3px 8px;border:0.5px dashed #5E5CE6;border-radius:5px;background:none">+ 그룹 수업 배정</button>
-      </div>`;
-    }).join('');
-
-    return `<div class="tsa-card" style="overflow:hidden">
-      <div class="tsa-card-header">
-        <div>
-          <span style="font-size:13px;font-weight:700;color:#111827">${lessonEsc(room.roomNo)}</span>
-          <span style="font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px;background:${room.type === '1:4' ? '#FEF3C7' : '#D1FAE5'};color:${room.type === '1:4' ? '#92400E' : '#065F46'}">${room.type}</span>
-        </div>
-      </div>
-      <div style="padding:10px 14px;max-height:420px;overflow-y:auto">${rows}</div>
-    </div>`;
-  }).join('');
-
-  content.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:10px">
-      ${cards || '<div style="padding:30px;text-align:center;color:#9CA3AF;grid-column:1/-1">등록된 그룹 강의실이 없어.</div>'}
-    </div>
-    <div style="font-size:10.5px;color:#9CA3AF">※ 빈 교시에서 그룹을 먼저 고른 뒤, 그 시간에 가능한 강사를 선택해 배정해.</div>`;
-}
-
-// 강의실별 탭의 빈 교시 클릭: 강의실 유형에 맞는 미배정 그룹을 먼저 보여주고,
-// 그룹 선택 뒤 해당 교시에 가능한 강사를 보여준다.
-let _gsPendingRoomId = null;
-let _gsPendingPeriod = null;
-let _gsPendingGroupId = null;
-
-function openGroupSlotPendingPicker(roomId, period) {
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === roomId);
-  _gsPendingRoomId = roomId;
-  _gsPendingPeriod = period;
-  _gsPendingGroupId = null;
-  renderGroupSlotPendingCandidates();
-  const modal = document.getElementById('group-slot-pending-modal');
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeGroupSlotPendingPicker() {
-  const modal = document.getElementById('group-slot-pending-modal');
-  if (modal) modal.style.display = 'none';
-  _gsPendingRoomId = null;
-  _gsPendingPeriod = null;
-  _gsPendingGroupId = null;
-}
-
-function renderGroupSlotPendingCandidates() {
-  const box = document.getElementById('group-slot-pending-candidates');
-  const titleEl = document.getElementById('group-slot-pending-title');
-  if (!box || _gsPendingRoomId == null) return;
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === _gsPendingRoomId);
-  if (titleEl) titleEl.textContent = `${room ? room.roomNo : ''} · ${_gsPendingPeriod}교시 그룹 수업 배정`;
-
-  const candidates = MOCK_GROUP_CLASSES.filter(g =>
-    g.status === 'active' && g.roomId == null &&
-    getGroupClassCapacity(g.classType) <= Number(room?.capacity || 0) &&
-    Array.isArray(g.periods) && g.periods.includes(_gsPendingPeriod)
-  );
-  box.innerHTML = candidates.map(group => {
-    const students = group.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-    const capacity = getGroupClassCapacity(group.classType);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px">
-      <div style="font-size:12px"><b>${lessonEsc(getGroupDisplayName(group))}</b> <span style="color:#6B7280">· ${students.length}/${capacity}명</span></div>
-      <button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="selectGroupForRoomSlot(${group.id})">그룹 선택</button>
-    </div>`;
-  }).join('') || '<div style="padding:24px;text-align:center;color:#9CA3AF">이 강의실 정원과 템플릿 교시에 맞는 미배정 그룹이 없어.<br>그룹별 탭에서 해당 교시 그룹을 먼저 생성해줘.</div>';
-}
-
-function selectGroupForRoomSlot(groupId) {
-  _gsPendingGroupId = groupId;
-  const box = document.getElementById('group-slot-pending-candidates');
-  const titleEl = document.getElementById('group-slot-pending-title');
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === _gsPendingRoomId);
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === groupId);
-  if (!box || !group) return;
-  if (titleEl) titleEl.textContent = `${room?.roomNo || ''} · ${_gsPendingPeriod}교시 담당 강사 선택`;
-  const teachers = getGroupTeacherCandidates(group.classType, LESSON_DAYS, [_gsPendingPeriod], group.id);
-  box.innerHTML = `<div style="padding:10px 12px;margin-bottom:10px;border-radius:8px;background:#F5F3FF;color:#4338CA;font-size:12px"><b>${lessonEsc(getGroupDisplayName(group))}</b><br><span style="font-size:10.5px">${lessonEsc(room?.roomNo || '')} · ${_gsPendingPeriod}교시에 배정할 수 있는 강사야.</span></div>` +
-    (teachers.map(teacher => `<button type="button" onclick="assignGroupToRoomSlot(${teacher.id})" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;cursor:pointer"><b>${lessonEsc(teacher.nick || teacher.name)}</b><span style="font-size:10px;color:#6B7280">선택</span></button>`).join('') || '<div style="padding:24px;text-align:center;color:#DC2626">이 교시에 가능한 강사가 없어. 다른 빈 교시를 선택해줘.</div>') +
-    '<button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="width:100%;margin-top:6px" onclick="renderGroupSlotPendingCandidates()">← 그룹 다시 선택</button>';
-}
-
-function assignGroupToRoomSlot(teacherId) {
-  const group = MOCK_GROUP_CLASSES.find(g => g.id === _gsPendingGroupId);
-  const room = MOCK_CLASS_ROOMS.find(r => r.id === _gsPendingRoomId);
-  if (!group || !room) return;
-  if (getGroupClassCapacity(group.classType) > Number(room.capacity || 0)) {
-    showToast(`${room.roomNo} 강의실 정원으로는 ${group.classType} 그룹을 배정할 수 없어.`, 'warning');
-    renderGroupSlotPendingCandidates();
-    return;
-  }
-  const roomConflict = MOCK_GROUP_CLASSES.some(other =>
-    other.id !== group.id && other.status === 'active' && other.roomId === room.id &&
-    Array.isArray(other.dayOfWeek) && Array.isArray(other.periods) &&
-    other.dayOfWeek.some(day => LESSON_DAYS.includes(day)) && other.periods.includes(_gsPendingPeriod)
-  );
-  if (roomConflict) {
-    showToast('선택한 강의실이 해당 교시에 이미 사용 중이야. 화면을 다시 확인해줘.', 'warning');
-    closeGroupSlotPendingPicker();
-    renderGroupManagement();
-    return;
-  }
-  const validTeacher = getGroupTeacherCandidates(group.classType, LESSON_DAYS, [_gsPendingPeriod], group.id)
-    .some(teacher => teacher.id === Number(teacherId));
-  if (!validTeacher) {
-    showToast('선택한 강사는 해당 교시에 더 이상 배정할 수 없어. 가능한 강사를 다시 선택해줘.', 'warning');
-    selectGroupForRoomSlot(group.id);
-    return;
-  }
-  group.roomId = room.id;
-  group.teacherId = Number(teacherId);
-  group.dayOfWeek = [...LESSON_DAYS];
-  closeGroupSlotPendingPicker();
-  renderGroupManagement();
-  const teacher = MOCK_TEACHERS.find(t => t.id === Number(teacherId));
-  showToast(`${getGroupDisplayName(group)}을(를) ${room.roomNo} ${group.periods[0]}교시에 배정했어. 담당 강사: ${teacher?.nick || teacher?.name || '-'}`, 'success');
-}
-
-function unassignGroupFromRoomSlot(groupId) {
-  const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(groupId));
-  if (!group) return;
-  const room = group.roomId != null ? MOCK_CLASS_ROOMS.find(item => item.id === group.roomId) : null;
-  const periodLabel = Array.isArray(group.periods) && group.periods.length ? `${group.periods.join(', ')}교시` : '교시 미지정';
-  if (!window.confirm(`${getGroupDisplayName(group)}의 ${room?.roomNo || '강의실'} · ${periodLabel} 배정을 해지할까?\n그룹과 학생 구성은 유지돼.`)) return;
-  group.roomId = null;
-  group.teacherId = null;
-  renderGroupManagement();
-  showToast(`${getGroupDisplayName(group)}의 강의실·담당 강사 배정을 해지했어.`, 'success');
 }
 
 function renderGroupPopupWindow(popup, render) {

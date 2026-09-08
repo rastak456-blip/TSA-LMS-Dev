@@ -3643,48 +3643,6 @@
           <div id="sca-panel-groups" style="display:none"></div>
         </div>
 
-        <!-- ================================================ -->
-        <!--  VIEW: GROUP MANAGEMENT                          -->
-        <!-- ================================================ -->
-        <div id="view-group-management" class="tsa-view">
-          <div class="tsa-section-header" style="margin-bottom:16px">
-            <div>
-              <h2 class="tsa-page-title">👥 그룹 수업 관리</h2>
-          <p class="tsa-page-subtitle">학생별 그룹 배정 · 그룹 생성 및 학생 구성 · 강의실·강사 배정</p>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openAutoMatchAllGroupsModal()"><i data-lucide="wand-sparkles"></i> 전체 자동 매칭</button>
-              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openGroupCreateBrowserPopup()"><i data-lucide="plus"></i> 그룹 생성</button>
-            </div>
-          </div>
-          <div style="display:flex;border-bottom:2px solid #E5E7EB;margin-bottom:16px">
-            <button id="gm-tab-students" onclick="switchGroupManagementTab('students')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#5E5CE6;border-bottom:2px solid #5E5CE6;margin-bottom:-2px">학생별 그룹 배정</button>
-            <button id="gm-tab-active" onclick="switchGroupManagementTab('active')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">그룹 편성 관리</button>
-            <button id="gm-tab-rooms" onclick="switchGroupManagementTab('rooms')" style="padding:10px 22px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;color:#6B7280;border-bottom:2px solid transparent;margin-bottom:-2px">강의실·강사 배정</button>
-          </div>
-          <div id="group-management-content"></div>
-
-          <!-- 강의실별 탭: 빈 교시에 그룹을 고른 뒤 가능한 강사를 선택하는 모달 -->
-          <div id="group-slot-pending-modal" style="display:none">
-            <div class="tsa-modal-backdrop" onclick="closeGroupSlotPendingPicker()">
-              <div class="tsa-modal" style="max-width:480px" onclick="event.stopPropagation()">
-                <div class="tsa-modal-header">
-                  <div>
-                    <h3 class="tsa-modal-title" id="group-slot-pending-title">교시에 배치할 그룹</h3>
-                    <p class="tsa-modal-subtitle">미배정 그룹을 먼저 고르면 이 교시에 가능한 강사를 보여줘.</p>
-                  </div>
-                  <button class="tsa-modal-close" onclick="closeGroupSlotPendingPicker()"><i data-lucide="x"></i></button>
-                </div>
-                <div class="tsa-modal-body" style="max-height:60vh;overflow-y:auto">
-                  <div id="group-slot-pending-candidates"></div>
-                </div>
-                <div class="tsa-modal-footer">
-                  <button class="tsa-btn tsa-btn-outline" onclick="closeGroupSlotPendingPicker()">닫기</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- ================================================ -->
         <!--  VIEW: CLASS SCHEDULE                            -->
@@ -7605,13 +7563,13 @@
 <div id="google_translate_element"></div>
 
 <script src="assets/js/lms-data.js?v=0.6.16"></script>
-<script src="assets/js/lms-util.js?v=0.6.10"></script>
+<script src="assets/js/lms-util.js?v=0.6.11"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.10"></script>
 <script src="assets/js/lms-student.js?v=0.6.7"></script>
     <script src="assets/js/lms-course.js?v=0.6.77"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.13"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.255"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.256"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>
