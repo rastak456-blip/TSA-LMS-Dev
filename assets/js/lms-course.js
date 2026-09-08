@@ -5977,9 +5977,10 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
     `;
   } else if (tab === 'settle') {
     const prices = calculatePrices(s);
-    const billingBreakdown = getStudentBillingBreakdown(s);
-    // 발행된(폐기되지 않은) 기준 인보이스가 없는 동안에는 이 표에서 바로 발행 항목을 체크한다.
-    const invoiceSelectMode = !getActiveBaseInvoice(s);
+    // 항목마다 발행 시점이 다르다 — 등록금은 등록 즉시, 수강료·기숙사비는 입학 확정 후.
+    // 그래서 발행 여부는 인보이스가 아니라 항목이 갖는다. 미발행 항목만 체크해서 추가 발행한다.
+    const issueSummary = getInvoiceIssueSummary(s);
+    const billingBreakdown = issueSummary.breakdown;
 
     const crHistoryHtml = '';
 
@@ -5989,17 +5990,23 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       <div style="padding:10px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">${invoiceSelectMode ? '발행할 청구 항목 선택' : '항목별 청구 금액 · 납부 여부 · 커미션 지급 여부'}</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">항목별 청구 금액 · 발행 상태 · 납부 여부 · 커미션 지급 여부</div>
             <div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:11.5px;margin-bottom:10px">
-              ${billingBreakdown.items.map(item => `
-                <div style="display:grid;grid-template-columns:${invoiceSelectMode ? '20px ' : ''}96px 1fr 76px 150px 80px;gap:10px;align-items:center;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
-                  ${invoiceSelectMode ? `<input type="checkbox" id="inv-check-${item.key}" checked style="accent-color:#5E5CE6;width:15px;height:15px"/>` : ''}
+              ${issueSummary.rows.map(item => `
+                <div style="display:grid;grid-template-columns:20px 96px 1fr 128px 76px 150px 80px;gap:10px;align-items:center;background:${item.issued || !item.billable ? '#FAFAFA' : '#fff'};border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
+                  ${item.billable && !item.issued
+                    ? `<input type="checkbox" id="inv-check-${item.key}" checked style="accent-color:#5E5CE6;width:15px;height:15px"/>`
+                    : '<span style="display:inline-block;width:15px;height:15px;border:1.5px solid #E5E7EB;border-radius:4px;background:#F9FAFB"></span>'}
                   <div>
                     <div style="font-weight:800;color:#374151">${item.label}</div>
                     <div style="font-size:10px;color:#9CA3AF">${item.key === 'registration' ? '학생 등록 시 1회' : item.key === 'education' ? '수강 과정 기준' : item.key === 'dorm' ? '기숙사 배정 기준' : '기타 현지 비용'}</div>
                   </div>
-                  <div style="text-align:right;font-weight:900;color:#111827">$${item.amount.toLocaleString()}</div>
-                  <div style="text-align:right">${renderAgencyPaidBadge(item.paymentStatus)}</div>
+                  <div style="text-align:right;font-weight:900;color:${item.billable ? '#111827' : '#9CA3AF'}">$${item.amount.toLocaleString()}</div>
+                  <div style="text-align:right">${
+                    !item.billable ? '<span style="font-size:10px;color:#C4C9D4;border:1px dashed #E5E7EB;border-radius:999px;padding:3px 9px">청구 없음</span>'
+                    : item.issued ? `<span class="tsa-badge" style="background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;font-size:10px" title="${item.invoice.issueDate} 발행">발행됨 · ${item.invoice.invoiceNo}</span>`
+                    : '<span class="tsa-badge" style="background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB;font-size:10px">미발행</span>'}</div>
+                  <div style="text-align:right">${item.billable && item.issued ? renderAgencyPaidBadge(item.paymentStatus) : '<span style="font-size:10px;color:#C4C9D4">-</span>'}</div>
                   <div style="text-align:right;color:${item.commission > 0 ? '#4F46E5' : '#9CA3AF'};font-weight:800">
                     ${item.commissionType === 'none' ? '커미션 없음' : item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · $${item.commission.toLocaleString()}
                   </div>
@@ -6007,10 +6014,23 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                 </div>
               `).join('')}
             </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+              <div style="border:1px solid #E5E7EB;border-radius:9px;background:#fff;padding:9px 11px">
+                <div style="font-size:10.5px;color:#6B7280;font-weight:700">발행 완료</div>
+                <div style="font-size:16px;font-weight:900;margin-top:2px">$${issueSummary.issuedTotal.toLocaleString()}</div>
+              </div>
+              <div style="border:1px solid #C7D2FE;border-radius:9px;background:#F8F9FF;padding:9px 11px">
+                <div style="font-size:10.5px;color:#6B7280;font-weight:700">미발행${issueSummary.issuable.length ? ' (이번 발행 대상)' : ''}</div>
+                <div style="font-size:16px;font-weight:900;margin-top:2px;color:#4338CA">$${issueSummary.unissuedTotal.toLocaleString()}</div>
+              </div>
+              <div style="border:1px solid #E5E7EB;border-radius:9px;background:#fff;padding:9px 11px">
+                <div style="font-size:10.5px;color:#6B7280;font-weight:700">청구 금액 합계</div>
+                <div style="font-size:16px;font-weight:900;margin-top:2px">$${issueSummary.grossTotal.toLocaleString()}</div>
+              </div>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">
               <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액 합계:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
               <div style="color:#4F46E5">커미션 합계:</div><div style="text-align:right;color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</div>
-              <div style="border-top:1.5px dashed #818CF8;grid-column:span 2;padding-top:6px"><strong>청구 금액 합계:</strong> <strong style="float:right">$${billingBreakdown.gross.toLocaleString()}</strong></div>
             </div>
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
               ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
@@ -8509,17 +8529,9 @@ function renderAgencyCommissionBadge(status) {
   return `<span class="tsa-badge ${paid ? 'tsa-badge-success' : 'tsa-badge-danger'}" style="font-size:10px">${paid ? '지급' : '미지급'}</span>`;
 }
 
-// ===== 인보이스 발행/폐기/재발행/수정(차액) 발행 =====
-
-// 학생별로 현재 유효한(폐기되지 않은) 기준 인보이스(정발행/재발행) — 수정(차액) 인보이스는 제외
-function getActiveBaseInvoice(s) {
-  const list = s.invoices || [];
-  for (let i = list.length - 1; i >= 0; i--) {
-    const inv = list[i];
-    if (inv.status === 'issued' && inv.type !== 'amendment') return inv;
-  }
-  return null;
-}
+// ===== 인보이스 발행/추가 발행/발행 취소/재발행/수정(차액) 발행 =====
+// 항목마다 발행 시점이 달라, 발행 여부는 인보이스가 아니라 항목이 갖는다(계산해서 얻는다).
+// 발행 취소된 문서는 지우지 않고 사유와 함께 이력에 남긴다.
 
 // 기준 인보이스에 포함된 모든 항목이 현재 완납 상태인지 확인 (결제 전/후 액션 분기용)
 function isBaseInvoiceFullyPaid(s, invoice) {
@@ -8535,9 +8547,62 @@ function nextInvoiceSeq(s) {
   return (s.invoices || []).length + 1;
 }
 
+// 항목이 어느 인보이스에 실렸는지는 항목 쪽에 저장하지 않고 인보이스에서 되찾는다.
+// 항목에도 상태를 적어두면 발행 취소·재발행 때마다 두 곳을 맞춰야 하고,
+// 한 번 어긋나면 어느 쪽이 맞는지 알 방법이 없다. 진실은 인보이스 하나만 갖는다.
+function getItemActiveInvoice(s, key) {
+  return (s.invoices || []).find(inv =>
+    inv.status === 'issued' && inv.type !== 'amendment'
+    && (inv.items || []).some(item => item.key === key)) || null;
+}
+
+// 금액이 0인 항목은 청구할 것이 없으므로 처음부터 발행 대상이 아니다.
+// 「미발행」으로 남겨두면 영영 끝나지 않은 것처럼 보인다.
+function isBillableBillingItem(item) {
+  return Number(item.amount) > 0;
+}
+
+// 정산 탭이 쓰는 발행 현황 한 덩어리 — 항목별 발행 여부와 발행/미발행 합계.
+// 합계를 셋으로 가르는 이유: 청구 총액만 보여주면 실제로 나간 금액이 얼마인지 화면에 드러나지 않는다.
+function getInvoiceIssueSummary(s) {
+  const breakdown = getStudentBillingBreakdown(s);
+  const rows = breakdown.items.map(item => {
+    const billable = isBillableBillingItem(item);
+    const invoice = billable ? getItemActiveInvoice(s, item.key) : null;
+    return { ...item, billable, invoice, issued: !!invoice };
+  });
+  const sum = list => list.reduce((total, row) => total + row.amount, 0);
+  return {
+    breakdown,
+    rows,
+    issuable: rows.filter(row => row.billable && !row.issued),
+    issuedTotal: sum(rows.filter(row => row.issued)),
+    unissuedTotal: sum(rows.filter(row => row.billable && !row.issued)),
+    grossTotal: breakdown.gross,
+  };
+}
+
+// 발행 종류. 처음이면 정발행, 살아 있는 인보이스가 이미 있으면 추가 발행,
+// 전부 취소된 뒤 다시 내는 것이면 재발행이다.
+function getNextInvoiceType(s) {
+  const list = s.invoices || [];
+  if (!list.length) return 'issue';
+  return list.some(inv => inv.status === 'issued' && inv.type !== 'amendment') ? 'additional' : 'reissue';
+}
+
+// 수정(차액) 발행 대상 — 완납된 기준 인보이스 중 가장 최근 것.
+// 미발행 항목은 금액을 그냥 고치면 되므로 차액 발행이 필요 없다.
+function getAmendableInvoice(s) {
+  const list = (s.invoices || []).filter(inv =>
+    inv.status === 'issued' && inv.type !== 'amendment' && isBaseInvoiceFullyPaid(s, inv));
+  return list.length ? list[list.length - 1] : null;
+}
+
+const INVOICE_TYPE_LABEL = { issue: '정발행', additional: '추가 발행', reissue: '재발행', amendment: '수정(차액)' };
+
 // 발행 이력 표에 쓰는 인보이스별 결제 상태. 정발행/재발행은 청구 항목, 수정(차액) 인보이스는
 // 차액 대상 항목의 현재 납부 여부(항목별 paymentStatus, 납부 내역 관리 승인 결과)를 기준으로 판정한다.
-// 폐기된 건은 이미 "폐기" 배지로 상태를 표시하므로 결제 상태는 계산하지 않는다.
+// 발행 취소된 건은 이미 "취소됨" 배지로 상태를 표시하므로 결제 상태는 계산하지 않는다.
 function getInvoicePaymentStatus(s, invoice) {
   if (invoice.status === 'void') return null;
   const keys = invoice.type === 'amendment'
@@ -8571,18 +8636,22 @@ function reopenSettleTab(studentId) {
 function issueOrReissueInvoice(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (!s) return;
-  const breakdown = getStudentBillingBreakdown(s);
-  const checkedItems = breakdown.items.filter(item => document.getElementById(`inv-check-${item.key}`)?.checked);
+  // 같은 항목이 두 인보이스에 실리면 청구 금액이 이중이 된다.
+  // 그래서 화면에서 체크박스를 감추는 데 그치지 않고, 후보 자체를 issuable(미발행·청구 대상)에서만 고른다.
+  // 화면에 남아 있던 낡은 체크박스를 눌러도 여기서 걸러진다.
+  const summary = getInvoiceIssueSummary(s);
+  const checkedItems = summary.issuable.filter(item => document.getElementById(`inv-check-${item.key}`)?.checked);
   if (!checkedItems.length) { showToast('발행할 청구 항목을 하나 이상 선택해 주세요.', 'warning'); return; }
 
   if (!s.invoices) s.invoices = [];
   const seq = nextInvoiceSeq(s);
+  const type = getNextInvoiceType(s);
   const items = checkedItems.map(item => ({ key: item.key, label: item.label, amount: item.amount }));
   const gross = items.reduce((sum, item) => sum + item.amount, 0);
   const invoice = {
     id: `${studentId}-${Date.now()}`,
     seq,
-    type: seq === 1 ? 'issue' : 'reissue',
+    type,
     status: 'issued',
     invoiceNo: `TSA-${studentId}-${seq}`,
     issueDate: new Date().toISOString().slice(0, 10),
@@ -8598,26 +8667,35 @@ function issueOrReissueInvoice(studentId) {
   };
   s.invoices.push(invoice);
 
+  const itemLabels = items.map(item => item.label).join(' · ');
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[인보이스 ${invoice.type === 'issue' ? '발행' : '재발행'}] ${s.name} 학생 ${seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다.`,
+    text: `[인보이스 ${INVOICE_TYPE_LABEL[type]}] ${s.name} 학생 ${seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 포함 항목: ${itemLabels}`,
     type: 'info',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });
 
-  showToast(`✅ ${invoice.invoiceNo} (${seq}차) 인보이스가 발행되었습니다.`, 'success');
+  showToast(`✅ ${invoice.invoiceNo} (${seq}차 · ${INVOICE_TYPE_LABEL[type]}) 인보이스가 발행되었습니다 — ${itemLabels}.`, 'success');
   reopenSettleTab(studentId);
 }
 
-function voidActiveInvoice(studentId) {
+// 발행 취소는 인보이스 한 건을 지목해서 한다. 등록금 인보이스와 수강료 인보이스가
+// 동시에 살아 있을 수 있어 "지금 활성인 그 한 장"이라는 것이 성립하지 않는다.
+// 문서는 지우지 않고 사유와 함께 이력에 남긴다 — 그래서 이름도 '폐기'가 아니라 '발행 취소'다.
+function cancelInvoice(studentId, invoiceId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (!s) return;
-  const invoice = getActiveBaseInvoice(s);
+  const invoice = (s.invoices || []).find(inv => inv.id === invoiceId);
   if (!invoice) return;
+  if (invoice.status === 'void') { showToast('이미 발행 취소된 인보이스입니다.', 'warning'); return; }
 
-  const reason = prompt('인보이스 폐기 사유를 입력하십시오:');
+  const itemLabels = (invoice.items || []).map(item => item.label).join(' · ');
+  const backNote = invoice.type === 'amendment' ? '' : `\n포함 항목(${itemLabels})은 「미발행」으로 돌아갑니다.`;
+  if (!window.confirm(`${invoice.invoiceNo} (${invoice.seq}차) 발행을 취소할까요?${backNote}\n문서는 이력에 그대로 남습니다.`)) return;
+
+  const reason = prompt('발행 취소 사유를 입력하십시오:');
   if (reason === null) return;
-  if (!reason.trim()) { showToast('폐기 사유를 입력해 주세요.', 'warning'); return; }
+  if (!reason.trim()) { showToast('발행 취소 사유를 입력해 주세요.', 'warning'); return; }
 
   invoice.status = 'void';
   invoice.voidedAt = new Date().toISOString().slice(0, 10);
@@ -8626,20 +8704,20 @@ function voidActiveInvoice(studentId) {
 
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[인보이스 폐기] ${s.name} 학생 ${invoice.seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 폐기되었습니다. 사유: ${reason.trim()}`,
+    text: `[인보이스 발행 취소] ${s.name} 학생 ${invoice.seq}차 인보이스(${invoice.invoiceNo}) 발행이 ${stayCurrentActor()}에 의해 취소되었습니다. 사유: ${reason.trim()}`,
     type: 'warning',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });
 
-  showToast(`🗑️ ${invoice.invoiceNo} 인보이스가 폐기되었습니다.`, 'success');
+  showToast(`${invoice.invoiceNo} 발행이 취소되었습니다.`, 'success');
   reopenSettleTab(studentId);
 }
 
 function issueAmendmentInvoice(studentId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (!s) return;
-  const base = getActiveBaseInvoice(s);
-  if (!base || !isBaseInvoiceFullyPaid(s, base)) {
+  const base = getAmendableInvoice(s);
+  if (!base) {
     showToast('완납된 기준 인보이스가 있을 때만 수정 인보이스를 발행할 수 있습니다.', 'warning');
     return;
   }
@@ -8695,36 +8773,35 @@ function viewInvoiceHistoryDocument(studentId, invoiceId) {
   renderAgencyInlineDocument(studentId, 'invoice');
 }
 
-// 정산 탭 우측 "공식 인보이스" 패널 전체 — 발행/폐기/재발행/수정(차액) 액션과 발행 이력을 조립한다.
-// 좌측 패널: 발행 전에는 "발행할 청구 항목 선택" 체크리스트, 결제 전 발행 상태에서는 폐기 안내,
-// 완납 후에는 "수정 인보이스 발행" 금액 수정 폼을 보여준다. (기존 항목별 청구 금액 표 아래에 이어서 배치)
+// 정산 탭 우측 "공식 인보이스" 패널 전체 — 발행 액션과 발행 이력을 조립한다.
+// 좌측 패널은 발행(첫 발행/추가 발행)과 완납 건의 수정(차액) 발행만 맡고,
+// 발행 취소·보기처럼 인보이스 한 건을 지목하는 동작은 아래 발행 이력 표에 있다.
+// 발행 액션은 "아직 안 나간 항목을 내보내는 것" 하나만 남긴다.
+// 발행 취소·보기처럼 인보이스 한 건을 지목하는 동작은 전부 아래 발행 이력 표가 맡는다.
 function renderInvoiceActionPanel(s) {
-  const activeInvoice = getActiveBaseInvoice(s);
+  const summary = getInvoiceIssueSummary(s);
+  const amendable = getAmendableInvoice(s);
+  const type = getNextInvoiceType(s);
 
-  if (!activeInvoice) {
-    const hasVoidHistory = (s.invoices || []).some(inv => inv.status === 'void');
-    return `
-      <div style="display:flex;justify-content:flex-end;margin-top:12px">
-        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="issueOrReissueInvoice(${s.id})">
-          <i data-lucide="file-plus-2"></i> ${hasVoidHistory ? '인보이스 재발행' : '인보이스 발행'}
+  const issueHtml = summary.issuable.length ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px">
+        <div style="font-size:10.5px;color:#6B7280">선택한 항목이 <strong style="color:#4338CA">한 장</strong>으로 발행됩니다. 발행된 항목은 이 목록에서 잠깁니다.</div>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="white-space:nowrap" type="button" onclick="issueOrReissueInvoice(${s.id})">
+          <i data-lucide="file-plus-2"></i> ${type === 'issue' ? '인보이스 발행' : type === 'reissue' ? '인보이스 재발행' : '선택 항목 추가 발행'}
         </button>
+      </div>` : `
+      <div style="margin-top:12px;padding:10px 12px;border:1px solid #A7F3D0;border-radius:9px;background:#ECFDF5;font-size:11.5px;color:#065F46">
+        청구 항목이 모두 발행됐습니다. 항목을 바꾸려면 아래 발행 이력에서 해당 인보이스의 <strong>발행 취소</strong>를 누르세요.
       </div>`;
-  }
 
-  if (!isBaseInvoiceFullyPaid(s, activeInvoice)) {
-    return `
-      <div style="border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px;background:#FEF2F2;margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div style="font-size:11.5px;color:#991B1B"><strong>${activeInvoice.seq}차 발행 · ${activeInvoice.invoiceNo}</strong> (${activeInvoice.issueDate} 발행) — 결제 확인 전입니다. 청구 항목 변경이 필요하면 폐기 후 재발행하세요.</div>
-        <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="color:#DC2626;border-color:#FCA5A5;white-space:nowrap" type="button" onclick="voidActiveInvoice(${s.id})"><i data-lucide="trash-2"></i> 폐기</button>
-      </div>`;
-  }
+  if (!amendable) return issueHtml;
 
-  return `
+  return `${issueHtml}
     <div style="border:1px solid #C7D2FE;border-radius:10px;padding:14px;background:#F8F9FF;margin-top:16px">
-      <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:4px">수정 인보이스 발행 (결제 완료 · ${activeInvoice.seq}차 기준 차액 청구/환불)</div>
-      <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">금액을 수정한 항목만 차액으로 새로 발행됩니다. 완납된 원본 인보이스(${activeInvoice.invoiceNo})는 폐기되지 않고 그대로 보존됩니다.</div>
+      <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:4px">수정 인보이스 발행 (결제 완료 · ${amendable.seq}차 기준 차액 청구/환불)</div>
+      <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">금액을 수정한 항목만 차액으로 새로 발행됩니다. 완납된 원본 인보이스(${amendable.invoiceNo})는 그대로 보존됩니다.</div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-        ${activeInvoice.items.map(item => `
+        ${amendable.items.map(item => `
           <div style="display:grid;grid-template-columns:1fr 90px 100px;gap:8px;align-items:center;padding:8px 10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:12px">
             <span style="font-weight:700;color:#374151">${item.label}</span>
             <span style="text-align:right;color:#9CA3AF;font-size:10.5px">기존 $${item.amount.toLocaleString()}</span>
@@ -8757,22 +8834,25 @@ function renderInvoiceDocumentPanel(s) {
 // 하단 전체 폭 패널: 발행 이력 (1차/2차 등 차수, 종류, 발행일, 상태를 한눈에 확인)
 function renderInvoiceHistoryPanel(s) {
   const history = (s.invoices || []).slice().reverse();
-  const typeLabel = { issue: '정발행', reissue: '재발행', amendment: '수정(차액)' };
 
   const historyHtml = history.length ? `
     <table class="tsa-table" style="font-size:11px;margin-top:2px">
-      <thead><tr><th>No</th><th>종류</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
+      <thead><tr><th>No</th><th>종류</th><th>포함 항목</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
       <tbody>
         ${history.map(inv => `
-          <tr>
+          <tr${inv.status === 'void' ? ' style="color:#9CA3AF"' : ''}>
             <td>${inv.seq}차</td>
-            <td>${typeLabel[inv.type] || inv.type}</td>
+            <td>${INVOICE_TYPE_LABEL[inv.type] || inv.type}</td>
+            <td>${(inv.items || []).map(item => item.label).join(' · ') || '-'}</td>
             <td>${inv.issueDate}</td>
             <td>${inv.issuedBy || '-'}</td>
             <td style="text-align:right;font-weight:700">${inv.type === 'amendment' ? `${inv.deltaTotal >= 0 ? '+' : ''}$${Number(inv.deltaTotal).toLocaleString()}` : `$${Number(inv.gross).toLocaleString()}`}</td>
-            <td style="text-align:center">${inv.status === 'void' ? `<span class="tsa-badge tsa-badge-gray" title="폐기 사유: ${inv.voidReason || '-'}">폐기</span>` : '<span class="tsa-badge tsa-badge-success">발행중</span>'}</td>
+            <td style="text-align:center">${inv.status === 'void' ? `<span class="tsa-badge tsa-badge-gray" title="취소 사유: ${inv.voidReason || '-'} (${inv.voidedAt || '-'} · ${inv.voidedBy || '-'})">취소됨</span>` : '<span class="tsa-badge tsa-badge-success">발행중</span>'}</td>
             <td style="text-align:center">${renderInvoicePaymentStatusBadge(getInvoicePaymentStatus(s, inv))}</td>
-            <td style="text-align:center"><button class="tsa-btn tsa-btn-outline tsa-btn-xs" type="button" onclick="viewInvoiceHistoryDocument(${s.id}, '${inv.id}')">보기</button></td>
+            <td style="text-align:center;white-space:nowrap">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-xs" type="button" onclick="viewInvoiceHistoryDocument(${s.id}, '${inv.id}')">보기</button>
+              ${inv.status === 'issued' ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#DC2626;border-color:#FCA5A5;margin-left:4px" type="button" onclick="cancelInvoice(${s.id}, '${inv.id}')">발행 취소</button>` : ''}
+            </td>
           </tr>
         `).join('')}
       </tbody>
@@ -8811,9 +8891,9 @@ function renderInvoiceDocumentSnapshot(invoice, std) {
   const route = std.remittanceRoute || std.enrollments?.[0]?.remittanceRoute || 'agency';
   const routeLabel = getRemittanceRouteLabel(route);
   const isAmendment = invoice.type === 'amendment';
-  const typeLabelKo = { issue: '정발행', reissue: '재발행', amendment: '수정(차액)' }[invoice.type] || invoice.type;
+  const typeLabelKo = INVOICE_TYPE_LABEL[invoice.type] || invoice.type;
   const statusNote = invoice.status === 'void'
-    ? `<div style="margin-top:8px;text-align:right"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#FEE2E2;color:#B91C1C;font-weight:900">VOIDED · 폐기됨 (${invoice.voidedAt})</span></div>`
+    ? `<div style="margin-top:8px;text-align:right"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#FEE2E2;color:#B91C1C;font-weight:900">VOIDED · 발행 취소됨 (${invoice.voidedAt})</span></div>`
     : '';
 
   const baseInvoice = isAmendment ? (std.invoices || []).find(inv => inv.id === invoice.baseInvoiceId) : null;
