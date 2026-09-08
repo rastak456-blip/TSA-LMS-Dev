@@ -2257,6 +2257,16 @@ function getStudentPhotoSrc(student) {
     || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
 }
 
+// 수강 기간. 종료일이 따로 없으면 출국일을 끝으로 본다 — 다른 화면과 같은 규칙이다.
+function getStudentPeriodText(student) {
+  const start = student?.startDate || '';
+  const end = student?.endDate || student?.departureDate || '';
+  if (!start || !end) return '';
+  const fmt = date => date.replace(/^20/, '').replace(/-/g, '.');
+  const weeks = Math.max(1, Math.round((new Date(end) - new Date(start)) / (7 * 86400000)));
+  return `${fmt(start)} ~ ${fmt(end)} (${weeks}주)`;
+}
+
 // 국적 · 나이. 값이 없는 항목은 빼서 구분점만 남지 않게 한다.
 function getStudentOriginMetaText(student) {
   return [
@@ -2298,6 +2308,7 @@ function renderScaGapList() {
       <span style="flex:0 0 104px;min-width:0">${gap.student.level
         ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(gap.student.level)}</span>`
         : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
+      <span style="flex:0 0 150px;min-width:0;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(gap.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
       ${chips}
       <span style="margin-left:auto;font-size:9.5px;font-weight:800;color:#DC2626;background:#FEE2E2;border-radius:999px;padding:2px 8px;white-space:nowrap">${gap.total - gap.missing.length}/${gap.total}</span>
     </div>`;
@@ -2712,6 +2723,7 @@ function renderScaStep3Board() {
         <span style="flex:0 0 104px;min-width:0">${entry.student.level
           ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(entry.student.level)}</span>`
           : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
+        <span style="flex:0 0 150px;min-width:0;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(entry.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
         ${entry.items.map(requirement => {
           const on = pick && pick.studentId === entry.student.id && pick.sequence === requirement.sequence;
           return `<button onclick="pickScaOneToOne(${entry.student.id},${requirement.sequence})" style="padding:3px 10px;border-radius:999px;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#4B5563'};font-size:9.5px;font-weight:600;cursor:pointer">${lessonEsc(requirement.subjectName)}</button>`;
