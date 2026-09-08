@@ -2826,7 +2826,6 @@ const SCA_PAGE_META = {
 
 function renderStudentClassAssignView() {
   const step = _scaStep;
-  const showGroups = step === 2;
   const meta = SCA_PAGE_META[step === 2 ? 'groups' : step === 3 ? 'one' : step === 4 ? 'schedule' : 'students'];
   const titleEl = document.getElementById('sca-page-title');
   const subtitleEl = document.getElementById('sca-page-subtitle');
@@ -2838,8 +2837,6 @@ function renderStudentClassAssignView() {
   const groupsPanel = document.getElementById('sca-panel-groups');
   // 1단계는 학생 × 과목 표가 대신한다. 예전 학생별 표는 자리에 그대로 두되 감춰둔다.
   const step1Panel = document.getElementById('sca-panel-step1');
-  // 그룹 생성·자동 매칭 버튼은 그룹 편성 탭에서만 의미가 있어.
-  const groupActions = document.getElementById('sca-group-actions');
   const step3Panel = document.getElementById('sca-panel-step3');
   const schedulePanel = document.getElementById('sca-panel-schedule');
   if (step1Panel) step1Panel.style.display = step === 1 ? 'block' : 'none';
@@ -2847,7 +2844,6 @@ function renderStudentClassAssignView() {
   if (schedulePanel) schedulePanel.style.display = step === 4 ? 'block' : 'none';
   if (studentsPanel) studentsPanel.style.display = 'none';
   if (groupsPanel) groupsPanel.style.display = step === 2 ? 'block' : 'none';
-  if (groupActions) groupActions.style.display = showGroups ? 'flex' : 'none';
   renderScaWeekHeader();
   if (step === 2) renderStudentClassAssignGroupPanel();
   else if (step === 3) renderScaStep3Board();
