@@ -2470,13 +2470,14 @@ function runScaStep3AutoAssign() {
 // 전체 시간표 — 다 짜고 나서 확인하는 화면. 여기서는 배정하지 않는다.
 //
 // 강사별은 만들지 않는다. 3단계 표가 이미 강사 × 교시라 그 일을 겸한다.
-// 여기서는 축이 다른 두 가지만 본다 — 학생별(시간표 뽑기), 강의실별(빈 방 찾기).
+// 여기서는 축이 다른 세 가지를 본다 —
+// 학생별(시간표 뽑기), 강사별(누가 몇 교시 뛰는지), 강의실별(빈 방 찾기).
 // ═════════════════════════════════════════════════════════════
 
 let _scaScheduleView = 'student';
 
 function setScaScheduleView(view) {
-  _scaScheduleView = view === 'room' ? 'room' : 'student';
+  _scaScheduleView = ['room', 'teacher'].includes(view) ? view : 'student';
   renderStudentClassAssignView();
 }
 
@@ -2563,6 +2564,7 @@ function renderScaScheduleBoard() {
   const lessons = getScaWeekLessons();
   const conflicts = getScaScheduleConflicts(lessons);
   const isRoom = _scaScheduleView === 'room';
+  const isTeacher = _scaScheduleView === 'teacher';
 
   const tab = (view, label) => {
     const on = _scaScheduleView === view;
@@ -2572,12 +2574,18 @@ function renderScaScheduleBoard() {
   const chip = (lesson, mode, hideTeacher) => {
     const one = lesson.kind === 'one';
     const color = one ? '#5E5CE6' : '#059669';
-    const main = mode === 'room'
-      ? (one ? lessonEsc(lesson.title) : lessonEsc(lesson.title))
-      : (one ? `1:1 ${lessonEsc(lesson.subjectName)}` : lessonEsc(lesson.title));
-    const sub = mode === 'room'
-      ? (hideTeacher ? '' : lessonEsc(lesson.teacherName)) + (one ? '' : `${hideTeacher ? '' : ' · '}${lesson.studentIds.length}/${lesson.capacity}명`)
-      : `${lessonEsc(lesson.teacherName)}${lesson.roomNo ? ` · ${lessonEsc(lesson.roomNo)}` : ''}`;
+    // 줄 머리에 이미 있는 값은 칸에서 뺀다 — 강사별이면 강사, 강의실별이면 그 방 담당 강사.
+    const main = mode === 'student' && one
+      ? `1:1 ${lessonEsc(lesson.subjectName)}`
+      : lessonEsc(lesson.title);
+    let sub;
+    if (mode === 'room') {
+      sub = (hideTeacher ? '' : lessonEsc(lesson.teacherName)) + (one ? '' : `${hideTeacher ? '' : ' · '}${lesson.studentIds.length}/${lesson.capacity}명`);
+    } else if (mode === 'teacher') {
+      sub = `${lesson.roomNo ? lessonEsc(lesson.roomNo) : '강의실 미정'}${one ? '' : ` · ${lesson.studentIds.length}/${lesson.capacity}명`}`;
+    } else {
+      sub = `${lessonEsc(lesson.teacherName)}${lesson.roomNo ? ` · ${lessonEsc(lesson.roomNo)}` : ''}`;
+    }
     return `<div style="border:1px ${lesson.merged ? 'dashed' : 'solid'} #E5E7EB;border-left:3px ${lesson.merged ? 'dashed' : 'solid'} ${color};border-radius:7px;padding:5px 7px;margin-bottom:3px;background:#fff;line-height:1.35">
       <b style="display:block;font-size:9.5px;color:#111827">${main}</b>
       <span style="font-size:8.5px;color:#9CA3AF">${sub}</span>
@@ -2605,6 +2613,27 @@ function renderScaScheduleBoard() {
         <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
           <b style="display:block;font-size:11px;color:#111827">${lessonEsc(room.roomNo)}${owner ? `<span style="font-weight:600;color:#5E5CE6;margin-left:5px">${lessonEsc(owner.nick || owner.name)}</span>` : ''}</b>
           <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(room.type)} · 빈 교시 ${totalPeriods - busy}</span>
+        </td>${cells}
+      </tr>`;
+    }).join('');
+  } else if (isTeacher) {
+    headLabel = '강사';
+    // 수업이 있는 강사를 위로 올린다. 아래쪽 빈 줄은 이번 주에 안 뛰는 강사 — 그것도 봐야 할 정보다.
+    const countOf = teacher => periods.filter(period =>
+      lessons.some(lesson => lesson.teacherId === teacher.id && lesson.period === period)).length;
+    const teacherList = MOCK_TEACHERS
+      .filter(teacher => teacher.status !== 'resigned')
+      .map(teacher => ({ teacher, busy: countOf(teacher) }))
+      .sort((a, b) => b.busy - a.busy || String(a.teacher.nick || a.teacher.name).localeCompare(String(b.teacher.nick || b.teacher.name)));
+    rows = teacherList.map(({ teacher, busy }) => {
+      const cells = periods.map(period => {
+        const here = lessons.filter(lesson => lesson.teacherId === teacher.id && lesson.period === period);
+        return `<td style="padding:4px;border-top:1px solid #F3F4F6;border-left:1px solid #F3F4F6;vertical-align:top">${here.map(lesson => chip(lesson, 'teacher')).join('') || '<div style="text-align:center;color:#E5E7EB;font-size:9px;padding:7px 0">·</div>'}</td>`;
+      }).join('');
+      return `<tr>
+        <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
+          <b style="display:block;font-size:11px;color:${busy ? '#111827' : '#9CA3AF'}">${lessonEsc(teacher.nick || teacher.name)}</b>
+          <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${teacher.room ? lessonEsc(teacher.room) : '그룹만 담당'} · ${busy ? `${busy}교시` : '수업 없음'}</span>
         </td>${cells}
       </tr>`;
     }).join('');
@@ -2636,6 +2665,7 @@ function renderScaScheduleBoard() {
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:11px">
       <span style="font-size:10.5px;color:#6B7280">보기</span>
       ${tab('student', '학생별')}
+      ${tab('teacher', '강사별')}
       ${tab('room', '강의실별')}
       <span style="margin-left:auto;font-size:10.5px;color:#9CA3AF">이 화면에서는 배정하지 않아. 고치려면 1~3단계로 가.</span>
     </div>
