@@ -2587,6 +2587,16 @@ function renderScaScheduleBoard() {
       return `<div style="font-size:8.5px;color:#9CA3AF;margin-top:2px;white-space:normal">${name}${meta}</div>`;
     }).join('');
 
+  // 그룹은 8명까지 들어가 다 펼쳐두면 칸이 표를 밀어낸다. 기본은 접고 눌렀을 때만 편다.
+  // 1:1은 학생이 한 명뿐이라 접을 것이 없어 그대로 보여준다.
+  const studentBlock = lesson => {
+    const lines = studentLines(lesson);
+    if (!lines || lesson.kind === 'one') return lines;
+    return `<details style="margin-top:3px">
+      <summary style="cursor:pointer;font-size:8.5px;font-weight:700;color:#5E5CE6;outline:none">학생 명단</summary>${lines}
+    </details>`;
+  };
+
   const chip = (lesson, mode, hideTeacher) => {
     const one = lesson.kind === 'one';
     const color = one ? '#5E5CE6' : '#059669';
@@ -2605,7 +2615,7 @@ function renderScaScheduleBoard() {
     return `<div style="border:1px ${lesson.merged ? 'dashed' : 'solid'} #E5E7EB;border-left:3px ${lesson.merged ? 'dashed' : 'solid'} ${color};border-radius:7px;padding:5px 7px;margin-bottom:3px;background:#fff;line-height:1.35">
       <b style="display:block;font-size:9.5px;color:#111827">${main}</b>
       <span style="font-size:8.5px;color:#9CA3AF">${sub}</span>
-      ${mode === 'teacher' ? studentLines(lesson) : ''}
+      ${mode === 'teacher' ? studentBlock(lesson) : ''}
     </div>`;
   };
 
@@ -2692,7 +2702,7 @@ function renderScaScheduleBoard() {
       <table style="border-collapse:collapse;width:100%;font-size:10.5px">
         <thead><tr>
           <th style="padding:8px 11px;font-size:10px;font-weight:700;color:#9CA3AF;background:#F8FAFC;border-bottom:1px solid #E5E7EB;text-align:left;width:120px">${headLabel}</th>
-          ${periods.map(period => `<th style="padding:8px 6px;font-size:10px;font-weight:700;color:#6B7280;background:#F8FAFC;border-bottom:1px solid #E5E7EB;border-left:1px solid #F3F4F6;text-align:center;min-width:${isTeacher ? 172 : 100}px">${period}교시</th>`).join('')}
+          ${periods.map(period => `<th style="padding:8px 6px;font-size:10px;font-weight:700;color:#6B7280;background:#F8FAFC;border-bottom:1px solid #E5E7EB;border-left:1px solid #F3F4F6;text-align:center;min-width:${isTeacher ? 166 : 100}px">${period}교시</th>`).join('')}
         </tr></thead>
         <tbody>${rows || `<tr><td colspan="${periods.length + 1}" style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">이번 주에 열리는 수업이 없어.</td></tr>`}</tbody>
       </table>
