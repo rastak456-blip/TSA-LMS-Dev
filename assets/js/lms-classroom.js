@@ -2574,6 +2574,19 @@ function renderScaScheduleBoard() {
     return `<button onclick="setScaScheduleView('${view}')" style="border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#6B7280'};border-radius:8px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer">${label}</button>`;
   };
 
+  // 강사별 화면은 "이 선생이 이 교시에 누구를 보는가"가 핵심이라 인원 수만 세어주면 부족하다.
+  // 학생마다 국적·나이·레벨을 붙여, 강사가 준비할 반의 구성이 칸 안에서 바로 읽히게 한다.
+  // 통합 레벨 그룹은 학생마다 레벨이 다를 수 있어 여기서 특히 필요하다.
+  const studentLines = lesson => (lesson.studentIds || [])
+    .map(id => MOCK_STUDENTS.find(student => student.id === id))
+    .filter(Boolean)
+    .map(student => {
+      const meta = [getStudentOriginMetaText(student), lessonEsc(student.level || '')].filter(Boolean).join(' · ');
+      // 1:1은 칸 제목이 이미 "학생 · 과목"이라 이름을 또 적지 않는다.
+      const name = lesson.kind === 'one' ? '' : `<b style="color:#374151">${lessonEsc(student.nick || student.name)}</b> `;
+      return `<div style="font-size:8.5px;color:#9CA3AF;margin-top:2px;white-space:normal">${name}${meta}</div>`;
+    }).join('');
+
   const chip = (lesson, mode, hideTeacher) => {
     const one = lesson.kind === 'one';
     const color = one ? '#5E5CE6' : '#059669';
@@ -2592,6 +2605,7 @@ function renderScaScheduleBoard() {
     return `<div style="border:1px ${lesson.merged ? 'dashed' : 'solid'} #E5E7EB;border-left:3px ${lesson.merged ? 'dashed' : 'solid'} ${color};border-radius:7px;padding:5px 7px;margin-bottom:3px;background:#fff;line-height:1.35">
       <b style="display:block;font-size:9.5px;color:#111827">${main}</b>
       <span style="font-size:8.5px;color:#9CA3AF">${sub}</span>
+      ${mode === 'teacher' ? studentLines(lesson) : ''}
     </div>`;
   };
 
@@ -2652,6 +2666,7 @@ function renderScaScheduleBoard() {
       return `<tr>
         <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
           <b style="display:block;font-size:11px;color:#111827">${lessonEsc(student.nick || student.name)}</b>
+          <span style="display:block;font-size:9px;color:#8A90A2;margin-top:1px">${getStudentOriginMetaText(student) || '-'}</span>
           <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(student.level || '-')} · ${count}교시</span>
         </td>${cells}
       </tr>`;
@@ -2677,7 +2692,7 @@ function renderScaScheduleBoard() {
       <table style="border-collapse:collapse;width:100%;font-size:10.5px">
         <thead><tr>
           <th style="padding:8px 11px;font-size:10px;font-weight:700;color:#9CA3AF;background:#F8FAFC;border-bottom:1px solid #E5E7EB;text-align:left;width:120px">${headLabel}</th>
-          ${periods.map(period => `<th style="padding:8px 6px;font-size:10px;font-weight:700;color:#6B7280;background:#F8FAFC;border-bottom:1px solid #E5E7EB;border-left:1px solid #F3F4F6;text-align:center;min-width:100px">${period}교시</th>`).join('')}
+          ${periods.map(period => `<th style="padding:8px 6px;font-size:10px;font-weight:700;color:#6B7280;background:#F8FAFC;border-bottom:1px solid #E5E7EB;border-left:1px solid #F3F4F6;text-align:center;min-width:${isTeacher ? 172 : 100}px">${period}교시</th>`).join('')}
         </tr></thead>
         <tbody>${rows || `<tr><td colspan="${periods.length + 1}" style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">이번 주에 열리는 수업이 없어.</td></tr>`}</tbody>
       </table>
