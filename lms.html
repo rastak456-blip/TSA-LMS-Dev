@@ -1679,17 +1679,17 @@
       </div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
         <a class="tsa-nav-item" id="menu-course-settings-parent" aria-controls="course-settings-submenu" aria-expanded="false" onclick="toggleSidebarGroup('course-settings-submenu')">
-          <i data-lucide="settings-2"></i>과정 및 수업 기준 설정<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+          <i data-lucide="settings-2"></i>커리큘럼 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
         </a>
         <div id="course-settings-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
-          <a class="tsa-nav-sub-item" id="menu-course-pricing" onclick="navigate('course-pricing')">수강 과정 등록 관리</a>
-          <a class="tsa-nav-sub-item" id="menu-course-master" onclick="navigate('course-master')">과목·레벨·수업 유형</a>
-          <a class="tsa-nav-sub-item" id="menu-course-period" onclick="navigate('course-period')">교시 시간 설정</a>
+          <a class="tsa-nav-sub-item" id="menu-course-pricing" onclick="navigate('course-pricing')">수강 과정 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-course-master" onclick="navigate('course-master')">수업 기준 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-course-period" onclick="navigate('course-period')">수업 시간 설정</a>
         </div>
       </div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
         <a class="tsa-nav-item" id="menu-tuition-parent" aria-controls="tuition-submenu" aria-expanded="false" onclick="toggleSidebarGroup('tuition-submenu')">
-          <i data-lucide="receipt-text"></i>수강료 구성<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+          <i data-lucide="receipt-text"></i>비용 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
         </a>
         <div id="tuition-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
           <a class="tsa-nav-sub-item" id="menu-tuition-config" onclick="navigate('tuition-config')">과정별 수강료</a>
@@ -3321,16 +3321,16 @@
         <div id="view-course-pricing" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">📚 과정 및 수업 기준 설정</h2>
+              <h2 class="tsa-page-title">📚 커리큘럼 관리</h2>
               <p class="tsa-page-subtitle">과정별 교시 구성과 수업 운영에 필요한 기준을 설정합니다.</p>
             </div>
           </div>
 
-          <!-- [탭 B] 수강 과정 등록관리 -->
+          <!-- [탭 B] 수강 과정 관리 -->
           <div id="course-pricing-tab-curriculum" class="course-pricing-tab-content">
             <div class="tsa-card">
               <div class="tsa-card-header">
-                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 등록관리 목록</h3>
+                <h3 class="tsa-card-title"><i data-lucide="book-open" style="color:#5E5CE6"></i> 수강 과정 관리 목록</h3>
                 <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openCourseModal()">
                   <i data-lucide="plus-square"></i> 신규 과정 추가
                 </button>
@@ -3429,18 +3429,18 @@
             </div>
           </div>
 
-          <!-- 교시 시간 설정 패널이 기존 기능과 ID를 유지한 채 이 위치로 이동된다. -->
+          <!-- 수업 시간 설정 패널이 기존 기능과 ID를 유지한 채 이 위치로 이동된다. -->
           <div id="course-pricing-tab-period" class="course-pricing-tab-content" style="display:none"></div>
         </div>
 
 
         <!-- ================================================ -->
-        <!--  VIEW: TUITION CONFIG (수강료 구성)                -->
+        <!--  VIEW: TUITION CONFIG (비용 관리)                -->
         <!-- ================================================ -->
         <div id="view-tuition-config" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">💳 수강료 구성</h2>
+              <h2 class="tsa-page-title">💳 비용 관리</h2>
               <p class="tsa-page-subtitle">학생 청구 기준 관리 · 과정별 수강료, 기숙사 요금, 기타 항목 설정</p>
             </div>
             <div style="display:flex;gap:8px">
@@ -3903,13 +3903,13 @@
             <div id="cs-final-timetable-body"></div>
           </div>
 
-          <!-- [탭] 교시 시간 설정 -->
+          <!-- [탭] 수업 시간 설정 -->
           <div id="bell-settings-panel" style="display:none">
             <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
               <!-- Left: Settings Card -->
               <div class="tsa-card">
                 <div class="tsa-card-header" style="background:#F0F1FE">
-                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 교시 시간 설정</h3>
+                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 수업 시간 설정</h3>
                 </div>
                 <div class="tsa-card-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
                   <div class="tsa-form-group">
@@ -7609,12 +7609,12 @@
 <div id="google_translate_element"></div>
 
 <script src="assets/js/lms-data.js?v=0.6.16"></script>
-<script src="assets/js/lms-util.js?v=0.6.9"></script>
+<script src="assets/js/lms-util.js?v=0.6.10"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.10"></script>
 <script src="assets/js/lms-student.js?v=0.6.7"></script>
-    <script src="assets/js/lms-course.js?v=0.6.76"></script>
-<script src="assets/js/lms-tuition.js?v=0.7.12"></script>
+    <script src="assets/js/lms-course.js?v=0.6.77"></script>
+<script src="assets/js/lms-tuition.js?v=0.7.13"></script>
 <script src="assets/js/lms-classroom.js?v=0.8.254"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>

@@ -1449,7 +1449,7 @@ function initAgencyStudentList() {
 }
 
 const COURSE_REG_PERIODS_BASE = [1, 2, 3, 4, 8, 12, 16, 20, 24];
-// 수강료 구성 화면의 "기간 옵션 관리"에서 추가한 장기 옵션(예: 36주, 48주)이 있으면 등록 기간 선택지에도 반영한다.
+// 비용 관리 화면의 "기간 옵션 관리"에서 추가한 장기 옵션(예: 36주, 48주)이 있으면 등록 기간 선택지에도 반영한다.
 function getCourseRegPeriods() {
   const extra = typeof TUITION_RATE_TABLE_EXTRA_WEEKS !== 'undefined' && Array.isArray(TUITION_RATE_TABLE_EXTRA_WEEKS) ? TUITION_RATE_TABLE_EXTRA_WEEKS : [];
   return [...COURSE_REG_PERIODS_BASE, ...extra].sort((a, b) => a - b);
