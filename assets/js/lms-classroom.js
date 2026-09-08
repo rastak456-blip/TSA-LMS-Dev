@@ -629,14 +629,15 @@ function selectAgmPin(id, openPopup) {
 // ── 에이전시 관리 끝 ──────────────────────────────────
 
 let MOCK_CLASSROOMS = [
-  // 호실은 실제 건물 기준(M = 1:1, G = 그룹). 동·층은 확인된 값이 없어 비워둔다 — 수정 창에서 채우면 된다.
-  { id: 1, room: 'M01', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 2, room: 'M02', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 3, room: 'M03', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 4, room: 'M04', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '파트타임 전용' },
-  { id: 5, room: 'G01', building: '', floor: '', capacity: 4, type: '그룹', status: 'active', memo: '소그룹(1:4)' },
-  { id: 6, room: 'G02', building: '', floor: '', capacity: 4, type: '그룹', status: 'maintenance', memo: '에어컨 점검 중' },
-  { id: 7, room: 'G06', building: '', floor: '', capacity: 8, type: '멀티', status: 'active', memo: '대그룹(1:8) · 주니어 전용' },
+  // 호실은 실제 건물 기준(M = 1:1, G = 그룹).
+  // 동·층은 두지 않는다 — 모든 강의실이 같은 건물 한 층에 있어 구분할 값이 없다.
+  { id: 1, room: 'M01', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 2, room: 'M02', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 3, room: 'M03', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 4, room: 'M04', capacity: 2, type: '1:1', status: 'active', memo: '파트타임 전용' },
+  { id: 5, room: 'G01', capacity: 4, type: '그룹', status: 'active', memo: '소그룹(1:4)' },
+  { id: 6, room: 'G02', capacity: 4, type: '그룹', status: 'maintenance', memo: '에어컨 점검 중' },
+  { id: 7, room: 'G06', capacity: 8, type: '멀티', status: 'active', memo: '대그룹(1:8) · 주니어 전용' },
 ];
 let _crNextId = 8;
 
@@ -673,7 +674,6 @@ function renderClassroomManage() {
       : '<span style="color:#D1D5DB;font-size:12px">미배정</span>';
     return `<tr>
       <td style="font-weight:700">${c.room}</td>
-      <td style="color:#6B7280">${c.building} ${c.floor}</td>
       <td style="text-align:center">${c.capacity}명</td>
       <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#5E5CE6;font-weight:600">${c.type}</span></td>
       <td>${teacherHtml}</td>
@@ -690,7 +690,6 @@ function renderClassroomManage() {
   const unassignedRows = unassignedTeachers.map(teacher => `
     <tr style="background:#FFFBEB">
       <td><span style="font-size:10.5px;font-weight:800;color:#B45309">강의실 배정 필요</span></td>
-      <td style="color:#9CA3AF">-</td>
       <td style="text-align:center;color:#9CA3AF">-</td>
       <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#5E5CE6;font-weight:600">1:1</span></td>
       <td><span style="font-weight:700">${teacher.nick}</span> <span style="font-size:11px;color:#6B7280">${teacher.name}</span></td>
@@ -710,7 +709,6 @@ function renderClassroomManage() {
     
     return `<tr>
       <td style="font-weight:700">${c.room}</td>
-      <td style="color:#6B7280">${c.building} ${c.floor}</td>
       <td style="text-align:center">${c.capacity}명</td>
       <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#ECFDF5;color:#10B981;font-weight:600">${c.type}</span></td>
       <td>${assignedClass}</td>
@@ -753,8 +751,6 @@ function openAddClassroomModal(defaultType) {
   document.getElementById('classroom-modal-title').textContent = '강의실 추가';
   document.getElementById('cr-modal-id').value = '';
   document.getElementById('cr-modal-room').value = '';
-  document.getElementById('cr-modal-building').value = '';
-  document.getElementById('cr-modal-floor').value = '';
   
   const typeVal = (defaultType === '그룹 강의실') ? '그룹' : '1:1';
   const capVal = (defaultType === '그룹 강의실') ? '8' : '2';
@@ -777,8 +773,6 @@ function openEditClassroomModal(id) {
   document.getElementById('classroom-modal-title').textContent = '강의실 수정';
   document.getElementById('cr-modal-id').value = id;
   document.getElementById('cr-modal-room').value = c.room;
-  document.getElementById('cr-modal-building').value = c.building;
-  document.getElementById('cr-modal-floor').value = c.floor;
   document.getElementById('cr-modal-capacity').value = c.capacity;
   document.getElementById('cr-modal-type').value = c.type;
   document.getElementById('cr-modal-status').value = c.status;
@@ -800,8 +794,6 @@ function saveClassroom() {
   const id = document.getElementById('cr-modal-id').value;
   const data = {
     room,
-    building: document.getElementById('cr-modal-building').value.trim(),
-    floor: document.getElementById('cr-modal-floor').value.trim(),
     capacity: parseInt(document.getElementById('cr-modal-capacity').value) || 0,
     type: document.getElementById('cr-modal-type').value,
     status: document.getElementById('cr-modal-status').value,

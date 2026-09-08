@@ -569,201 +569,204 @@ let MOCK_ASSIGNMENT_TAGS = [
   { id: "TAG-06", name: "주니어 ESL", visible: true, priority: 4 }
 ];
 
+// room은 여기서 정하지 않는다. 앱이 뜰 때 syncTeacherRoomsFromClassroomSettings()가
+// MOCK_CLASS_ROOMS의 1:1 강의실 담당 강사(teacherNick)를 보고 채운다.
+// 그래서 여기에 호실을 적어봐야 로드 시점에 덮어써진다 — 빈 값으로 둔다.
 const MOCK_TEACHERS = [
-  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: 'A-101', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1','1:4'],
+  { id: 1, name: 'Sarah Johnson', nick: 'Sarah', gender: '여', type: 'IELTS 전문', room: '', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: ['주니어 ESL'], classTypes: ['1:1','1:4'],
     email: 'sarah.j@talkstation.co', phone: '+63-917-111-1111', birthday: '1990-03-15', joinDate: '2021-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Sarah. I specialize in IELTS and will help you achieve your target band score!',
     intro: 'I am a dedicated English teacher with over 5 years of IELTS coaching experience. I focus on speaking fluency and reading comprehension.',
     education: 'Bachelor of Secondary Education, Major in English — University of Cebu', hobby: 'Reading novels, Yoga, Traveling' },
 
-  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: 'A-102', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true,true,false,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 2, name: 'Michael Cruz', nick: 'Mike', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 3, status: 'active', availability: [true,true,false,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'],
     email: 'mike.c@talkstation.co', phone: '+63-920-222-2222', birthday: '1993-07-22', joinDate: '2022-08-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Mike. Let\'s improve your conversational English together!',
     intro: 'I enjoy making English fun and practical. My teaching style focuses on real-life conversations.',
     education: 'Bachelor of Arts in Communication — Cebu Normal University', hobby: 'Basketball, Music, Cooking' },
 
-  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: 'B-201', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
+  { id: 3, name: 'Anna Reyes', nick: 'Anna', gender: '여', type: '그룹 수업', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 2, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
     email: 'anna.r@talkstation.co', phone: '+63-932-333-3333', birthday: '1995-01-10', joinDate: '2023-01-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hello everyone! I\'m Teacher Anna. Group classes are my specialty — energy and fun guaranteed!',
     intro: 'I believe learning is better together. I create engaging group activities to build confidence in speaking.',
     education: 'Bachelor of Elementary Education — University of San Jose-Recoletos', hobby: 'Singing, Dancing, Art' },
 
-  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: 'B-202', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
+  { id: 4, name: 'James Park', nick: 'James', gender: '남', type: '비즈니스 영어', room: '', contract: '정규직', available: false, todaySlots: 0, rating: 4.8, exp: 7, status: 'active', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4','1:8'],
     email: 'james.p@talkstation.co', phone: '+63-915-444-4444', birthday: '1985-11-30', joinDate: '2019-06-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hi! I\'m Teacher James. With 7 years of experience, I can guide you to fluency step by step.',
     intro: 'I specialize in grammar and comprehensive English skills. Currently on approved leave and returning soon.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Chess, Running, Photography' },
 
-  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: 'C-301', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['주니어 ESL','일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1','1:4','1:8'],
+  { id: 5, name: 'Emily Santos', nick: 'Emily', gender: '여', type: '주니어 전담', room: '', contract: '정규직', available: true, todaySlots: 6, rating: 4.9, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['주니어 ESL','일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1','1:4','1:8'],
     email: 'emily.s@talkstation.co', phone: '+63-918-555-5555', birthday: '1992-05-08', joinDate: '2021-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hi kids and parents! I\'m Teacher Emily. Learning English should be fun and I make sure it is!',
     intro: 'I am passionate about teaching young learners. My classes use games, songs, and stories to build English foundations.',
     education: 'Bachelor of Early Childhood Education — Southwestern University', hobby: 'Drawing, Storytelling, Baking' },
 
-  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: 'A-103', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true,true,true,false,false,true,true,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 6, name: 'David Lim', nick: 'David', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true,true,true,false,false,true,true,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'],
     email: 'david.l@talkstation.co', phone: '+63-927-666-6666', birthday: '1997-09-14', joinDate: '2024-03-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hello! I\'m Teacher David. I\'m new but very enthusiastic about helping you speak English confidently!',
     intro: 'Fresh graduate with a passion for English teaching. I focus on pronunciation and everyday conversation.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Technological University', hobby: 'Video games, Cycling, Movies' },
 
-  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4'],
+  { id: 7, name: 'Grace Santos', nick: 'Grace', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: false, todaySlots: 0, rating: 4.5, exp: 2, status: 'resigned', availability: [false,false,false,false,false,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1','1:4'],
     email: 'grace.s@talkstation.co', phone: '+63-933-777-7777', birthday: '1994-12-03', joinDate: '2022-05-16', jobGrade: 'Regular Tutor', talkStatus: 'Resigned', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hi! I\'m Teacher Grace. I love helping students find their confidence in English.',
     intro: 'Experienced in 1:1 and small group sessions. Focused on listening and speaking improvement.',
     education: 'Bachelor of Arts in English — University of Cebu-Lapu-Lapu and Mandaue', hobby: 'Singing, Hiking, Cooking' },
 
-  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: 'A-105', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1','1:4'],
+  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1','1:4'],
     email: 'karen.v@talkstation.co', phone: '+63-919-888-8888', birthday: '1991-06-25', joinDate: '2022-02-07', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Karen. I make sure every student leaves the class smiling and more confident!',
     intro: 'I specialize in helping intermediate learners break through their plateau and reach fluency.',
     education: 'Bachelor of Secondary Education — University of San Carlos', hobby: 'Badminton, K-drama, Cooking' },
 
-  { id: 9, name: 'Mark Dela Cruz', nick: 'Mark', gender: '남', type: '그룹 수업', room: 'B-203', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['주니어 ESL'], classTypes: ['1:4','1:8'],
+  { id: 9, name: 'Mark Dela Cruz', nick: 'Mark', gender: '남', type: '그룹 수업', room: '', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['주니어 ESL'], classTypes: ['1:4','1:8'],
     email: 'mark.d@talkstation.co', phone: '+63-912-999-9999', birthday: '1994-04-18', joinDate: '2023-06-12', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hey! I\'m Teacher Mark. Group classes are where the magic happens — let\'s learn together!',
     intro: 'I create a comfortable and dynamic environment for group learning. Energy and humor are my teaching tools.',
     education: 'Bachelor of Arts in Mass Communication — Cebu Normal University', hobby: 'Guitar, Volleyball, Photography' },
 
-  { id: 10, name: 'Lisa Fernandez', nick: 'Lisa', gender: '여', type: 'IELTS 전문', room: 'A-106', contract: '정규직', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 10, name: 'Lisa Fernandez', nick: 'Lisa', gender: '여', type: 'IELTS 전문', room: '', contract: '정규직', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'lisa.f@talkstation.co', phone: '+63-921-101-0101', birthday: '1988-08-30', joinDate: '2020-01-15', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Lisa. IELTS is my expertise and I\'ll guide you from Band 5 to Band 7 and beyond!',
     intro: 'With 6 years of IELTS preparation experience, I know exactly what examiners are looking for.',
     education: 'Master of Arts in Applied Linguistics — University of the Philippines Cebu', hobby: 'Reading academic journals, Jogging, Cooking' },
 
-  { id: 11, name: 'Sophia Reyes', nick: 'Sophia', gender: '여', type: '일반 영어 (1:1)', room: 'A-104', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 11, name: 'Sophia Reyes', nick: 'Sophia', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: [], classTypes: ['1:1'],
     email: 'sophia.r@talkstation.co', phone: '+63-928-121-2121', birthday: '1996-03-11', joinDate: '2024-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hi! I\'m Teacher Sophia. Let\'s build your confidence one conversation at a time!',
     intro: 'I enjoy helping students overcome speaking anxiety through friendly, low-pressure practice.',
     education: 'Bachelor of Arts in English Studies — University of San Carlos', hobby: 'Baking, Journaling, Swimming' },
 
-  { id: 12, name: 'Daniel Cruz', nick: 'Daniel', gender: '남', type: 'IELTS 전문', room: 'A-107', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 12, name: 'Daniel Cruz', nick: 'Daniel', gender: '남', type: 'IELTS 전문', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'daniel.c@talkstation.co', phone: '+63-917-131-3131', birthday: '1990-12-02', joinDate: '2022-11-10', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Daniel. I\'ll help you target the exact band score you need.',
     intro: 'I focus on IELTS writing and speaking strategy, with a track record of steady band improvements.',
     education: 'Master of Arts in English Language Teaching — University of San Carlos', hobby: 'Chess, Reading, Running' },
 
-  { id: 13, name: 'Ella Mercado', nick: 'Ella', gender: '여', type: '일반 영어 (1:1)', room: 'A-108', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true,true,false,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 13, name: 'Ella Mercado', nick: 'Ella', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 3, rating: 4.4, exp: 1, status: 'active', availability: [true,true,false,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1'],
     email: 'ella.m@talkstation.co', phone: '+63-921-141-4141', birthday: '1998-06-19', joinDate: '2025-02-03', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'C', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Ella. Let\'s make learning English fun and practical!',
     intro: 'Recently joined and excited to help beginners build a strong foundation.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Painting, K-pop dance, Cooking' },
 
-  { id: 14, name: 'Nina Torres', nick: 'Nina', gender: '여', type: '그룹 수업', room: 'B-204', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
+  { id: 14, name: 'Nina Torres', nick: 'Nina', gender: '여', type: '그룹 수업', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: ['IELTS 전문'], classTypes: ['1:4','1:8'],
     email: 'nina.t@talkstation.co', phone: '+63-935-151-5151', birthday: '1993-10-05', joinDate: '2023-08-21', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hey everyone! I\'m Teacher Nina. Group energy makes learning stick!',
     intro: 'I love designing interactive group activities that get every student talking.',
     education: 'Bachelor of Arts in Communication — University of Cebu', hobby: 'Photography, Hiking, Karaoke' },
 
   // 2026-08-03: 1:1 수업이 필요한 학생 수(27명)만큼 전담 1:1 강사를 채움(학생 1명당 강사 1명 우선 배정 원칙, PRD §12.1).
-  { id: 15, name: 'Olivia Cruz', nick: 'Olivia', gender: '여', type: '일반 영어 (1:1)', room: 'A-109', contract: '정규직', available: true, todaySlots: 3, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 15, name: 'Olivia Cruz', nick: 'Olivia', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 3, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'olivia.c@talkstation.co', phone: '+63-910-200-1200', birthday: '1988-01-01', joinDate: '2021-01-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Olivia. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Arts in English — University of Cebu', hobby: 'Reading, Hiking, Photography' },
 
-  { id: 16, name: 'Ethan Reyes', nick: 'Ethan', gender: '남', type: 'IELTS 전문', room: 'A-110', contract: '파트타임', available: true, todaySlots: 4, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 16, name: 'Ethan Reyes', nick: 'Ethan', gender: '남', type: 'IELTS 전문', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'ethan.r@talkstation.co', phone: '+63-911-201-1201', birthday: '1989-04-08', joinDate: '2022-02-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hello! I\'m Teacher Ethan. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Cooking, Music, Badminton' },
 
-  { id: 17, name: 'Noah Santos', nick: 'Noah', gender: '남', type: '일반 영어 (1:1)', room: 'A-111', contract: '정규직', available: true, todaySlots: 5, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 17, name: 'Noah Santos', nick: 'Noah', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'noah.s@talkstation.co', phone: '+63-912-202-1202', birthday: '1990-07-15', joinDate: '2023-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hi there! I\'m Teacher Noah. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Elementary Education — University of San Carlos', hobby: 'Yoga, Traveling, Journaling' },
 
-  { id: 18, name: 'Ava Lim', nick: 'Ava', gender: '여', type: 'IELTS 전문', room: 'A-112', contract: '파트타임', available: true, todaySlots: 6, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 18, name: 'Ava Lim', nick: 'Ava', gender: '여', type: 'IELTS 전문', room: '', contract: '파트타임', available: true, todaySlots: 6, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'ava.l@talkstation.co', phone: '+63-913-203-1203', birthday: '1991-10-22', joinDate: '2024-04-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hello! I\'m Teacher Ava. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Basketball, Gaming, Cooking' },
 
-  { id: 19, name: 'Liam Torres', nick: 'Liam', gender: '남', type: '일반 영어 (1:1)', room: 'A-113', contract: '정규직', available: true, todaySlots: 3, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 19, name: 'Liam Torres', nick: 'Liam', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 3, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'liam.t@talkstation.co', phone: '+63-914-204-1204', birthday: '1992-01-01', joinDate: '2025-05-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hi there! I\'m Teacher Liam. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Arts in English — University of Cebu', hobby: 'Painting, Singing, Volleyball' },
 
-  { id: 20, name: 'Mia Fernandez', nick: 'Mia', gender: '여', type: 'IELTS 전문', room: 'A-114', contract: '파트타임', available: true, todaySlots: 4, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 20, name: 'Mia Fernandez', nick: 'Mia', gender: '여', type: 'IELTS 전문', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'mia.f@talkstation.co', phone: '+63-915-205-1205', birthday: '1993-04-08', joinDate: '2026-06-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Mia. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Reading, Hiking, Photography' },
 
-  { id: 21, name: 'Lucas Villanueva', nick: 'Lucas', gender: '남', type: '일반 영어 (1:1)', room: 'A-115', contract: '정규직', available: true, todaySlots: 5, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 21, name: 'Lucas Villanueva', nick: 'Lucas', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'lucas.v@talkstation.co', phone: '+63-916-206-1206', birthday: '1994-07-15', joinDate: '2022-07-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Lucas. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Elementary Education — University of San Carlos', hobby: 'Cooking, Music, Badminton' },
 
-  { id: 22, name: 'Zoe Dela Cruz', nick: 'Zoe', gender: '여', type: '일반 영어 (1:1)', room: 'A-116', contract: '파트타임', available: true, todaySlots: 6, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 22, name: 'Zoe Dela Cruz', nick: 'Zoe', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 6, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'zoe.d@talkstation.co', phone: '+63-917-207-1207', birthday: '1995-10-22', joinDate: '2023-08-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hi there! I\'m Teacher Zoe. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Yoga, Traveling, Journaling' },
 
-  { id: 23, name: 'Ryan Mercado', nick: 'Ryan', gender: '남', type: 'IELTS 전문', room: 'A-117', contract: '정규직', available: true, todaySlots: 3, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 23, name: 'Ryan Mercado', nick: 'Ryan', gender: '남', type: 'IELTS 전문', room: '', contract: '정규직', available: true, todaySlots: 3, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'ryan.m@talkstation.co', phone: '+63-918-208-1208', birthday: '1996-01-01', joinDate: '2024-09-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Ryan. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Bachelor of Arts in English — University of Cebu', hobby: 'Basketball, Gaming, Cooking' },
 
-  { id: 24, name: 'Chloe Bautista', nick: 'Chloe', gender: '여', type: '일반 영어 (1:1)', room: 'A-118', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 24, name: 'Chloe Bautista', nick: 'Chloe', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'chloe.b@talkstation.co', phone: '+63-919-209-1209', birthday: '1997-04-08', joinDate: '2025-10-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Chloe. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Painting, Singing, Volleyball' },
 
-  { id: 25, name: 'Adam Garcia', nick: 'Adam', gender: '남', type: '일반 영어 (1:1)', room: 'A-119', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 25, name: 'Adam Garcia', nick: 'Adam', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'adam.g@talkstation.co', phone: '+63-920-210-1210', birthday: '1998-07-15', joinDate: '2021-11-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hi there! I\'m Teacher Adam. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Elementary Education — University of San Carlos', hobby: 'Reading, Hiking, Photography' },
 
-  { id: 26, name: 'Nora Ramos', nick: 'Nora', gender: '여', type: 'IELTS 전문', room: 'A-120', contract: '파트타임', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 26, name: 'Nora Ramos', nick: 'Nora', gender: '여', type: 'IELTS 전문', room: '', contract: '파트타임', available: true, todaySlots: 6, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'nora.r@talkstation.co', phone: '+63-921-211-1211', birthday: '1999-10-22', joinDate: '2022-12-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Nora. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Cooking, Music, Badminton' },
 
-  { id: 27, name: 'Owen Castro', nick: 'Owen', gender: '남', type: '일반 영어 (1:1)', room: 'A-121', contract: '정규직', available: true, todaySlots: 3, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 27, name: 'Owen Castro', nick: 'Owen', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 3, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'owen.c@talkstation.co', phone: '+63-922-212-1212', birthday: '1988-01-01', joinDate: '2023-01-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Owen. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Arts in English — University of Cebu', hobby: 'Yoga, Traveling, Journaling' },
 
-  { id: 28, name: 'Ivy Aquino', nick: 'Ivy', gender: '여', type: '일반 영어 (1:1)', room: 'A-122', contract: '파트타임', available: true, todaySlots: 4, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 28, name: 'Ivy Aquino', nick: 'Ivy', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.4, exp: 2, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'ivy.a@talkstation.co', phone: '+63-923-213-1213', birthday: '1989-04-08', joinDate: '2024-02-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Now', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hi there! I\'m Teacher Ivy. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Basketball, Gaming, Cooking' },
 
-  { id: 29, name: 'Caleb Navarro', nick: 'Caleb', gender: '남', type: 'IELTS 전문', room: 'A-123', contract: '정규직', available: true, todaySlots: 5, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 29, name: 'Caleb Navarro', nick: 'Caleb', gender: '남', type: 'IELTS 전문', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.5, exp: 3, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'caleb.n@talkstation.co', phone: '+63-924-214-1214', birthday: '1990-07-15', joinDate: '2025-03-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Caleb. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Bachelor of Elementary Education — University of San Carlos', hobby: 'Painting, Singing, Volleyball' },
 
-  { id: 30, name: 'Ruby Salazar', nick: 'Ruby', gender: '여', type: '일반 영어 (1:1)', room: 'A-124', contract: '파트타임', available: true, todaySlots: 6, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 30, name: 'Ruby Salazar', nick: 'Ruby', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '파트타임', available: true, todaySlots: 6, rating: 4.6, exp: 4, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'ruby.s@talkstation.co', phone: '+63-925-215-1215', birthday: '1991-10-22', joinDate: '2021-04-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Ruby. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Master of Arts in English Language Teaching — University of the Philippines', hobby: 'Reading, Hiking, Photography' },
 
-  { id: 31, name: 'Aiden Domingo', nick: 'Aiden', gender: '남', type: '일반 영어 (1:1)', room: 'A-125', contract: '정규직', available: true, todaySlots: 3, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 31, name: 'Aiden Domingo', nick: 'Aiden', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 3, rating: 4.7, exp: 5, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'aiden.d@talkstation.co', phone: '+63-926-216-1216', birthday: '1992-01-01', joinDate: '2022-05-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'C',
     greeting: 'Hi there! I\'m Teacher Aiden. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
     education: 'Bachelor of Arts in English — University of Cebu', hobby: 'Cooking, Music, Badminton' },
 
-  { id: 32, name: 'Stella Rivera', nick: 'Stella', gender: '여', type: 'IELTS 전문', room: 'A-126', contract: '파트타임', available: true, todaySlots: 4, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
+  { id: 32, name: 'Stella Rivera', nick: 'Stella', gender: '여', type: 'IELTS 전문', room: '', contract: '파트타임', available: true, todaySlots: 4, rating: 4.8, exp: 6, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['IELTS 전문'], excludedCourses: [], classTypes: ['1:1'],
     email: 'stella.r@talkstation.co', phone: '+63-927-217-1217', birthday: '1993-04-08', joinDate: '2023-06-01', jobGrade: 'Probationary Tutor', talkStatus: 'Training', experience: 'Experienced', grade4ms: 'C', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Stella. IELTS is my specialty and I\'ll help you reach your target band score!',
     intro: 'I focus on structured IELTS practice across all four skills with clear, achievable milestones.',
     education: 'Bachelor of Secondary Education, Major in English — Cebu Normal University', hobby: 'Yoga, Traveling, Journaling' },
 
-  { id: 33, name: 'Miles Ocampo', nick: 'Miles', gender: '남', type: '일반 영어 (1:1)', room: 'A-127', contract: '정규직', available: true, todaySlots: 5, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
+  { id: 33, name: 'Miles Ocampo', nick: 'Miles', gender: '남', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.3, exp: 1, status: 'active', availability: [true,true,true,true,true,true,true,true], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['IELTS 전문'], classTypes: ['1:1'],
     email: 'miles.o@talkstation.co', phone: '+63-928-218-1218', birthday: '1994-07-15', joinDate: '2024-07-01', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'A', gradePronunciation: 'B',
     greeting: 'Hi there! I\'m Teacher Miles. Let\'s build your confidence in everyday English together!',
     intro: 'I enjoy creating a relaxed, practical learning environment focused on real conversation.',
@@ -787,7 +790,7 @@ const MOCK_ONLINE_CLASSES = [
 ];
 
 const MOCK_TIMETABLE = [
-  { teacher: 'Sarah', room: 'A-101', color: '#5E5CE6', bg: '#EEF2FF', slots: [
+  { teacher: 'Sarah', room: '', color: '#5E5CE6', bg: '#EEF2FF', slots: [
     { p:1, student:'Kevin', type:'IELTS 1:1', locked: true },
     { p:2, student:null },
     { p:3, student:'Sophie', type:'IELTS 1:1', locked: true },
@@ -797,7 +800,7 @@ const MOCK_TIMETABLE = [
     { p:7, student:null },
     { p:8, student:null },
   ]},
-  { teacher: 'Mike', room: 'A-102', color: '#0EA5E9', bg: '#E0F2FE', slots: [
+  { teacher: 'Mike', room: '', color: '#0EA5E9', bg: '#E0F2FE', slots: [
     { p:1, student:null },
     { p:2, student:null },
     { p:3, student:'Ken', type:'1:1 General', locked: true },
@@ -807,7 +810,7 @@ const MOCK_TIMETABLE = [
     { p:7, student:'James', type:'1:1 General', locked: false },
     { p:8, student:null },
   ]},
-  { teacher: 'Anna', room: 'B-201', color: '#16A34A', bg: '#DCFCE7', slots: [
+  { teacher: 'Anna', room: '', color: '#16A34A', bg: '#DCFCE7', slots: [
     { p:1, student:'그룹 A', students: ['James', 'Yuki'], type:'Group', locked: false, subject:'Basic TOEFL', level:'Level 2' },
     { p:2, student:'그룹 A', students: ['James', 'Yuki'], type:'Group', locked: false, subject:'Basic TOEFL', level:'Level 2' },
     { p:3, student:null },
@@ -817,7 +820,7 @@ const MOCK_TIMETABLE = [
     { p:7, student:null },
     { p:8, student:null },
   ]},
-  { teacher: 'Emily', room: 'C-301', color: '#D97706', bg: '#FEF3C7', slots: [
+  { teacher: 'Emily', room: '', color: '#D97706', bg: '#FEF3C7', slots: [
     { p:1, student:'Tom', type:'주니어 1:1', locked: false },
     { p:2, student:null },
     { p:3, student:null },

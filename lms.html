@@ -4051,7 +4051,6 @@
                 <thead>
                   <tr>
                     <th>강의실</th>
-                    <th>동/층</th>
                     <th>수용 인원</th>
                     <th>유형</th>
                     <th>배정 강사</th>
@@ -4074,7 +4073,6 @@
                 <thead>
                   <tr>
                     <th>강의실</th>
-                    <th>동/층</th>
                     <th>수용 인원</th>
                     <th>유형</th>
                     <th>배정된 그룹 수업 (반)</th>
@@ -4101,17 +4099,9 @@
           <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">강의실 호실 <span style="color:#EF4444">*</span></label>
-              <input id="cr-modal-room" class="tsa-input" placeholder="예: A-101" style="width:100%"/>
+              <input id="cr-modal-room" class="tsa-input" placeholder="예: M01 또는 G01" style="width:100%"/>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">동</label>
-                <input id="cr-modal-building" class="tsa-input" placeholder="예: A동"/>
-              </div>
-              <div>
-                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">층</label>
-                <input id="cr-modal-floor" class="tsa-input" placeholder="예: 1층"/>
-              </div>
+            <div style="display:grid;grid-template-columns:1fr;gap:12px">
               <div>
                 <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">수용 인원</label>
                 <input id="cr-modal-capacity" class="tsa-input" type="number" min="1" placeholder="명"/>
@@ -7618,14 +7608,14 @@
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 <div id="google_translate_element"></div>
 
-<script src="assets/js/lms-data.js?v=0.6.15"></script>
+<script src="assets/js/lms-data.js?v=0.6.16"></script>
 <script src="assets/js/lms-util.js?v=0.6.9"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.10"></script>
 <script src="assets/js/lms-student.js?v=0.6.7"></script>
     <script src="assets/js/lms-course.js?v=0.6.76"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.12"></script>
-<script src="assets/js/lms-classroom.js?v=0.8.251"></script>
+<script src="assets/js/lms-classroom.js?v=0.8.253"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>
