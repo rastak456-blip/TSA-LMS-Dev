@@ -5444,7 +5444,7 @@ function renderGroupManagementBoard(rows, toolbarHtml) {
 }
 
 const GM_DEMAND_HEAD = `<thead><tr>
-  ${['과목', '그룹 수업 유형', '운영 그룹', '진도율', '대기'].map((label, index) =>
+  ${['과목', '그룹 수업 유형', '운영 그룹', '대기'].map((label, index) =>
     `<th style="padding:9px 13px;font-size:10.5px;font-weight:700;color:#9CA3AF;text-align:${index >= 3 ? 'right' : 'left'};border-bottom:1px solid #E5E7EB;white-space:nowrap">${label}</th>`
   ).join('')}
 </tr></thead>`;
@@ -5474,7 +5474,7 @@ function renderGroupDemandSingleTable(rows, summaries) {
         </button>
         <div id="${levelId}" style="display:block;overflow-x:auto">
           <table style="width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums">
-            <colgroup><col style="width:20%"><col style="width:13%"><col style="width:47%"><col style="width:12%"><col style="width:8%"></colgroup>
+            <colgroup><col style="width:20%"><col style="width:13%"><col style="width:59%"><col style="width:8%"></colgroup>
             ${GM_DEMAND_HEAD}<tbody>${levelRows.map(row => renderGroupDemandRow(row, false)).join('')}</tbody>
           </table>
         </div>
@@ -5501,8 +5501,8 @@ function toggleGroupLevelTable(levelGroup, trigger) {
   }
 }
 
-// 한 줄 = 반 하나. 반마다 진도율과 상세 버튼이 나란히 붙는다.
-// 왼쪽(운영 그룹)과 오른쪽(진도율)을 같은 목록에서 만들어야 줄이 어긋나지 않는다.
+// 한 줄 = 반 하나. 반마다 상세 버튼이 오른쪽 끝에 붙는다.
+// 줄 높이를 고정해야 반이 여러 개인 행도 줄 간격이 고르게 보인다.
 const GM_ROW_LINE_HEIGHT = 30;
 
 function renderGroupDemandRow(row, showLevelPrefix) {
@@ -5511,7 +5511,7 @@ function renderGroupDemandRow(row, showLevelPrefix) {
   const mergedGroups = allGroups.filter(group => isMergedLevelGroup(group));
   const capacity = getGroupClassCapacity(row.classType);
   const cell = (html, extra) => `<td style="padding:8px 13px;font-size:12.5px;color:#6B7280;border-top:1px solid #F3F4F6;vertical-align:top;${extra || ''}">${html}</td>`;
-  // 오른쪽 진도율 줄과 높이를 맞춰야 하니 한 줄은 절대 두 줄로 넘기지 않는다. 넘칠 땐 말줄임으로 자른다.
+  // 한 줄은 절대 두 줄로 넘기지 않는다. 넘칠 땐 말줄임으로 자른다.
   const line = html => `<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;gap:7px;white-space:nowrap">${html}</div>`;
 
   // 개별 반 먼저, 그 아래 통합 반. 통합은 이 레벨과 옆 레벨이 함께 쓰는 반이라 따로 표시한다.
@@ -5536,26 +5536,11 @@ function renderGroupDemandRow(row, showLevelPrefix) {
       <button type="button" onclick="event.stopPropagation();openActiveGroupDetail(${group.id})" title="${lessonEsc(getGroupDisplayName(group))} 상세" style="margin-left:auto;border:1px solid #D8DCE6;background:#fff;color:#475569;border-radius:7px;padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer" onmouseover="this.style.borderColor='#5E5CE6';this.style.color='#5E5CE6'" onmouseout="this.style.borderColor='#D8DCE6';this.style.color='#475569'">상세</button>`);
   };
 
-  const progressLine = item => {
-    const rate = Math.max(0, Math.min(100, Number(item.group.progressRate) || 0));
-    const color = rate >= 70 ? '#059669' : rate >= 50 ? '#5E5CE6' : '#D97706';
-    return `<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;justify-content:flex-end;gap:6px">
-      <span style="width:54px;height:5px;border-radius:999px;background:#E5E7EB;overflow:hidden"><span style="display:block;width:${rate}%;height:100%;background:${color}"></span></span>
-      <b style="min-width:30px;color:${color};font-size:11px">${rate}%</b>
-    </div>`;
-  };
-
   const needBadge = row.additionalGroups > 0
     ? line(`<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700">${lines.length ? '추가 생성 필요' : '운영 그룹 없음 · 생성 필요'} +${row.additionalGroups}</span>`)
     : (!lines.length ? line('<span style="color:#94A3B8;font-size:11px">운영 그룹 없음</span>') : '');
 
   const createButton = line(`<button type="button" onclick="event.stopPropagation();openGroupCreateBrowserPopup(${curriculumJsLiteral(row.curriculum)},'${row.classType}',${row.levelGroup})" style="border:1px dashed #A5B4FC;background:#fff;color:#5E5CE6;border-radius:7px;padding:4px 11px;font-size:10.5px;font-weight:700;cursor:pointer" onmouseover="this.style.background='#EEF2FF'" onmouseout="this.style.background='#fff'">+ 그룹 만들기</button>`);
-
-  // 오른쪽도 같은 수의 줄을 만든다. 반이 아닌 줄(생성 필요·그룹 만들기)은 빈 줄로 자리만 맞춘다.
-  const blank = `<div style="min-height:${GM_ROW_LINE_HEIGHT}px"></div>`;
-  const progressHtml = lines.map(progressLine).join('')
-    + (needBadge ? blank : '')
-    + blank;
 
   return `<tr>
     <td style="padding:8px 13px 8px 22px;font-size:12.5px;font-weight:700;color:#111827;white-space:nowrap;border-top:1px solid #F3F4F6;vertical-align:top">
@@ -5566,7 +5551,6 @@ function renderGroupDemandRow(row, showLevelPrefix) {
     </td>
     ${cell(`<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center">${getGroupTypeTagHtml(row.classType)}</div>`)}
     ${cell(`${lines.map(groupLine).join('')}${needBadge}${createButton}`)}
-    ${cell(progressHtml, 'text-align:right;white-space:nowrap')}
     ${cell(`<div style="min-height:${GM_ROW_LINE_HEIGHT}px;display:flex;align-items:center;justify-content:flex-end"><b style="font-size:13.5px;color:${row.waitingCount ? '#B45309' : '#9CA3AF'}">${row.waitingCount}명</b></div>`, 'text-align:right;white-space:nowrap')}
   </tr>`;
 }
