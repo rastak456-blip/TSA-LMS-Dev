@@ -629,13 +629,14 @@ function selectAgmPin(id, openPopup) {
 // ── 에이전시 관리 끝 ──────────────────────────────────
 
 let MOCK_CLASSROOMS = [
-  { id: 1, room: 'A-101', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 2, room: 'A-102', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 3, room: 'A-103', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '' },
-  { id: 4, room: 'A-104', building: 'A동', floor: '1층', capacity: 2, type: '1:1', status: 'active', memo: '파트타임 전용' },
-  { id: 5, room: 'B-201', building: 'B동', floor: '2층', capacity: 8, type: '그룹', status: 'active', memo: '' },
-  { id: 6, room: 'B-202', building: 'B동', floor: '2층', capacity: 8, type: '그룹', status: 'maintenance', memo: '에어컨 점검 중' },
-  { id: 7, room: 'C-301', building: 'C동', floor: '3층', capacity: 6, type: '멀티', status: 'active', memo: '주니어 전용' },
+  // 호실은 실제 건물 기준(M = 1:1, G = 그룹). 동·층은 확인된 값이 없어 비워둔다 — 수정 창에서 채우면 된다.
+  { id: 1, room: 'M01', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 2, room: 'M02', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 3, room: 'M03', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '' },
+  { id: 4, room: 'M04', building: '', floor: '', capacity: 2, type: '1:1', status: 'active', memo: '파트타임 전용' },
+  { id: 5, room: 'G01', building: '', floor: '', capacity: 4, type: '그룹', status: 'active', memo: '소그룹(1:4)' },
+  { id: 6, room: 'G02', building: '', floor: '', capacity: 4, type: '그룹', status: 'maintenance', memo: '에어컨 점검 중' },
+  { id: 7, room: 'G06', building: '', floor: '', capacity: 8, type: '멀티', status: 'active', memo: '대그룹(1:8) · 주니어 전용' },
 ];
 let _crNextId = 8;
 
@@ -704,8 +705,8 @@ function renderClassroomManage() {
   groupTbody.innerHTML = groupRooms.map(c => {
     // 임의의 모의 그룹 수업 배정
     let assignedClass = '미배정';
-    if (c.room === 'B-201') assignedClass = '<span style="color:#5E5CE6;font-weight:700">IELTS A반 (Sarah)</span>';
-    else if (c.room === 'B-202') assignedClass = '<span style="color:#D97706;font-weight:700">비즈니스 중급반 (David)</span>';
+    if (c.room === 'G01') assignedClass = '<span style="color:#5E5CE6;font-weight:700">IELTS A반 (Sarah)</span>';
+    else if (c.room === 'G02') assignedClass = '<span style="color:#D97706;font-weight:700">비즈니스 중급반 (David)</span>';
     
     return `<tr>
       <td style="font-weight:700">${c.room}</td>
@@ -914,44 +915,84 @@ function removeStudentFile(studentId, key, idx) {
 }
 
 // ── 수업 배정 관리 ────────────────────────────────────
+// 실제 건물 기준 — M01~M63이 1:1(맨투맨) 강의실, G01~G09가 그룹 강의실.
+// 그룹 강의실은 번호로 규모를 알 수 없어 type으로 나눈다 — G01~G05 소그룹(1:4), G06~G09 대그룹(1:8).
 let MOCK_CLASS_ROOMS = [
-  { id: 1, roomNo: 'A-101', type: '1:1', capacity: 1, teacherNick: 'Sarah', status: 'active' },
-  { id: 2, roomNo: 'A-102', type: '1:1', capacity: 1, teacherNick: 'Mike',  status: 'active' },
-  { id: 3, roomNo: 'A-103', type: '1:1', capacity: 1, teacherNick: 'David', status: 'active' },
-  { id: 4, roomNo: 'B-201', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
-  { id: 5, roomNo: 'C-301', type: '1:8', capacity: 8, teacherNick: '',      status: 'active' },
-  { id: 6, roomNo: 'A-105', type: '1:1', capacity: 1, teacherNick: 'Karen', status: 'active' },
-  { id: 7, roomNo: 'B-203', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
-  { id: 8, roomNo: 'A-106', type: '1:1', capacity: 1, teacherNick: 'Lisa',  status: 'active' },
-  { id: 9, roomNo: 'B-202', type: '1:4', capacity: 4, teacherNick: '',      status: 'active' },
-  { id: 10, roomNo: 'A-104', type: '1:1', capacity: 1, teacherNick: 'Sophia', status: 'active' },
-  { id: 11, roomNo: 'C-302', type: '1:8', capacity: 8, teacherNick: '',     status: 'active' },
-  { id: 12, roomNo: 'C-303', type: '1:8', capacity: 8, teacherNick: '',     status: 'active' },
-  { id: 13, roomNo: 'A-107', type: '1:1', capacity: 1, teacherNick: 'Daniel', status: 'active' },
-  { id: 14, roomNo: 'A-108', type: '1:1', capacity: 1, teacherNick: 'Ella',   status: 'active' },
-  { id: 15, roomNo: 'B-204', type: '1:4', capacity: 4, teacherNick: '',       status: 'active' },
-  // 2026-08-03: 1:1 학생 수만큼 전담 강사를 채운 것과 짝을 맞춘 1:1 강의실.
-  { id: 16, roomNo: 'A-109', type: '1:1', capacity: 1, teacherNick: 'Olivia', status: 'active' },
-  { id: 17, roomNo: 'A-110', type: '1:1', capacity: 1, teacherNick: 'Ethan',  status: 'active' },
-  { id: 18, roomNo: 'A-111', type: '1:1', capacity: 1, teacherNick: 'Noah',   status: 'active' },
-  { id: 19, roomNo: 'A-112', type: '1:1', capacity: 1, teacherNick: 'Ava',    status: 'active' },
-  { id: 20, roomNo: 'A-113', type: '1:1', capacity: 1, teacherNick: 'Liam',   status: 'active' },
-  { id: 21, roomNo: 'A-114', type: '1:1', capacity: 1, teacherNick: 'Mia',    status: 'active' },
-  { id: 22, roomNo: 'A-115', type: '1:1', capacity: 1, teacherNick: 'Lucas',  status: 'active' },
-  { id: 23, roomNo: 'A-116', type: '1:1', capacity: 1, teacherNick: 'Zoe',    status: 'active' },
-  { id: 24, roomNo: 'A-117', type: '1:1', capacity: 1, teacherNick: 'Ryan',   status: 'active' },
-  { id: 25, roomNo: 'A-118', type: '1:1', capacity: 1, teacherNick: 'Chloe',  status: 'active' },
-  { id: 26, roomNo: 'A-119', type: '1:1', capacity: 1, teacherNick: 'Adam',   status: 'active' },
-  { id: 27, roomNo: 'A-120', type: '1:1', capacity: 1, teacherNick: 'Nora',   status: 'active' },
-  { id: 28, roomNo: 'A-121', type: '1:1', capacity: 1, teacherNick: 'Owen',   status: 'active' },
-  { id: 29, roomNo: 'A-122', type: '1:1', capacity: 1, teacherNick: 'Ivy',    status: 'active' },
-  { id: 30, roomNo: 'A-123', type: '1:1', capacity: 1, teacherNick: 'Caleb',  status: 'active' },
-  { id: 31, roomNo: 'A-124', type: '1:1', capacity: 1, teacherNick: 'Ruby',   status: 'active' },
-  { id: 32, roomNo: 'A-125', type: '1:1', capacity: 1, teacherNick: 'Aiden',  status: 'active' },
-  { id: 33, roomNo: 'A-126', type: '1:1', capacity: 1, teacherNick: 'Stella', status: 'active' },
-  { id: 34, roomNo: 'A-127', type: '1:1', capacity: 1, teacherNick: 'Miles',  status: 'active' },
+  { id: 1, roomNo: 'M01', type: '1:1', capacity: 1, teacherNick: 'Sarah', status: 'active' },
+  { id: 2, roomNo: 'M02', type: '1:1', capacity: 1, teacherNick: 'Mike', status: 'active' },
+  { id: 3, roomNo: 'M03', type: '1:1', capacity: 1, teacherNick: 'David', status: 'active' },
+  { id: 4, roomNo: 'M04', type: '1:1', capacity: 1, teacherNick: 'Karen', status: 'active' },
+  { id: 5, roomNo: 'M05', type: '1:1', capacity: 1, teacherNick: 'Lisa', status: 'active' },
+  { id: 6, roomNo: 'M06', type: '1:1', capacity: 1, teacherNick: 'Sophia', status: 'active' },
+  { id: 7, roomNo: 'M07', type: '1:1', capacity: 1, teacherNick: 'Daniel', status: 'active' },
+  { id: 8, roomNo: 'M08', type: '1:1', capacity: 1, teacherNick: 'Ella', status: 'active' },
+  { id: 9, roomNo: 'M09', type: '1:1', capacity: 1, teacherNick: 'Olivia', status: 'active' },
+  { id: 10, roomNo: 'M10', type: '1:1', capacity: 1, teacherNick: 'Ethan', status: 'active' },
+  { id: 11, roomNo: 'M11', type: '1:1', capacity: 1, teacherNick: 'Noah', status: 'active' },
+  { id: 12, roomNo: 'M12', type: '1:1', capacity: 1, teacherNick: 'Ava', status: 'active' },
+  { id: 13, roomNo: 'M13', type: '1:1', capacity: 1, teacherNick: 'Liam', status: 'active' },
+  { id: 14, roomNo: 'M14', type: '1:1', capacity: 1, teacherNick: 'Mia', status: 'active' },
+  { id: 15, roomNo: 'M15', type: '1:1', capacity: 1, teacherNick: 'Lucas', status: 'active' },
+  { id: 16, roomNo: 'M16', type: '1:1', capacity: 1, teacherNick: 'Zoe', status: 'active' },
+  { id: 17, roomNo: 'M17', type: '1:1', capacity: 1, teacherNick: 'Ryan', status: 'active' },
+  { id: 18, roomNo: 'M18', type: '1:1', capacity: 1, teacherNick: 'Chloe', status: 'active' },
+  { id: 19, roomNo: 'M19', type: '1:1', capacity: 1, teacherNick: 'Adam', status: 'active' },
+  { id: 20, roomNo: 'M20', type: '1:1', capacity: 1, teacherNick: 'Nora', status: 'active' },
+  { id: 21, roomNo: 'M21', type: '1:1', capacity: 1, teacherNick: 'Owen', status: 'active' },
+  { id: 22, roomNo: 'M22', type: '1:1', capacity: 1, teacherNick: 'Ivy', status: 'active' },
+  { id: 23, roomNo: 'M23', type: '1:1', capacity: 1, teacherNick: 'Caleb', status: 'active' },
+  { id: 24, roomNo: 'M24', type: '1:1', capacity: 1, teacherNick: 'Ruby', status: 'active' },
+  { id: 25, roomNo: 'M25', type: '1:1', capacity: 1, teacherNick: 'Aiden', status: 'active' },
+  { id: 26, roomNo: 'M26', type: '1:1', capacity: 1, teacherNick: 'Stella', status: 'active' },
+  { id: 27, roomNo: 'M27', type: '1:1', capacity: 1, teacherNick: 'Miles', status: 'active' },
+  // 아직 담당 강사가 정해지지 않은 1:1 강의실.
+  { id: 28, roomNo: 'M28', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 29, roomNo: 'M29', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 30, roomNo: 'M30', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 31, roomNo: 'M31', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 32, roomNo: 'M32', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 33, roomNo: 'M33', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 34, roomNo: 'M34', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 35, roomNo: 'M35', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 36, roomNo: 'M36', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 37, roomNo: 'M37', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 38, roomNo: 'M38', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 39, roomNo: 'M39', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 40, roomNo: 'M40', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 41, roomNo: 'M41', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 42, roomNo: 'M42', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 43, roomNo: 'M43', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 44, roomNo: 'M44', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 45, roomNo: 'M45', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 46, roomNo: 'M46', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 47, roomNo: 'M47', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 48, roomNo: 'M48', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 49, roomNo: 'M49', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 50, roomNo: 'M50', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 51, roomNo: 'M51', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 52, roomNo: 'M52', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 53, roomNo: 'M53', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 54, roomNo: 'M54', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 55, roomNo: 'M55', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 56, roomNo: 'M56', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 57, roomNo: 'M57', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 58, roomNo: 'M58', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 59, roomNo: 'M59', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 60, roomNo: 'M60', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 61, roomNo: 'M61', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 62, roomNo: 'M62', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 63, roomNo: 'M63', type: '1:1', capacity: 1, teacherNick: '', status: 'active' },
+  { id: 64, roomNo: 'G01', type: '1:4', capacity: 4, teacherNick: '', status: 'active' },
+  { id: 65, roomNo: 'G02', type: '1:4', capacity: 4, teacherNick: '', status: 'active' },
+  { id: 66, roomNo: 'G03', type: '1:4', capacity: 4, teacherNick: '', status: 'active' },
+  { id: 67, roomNo: 'G04', type: '1:4', capacity: 4, teacherNick: '', status: 'active' },
+  { id: 68, roomNo: 'G05', type: '1:4', capacity: 4, teacherNick: '', status: 'active' },
+  { id: 69, roomNo: 'G06', type: '1:8', capacity: 8, teacherNick: '', status: 'active' },
+  { id: 70, roomNo: 'G07', type: '1:8', capacity: 8, teacherNick: '', status: 'active' },
+  { id: 71, roomNo: 'G08', type: '1:8', capacity: 8, teacherNick: '', status: 'active' },
+  { id: 72, roomNo: 'G09', type: '1:8', capacity: 8, teacherNick: '', status: 'active' },
 ];
-let _csRoomNextId = 35;
+let _csRoomNextId = 73;
 let _csRoomTypeFilter = '전체';
 
 // 강사 목록과 1:1 자동 배정은 강의실 관리의 1:1 담당 강사 설정을 단일 원천으로 사용한다.
@@ -1099,21 +1140,21 @@ let MOCK_CLASS_SESSIONS = [
   { id: 9, roomId: 3, day: '수', periods: [1], studentIds: [6], course: 'Special English(TOEIC, Business)', level: 'Advanced', weekOf: '2026-06-22' },
   { id: 10, roomId: 3, day: '금', periods: [3], studentIds: [4], course: 'Regular', level: 'Intermediate', weekOf: '2026-06-22' },
   
-  { id: 11, roomId: 4, day: '월', periods: [5, 6], studentIds: [1, 2, 4], course: 'Regular', level: 'Intermediate', weekOf: '2026-06-22' },
-  { id: 12, roomId: 4, day: '수', periods: [5, 6], studentIds: [1, 2, 4], course: 'Regular', level: 'Intermediate', weekOf: '2026-06-22' },
+  { id: 11, roomId: 64, day: '월', periods: [5, 6], studentIds: [1, 2, 4], course: 'Regular', level: 'Intermediate', weekOf: '2026-06-22' },
+  { id: 12, roomId: 64, day: '수', periods: [5, 6], studentIds: [1, 2, 4], course: 'Regular', level: 'Intermediate', weekOf: '2026-06-22' },
   
-  { id: 13, roomId: 5, day: '월', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
-  { id: 14, roomId: 5, day: '화', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
-  { id: 15, roomId: 5, day: '수', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
+  { id: 13, roomId: 69, day: '월', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
+  { id: 14, roomId: 69, day: '화', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
+  { id: 15, roomId: 69, day: '수', periods: [2], studentIds: [14, 15, 16], course: 'Junior ESL', level: 'Beginner', weekOf: '2026-06-22' },
   
-  { id: 16, roomId: 6, day: '월', periods: [3, 4], studentIds: [12], course: '가디언 코스', level: 'Intermediate', weekOf: '2026-06-22' },
-  { id: 17, roomId: 6, day: '목', periods: [3, 4], studentIds: [12], course: '가디언 코스', level: 'Intermediate', weekOf: '2026-06-22' },
+  { id: 16, roomId: 4, day: '월', periods: [3, 4], studentIds: [12], course: '가디언 코스', level: 'Intermediate', weekOf: '2026-06-22' },
+  { id: 17, roomId: 4, day: '목', periods: [3, 4], studentIds: [12], course: '가디언 코스', level: 'Intermediate', weekOf: '2026-06-22' },
   
-  { id: 18, roomId: 7, day: '화', periods: [4, 5], studentIds: [5, 10], course: 'IELTS Intensive', level: 'Band 6.5', weekOf: '2026-06-22' },
-  { id: 19, roomId: 7, day: '목', periods: [4, 5], studentIds: [5, 10], course: 'IELTS Intensive', level: 'Band 6.5', weekOf: '2026-06-22' },
+  { id: 18, roomId: 65, day: '화', periods: [4, 5], studentIds: [5, 10], course: 'IELTS Intensive', level: 'Band 6.5', weekOf: '2026-06-22' },
+  { id: 19, roomId: 65, day: '목', periods: [4, 5], studentIds: [5, 10], course: 'IELTS Intensive', level: 'Band 6.5', weekOf: '2026-06-22' },
   
-  { id: 20, roomId: 8, day: '월', periods: [2, 3], studentIds: [13], course: 'IELTS Intensive', level: 'Band 5.0', weekOf: '2026-06-22' },
-  { id: 21, roomId: 8, day: '수', periods: [2, 3], studentIds: [13], course: 'IELTS Intensive', level: 'Band 5.0', weekOf: '2026-06-22' },
+  { id: 20, roomId: 5, day: '월', periods: [2, 3], studentIds: [13], course: 'IELTS Intensive', level: 'Band 5.0', weekOf: '2026-06-22' },
+  { id: 21, roomId: 5, day: '수', periods: [2, 3], studentIds: [13], course: 'IELTS Intensive', level: 'Band 5.0', weekOf: '2026-06-22' },
 ];
 let _csSessionNextId = 22;
 let _csCurrentWeek = '2026-06-22';
@@ -1184,33 +1225,33 @@ const CS_TYPE_COLOR = { '1:1':'#EEF2FF|#3730A3', '1:4':'#FEF3C7|#92400E', '1:8':
 // 그룹당 실제 교시도 1개만 갖는다(요일마다 같은 1교시에 반복해서 만남).
 let MOCK_GROUP_CLASSES = [
   { id: 1, name: '일상회화 G4', course: 'Regular', subjectId: 'SUB_08', levelGroup: 4, levelGroups: [4], classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 3, roomId: 4,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 3, roomId: 64,
     studentIds: [], manualLockIds: [], progressRate: 68, status: 'active', createdAt: '2026-06-01' },
   { id: 2, name: '리딩 G3', course: 'Regular', subjectId: 'SUB_03', levelGroup: 3, levelGroups: [3], classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 9, roomId: 5,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 9, roomId: 69,
     studentIds: [], manualLockIds: [], progressRate: 72, status: 'active', createdAt: '2026-06-01' },
   { id: 5, name: '일반 문법 G3', course: 'Regular', subjectId: 'SUB_02', levelGroup: 3, levelGroups: [3], classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [8], teacherId: 8, roomId: 5,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [8], teacherId: 8, roomId: 69,
     studentIds: [], manualLockIds: [], progressRate: 64, status: 'active', createdAt: '2026-06-02' },
   { id: 9, name: '주니어 리딩 G1', course: 'Junior ESL', subjectId: 'SUB_03', levelGroup: 1, levelGroups: [1], classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 5, roomId: 11,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 5, roomId: 70,
     studentIds: [], manualLockIds: [], progressRate: 55, status: 'active', createdAt: '2026-06-02' },
   { id: 10, name: '일상회화 G3', course: 'Regular', subjectId: 'SUB_08', levelGroup: 3, levelGroups: [3], classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 9, roomId: 9,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [5], teacherId: 9, roomId: 66,
     studentIds: [], manualLockIds: [], progressRate: 70, status: 'active', createdAt: '2026-06-02' },
   { id: 11, name: '리딩 G4', course: 'Regular', subjectId: 'SUB_03', levelGroup: 4, levelGroups: [4], classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 1, roomId: 12,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [7], teacherId: 1, roomId: 71,
     studentIds: [], manualLockIds: [], progressRate: 76, status: 'active', createdAt: '2026-06-02' },
   { id: 12, name: '비즈니스 토론 G5', course: 'Special English(TOEIC, Business)', subjectId: 'SUB_10', levelGroup: 5, levelGroups: [5], classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [6], teacherId: 2, roomId: 7,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [6], teacherId: 2, roomId: 65,
     studentIds: [], manualLockIds: [], progressRate: 48, status: 'active', createdAt: '2026-06-02' },
   // 같은 레벨·과목에 운영 그룹이 2개인 예시: 리딩 G3의 두 번째 운영 그룹.
   { id: 13, name: '리딩 G3-B', course: 'Regular', subjectId: 'SUB_03', levelGroup: 3, levelGroups: [3], classType: '1:8',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [6], teacherId: 5, roomId: 11,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [6], teacherId: 5, roomId: 70,
     studentIds: [], manualLockIds: [], progressRate: 61, status: 'active', createdAt: '2026-06-03' },
   // Low-Inter와 Intermediate가 정원 하나를 함께 사용하는 통합 레벨 그룹 예시.
   { id: 14, name: '일상회화 통합 G2-3', course: 'Regular', subjectId: 'SUB_08', levelGroup: 2, levelGroups: [2, 3], classType: '1:4',
-    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [4], teacherId: 3, roomId: 15,
+    weeklyFrequency: 5, startDate: '2026-06-22', dayOfWeek: ['월', '화', '수', '목', '금'], periods: [4], teacherId: 3, roomId: 67,
     studentIds: [], manualLockIds: [], progressRate: 66, status: 'active', createdAt: '2026-06-03' },
 ];
 let _csGroupNextId = 15;
