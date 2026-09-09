@@ -2292,6 +2292,11 @@ function saveStudentCourseRegistration() {
     course,
     level,
     recommendedLevels,
+    // 정산은 이 차수를 자기 단위로 쓴다 — 등록금과 납부 상태를 여기에 담아,
+    // 다음 차수를 등록해도 이전 차수의 청구·완납이 지워지지 않게 한다.
+    registrationAmount,
+    billingItemStatuses: {},
+    commissionItemStatuses: {},
     segments,
     startDate,
     endDate,
@@ -2376,12 +2381,13 @@ function saveStudentCourseRegistration() {
     total: totalGross,
     extraItems,
   };
-  student.billingItemStatuses = {
-    registration: payment === 'paid' ? 'paid' : 'unpaid',
-    education: payment === 'paid' ? 'paid' : 'unpaid',
-    dorm: payment === 'paid' ? 'paid' : 'unpaid',
-    local: payment === 'paid' ? 'paid' : 'unpaid',
-  };
+  // 납부 상태는 학생이 아니라 차수가 갖는다. 여기서 학생 단위 값을 다시 쓰면
+  // 이미 완납된 이전 차수까지 미납으로 되돌아간다 — 받은 돈이 화면에서 사라지던 원인이다.
+  const savedEnrollment = student.enrollments[0];
+  if (payment === 'paid') {
+    getEnrollmentBillingRows(student, { ...savedEnrollment, sessionNumber: student.enrollments.length })
+      .forEach(row => { savedEnrollment.billingItemStatuses[row.key] = 'paid'; });
+  }
 
   const agencyRow = typeof MOCK_AGENCY_STUDENTS !== 'undefined'
     ? MOCK_AGENCY_STUDENTS.find(a => a.name.includes(student.name) || a.name.includes(student.nick))
@@ -5990,16 +5996,17 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       <div style="padding:10px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">항목별 청구 금액 · 발행 상태 · 납부 여부 · 커미션 지급 여부</div>
+            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">${issueSummary.enrollment.sessionNumber}차 수강 · 항목별 청구 금액 · 발행 상태 · 납부 여부 · 커미션 지급 여부</div>
             <div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:11.5px;margin-bottom:10px">
               ${issueSummary.rows.map(item => `
-                <div style="display:grid;grid-template-columns:20px 96px 1fr 128px 76px 150px 80px;gap:10px;align-items:center;background:${item.issued || !item.billable ? '#FAFAFA' : '#fff'};border:1px solid #E5E7EB;border-radius:8px;padding:9px 10px">
+                ${renderBillingGroupHeading(issueSummary.rows, item)}
+                <div style="display:grid;grid-template-columns:20px 96px 1fr 128px 76px 150px 80px;gap:10px;align-items:center;background:${item.issued || !item.billable ? '#FAFAFA' : '#fff'};border:1px solid #E5E7EB;${item.extension ? 'border-left:3px solid #5E5CE6;' : ''}border-radius:8px;padding:9px 10px${isBillingSegmentRow(issueSummary.rows, item) ? ';margin-left:14px' : ''}">
                   ${item.billable && !item.issued
                     ? `<input type="checkbox" id="inv-check-${item.key}" checked style="accent-color:#5E5CE6;width:15px;height:15px"/>`
                     : '<span style="display:inline-block;width:15px;height:15px;border:1.5px solid #E5E7EB;border-radius:4px;background:#F9FAFB"></span>'}
                   <div>
-                    <div style="font-weight:800;color:#374151">${item.label}</div>
-                    <div style="font-size:10px;color:#9CA3AF">${item.key === 'registration' ? '학생 등록 시 1회' : item.key === 'education' ? '수강 과정 기준' : item.key === 'dorm' ? '기숙사 배정 기준' : '기타 현지 비용'}</div>
+                    <div style="font-weight:800;color:#374151">${item.label}${item.extension ? ' <span style="font-size:9.5px;color:#5E5CE6;font-weight:800">연장</span>' : ''}</div>
+                    <div style="font-size:10px;color:#9CA3AF">${item.sub || ''}</div>
                   </div>
                   <div style="text-align:right;font-weight:900;color:${item.billable ? '#111827' : '#9CA3AF'}">$${item.amount.toLocaleString()}</div>
                   <div style="text-align:right">${
@@ -6024,10 +6031,15 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
                 <div style="font-size:16px;font-weight:900;margin-top:2px;color:#4338CA">$${issueSummary.unissuedTotal.toLocaleString()}</div>
               </div>
               <div style="border:1px solid #E5E7EB;border-radius:9px;background:#fff;padding:9px 11px">
-                <div style="font-size:10.5px;color:#6B7280;font-weight:700">청구 금액 합계</div>
+                <div style="font-size:10.5px;color:#6B7280;font-weight:700">${issueSummary.enrollment.sessionNumber}차 청구 합계</div>
                 <div style="font-size:16px;font-weight:900;margin-top:2px">$${issueSummary.grossTotal.toLocaleString()}</div>
               </div>
             </div>
+            ${issueSummary.enrollments.length > 1 ? `
+            <div style="border:1px solid #C7D2FE;border-radius:9px;background:#F8F9FF;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="font-size:11.5px;font-weight:800;color:#4338CA">학생 전체 $${issueSummary.studentTotal.toLocaleString()}</span>
+              <span style="font-size:10.5px;color:#6B7280">${issueSummary.enrollments.map(item => `${item.enrollment.sessionNumber}차 $${item.gross.toLocaleString()}${item.unissuedTotal ? ' (일부 미발행)' : ''}`).join(' · ')}</span>
+            </div>` : ''}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">
               <div style="border-top:1px solid #E5E7EB;grid-column:span 2;padding-top:6px;font-size:12px;color:#1E1B4B"><strong>어학원 송금액 합계:</strong> <strong style="float:right">$${billingBreakdown.net.toLocaleString()}</strong></div>
               <div style="color:#4F46E5">커미션 합계:</div><div style="text-align:right;color:#4F46E5">$${billingBreakdown.commission.toLocaleString()}</div>
@@ -6478,8 +6490,9 @@ function renderRemitItemChecklist(studentId) {
   const listEl = document.getElementById('remit-item-checklist');
   if (!s || !listEl) return;
 
-  const breakdown = getStudentBillingBreakdown(s);
-  listEl.innerHTML = breakdown.items.map(item => {
+  // 납부도 청구와 같은 단위여야 한다 — 선택한 차수의 항목(구간 포함)을 그대로 쓴다.
+  const rows = getInvoiceIssueSummary(s).rows;
+  listEl.innerHTML = rows.map(item => {
     const paid = getBillingItemPaidAmount(s, item.key);
     const remaining = Math.max(0, item.amount - paid);
     const disabled = remaining <= 0;
@@ -6506,11 +6519,11 @@ function onRemitItemCheckChange(itemKey) {
 
 // 체크된 항목들의 적용 금액 합계를 송금 금액(USD) 칸에 자동 반영
 function recomputeRemitTotalAmount() {
-  const breakdownKeys = ['registration', 'education', 'dorm', 'local'];
+  // 항목이 구간마다 생겨 개수가 고정이 아니다 — 그려진 체크박스를 그대로 훑는다.
   let total = 0;
-  breakdownKeys.forEach(key => {
-    const checked = document.getElementById(`remit-check-${key}`)?.checked;
-    if (!checked) return;
+  document.querySelectorAll('#remit-item-checklist input[id^="remit-check-"]').forEach(box => {
+    if (!box.checked) return;
+    const key = box.id.replace('remit-check-', '');
     total += parseFloat(document.getElementById(`remit-applied-${key}`)?.value || 0);
   });
   const amountEl = document.getElementById('remit-receipt-amount');
@@ -6558,8 +6571,12 @@ function submitRemittanceReceipt(studentId, editIdx) {
 
     if (!checkedItems.length) { showToast('결제할 항목을 하나 이상 선택하고 적용 금액을 입력해 주세요.', 'warning'); return; }
 
-    const breakdown = getStudentBillingBreakdown(s);
-    if (!s.billingItemStatuses) s.billingItemStatuses = {};
+    // 납부 상태는 차수에 기록한다. 학생에 하나만 두면 새 코스를 등록하는 순간
+    // 이전 차수의 완납이 통째로 지워진다 — 받은 돈이 화면에서 사라지는 원인이었다.
+    const summary = getInvoiceIssueSummary(s);
+    const billedRows = summary.rows;
+    const enrollment = getBillingEnrollmentRecord(s, summary.enrollment.id);
+    if (!enrollment.billingItemStatuses) enrollment.billingItemStatuses = {};
 
     checkedItems.forEach(({ key, appliedAmount }) => {
       s.remittanceHistory.unshift({
@@ -6576,15 +6593,18 @@ function submitRemittanceReceipt(studentId, editIdx) {
       });
 
       // 이 결제 항목의 잔액이 0이 되면 해당 항목만 완납 처리 (전체 학생을 일괄 완납 처리하지 않음)
-      const billedItem = breakdown.items.find(i => i.key === key);
+      const billedItem = billedRows.find(i => i.key === key);
       const paidForItem = getBillingItemPaidAmount(s, key);
-      s.billingItemStatuses[key] = billedItem && paidForItem >= billedItem.amount ? 'paid' : 'unpaid';
+      enrollment.billingItemStatuses[key] = billedItem && paidForItem >= billedItem.amount ? 'paid' : 'unpaid';
     });
 
-    const allItemsPaid = breakdown.items.every(i => (s.billingItemStatuses?.[i.key] || i.paymentStatus) === 'paid');
+    // 학생 전체가 완납인지는 모든 차수를 합쳐서 본다.
+    const allItemsPaid = getBillingEnrollments(s)
+      .flatMap(item => getEnrollmentBillingRows(s, item))
+      .every(row => row.amount <= 0 || row.paymentStatus === 'paid');
     s.remittanceStatus = allItemsPaid ? 'paid' : 'unpaid';
 
-    const itemLabels = checkedItems.map(({ key }) => breakdown.items.find(i => i.key === key)?.label || key).join(', ');
+    const itemLabels = checkedItems.map(({ key }) => billedRows.find(i => i.key === key)?.label || key).join(', ');
     showToast(`✅ ${itemLabels} 납부 $${amount.toLocaleString()}이(가) 등록되었습니다.`, 'success');
   }
 
@@ -8460,51 +8480,202 @@ function getAgencyCommissionRate(s) {
   return getAgencyCommissionPolicyItems(s).education.rate;
 }
 
-function getStudentBillingBreakdown(s) {
+// ===== 차수(enrollment) · 구간(segment) 단위 청구 =====
+// 수강이 늘어나는 길이 둘이라 청구 단위도 둘이다.
+//   차수 안에서 연장 → 구간이 붙는다   → 그 구간만 추가 발행 (기존 인보이스는 그대로)
+//   새로 코스 등록   → 차수가 생긴다   → 차수 전체로 새 인보이스
+// 그래서 항목 키를 'education' 하나로 두면 "연장분"을 가리킬 이름이 없다. 구간 id를 붙인다.
+const BILLING_GROUP_OF = key => String(key).split(':')[0];
+
+// 정산이 보는 차수 목록. 목데이터 학생은 enrollments 가 없고 학생 단위 필드만 있어서,
+// 그 경우 1차 수강 하나를 합성한다 — 코스 등록을 한 번도 저장하지 않은 학생도 정산이 돌아야 한다.
+function getBillingEnrollments(s) {
+  const list = Array.isArray(s?.enrollments) ? s.enrollments : [];
+  if (list.length) {
+    // enrollments 는 unshift 로 쌓여 최신이 앞이다. 정산은 오래된 것부터 1차·2차로 센다.
+    return list.slice().reverse().map((enrollment, idx) => ({ ...enrollment, sessionNumber: idx + 1 }));
+  }
   const prices = calculatePrices(s);
-  const commissionPolicies = getAgencyCommissionPolicyItems(s);
-  const savedFees = s.courseRegistrationFees || {};
-  const registrationFromFees = Array.isArray(s.fees)
+  const savedFees = s?.courseRegistrationFees || {};
+  // 코스 등록 이력이 없는 학생은 청구액이 s.fees 에만 있다. 등록금/기타 비용을 여기서 살려낸다
+  // (0 은 유효한 값이라 ?? 로는 못 넘긴다 — 합성 시점에 한 번만 정한다).
+  const feeRows = Array.isArray(s?.fees) ? s.fees : [];
+  const isRegFee = f => /등록|입학|Registration/i.test(f.item || '');
+  const registrationFromFees = feeRows.filter(isRegFee).reduce((sum, f) => sum + Number(f.amount || 0), 0);
+  const localFromFees = feeRows.filter(f => !isRegFee(f)).reduce((sum, f) => sum + Number(f.amount || 0), 0);
+  return [{
+    id: 'current',
+    synthesized: true,
+    sessionNumber: 1,
+    course: s?.course || '',
+    startDate: s?.startDate || '',
+    endDate: s?.endDate || '',
+    duration: s?.duration || 0,
+    segments: Array.isArray(s?.courseSegments) ? s.courseSegments : [],
+    dormSegments: Array.isArray(s?.dormSegments) ? s.dormSegments : [],
+    dorm: s?.dorm || '',
+    registrationAmount: Number(savedFees.registration || registrationFromFees || prices.registration || 0),
+    tuitionAmount: Number(savedFees.tuition || prices.tuition || 0),
+    dormAmount: isStudentWalkIn(s) ? 0 : Number(savedFees.dorm || prices.dorm || 0),
+    extrasTotal: Number(savedFees.extras || localFromFees || 0),
+    extraItems: Array.isArray(savedFees.extraItems) ? savedFees.extraItems : [],
+    billingItemStatuses: s?.billingItemStatuses,
+    commissionItemStatuses: s?.commissionItemStatuses,
+  }];
+}
+
+// 납부 상태처럼 값을 '쓰는' 쪽은 사본이 아니라 원본을 잡아야 한다.
+// getBillingEnrollments() 는 sessionNumber 를 붙이려고 전개 복사본을 돌려주므로 거기에 쓰면 사라진다.
+// 합성 차수(코스 등록 이력이 없는 학생)라면 학생 레코드 자체가 원본이다.
+function getBillingEnrollmentRecord(s, enrollmentId) {
+  const found = (s.enrollments || []).find(e => String(e.id) === String(enrollmentId));
+  return found || s;
+}
+
+function getBillingEnrollment(s, enrollmentId) {
+  const list = getBillingEnrollments(s);
+  return list.find(e => String(e.id) === String(enrollmentId)) || list[list.length - 1] || null;
+}
+
+// 한 차수의 청구 항목 — 등록금 1줄, 수강 구간마다 1줄, 기숙사 구간마다 1줄, 기타 비용 1줄.
+// 구간이 없으면(구형·합성 데이터) 차수 합계로 한 줄만 만든다.
+function getEnrollmentBillingRows(s, enrollment) {
+  if (!enrollment) return [];
+  const prices = calculatePrices(s);
+  const savedFees = s?.courseRegistrationFees || {};
+  const registrationFromFees = Array.isArray(s?.fees)
     ? s.fees.filter(f => /등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0)
     : 0;
-  const localFromFees = Array.isArray(s.fees)
+  const localFromFees = Array.isArray(s?.fees)
     ? s.fees.filter(f => !/등록|Registration/i.test(f.item || '')).reduce((sum, f) => sum + Number(f.amount || 0), 0)
     : 0;
 
-  const registration = Number(savedFees.registration || registrationFromFees || prices.registration || 0);
-  const education = Number(savedFees.tuition || prices.tuition || 0);
-  const dorm = isStudentWalkIn(s) ? 0 : Number(savedFees.dorm || prices.dorm || 0);
-  const local = Number(savedFees.extras || localFromFees || 0);
-  const savedExtraItems = Array.isArray(savedFees.extraItems) ? savedFees.extraItems : [];
-  const localCommissionBase = savedExtraItems.length
-    ? savedExtraItems
-        .filter(item => !/등록금|Registration/i.test(item.name || item.label || '') && item.commissionEnabled !== false)
-        .reduce((sum, item) => sum + Number(item.amount || 0), 0)
-    : local;
+  const period = seg => [seg?.startDate, seg?.endDate].filter(Boolean).map(d => String(d).replace(/^20/, '').replace(/-/g, '.')).join(' ~ ');
+  const rows = [];
 
-  const itemStatuses = s.billingItemStatuses || {};
-  const defaultPaidStatus = s.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
-  const normalizePaidStatus = status => status === 'paid' ? 'paid' : 'unpaid';
-  const commissionStatuses = s.commissionItemStatuses || {};
-  const defaultCommissionStatus = s.commissionStatus === 'paid' || s.commissionPaid ? 'paid' : 'unpaid';
-  const items = [
-    { key: 'registration', label: '등록금', amount: registration },
-    { key: 'education', label: '수강료', amount: education },
-    { key: 'dorm', label: '기숙사비', amount: dorm },
-    { key: 'local', label: '기타 비용', amount: local, commissionBase: localCommissionBase },
-  ].map(baseItem => {
-    const policy = commissionPolicies[baseItem.key] || { type: 'none', value: 0, rate: 0 };
-    const commission = calculateAgencyItemCommission(baseItem.commissionBase ?? baseItem.amount, policy);
+  // 등록금 — 차수마다 다시 받는다(운영 확정). 학생당 1회가 아니다.
+  rows.push({
+    key: 'reg', group: 'registration', label: '등록금', sub: `${enrollment.sessionNumber}차 수강 등록`,
+    amount: Number(enrollment.registrationAmount ?? savedFees.registration ?? registrationFromFees ?? prices.registration ?? 0),
+  });
+
+  // 수강료 — 구간마다. 차수 안에서 연장하면 여기에 줄이 하나 붙는다.
+  const segs = Array.isArray(enrollment.segments) ? enrollment.segments.filter(Boolean) : [];
+  if (segs.length) {
+    segs.forEach((seg, idx) => rows.push({
+      key: `edu:${seg.id ?? idx}`, group: 'education',
+      label: seg.course || enrollment.course || '수강료',
+      sub: `${period(seg) || '-'}${seg.duration ? ` · ${seg.duration}주` : ''}`,
+      extension: idx > 0,
+      amount: Number(seg.tuitionAmount || 0),
+    }));
+  } else {
+    rows.push({
+      key: 'edu:0', group: 'education', label: enrollment.course || '수강료',
+      sub: `${period(enrollment) || '-'}${enrollment.duration ? ` · ${enrollment.duration}주` : ''}`,
+      amount: Number(enrollment.tuitionAmount ?? savedFees.tuition ?? prices.tuition ?? 0),
+    });
+  }
+
+  // 기숙사 — 수강과 별개로 늘어날 수 있어 구간을 따로 센다(운영 확정).
+  const dormSegs = Array.isArray(enrollment.dormSegments) ? enrollment.dormSegments.filter(Boolean) : [];
+  if (dormSegs.length) {
+    dormSegs.forEach((seg, idx) => rows.push({
+      key: `dorm:${seg.id ?? idx}`, group: 'dorm',
+      label: [seg.accomType, seg.capacity ? `${seg.capacity}인실` : ''].filter(Boolean).join(' · ') || '기숙사비',
+      sub: `${period(seg) || '-'}${seg.duration ? ` · ${seg.duration}주` : ''}`,
+      extension: idx > 0,
+      amount: Number(seg.cost || 0),
+    }));
+  } else {
+    rows.push({
+      key: 'dorm:0', group: 'dorm', label: enrollment.dorm || '기숙사비', sub: '기숙사 배정 기준',
+      amount: isStudentWalkIn(s) ? 0 : Number(enrollment.dormAmount ?? savedFees.dorm ?? prices.dorm ?? 0),
+    });
+  }
+
+  const extraItems = Array.isArray(enrollment.extraItems) ? enrollment.extraItems : [];
+  const localAmount = Number(enrollment.extrasTotal ?? savedFees.extras ?? localFromFees ?? 0);
+  rows.push({
+    key: 'local', group: 'local', label: '기타 비용', sub: '기타 현지 비용',
+    amount: localAmount,
+    commissionBase: extraItems.length
+      ? extraItems
+          .filter(item => !/등록금|Registration/i.test(item.name || item.label || '') && item.commissionEnabled !== false)
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      : localAmount,
+  });
+
+  return decorateBillingRows(s, enrollment, rows);
+}
+
+// 커미션·납부 상태를 붙인다. 커미션 정책은 4개 그룹 단위라 구간마다 나눠 적용한다.
+// 정액(fixed)은 그룹에 한 번만 붙인다 — 구간마다 붙이면 연장할 때마다 커미션이 배로 늘어난다.
+function decorateBillingRows(s, enrollment, rows) {
+  const commissionPolicies = getAgencyCommissionPolicyItems(s);
+  const normalize = status => status === 'paid' ? 'paid' : 'unpaid';
+  const itemStatuses = enrollment.billingItemStatuses || {};
+  const commissionStatuses = enrollment.commissionItemStatuses || {};
+  const legacyItemStatuses = s?.billingItemStatuses || {};
+  const legacyCommissionStatuses = s?.commissionItemStatuses || {};
+  const defaultPaid = s?.remittanceStatus === 'paid' ? 'paid' : 'unpaid';
+  const defaultCommission = s?.commissionStatus === 'paid' || s?.commissionPaid ? 'paid' : 'unpaid';
+  const fixedUsed = {};
+
+  return rows.map(row => {
+    const policy = commissionPolicies[row.group] || { type: 'none', value: 0, rate: 0 };
+    let commission = 0;
+    if (policy.type === 'fixed') {
+      if (!fixedUsed[row.group] && row.amount > 0) {
+        commission = calculateAgencyItemCommission(row.commissionBase ?? row.amount, policy);
+        fixedUsed[row.group] = true;
+      }
+    } else {
+      commission = calculateAgencyItemCommission(row.commissionBase ?? row.amount, policy);
+    }
+    // 차수에 상태가 없으면 학생 단위 값으로 떨어진다 — 코스 등록 이전에 쌓인 데이터를 위한 폴백.
+    const paid = itemStatuses[row.key] ?? legacyItemStatuses[row.group] ?? defaultPaid;
+    const comm = commissionStatuses[row.key] ?? legacyCommissionStatuses[row.group] ?? defaultCommission;
     return {
-    ...baseItem,
-    commissionRate: policy.rate || 0,
-    commission,
-    commissionType: policy.type,
-    commissionValue: policy.value || 0,
-    paymentStatus: normalizePaidStatus(itemStatuses[baseItem.key] || defaultPaidStatus),
-    commissionStatus: commission > 0
-      ? normalizePaidStatus(commissionStatuses[baseItem.key] || defaultCommissionStatus)
-      : 'none',
+      ...row,
+      enrollmentId: enrollment.id,
+      commission,
+      commissionRate: policy.rate || 0,
+      commissionType: policy.type,
+      commissionValue: policy.value || 0,
+      paymentStatus: normalize(paid),
+      commissionStatus: commission > 0 ? normalize(comm) : 'none',
+    };
+  });
+}
+
+// 학생 단위 4항목 요약. 에이전시 목록·월별 정산·학생 팝업이 쓰는 기존 계약을 그대로 지키되,
+// 이제 마지막 등록분만이 아니라 모든 차수를 합산한다.
+function getStudentBillingBreakdown(s) {
+  const commissionPolicies = getAgencyCommissionPolicyItems(s);
+  const allRows = getBillingEnrollments(s).flatMap(enrollment => getEnrollmentBillingRows(s, enrollment));
+  const groups = [
+    { key: 'registration', label: '등록금' },
+    { key: 'education', label: '수강료' },
+    { key: 'dorm', label: '기숙사비' },
+    { key: 'local', label: '기타 비용' },
+  ];
+  const items = groups.map(group => {
+    const mine = allRows.filter(row => row.group === group.key);
+    const amount = mine.reduce((sum, row) => sum + row.amount, 0);
+    const commission = mine.reduce((sum, row) => sum + row.commission, 0);
+    const policy = commissionPolicies[group.key] || { type: 'none', value: 0, rate: 0 };
+    return {
+      key: group.key, label: group.label, amount, commission,
+      commissionRate: policy.rate || 0,
+      commissionType: policy.type,
+      commissionValue: policy.value || 0,
+      // 한 줄이라도 미납이면 그룹은 미납이다.
+      paymentStatus: mine.some(row => row.amount > 0 && row.paymentStatus !== 'paid') ? 'unpaid' : 'paid',
+      commissionStatus: commission > 0
+        ? (mine.some(row => row.commission > 0 && row.commissionStatus !== 'paid') ? 'unpaid' : 'paid')
+        : 'none',
+      rows: mine,
     };
   });
   const gross = items.reduce((sum, item) => sum + item.amount, 0);
@@ -8517,6 +8688,23 @@ function getStudentBillingBreakdown(s) {
     rate: commissionPolicies.education?.rate || 0,
     commissionPolicies,
   };
+}
+
+// 같은 그룹(수강료·기숙사비)에 줄이 둘 이상이면 구간으로 나뉜 것이라 소제목을 얹고 들여쓴다.
+// 한 줄뿐이면 예전처럼 평평하게 둔다 — 연장이 없는 학생 화면이 괜히 복잡해지지 않게.
+function isBillingSegmentRow(rows, row) {
+  return rows.filter(item => item.group === row.group).length > 1;
+}
+
+function renderBillingGroupHeading(rows, row) {
+  if (!isBillingSegmentRow(rows, row)) return '';
+  const mine = rows.filter(item => item.group === row.group);
+  if (mine[0].key !== row.key) return '';
+  const label = { education: '수강료', dorm: '기숙사비', registration: '등록금', local: '기타 비용' }[row.group] || row.group;
+  const total = mine.reduce((sum, item) => sum + item.amount, 0);
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 -2px;font-size:11px;font-weight:800;color:#374151">
+    <span>${label}</span><span style="color:#9CA3AF;font-weight:700">$${total.toLocaleString()}</span>
+  </div>`;
 }
 
 function renderAgencyPaidBadge(status) {
@@ -8536,9 +8724,9 @@ function renderAgencyCommissionBadge(status) {
 // 기준 인보이스에 포함된 모든 항목이 현재 완납 상태인지 확인 (결제 전/후 액션 분기용)
 function isBaseInvoiceFullyPaid(s, invoice) {
   if (!invoice) return false;
-  const breakdown = getStudentBillingBreakdown(s);
+  const rows = getEnrollmentBillingRows(s, getBillingEnrollment(s, invoice.enrollmentId));
   return invoice.items.every(item => {
-    const billed = breakdown.items.find(b => b.key === item.key);
+    const billed = rows.find(row => row.key === item.key);
     return billed && billed.paymentStatus === 'paid';
   });
 }
@@ -8550,10 +8738,17 @@ function nextInvoiceSeq(s) {
 // 항목이 어느 인보이스에 실렸는지는 항목 쪽에 저장하지 않고 인보이스에서 되찾는다.
 // 항목에도 상태를 적어두면 발행 취소·재발행 때마다 두 곳을 맞춰야 하고,
 // 한 번 어긋나면 어느 쪽이 맞는지 알 방법이 없다. 진실은 인보이스 하나만 갖는다.
-function getItemActiveInvoice(s, key) {
+function getItemActiveInvoice(s, key, enrollmentId) {
   return (s.invoices || []).find(inv =>
     inv.status === 'issued' && inv.type !== 'amendment'
+    && (enrollmentId === undefined || String(inv.enrollmentId) === String(enrollmentId))
     && (inv.items || []).some(item => item.key === key)) || null;
+}
+
+// 한 차수에 속한(취소되지 않은) 기준 인보이스들.
+function getEnrollmentInvoices(s, enrollmentId) {
+  return (s.invoices || []).filter(inv =>
+    inv.type !== 'amendment' && String(inv.enrollmentId) === String(enrollmentId));
 }
 
 // 금액이 0인 항목은 청구할 것이 없으므로 처음부터 발행 대상이 아니다.
@@ -8564,37 +8759,55 @@ function isBillableBillingItem(item) {
 
 // 정산 탭이 쓰는 발행 현황 한 덩어리 — 항목별 발행 여부와 발행/미발행 합계.
 // 합계를 셋으로 가르는 이유: 청구 총액만 보여주면 실제로 나간 금액이 얼마인지 화면에 드러나지 않는다.
-function getInvoiceIssueSummary(s) {
-  const breakdown = getStudentBillingBreakdown(s);
-  const rows = breakdown.items.map(item => {
-    const billable = isBillableBillingItem(item);
-    const invoice = billable ? getItemActiveInvoice(s, item.key) : null;
-    return { ...item, billable, invoice, issued: !!invoice };
+function getInvoiceIssueSummary(s, enrollmentArg) {
+  const enrollment = enrollmentArg && typeof enrollmentArg === 'object'
+    ? enrollmentArg
+    : getBillingEnrollment(s, enrollmentArg ?? currentAdetailEnrollmentId);
+  const rows = getEnrollmentBillingRows(s, enrollment).map(row => {
+    const billable = isBillableBillingItem(row);
+    const invoice = billable ? getItemActiveInvoice(s, row.key, enrollment.id) : null;
+    return { ...row, billable, invoice, issued: !!invoice };
   });
   const sum = list => list.reduce((total, row) => total + row.amount, 0);
+  // 학생 전체 합계는 차수를 가로질러 따로 센다 — 화면 아래 한 줄이 이 값을 쓴다.
+  const allEnrollments = getBillingEnrollments(s).map(item => {
+    const itemRows = getEnrollmentBillingRows(s, item).map(row => ({
+      ...row,
+      issued: isBillableBillingItem(row) && !!getItemActiveInvoice(s, row.key, item.id),
+    }));
+    return {
+      enrollment: item,
+      gross: sum(itemRows),
+      issuedTotal: sum(itemRows.filter(row => row.issued)),
+      unissuedTotal: sum(itemRows.filter(row => isBillableBillingItem(row) && !row.issued)),
+    };
+  });
   return {
-    breakdown,
+    enrollment,
+    enrollments: allEnrollments,
     rows,
     issuable: rows.filter(row => row.billable && !row.issued),
     issuedTotal: sum(rows.filter(row => row.issued)),
     unissuedTotal: sum(rows.filter(row => row.billable && !row.issued)),
-    grossTotal: breakdown.gross,
+    grossTotal: sum(rows),
+    studentTotal: allEnrollments.reduce((total, item) => total + item.gross, 0),
+    breakdown: getStudentBillingBreakdown(s),
   };
 }
 
 // 발행 종류. 처음이면 정발행, 살아 있는 인보이스가 이미 있으면 추가 발행,
 // 전부 취소된 뒤 다시 내는 것이면 재발행이다.
-function getNextInvoiceType(s) {
-  const list = s.invoices || [];
+function getNextInvoiceType(s, enrollmentId) {
+  const list = getEnrollmentInvoices(s, enrollmentId);
   if (!list.length) return 'issue';
-  return list.some(inv => inv.status === 'issued' && inv.type !== 'amendment') ? 'additional' : 'reissue';
+  return list.some(inv => inv.status === 'issued') ? 'additional' : 'reissue';
 }
 
 // 수정(차액) 발행 대상 — 완납된 기준 인보이스 중 가장 최근 것.
 // 미발행 항목은 금액을 그냥 고치면 되므로 차액 발행이 필요 없다.
-function getAmendableInvoice(s) {
-  const list = (s.invoices || []).filter(inv =>
-    inv.status === 'issued' && inv.type !== 'amendment' && isBaseInvoiceFullyPaid(s, inv));
+function getAmendableInvoice(s, enrollmentId) {
+  const list = getEnrollmentInvoices(s, enrollmentId)
+    .filter(inv => inv.status === 'issued' && isBaseInvoiceFullyPaid(s, inv));
   return list.length ? list[list.length - 1] : null;
 }
 
@@ -8609,8 +8822,8 @@ function getInvoicePaymentStatus(s, invoice) {
     ? (invoice.deltaItems || []).map(item => item.key)
     : invoice.items.map(item => item.key);
   if (!keys.length) return null;
-  const breakdown = getStudentBillingBreakdown(s);
-  const paidCount = keys.filter(key => breakdown.items.find(b => b.key === key)?.paymentStatus === 'paid').length;
+  const rows = getEnrollmentBillingRows(s, getBillingEnrollment(s, invoice.enrollmentId));
+  const paidCount = keys.filter(key => rows.find(row => row.key === key)?.paymentStatus === 'paid').length;
   if (paidCount === 0) return 'unpaid';
   if (paidCount === keys.length) return 'paid';
   return 'partial';
@@ -8640,12 +8853,13 @@ function issueOrReissueInvoice(studentId) {
   // 그래서 화면에서 체크박스를 감추는 데 그치지 않고, 후보 자체를 issuable(미발행·청구 대상)에서만 고른다.
   // 화면에 남아 있던 낡은 체크박스를 눌러도 여기서 걸러진다.
   const summary = getInvoiceIssueSummary(s);
+  const enrollment = summary.enrollment;
   const checkedItems = summary.issuable.filter(item => document.getElementById(`inv-check-${item.key}`)?.checked);
   if (!checkedItems.length) { showToast('발행할 청구 항목을 하나 이상 선택해 주세요.', 'warning'); return; }
 
   if (!s.invoices) s.invoices = [];
   const seq = nextInvoiceSeq(s);
-  const type = getNextInvoiceType(s);
+  const type = getNextInvoiceType(s, enrollment.id);
   const items = checkedItems.map(item => ({ key: item.key, label: item.label, amount: item.amount }));
   const gross = items.reduce((sum, item) => sum + item.amount, 0);
   const invoice = {
@@ -8653,6 +8867,11 @@ function issueOrReissueInvoice(studentId) {
     seq,
     type,
     status: 'issued',
+    // 인보이스는 차수에 속한다. 번호는 학생 단위 연번을 그대로 쓰고,
+    // 어느 차수의 것인지는 발행 이력 표의 「차수」 열이 알려준다.
+    enrollmentId: enrollment.id,
+    enrollmentLabel: `${enrollment.sessionNumber}차 수강`,
+    enrollmentCourse: enrollment.course || '',
     invoiceNo: `TSA-${studentId}-${seq}`,
     issueDate: new Date().toISOString().slice(0, 10),
     issuedBy: stayCurrentActor(),
@@ -8670,12 +8889,12 @@ function issueOrReissueInvoice(studentId) {
   const itemLabels = items.map(item => item.label).join(' · ');
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[인보이스 ${INVOICE_TYPE_LABEL[type]}] ${s.name} 학생 ${seq}차 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 포함 항목: ${itemLabels}`,
+    text: `[인보이스 ${INVOICE_TYPE_LABEL[type]}] ${s.name} 학생 ${enrollment.sessionNumber}차 수강 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 포함 항목: ${itemLabels}`,
     type: 'info',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });
 
-  showToast(`✅ ${invoice.invoiceNo} (${seq}차 · ${INVOICE_TYPE_LABEL[type]}) 인보이스가 발행되었습니다 — ${itemLabels}.`, 'success');
+  showToast(`✅ ${invoice.invoiceNo} (${enrollment.sessionNumber}차 수강 · ${INVOICE_TYPE_LABEL[type]}) 인보이스가 발행되었습니다 — ${itemLabels}.`, 'success');
   reopenSettleTab(studentId);
 }
 
@@ -8780,18 +8999,23 @@ function viewInvoiceHistoryDocument(studentId, invoiceId) {
 // 발행 취소·보기처럼 인보이스 한 건을 지목하는 동작은 전부 아래 발행 이력 표가 맡는다.
 function renderInvoiceActionPanel(s) {
   const summary = getInvoiceIssueSummary(s);
-  const amendable = getAmendableInvoice(s);
-  const type = getNextInvoiceType(s);
+  const enrollment = summary.enrollment;
+  const amendable = getAmendableInvoice(s, enrollment.id);
+  const type = getNextInvoiceType(s, enrollment.id);
+  // 미납이어도 청구는 나가야 한다(운영 확정). 대신 무엇이 남아 있는지 옆에 알려준다.
+  const unpaid = summary.rows
+    .filter(row => row.issued && row.paymentStatus !== 'paid')
+    .reduce((sum, row) => sum + row.amount, 0);
 
   const issueHtml = summary.issuable.length ? `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px">
-        <div style="font-size:10.5px;color:#6B7280">선택한 항목이 <strong style="color:#4338CA">한 장</strong>으로 발행됩니다. 발행된 항목은 이 목록에서 잠깁니다.</div>
+        <div style="font-size:10.5px;color:#6B7280">선택한 항목이 <strong style="color:#4338CA">한 장</strong>으로 발행됩니다. 발행된 항목은 이 목록에서 잠깁니다.${unpaid ? `<br><span style="color:#B45309;font-weight:700">이 차수에 미납 $${unpaid.toLocaleString()}이 남아 있습니다 — 발행은 그대로 진행됩니다.</span>` : ''}</div>
         <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="white-space:nowrap" type="button" onclick="issueOrReissueInvoice(${s.id})">
           <i data-lucide="file-plus-2"></i> ${type === 'issue' ? '인보이스 발행' : type === 'reissue' ? '인보이스 재발행' : '선택 항목 추가 발행'}
         </button>
       </div>` : `
       <div style="margin-top:12px;padding:10px 12px;border:1px solid #A7F3D0;border-radius:9px;background:#ECFDF5;font-size:11.5px;color:#065F46">
-        청구 항목이 모두 발행됐습니다. 항목을 바꾸려면 아래 발행 이력에서 해당 인보이스의 <strong>발행 취소</strong>를 누르세요.
+        ${enrollment.sessionNumber}차 수강의 청구 항목이 모두 발행됐습니다. 항목을 바꾸려면 아래 발행 이력에서 해당 인보이스의 <strong>발행 취소</strong>를 누르세요.
       </div>`;
 
   if (!amendable) return issueHtml;
@@ -8837,11 +9061,12 @@ function renderInvoiceHistoryPanel(s) {
 
   const historyHtml = history.length ? `
     <table class="tsa-table" style="font-size:11px;margin-top:2px">
-      <thead><tr><th>No</th><th>종류</th><th>포함 항목</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
+      <thead><tr><th>No</th><th>차수</th><th>종류</th><th>포함 항목</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
       <tbody>
         ${history.map(inv => `
           <tr${inv.status === 'void' ? ' style="color:#9CA3AF"' : ''}>
             <td>${inv.seq}차</td>
+            <td>${inv.enrollmentLabel ? `${escapeStudentPopupHtml(inv.enrollmentLabel)}${inv.enrollmentCourse ? `<div style="font-size:9.5px;color:#9CA3AF">${escapeStudentPopupHtml(inv.enrollmentCourse)}</div>` : ''}` : '-'}</td>
             <td>${INVOICE_TYPE_LABEL[inv.type] || inv.type}</td>
             <td>${(inv.items || []).map(item => item.label).join(' · ') || '-'}</td>
             <td>${inv.issueDate}</td>
