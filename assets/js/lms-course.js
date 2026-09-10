@@ -7069,41 +7069,320 @@ function getPickupManagersForStudent(student) {
   return [...new Map(managers.map(manager => [manager.id, manager])).values()];
 }
 
-// 픽업 담당자 관리 — 담당자와 차량, 즉 바뀌는 일이 드문 쪽만 둔다.
-function initPickupManagerView() {
-  renderPickupManagerCards();
-  resetPickupVehicleForm();
-}
+// 픽업은 한 화면 세 탭이다 — 배정(매주 손대는 쪽), 담당자, 차량.
+// 예전에는 사이드바 화면 세 개로 갈라져 있어서, 배차 한 건 짜는 동안 화면을 세 번 옮겨 다녀야 했다.
+// 상단 요약은 어느 탭에 있든 같은 값을 보여 준다. 사이드바 메뉴 세 개는 이제 탭 바로가기다.
+// 이 프로토타입의 '오늘'은 실제 시스템 날짜가 아니라 목업 데이터 기준일이다.
+// 대시보드 캘린더(AGENCY_VISIT_TODAY)·식단(MEAL_TODAY)과 같은 날짜를 써야 화면끼리 말이 맞는다.
+const PICKUP_TODAY = '2026-06-17';
+function getPickupToday() { return new Date(`${PICKUP_TODAY}T00:00:00`); }
 
-// 픽업 배정 — 입국일별 배차 편성. 매주 손대는 쪽.
-function initPickupAssignView() {
+const PICKUP_TABS = ['assign', 'managers', 'vehicles'];
+const PICKUP_UPCOMING_LIMIT = 8;   // 다가오는 입국일 줄에 세워 둘 날짜 수
+const PICKUP_KPI_WINDOW_DAYS = 7;  // 상단 요약이 말하는 '앞으로 7일'
+
+function initPickupView(tab = 'assign') {
   if (!APP.pickupCalendarMonth) {
-    const today = new Date();
+    const today = getPickupToday();
     APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     APP.pickupSelectedDate = toPickupDateKey(today);
   }
-  renderPickupCalendar();
+  switchPickupTab(PICKUP_TABS.includes(tab) ? tab : 'assign');
 }
 
-function renderPickupManagerCards() {
-  const target = document.getElementById('pickup-manager-cards');
-  if (!target) return;
-  target.innerHTML = MOCK_PICKUP_MANAGERS.map(manager => `
-    <div class="tsa-card" style="padding:16px;display:flex;gap:14px;align-items:center">
-      <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:66px;height:76px;border-radius:10px;object-fit:cover;border:1px solid #E5E7EB" alt=""/>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:7px"><b style="font-size:14px;color:#111827">${manager.name}</b><span class="tsa-badge tsa-badge-success" style="font-size:9.5px">확인서 자동 노출</span></div>
-        <div style="font-size:11px;color:#4B5563;margin-top:6px">${manager.phone}</div>
-        <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${manager.gender || '-'}성 · ${manager.age ? manager.age + '세' : '나이 미등록'}</div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:3px">${manager.messenger || '-'}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal(${manager.id})"><i data-lucide="clock"></i> 배차표</button>
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
-      </div>
-    </div>
-  `).join('');
+// 예전 화면 이름으로 들어오는 호출을 그대로 받아 준다.
+function initPickupManagerView() { initPickupView('managers'); }
+function initPickupVehicleView() { initPickupView('vehicles'); }
+function initPickupAssignView() { initPickupView('assign'); }
+
+function switchPickupTab(tab, el) {
+  if (!PICKUP_TABS.includes(tab)) tab = 'assign';
+  APP.pickupTab = tab;
+  PICKUP_TABS.forEach(name => {
+    const content = document.getElementById(`pickup-tab-${name}`);
+    if (content) content.style.display = name === tab ? '' : 'none';
+    const button = (el && name === tab) ? el : document.getElementById(`pickup-tab-btn-${name}`);
+    if (button) button.classList.toggle('active', name === tab);
+  });
+  updatePickupPrimaryAction();
+  syncPickupMenuHighlight(tab);
+  if (tab === 'managers') renderPickupManagerTable();
+  else if (tab === 'vehicles') renderPickupVehicleTable();
+  else renderPickupCalendar();
+  renderPickupKpiStrip();
   if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// 사이드바 메뉴 세 개는 이 화면의 탭 바로가기다. 탭을 바꾸면 사이드바와 브레드크럼도 같은 곳을 가리켜야 한다.
+const PICKUP_TAB_MENU = {
+  assign: { menu: 'menu-pickup-assign', label: '픽업 배정' },
+  managers: { menu: 'menu-pickup-managers', label: '픽업 담당자 관리' },
+  vehicles: { menu: 'menu-pickup-vehicles', label: '픽업 차량 관리' },
+};
+
+function syncPickupMenuHighlight(tab) {
+  const preset = PICKUP_TAB_MENU[tab];
+  if (!preset) return;
+  Object.values(PICKUP_TAB_MENU).forEach(item => document.getElementById(item.menu)?.classList.remove('active'));
+  document.getElementById(preset.menu)?.classList.add('active');
+  const current = document.getElementById('breadcrumb-current');
+  if (current) current.textContent = preset.label;
+}
+
+// 헤더 오른쪽 버튼은 지금 보고 있는 탭에서 할 일 하나만 가리킨다.
+function updatePickupPrimaryAction() {
+  const action = document.getElementById('pickup-primary-action');
+  if (!action) return;
+  const preset = {
+    assign: { icon: 'alarm-clock', label: '미배정 날짜로 이동' },
+    managers: { icon: 'user-plus', label: '담당자 등록' },
+    vehicles: { icon: 'plus', label: '차량 등록' },
+  }[APP.pickupTab || 'assign'];
+  action.innerHTML = `<i data-lucide="${preset.icon}"></i> ${preset.label}`;
+}
+
+function handlePickupPrimaryAction() {
+  const tab = APP.pickupTab || 'assign';
+  if (tab === 'managers') return openPickupManagerModal();
+  if (tab === 'vehicles') return openPickupVehicleModal();
+  return goPickupNextUnassigned();
+}
+
+// 배정 탭에서 가장 급한 곳으로 한 번에 보낸다 — 오늘 이후 미배정이 남은 가장 빠른 날짜.
+function goPickupNextUnassigned() {
+  const stats = getPickupOverviewStats();
+  if (!stats.nextUnassignedDate) {
+    showToast('오늘 이후 배정이 필요한 입국 학생이 없습니다.', 'success');
+    return;
+  }
+  switchPickupTab('assign');
+  selectPickupCalendarDate(stats.nextUnassignedDate);
+}
+
+// 날짜 한 칸의 집계. 달력·임박 픽업 줄·상단 요약이 같은 값을 쓰도록 여기 한 곳에서만 센다.
+function getPickupDateStat(dateKey, students) {
+  const source = students || getPickupStudents();
+  const arrivals = source.filter(student => (student.arrivalDate || student.startDate) === dateKey);
+  const groups = getPickupDispatchGroups(dateKey);
+  const assignedIds = new Set(groups.flatMap(group => group.studentIds));
+  const pickupArrivals = arrivals.filter(isPickupRequired);
+  const unassigned = pickupArrivals.filter(student => !assignedIds.has(student.id)).length;
+  return {
+    dateKey,
+    arrivals: arrivals.length,
+    pickup: pickupArrivals.length,
+    noPickup: arrivals.length - pickupArrivals.length,
+    unassigned,
+    assigned: pickupArrivals.length - unassigned,
+    dispatches: groups.length,
+    pending: groups.filter(group => group.status !== 'dispatched').length,
+  };
+}
+
+function getPickupOverviewStats() {
+  const students = getPickupStudents();
+  const today = getPickupToday();
+  const todayKey = PICKUP_TODAY;
+  const weekKey = toPickupDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + PICKUP_KPI_WINDOW_DAYS));
+  const dateKeys = [...new Set(students.map(student => student.arrivalDate || student.startDate).filter(Boolean))].sort();
+  const futureStats = dateKeys.filter(key => key >= todayKey).map(key => getPickupDateStat(key, students));
+  const weekStats = futureStats.filter(stat => stat.dateKey <= weekKey);
+  const sum = (list, field) => list.reduce((total, stat) => total + stat[field], 0);
+
+  return {
+    todayKey,
+    today: getPickupDateStat(todayKey, students),
+    weekPickup: sum(weekStats, 'pickup'),
+    weekUnassigned: sum(weekStats, 'unassigned'),
+    weekDispatches: sum(weekStats, 'dispatches'),
+    weekPending: sum(weekStats, 'pending'),
+    upcoming: futureStats.filter(stat => stat.arrivals).slice(0, PICKUP_UPCOMING_LIMIT),
+    nextUnassignedDate: (futureStats.find(stat => stat.unassigned) || {}).dateKey || '',
+    managerTotal: MOCK_PICKUP_MANAGERS.length,
+    managerVisible: MOCK_PICKUP_MANAGERS.filter(manager => manager.visible !== false).length,
+    vehicleTotal: MOCK_PICKUP_VEHICLES.length,
+    vehicleSeats: MOCK_PICKUP_VEHICLES.reduce((total, vehicle) => total + (Number(vehicle.capacity) || 0), 0),
+  };
+}
+
+// 요약 타일 한 줄. 담당자 탭·차량 탭·상단 요약이 같은 모양을 쓴다.
+function renderPickupSummaryTiles(tiles) {
+  return tiles.map(tile => `
+    <div class="tsa-card" style="padding:14px 16px;${tile.action ? 'cursor:pointer' : ''}" ${tile.action ? `onclick="${tile.action}"` : ''}>
+      <div style="font-size:10.5px;font-weight:700;color:#6B7280">${tile.label}</div>
+      <div style="font-size:20px;font-weight:900;color:${tile.color};margin-top:4px">${tile.value}</div>
+      <div style="font-size:9.5px;color:#9CA3AF;margin-top:3px">${tile.hint}</div>
+    </div>`).join('');
+}
+
+function renderPickupKpiStrip() {
+  const target = document.getElementById('pickup-kpi-strip');
+  if (!target) return;
+  const stats = getPickupOverviewStats();
+  target.innerHTML = renderPickupSummaryTiles([
+    {
+      label: '오늘 입국 픽업',
+      value: `${stats.today.pickup}명`,
+      hint: stats.today.arrivals
+        ? `배차 완료 ${stats.today.assigned}명 · 대기 ${stats.today.unassigned}명`
+        : '오늘 입국 예정 학생 없음',
+      color: stats.today.unassigned ? '#C2410C' : stats.today.pickup ? '#047857' : '#6B7280',
+      action: `selectPickupCalendarDate('${stats.todayKey}')`,
+    },
+    {
+      label: `미배정 인원 (${PICKUP_KPI_WINDOW_DAYS}일)`,
+      value: `${stats.weekUnassigned}명`,
+      hint: stats.nextUnassignedDate ? `가장 빠른 미배정 ${stats.nextUnassignedDate.slice(5)}` : `앞으로 ${PICKUP_KPI_WINDOW_DAYS}일 배정 완료`,
+      color: stats.weekUnassigned ? '#DC2626' : '#047857',
+      action: 'goPickupNextUnassigned()',
+    },
+    {
+      label: `배차 건수 (${PICKUP_KPI_WINDOW_DAYS}일)`,
+      value: `${stats.weekDispatches}건`,
+      hint: stats.weekPending ? `정보 미완 ${stats.weekPending}건` : `픽업 대상 ${stats.weekPickup}명 기준`,
+      color: stats.weekPending ? '#B45309' : '#4338CA',
+    },
+    {
+      label: '담당자 · 차량',
+      value: `${stats.managerTotal}명 / ${stats.vehicleTotal}대`,
+      hint: `확인서 노출 ${stats.managerVisible}명 · 전체 정원 ${stats.vehicleSeats}석`,
+      color: '#4338CA',
+      action: "switchPickupTab('managers')",
+    },
+  ]);
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// 다가오는 입국일 줄 — 달력을 넘겨 가며 찾지 않아도 급한 날짜가 먼저 눈에 들어오게 한다.
+function renderPickupUpcomingStrip() {
+  const target = document.getElementById('pickup-upcoming-strip');
+  if (!target) return;
+  const stats = getPickupOverviewStats();
+  if (!stats.upcoming.length) {
+    target.innerHTML = '<div style="padding:10px 2px;font-size:11px;color:#9CA3AF">오늘 이후 입국 예정인 학생이 없습니다.</div>';
+    return;
+  }
+  target.innerHTML = stats.upcoming.map(stat => {
+    const selected = APP.pickupSelectedDate === stat.dateKey;
+    const isToday = stats.todayKey === stat.dateKey;
+    const warn = stat.unassigned > 0;
+    const label = new Date(`${stat.dateKey}T00:00:00`).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' });
+    return `<button type="button" onclick="selectPickupCalendarDate('${stat.dateKey}')" title="${stat.dateKey}"
+      style="flex:0 0 auto;min-width:132px;text-align:left;padding:9px 11px;border-radius:10px;cursor:pointer;
+      border:1px solid ${selected ? '#6366F1' : warn ? '#FDBA74' : '#6EE7B7'};
+      background:${selected ? '#EEF2FF' : warn ? '#FFF7ED' : '#ECFDF5'};
+      box-shadow:${selected ? '0 0 0 2px #C7D2FE' : 'none'}">
+      <div style="display:flex;align-items:center;gap:5px">
+        <b style="font-size:11.5px;color:#111827">${label}</b>
+        ${isToday ? '<span class="tsa-badge" style="background:#5E5CE6;color:#fff;font-size:8.5px">오늘</span>' : ''}
+      </div>
+      <div style="font-size:9.5px;color:#6B7280;margin-top:3px">입국 ${stat.arrivals}명 · 픽업 ${stat.pickup}명</div>
+      <div style="font-size:10px;font-weight:800;margin-top:3px;color:${warn ? '#C2410C' : '#047857'}">${warn ? `미배정 ${stat.unassigned}명` : `배차 ${stat.dispatches}건 완료`}</div>
+    </button>`;
+  }).join('');
+}
+
+// 그 담당자가 물고 있는 배차. 지울 수 있는 사람인지 판단하는 값이자, 목록에 그대로 보여주는 값이다.
+function getPickupManagerDispatchStats(managerId) {
+  const todayKey = PICKUP_TODAY;
+  const stats = { total: 0, upcoming: 0, nextDate: '' };
+  Object.entries(PICKUP_DISPATCH_GROUPS).forEach(([dateKey, groups]) => {
+    groups.filter(group => Number(group.managerId) === Number(managerId)).forEach(() => {
+      stats.total += 1;
+      if (dateKey >= todayKey) {
+        stats.upcoming += 1;
+        if (!stats.nextDate || dateKey < stats.nextDate) stats.nextDate = dateKey;
+      }
+    });
+  });
+  return stats;
+}
+
+function renderPickupManagerTable() {
+  const body = document.getElementById('pickup-manager-tbody');
+  if (!body) return;
+  const keyword = (document.getElementById('pickup-manager-search')?.value || '').trim().toLowerCase();
+  const rows = MOCK_PICKUP_MANAGERS.filter(manager => !keyword
+    || (manager.name || '').toLowerCase().includes(keyword)
+    || (manager.phone || '').toLowerCase().includes(keyword)
+    || (manager.messenger || '').toLowerCase().includes(keyword));
+
+  const countEl = document.getElementById('pickup-manager-count');
+  if (countEl) countEl.textContent = keyword ? `${rows.length} / ${MOCK_PICKUP_MANAGERS.length}명` : `${MOCK_PICKUP_MANAGERS.length}명`;
+
+  body.innerHTML = rows.length ? rows.map((manager, index) => {
+    const stats = getPickupManagerDispatchStats(manager.id);
+    const visible = manager.visible !== false;
+    return `<tr>
+      <td style="text-align:center;color:#9CA3AF">${index + 1}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:9px">
+          <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:34px;height:40px;border-radius:6px;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
+          <div style="min-width:0">
+            <b style="font-size:12px;color:#111827">${manager.name}</b>
+            <div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">사번 P-${String(manager.id).padStart(3, '0')}</div>
+          </div>
+        </div>
+      </td>
+      <td style="text-align:center;color:#374151">${manager.gender || '-'}성<div style="font-size:9.5px;color:#6B7280;margin-top:2px">${manager.age ? `${manager.age}세` : '나이 미등록'}</div></td>
+      <td style="font-variant-numeric:tabular-nums;color:#374151">${manager.phone || '<span style="color:#DC2626">미등록</span>'}</td>
+      <td style="color:#6B7280">${manager.messenger || '-'}</td>
+      <td style="text-align:center">
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" title="확인서에 이 담당자를 띄울지 여부"
+          style="color:${visible ? '#047857' : '#9CA3AF'};border-color:${visible ? '#A7F3D0' : '#E5E7EB'};background:${visible ? '#ECFDF5' : '#fff'}"
+          onclick="togglePickupManagerVisible(${manager.id})">${visible ? '노출' : '숨김'}</button>
+      </td>
+      <td style="text-align:center">
+        ${stats.total
+          ? `<div style="font-size:10.5px;font-weight:800;color:${stats.upcoming ? '#4338CA' : '#6B7280'}">예정 ${stats.upcoming}건</div>
+             <div style="font-size:9px;color:#9CA3AF;margin-top:2px">누적 ${stats.total}건${stats.nextDate ? ` · 다음 ${stats.nextDate.slice(5)}` : ''}</div>`
+          : '<span style="font-size:10.5px;color:#9CA3AF">배차 없음</span>'}
+      </td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal(${manager.id})"><i data-lucide="clock"></i> 배차표</button>
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="margin-left:4px" onclick="openPickupManagerModal(${manager.id})">수정</button>
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="margin-left:4px;color:#EF4444;border-color:#FCA5A5" onclick="removePickupManager(${manager.id})">삭제</button>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">${keyword ? '검색 조건에 맞는 담당자가 없습니다.' : '등록된 픽업 담당자가 없습니다. 오른쪽 위 [담당자 등록]으로 추가하세요.'}</td></tr>`;
+  renderPickupManagerSummary();
+  renderPickupKpiStrip();
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// 담당자 탭 맨 위 요약. 「몇 명을 쓸 수 있고, 그중 몇 명이 이미 나가 있나」가 배차 전에 먼저 보는 값이다.
+function renderPickupManagerSummary() {
+  const target = document.getElementById('pickup-manager-summary');
+  if (!target) return;
+  const visible = MOCK_PICKUP_MANAGERS.filter(manager => manager.visible !== false).length;
+  const booked = MOCK_PICKUP_MANAGERS.filter(manager => getPickupManagerDispatchStats(manager.id).upcoming).length;
+  target.innerHTML = renderPickupSummaryTiles([
+    { label: '등록 담당자', value: `${MOCK_PICKUP_MANAGERS.length}명`, hint: '배차에서 고를 수 있는 담당자', color: '#4338CA' },
+    { label: '확인서 노출', value: `${visible}명`, hint: '학생 공항 픽업 확인서에 표시', color: '#047857' },
+    { label: '예정 배차 보유', value: `${booked}명`, hint: '오늘 이후 배차가 잡혀 있음', color: booked ? '#B45309' : '#6B7280' },
+  ]);
+}
+
+// 확인서에 안 띄울 담당자. 이미 잡힌 배차는 그대로 두므로 배차표에는 계속 보인다.
+function togglePickupManagerVisible(managerId) {
+  const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(managerId));
+  if (!manager) return;
+  manager.visible = manager.visible === false;
+  renderPickupManagerTable();
+  showToast(`${manager.name} 담당자를 확인서에 ${manager.visible ? '노출' : '숨김'} 처리했습니다.`, 'success');
+}
+
+function removePickupManager(managerId) {
+  const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(managerId));
+  if (!manager) return;
+  if (getPickupManagerDispatchStats(managerId).total) {
+    showToast('배차에 물려 있는 담당자는 삭제할 수 없어. 확인서 노출만 끄거나 배차를 먼저 옮겨줘.', 'warning');
+    return;
+  }
+  if (!confirm(`${manager.name} 담당자를 삭제할까요? 되돌릴 수 없습니다.`)) return;
+  MOCK_PICKUP_MANAGERS.splice(MOCK_PICKUP_MANAGERS.findIndex(item => item.id === Number(managerId)), 1);
+  renderPickupManagerTable();
+  showToast('픽업 담당자가 삭제되었습니다.', 'success');
 }
 
 function toPickupDateKey(date) {
@@ -7137,7 +7416,7 @@ function renderPickupCalendar() {
   const previousMonthDays = new Date(year, monthIndex, 0).getDate();
   const totalCells = 42;
   const students = getPickupStudents();
-  const todayKey = toPickupDateKey(new Date());
+  const todayKey = PICKUP_TODAY;
   const cells = [];
   for (let cell = 0; cell < totalCells; cell += 1) {
     const dayOffset = cell - firstDay + 1;
@@ -7167,27 +7446,33 @@ function renderPickupCalendar() {
       <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:82px;padding:8px;border:0;border-right:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.42' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
         <span style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800;background:${isToday ? '#5E5CE6' : 'transparent'};color:${isToday ? '#fff' : '#374151'}">${cellDate.getDate()}</span>
         ${arrivals.length ? (() => {
-          const scheduled = pickupArrivals.length - unassigned;
-          const rowStyle = 'display:flex;justify-content:space-between;gap:4px';
-          return `<div style="margin-top:5px;padding:5px 6px;border-radius:6px;background:${unassigned || pendingDispatches ? '#FFF7ED' : '#ECFDF5'};color:${unassigned || pendingDispatches ? '#C2410C' : '#047857'};font-size:9px;font-weight:700;line-height:1.5">
-            <div style="${rowStyle}"><b>입국</b><span>${arrivals.length}명 (픽업 ${pickupArrivals.length}·불필요 ${noPickupArrivals.length})</span></div>
-            <div style="${rowStyle}"><b>픽업 대기</b><span style="color:${unassigned ? '#C2410C' : '#047857'}">${unassigned}명</span></div>
-            <div style="${rowStyle}"><b>편성 완료</b><span>${scheduled}명</span></div>
+          const warn = unassigned || pendingDispatches;
+          const lines = [
+            `입국 ${arrivals.length}${noPickupArrivals.length ? ` · 픽업 ${pickupArrivals.length}` : ''}`,
+            unassigned ? `대기 ${unassigned}명`
+              : pickupArrivals.length ? `배차 ${groups.length}건` : '픽업 불필요',
+          ];
+          return `<div title="입국 ${arrivals.length}명 · 픽업 ${pickupArrivals.length}명 · 불필요 ${noPickupArrivals.length}명 · 미배정 ${unassigned}명"
+            style="margin-top:5px;padding:4px 5px;border-radius:6px;background:${warn ? '#FFF7ED' : '#ECFDF5'};color:${warn ? '#C2410C' : '#047857'};font-size:9px;font-weight:800;line-height:1.45">
+            ${lines.map(line => `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${line}</div>`).join('')}
           </div>`;
         })() : ''}
       </button>`);
   }
   grid.innerHTML = cells.join('');
   renderPickupDateAssignments();
+  renderPickupKpiStrip();
+  renderPickupUpcomingStrip();
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
+// 오른쪽 패널은 「누구를 태울지 고른다 → 그 결과를 본다」 두 단계로만 읽히게 둔다.
+// 예전에는 인원 선택과 배차 현황이 구분 없이 이어져 있어서, 지금 무엇을 해야 하는지가 안 보였다.
 function renderPickupDateAssignments() {
   const panel = document.getElementById('pickup-date-assignment-panel');
   if (!panel) return;
   const selectedDate = APP.pickupSelectedDate;
   const students = getPickupStudents().filter(student => (student.arrivalDate || student.startDate) === selectedDate);
-  const dateLabel = selectedDate ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 선택';
   const groups = getPickupDispatchGroups(selectedDate);
   const assignedIds = new Set(groups.flatMap(group => group.studentIds));
   const pickupStudents = students.filter(isPickupRequired);
@@ -7195,35 +7480,102 @@ function renderPickupDateAssignments() {
   pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => pickupStudents.some(student => student.id === id) && !assignedIds.has(id));
   const unassigned = pickupStudents.filter(student => !assignedIds.has(student.id));
   const pendingGroups = groups.filter(group => group.status !== 'dispatched');
+  const dateLabel = selectedDate
+    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+    : '날짜 선택';
+
+  if (!students.length) {
+    panel.innerHTML = `<div style="padding:14px 16px;border-bottom:1px solid #E5E7EB"><b style="font-size:13px;color:#111827">${dateLabel}</b></div>
+      <div style="padding:80px 20px;text-align:center;color:#9CA3AF">
+        <i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i>
+        <div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div>
+        <div style="font-size:10.5px;margin-top:5px">달력이나 임박 픽업 줄에서 다른 날짜를 선택하세요.</div>
+      </div>`;
+    if (typeof refreshIcons === 'function') refreshIcons();
+    renderPickupManagerTimetable();
+    return;
+  }
+
+  const statusLabel = unassigned.length ? '편성 필요'
+    : pendingGroups.length ? '배차 정보 필요'
+      : pickupStudents.length ? '배차 완료' : '픽업 불필요';
+  const statusClass = unassigned.length || pendingGroups.length ? 'tsa-badge-warning' : 'tsa-badge-success';
+  const allSelected = unassigned.length > 0 && unassigned.every(student => pickupSelectedStudentIds.includes(student.id));
+  const selectedCount = pickupSelectedStudentIds.length;
+
+  const chip = (label, value, color) => `<div style="flex:1;min-width:0;padding:7px 9px;border-radius:8px;background:#F8FAFC;border:1px solid #E9EDF4">
+    <div style="font-size:9.5px;color:#6B7280">${label}</div>
+    <div style="font-size:13px;font-weight:900;color:${color};margin-top:2px">${value}</div></div>`;
+
   panel.innerHTML = `
-    <div style="padding:15px 16px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <div><b style="font-size:13px;color:#111827">${dateLabel}</b>${students.length ? `<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px;font-size:10px;color:#6B7280">
-        <div><b>입국</b> ${students.length}명 (픽업 ${pickupStudents.length}·불필요 ${noPickupStudents.length})</div>
-        <div><b>픽업 대기</b> <span style="color:${unassigned.length ? '#C2410C' : '#047857'}">${unassigned.length}명</span></div>
-        <div><b>편성 완료</b> <span style="color:#047857">${pickupStudents.length - unassigned.length}명</span></div>
-      </div>` : ''}</div>
-      ${students.length ? `<span class="tsa-badge ${unassigned.length || pendingGroups.length ? 'tsa-badge-warning' : 'tsa-badge-success'}">${unassigned.length ? '편성 필요' : pendingGroups.length ? '배차 정보 필요' : pickupStudents.length ? '배차 완료' : '픽업 불필요'}</span>` : ''}
+    <div style="padding:14px 16px;border-bottom:1px solid #E5E7EB">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <b style="font-size:13px;color:#111827">${dateLabel}</b>
+        <span class="tsa-badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        ${chip('입국', `${students.length}명`, '#111827')}
+        ${chip('픽업 대기', `${unassigned.length}명`, unassigned.length ? '#C2410C' : '#047857')}
+        ${chip('편성 완료', `${pickupStudents.length - unassigned.length}명`, '#047857')}
+        ${chip('배차', `${groups.length}건`, pendingGroups.length ? '#B45309' : '#4338CA')}
+      </div>
     </div>
-    ${students.length ? `<div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:11px;color:#374151">픽업 인원 선택</b><button class="tsa-btn tsa-btn-primary tsa-btn-xs" onclick="openPickupDispatchModal('${selectedDate}')" ${pickupSelectedStudentIds.length ? '' : 'disabled'}><i data-lucide="car-front"></i> 선택 인원 배차</button></div>
-      <div style="display:flex;flex-direction:column;gap:6px">${unassigned.length ? unassigned.map(student => renderPickupPassengerOption(student)).join('') : '<div style="padding:12px;text-align:center;font-size:10.5px;color:#9CA3AF">픽업이 필요한 모든 학생이 배차 그룹에 편성되었습니다.</div>'}</div>
-      ${noPickupStudents.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #D1D5DB"><div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><b style="font-size:11px;color:#6B7280">픽업 불필요</b><span class="tsa-badge" style="background:#F3F4F6;color:#6B7280">옵션 미선택 ${noPickupStudents.length}명</span></div><div style="display:flex;flex-direction:column;gap:6px">${noPickupStudents.map(student => renderPickupPassengerOption(student, false)).join('')}</div></div>` : ''}
+
+    <div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <b style="font-size:11.5px;color:#374151">1단계 · 픽업 인원 선택</b>
+          <span class="tsa-badge" style="background:${unassigned.length ? '#FFF7ED' : '#ECFDF5'};color:${unassigned.length ? '#C2410C' : '#047857'}">대기 ${unassigned.length}명</span>
+        </div>
+        ${unassigned.length ? `<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:#6B7280;cursor:pointer"><input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleAllPickupPassengers(this.checked)"/> 전체 선택</label>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:auto">${unassigned.length
+        ? unassigned.map(student => renderPickupPassengerOption(student)).join('')
+        : '<div style="padding:16px;text-align:center;font-size:10.5px;color:#9CA3AF;background:#fff;border:1px dashed #D1D5DB;border-radius:9px">픽업이 필요한 학생이 모두 배차 그룹에 편성되었습니다.</div>'}</div>
+      ${unassigned.length ? `<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;border:1px solid ${selectedCount ? '#C7D2FE' : '#E5E7EB'};background:${selectedCount ? '#EEF2FF' : '#fff'}">
+        <span style="font-size:10.5px;font-weight:700;color:${selectedCount ? '#4338CA' : '#9CA3AF'}">${selectedCount ? `${selectedCount}명 선택됨` : '배차할 학생을 먼저 선택하세요'}</span>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openPickupDispatchModal('${selectedDate}')" ${selectedCount ? '' : 'disabled'}><i data-lucide="car-front"></i> 선택 인원 배차</button>
+      </div>` : ''}
+      ${noPickupStudents.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #D1D5DB">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+          <b style="font-size:11px;color:#6B7280">픽업 불필요</b>
+          <span class="tsa-badge" style="background:#F3F4F6;color:#6B7280">옵션 미선택 ${noPickupStudents.length}명</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">${noPickupStudents.map(student => renderPickupPassengerOption(student, false)).join('')}</div>
+      </div>` : ''}
     </div>
-    ${groups.length ? `<div style="padding:12px 16px"><div style="font-size:11px;font-weight:800;color:#374151;margin-bottom:8px">배차 현황</div><div style="display:grid;gap:7px">${groups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div></div>` : ''}` : `<div style="padding:90px 20px;text-align:center;color:#9CA3AF"><i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i><div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div></div>`}`;
+
+    <div style="padding:12px 16px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <b style="font-size:11.5px;color:#374151">2단계 · 배차 현황</b>
+        <span class="tsa-badge" style="background:#EEF2FF;color:#4338CA">${groups.length}건</span>
+        ${pendingGroups.length ? `<span class="tsa-badge tsa-badge-warning">정보 미완 ${pendingGroups.length}건</span>` : ''}
+      </div>
+      ${groups.length
+        ? `<div style="display:grid;gap:7px">${groups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div>`
+        : '<div style="padding:16px;text-align:center;font-size:10.5px;color:#9CA3AF;border:1px dashed #D1D5DB;border-radius:9px">아직 배차가 없습니다. 위에서 학생을 선택하고 [선택 인원 배차]를 누르세요.</div>'}
+    </div>`;
   if (typeof refreshIcons === 'function') refreshIcons();
   renderPickupManagerTimetable();
 }
 
-// 담당자별 시간 단위(10분 간격) 배차표. 세로축=시간, 가로축=담당자.
-// 배차 그룹 자체에는 시간이 저장돼 있지 않아서, 그룹에 속한 학생들의 flightTime(+PICKUP_SLOT_MINUTES)을 모아
+// 대기 인원을 한 번에 담는다. 이미 배차된 학생과 픽업 불필요 학생은 애초에 목록에 없다.
+function toggleAllPickupPassengers(checked) {
+  const dateKey = APP.pickupSelectedDate;
+  const assignedIds = new Set(getPickupDispatchGroups(dateKey).flatMap(group => group.studentIds));
+  const selectable = getPickupStudents()
+    .filter(student => (student.arrivalDate || student.startDate) === dateKey && isPickupRequired(student) && !assignedIds.has(student.id))
+    .map(student => student.id);
+  pickupSelectedStudentIds = checked ? selectable : [];
+  renderPickupDateAssignments();
+}
+
+// 배차 그룹 자체에는 시간이 저장돼 있지 않다. 그룹에 속한 학생들의 flightTime(+PICKUP_SLOT_MINUTES)을 모아
 // 최소 시작~최대 종료 구간을 그 배차 건의 점유 시간으로 계산한다.
-const PICKUP_TIMETABLE_SLOT_MIN = 10;
-const PICKUP_TIMETABLE_DAY_START = 6 * 60;  // 06:00
-const PICKUP_TIMETABLE_DAY_END = 24 * 60;   // 24:00
 
 function openPickupTimetableModal(managerId) {
   APP.pickupTimetableManagerId = managerId != null ? Number(managerId) : null;
-  if (!APP.pickupSelectedDate) APP.pickupSelectedDate = toPickupDateKey(new Date());
+  if (!APP.pickupSelectedDate) APP.pickupSelectedDate = PICKUP_TODAY;
   const dateInput = document.getElementById('pickup-timetable-date');
   if (dateInput) dateInput.value = APP.pickupSelectedDate;
   renderPickupManagerTimetable(APP.pickupTimetableManagerId);
@@ -7245,6 +7597,67 @@ function changePickupTimetableDate(dateKey) {
   renderPickupManagerTimetable(APP.pickupTimetableManagerId);
 }
 
+// 배차표는 「그 시간에 누가 비어 있나」와 「누가 겹쳤나」를 보러 오는 표다.
+// 예전 rowspan 표는 시작 슬롯이 같은 배차를 통째로 버려서, 정작 봐야 할 겹침이 안 보였다.
+// 이제 담당자 칸 안에서 겹치는 배차를 레인으로 나눠 나란히 세우고, 그 묶음을 노랗게 표시한다.
+const PICKUP_TIMETABLE_PX_PER_MIN = 1.15;   // 10분 ≈ 11.5px
+const PICKUP_TIMETABLE_PAD_MIN = 30;        // 표 위아래 여유
+const PICKUP_TIMETABLE_HEAD_PX = 44;
+
+function formatPickupMinutes(min) {
+  const norm = ((min % 1440) + 1440) % 1440;
+  return `${String(Math.floor(norm / 60)).padStart(2, '0')}:${String(norm % 60).padStart(2, '0')}`;
+}
+
+// 겹치는 배차끼리 한 묶음으로 보고 레인 번호를 매긴다. lanes 는 그 묶음이 필요로 하는 칸 수다.
+function assignPickupTimetableLanes(blocks) {
+  const sorted = [...blocks].sort((a, b) => a.start - b.start || a.end - b.end);
+  let cluster = [];
+  let clusterEnd = -Infinity;
+  const laneEnds = [];
+  const flush = () => {
+    if (!cluster.length) return;
+    const laneCount = Math.max(...cluster.map(item => item.lane)) + 1;
+    cluster.forEach(item => { item.lanes = laneCount; item.conflict = laneCount > 1; });
+    cluster = [];
+    laneEnds.length = 0;
+  };
+  sorted.forEach(block => {
+    if (block.start >= clusterEnd) flush();
+    let lane = laneEnds.findIndex(end => end <= block.start);
+    if (lane < 0) lane = laneEnds.length;
+    laneEnds[lane] = block.end;
+    block.lane = lane;
+    cluster.push(block);
+    clusterEnd = Math.max(clusterEnd, block.end);
+  });
+  flush();
+  return sorted;
+}
+
+function renderPickupTimetableBlock(block, dayStart, isUnassigned) {
+  const top = (block.start - dayStart) * PICKUP_TIMETABLE_PX_PER_MIN;
+  const height = Math.max(24, (block.end - block.start) * PICKUP_TIMETABLE_PX_PER_MIN - 2);
+  const width = 100 / (block.lanes || 1);
+  const left = width * (block.lane || 0);
+  const overCapacity = block.capacity > 0 && block.seats > block.capacity;
+  const tone = isUnassigned
+    ? { border: '#FCA5A5', bg: '#FEF2F2', text: '#B91C1C' }
+    : block.conflict
+      ? { border: '#FBBF24', bg: '#FFFBEB', text: '#B45309' }
+      : { border: '#C7D2FE', bg: '#EEF2FF', text: '#3730A3' };
+  const timeLabel = `${formatPickupMinutes(block.start)}~${formatPickupMinutes(block.end)}`;
+  const detail = [block.vehicle, block.seats ? `${block.seats}명` : '', block.capacity ? `정원 ${block.capacity}` : '']
+    .filter(Boolean).join(' · ');
+  return `<div title="${timeLabel} · ${block.label}${detail ? ` · ${detail}` : ''}"
+    style="position:absolute;top:${top}px;height:${height}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);
+    border:1px solid ${tone.border};background:${tone.bg};border-radius:6px;padding:3px 5px;overflow:hidden;box-sizing:border-box">
+    <div style="font-size:9px;font-weight:800;color:${tone.text};font-variant-numeric:tabular-nums">${timeLabel}</div>
+    <div style="font-size:10px;font-weight:700;color:#111827;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${block.label}</div>
+    ${detail ? `<div style="font-size:8.5px;color:${overCapacity ? '#DC2626' : '#6B7280'};margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${overCapacity ? '정원 초과 · ' : ''}${detail}</div>` : ''}
+  </div>`;
+}
+
 function renderPickupManagerTimetable(managerId) {
   const container = document.getElementById('pickup-manager-timetable');
   if (!container) return;
@@ -7252,113 +7665,126 @@ function renderPickupManagerTimetable(managerId) {
   const titleEl = document.getElementById('pickup-timetable-title');
   const subtitleEl = document.getElementById('pickup-timetable-subtitle');
   const focusedManager = managerId != null ? MOCK_PICKUP_MANAGERS.find(m => m.id === Number(managerId)) : null;
+  const groups = getPickupDispatchGroups(dateKey);
+
+  // 숨긴 담당자라도 그날 배차가 잡혀 있으면 칸을 내준다 — 안 그러면 남의 배차가 미배정으로 잘못 보인다.
+  const dispatchedManagerIds = new Set(groups.map(g => Number(g.managerId)).filter(Boolean));
   const managers = focusedManager
     ? [focusedManager]
-    : MOCK_PICKUP_MANAGERS.filter(m => m.visible !== false);
-  const groups = getPickupDispatchGroups(dateKey);
-  const slotCount = (PICKUP_TIMETABLE_DAY_END - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN;
+    : MOCK_PICKUP_MANAGERS.filter(m => m.visible !== false || dispatchedManagerIds.has(m.id));
 
+  const dateLabel = dateKey
+    ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+    : '날짜 선택';
   if (titleEl) titleEl.innerHTML = `<i data-lucide="clock" style="color:#5E5CE6"></i> ${focusedManager ? `${focusedManager.name} 배차표` : '담당자별 시간 단위 배차표'}`;
-  if (subtitleEl) {
-    const dateLabel = dateKey ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 선택';
-    subtitleEl.textContent = `10분 단위 · 세로축 시간${focusedManager ? '' : ' · 가로축 담당자'} · ${dateLabel} 기준`;
-  }
 
-  const buildBlock = (studentIds, label, extra) => {
-    const windows = studentIds
-      .map(id => MOCK_STUDENTS.find(s => s.id === id))
-      .map(getPickupTimeWindowMinutes)
-      .filter(Boolean);
-    if (!windows.length) return null;
-    return {
-      start: Math.min(...windows.map(w => w.start)),
-      end: Math.max(...windows.map(w => w.end)),
-      label,
-      extra: extra || '',
-    };
-  };
-
-  // 담당자별(및 미배정) 블록 목록
   const columns = managers.map(m => ({ id: m.id, name: m.name, blocks: [] }));
   const unassignedColumn = { id: 'unassigned', name: '미배정', blocks: [] };
 
   groups.forEach(group => {
+    const timeWindow = getPickupGroupTimeWindowMinutes(group);
+    if (!timeWindow) return;
+    const column = columns.find(col => Number(col.id) === Number(group.managerId));
+    if (!column && focusedManager) return;   // 한 명만 볼 땐 남의 배차를 끌어오지 않는다
     const students = group.studentIds.map(id => MOCK_STUDENTS.find(s => s.id === id)).filter(Boolean);
-    const label = students.map(s => s.nick || s.name).join(', ');
-    const window = getPickupGroupTimeWindowMinutes(group);
-    if (!window) return;
-    const block = { ...window, label, extra: group.vehiclePlate || group.vehicleModel || '' };
-    const col = columns.find(c => Number(c.id) === Number(group.managerId));
-    (col || unassignedColumn).blocks.push(block);
+    (column || unassignedColumn).blocks.push({
+      start: timeWindow.start,
+      end: timeWindow.end,
+      label: students.map(s => s.nick || s.name).join(', ') || '탑승자 미정',
+      seats: students.length,
+      vehicle: group.vehiclePlate || group.vehicleModel || '',
+      capacity: Number(group.vehicleCapacity) || 0,
+    });
   });
 
   if (!focusedManager) {
     const assignedIds = new Set(groups.flatMap(g => g.studentIds));
     getPickupStudents()
       .filter(s => (s.arrivalDate || s.startDate) === dateKey && isPickupRequired(s) && !assignedIds.has(s.id))
-      .forEach(s => {
-        const block = buildBlock([s.id], s.nick || s.name, '배차 미정');
-        if (block) unassignedColumn.blocks.push(block);
+      .forEach(student => {
+        const timeWindow = getPickupTimeWindowMinutes(student);
+        if (!timeWindow) return;
+        unassignedColumn.blocks.push({
+          start: timeWindow.start,
+          end: timeWindow.end,
+          label: student.nick || student.name,
+          seats: 1,
+          vehicle: '배차 미정',
+          capacity: 0,
+        });
       });
   }
 
   const allColumns = focusedManager ? columns : [...columns, unassignedColumn];
+  const allBlocks = allColumns.flatMap(col => col.blocks);
+  const totalConflicts = allColumns
+    .reduce((sum, col) => sum + assignPickupTimetableLanes(col.blocks).filter(b => b.conflict).length, 0);
 
-  if (!allColumns.some(c => c.blocks.length)) {
-    container.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#9CA3AF;font-size:12px">이 날짜에 표시할 픽업 일정이 없습니다.</div>`;
+  if (subtitleEl) {
+    const seatTotal = allBlocks.reduce((sum, b) => sum + b.seats, 0);
+    subtitleEl.innerHTML = `${dateLabel} 기준 · 배차 ${groups.length}건 · 승객 ${seatTotal}명`
+      + (totalConflicts ? ` · <b style="color:#B45309">시간 겹침 ${totalConflicts}건</b>` : '');
+  }
+
+  if (!allBlocks.length) {
+    container.innerHTML = `<div style="padding:52px 20px;text-align:center;color:#9CA3AF">
+      <i data-lucide="calendar-x" style="width:26px;height:26px;margin-bottom:8px"></i>
+      <div style="font-size:12px;font-weight:700">이 날짜에 표시할 픽업 일정이 없습니다.</div></div>`;
+    if (typeof refreshIcons === 'function') refreshIcons();
     return;
   }
 
-  // 각 컬럼별로 10분 슬롯 배열을 만들어 rowspan 렌더링에 사용
-  const grid = allColumns.map(col => {
-    const slots = new Array(slotCount).fill(null);
-    col.blocks.forEach(block => {
-      const startSlot = Math.max(0, Math.floor((block.start - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN));
-      const endSlot = Math.min(slotCount, Math.ceil((block.end - PICKUP_TIMETABLE_DAY_START) / PICKUP_TIMETABLE_SLOT_MIN));
-      const span = Math.max(1, endSlot - startSlot);
-      if (startSlot >= slotCount || span <= 0) return;
-      if (slots[startSlot]) return; // 이미 다른 블록이 점유 중이면 스킵(중복 방지)
-      slots[startSlot] = { span, block };
-      for (let i = startSlot + 1; i < startSlot + span && i < slotCount; i++) slots[i] = 'occupied';
-    });
-    return slots;
-  });
+  // 표 범위를 그날 실제 일정에 맞춘다. 06시 고정이던 예전 표는 새벽 도착을 06시로 밀어 붙여 놨었다.
+  const dayStart = Math.max(0, Math.floor((Math.min(...allBlocks.map(b => b.start)) - PICKUP_TIMETABLE_PAD_MIN) / 60) * 60);
+  const dayEnd = Math.ceil((Math.max(...allBlocks.map(b => b.end)) + PICKUP_TIMETABLE_PAD_MIN) / 60) * 60;
+  const totalMinutes = Math.max(120, dayEnd - dayStart);
+  const bodyHeight = totalMinutes * PICKUP_TIMETABLE_PX_PER_MIN;
 
-  const formatMinutes = min => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-
-  let rowsHtml = '';
-  for (let slotIdx = 0; slotIdx < slotCount; slotIdx++) {
-    const minute = PICKUP_TIMETABLE_DAY_START + slotIdx * PICKUP_TIMETABLE_SLOT_MIN;
+  let gutterHtml = '';
+  let gridLinesHtml = '';
+  for (let minute = dayStart; minute <= dayStart + totalMinutes; minute += 30) {
+    const top = (minute - dayStart) * PICKUP_TIMETABLE_PX_PER_MIN;
     const isHour = minute % 60 === 0;
-    rowsHtml += `<tr>
-      <th style="position:sticky;left:0;background:#F8FAFC;border-right:1px solid #E5E7EB;border-bottom:1px solid #F3F4F6;padding:2px 8px;font-size:${isHour ? '10.5px' : '9.5px'};font-weight:${isHour ? '800' : '500'};color:${isHour ? '#111827' : '#9CA3AF'};text-align:right;white-space:nowrap">${formatMinutes(minute)}</th>`;
-    allColumns.forEach((col, colIdx) => {
-      const cell = grid[colIdx][slotIdx];
-      if (cell === 'occupied') return; // 상위 rowspan 셀에 이미 포함됨
-      if (!cell) {
-        rowsHtml += `<td style="border-bottom:1px solid #F3F4F6;border-right:1px solid #F3F4F6;height:20px"></td>`;
-        return;
-      }
-      const isUnassigned = col.id === 'unassigned';
-      rowsHtml += `<td rowspan="${cell.span}" style="border:1px solid ${isUnassigned ? '#FCA5A5' : '#C7D2FE'};background:${isUnassigned ? '#FEF2F2' : '#EEF2FF'};padding:4px 6px;vertical-align:top">
-        <div style="font-size:10.5px;font-weight:800;color:${isUnassigned ? '#B91C1C' : '#3730A3'}">${cell.block.label}</div>
-        <div style="font-size:9px;color:#6B7280;margin-top:2px">${formatMinutes(cell.block.start)}~${formatMinutes(cell.block.end)}${cell.block.extra ? ` · ${cell.block.extra}` : ''}</div>
-      </td>`;
-    });
-    rowsHtml += `</tr>`;
+    if (isHour) {
+      // 맨 위·맨 아래 눈금은 반만 걸쳐 놓으면 잘린다. 그 둘만 안쪽으로 붙인다.
+      const shift = minute === dayStart ? '0' : minute >= dayStart + totalMinutes ? '-100%' : '-50%';
+      gutterHtml += `<div style="position:absolute;top:${top}px;right:8px;transform:translateY(${shift});font-size:10px;font-weight:800;color:#374151;white-space:nowrap;font-variant-numeric:tabular-nums">${formatPickupMinutes(minute)}${minute >= 1440 ? '<span style="color:#DC2626;font-size:8px">+1</span>' : ''}</div>`;
+    }
+    gridLinesHtml += `<div style="position:absolute;left:0;right:0;top:${top}px;border-top:1px ${isHour ? 'solid #E5E7EB' : 'dashed #F1F5F9'}"></div>`;
   }
 
+  const columnsHtml = allColumns.map(col => {
+    const isUnassigned = col.id === 'unassigned';
+    const blocks = assignPickupTimetableLanes(col.blocks);
+    const seats = blocks.reduce((sum, b) => sum + b.seats, 0);
+    const conflicts = blocks.filter(b => b.conflict).length;
+    return `<div style="flex:1 0 auto;min-width:158px;border-left:1px solid #E5E7EB">
+      <div style="position:sticky;top:0;z-index:2;height:${PICKUP_TIMETABLE_HEAD_PX}px;box-sizing:border-box;background:${isUnassigned ? '#FEF2F2' : '#F8FAFC'};border-bottom:1px solid #E5E7EB;padding:6px 8px;text-align:center">
+        <div style="font-size:11.5px;font-weight:800;color:${isUnassigned ? '#B91C1C' : '#111827'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${col.name}</div>
+        <div style="font-size:9px;margin-top:2px;color:${conflicts ? '#B45309' : '#6B7280'}">${blocks.length ? `배차 ${blocks.length}건 · ${seats}명${conflicts ? ` · 겹침 ${conflicts}` : ''}` : '일정 없음'}</div>
+      </div>
+      <div style="position:relative;height:${bodyHeight}px">
+        ${gridLinesHtml}
+        ${blocks.map(block => renderPickupTimetableBlock(block, dayStart, isUnassigned)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
   container.innerHTML = `
-    <table style="border-collapse:collapse;width:100%;font-family:inherit">
-      <thead>
-        <tr>
-          <th style="position:sticky;top:0;left:0;z-index:2;background:#F8FAFC;border-right:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;padding:6px 8px;font-size:10px;color:#6B7280">시간</th>
-          ${allColumns.map(col => `<th style="position:sticky;top:0;z-index:1;background:${col.id === 'unassigned' ? '#FEF2F2' : '#F8FAFC'};border-bottom:1px solid #E5E7EB;padding:6px 8px;font-size:11px;font-weight:800;color:${col.id === 'unassigned' ? '#B91C1C' : '#111827'};white-space:nowrap">${col.name}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
-  `;
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid #E5E7EB;background:#FCFCFD;font-size:9.5px;color:#6B7280">
+      <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid #C7D2FE;background:#EEF2FF;vertical-align:-1px"></i> 배차 완료</span>
+      <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid #FBBF24;background:#FFFBEB;vertical-align:-1px"></i> 시간 겹침</span>
+      <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid #FCA5A5;background:#FEF2F2;vertical-align:-1px"></i> 미배정</span>
+      <span style="margin-left:auto">${formatPickupMinutes(dayStart)}~${formatPickupMinutes(dayStart + totalMinutes)} 구간만 표시</span>
+    </div>
+    <div style="display:flex;min-width:max-content">
+      <div style="position:sticky;left:0;z-index:3;width:62px;flex-shrink:0;background:#fff;border-right:1px solid #E5E7EB">
+        <div style="position:sticky;top:0;z-index:4;height:${PICKUP_TIMETABLE_HEAD_PX}px;box-sizing:border-box;background:#F8FAFC;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6B7280">시간</div>
+        <div style="position:relative;height:${bodyHeight}px">${gutterHtml}</div>
+      </div>
+      ${columnsHtml}
+    </div>`;
+  if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 function isPickupRequired(student) {
@@ -7610,41 +8036,70 @@ function savePickupDispatch(dateKey, groupId) {
   showToast('차량 배차가 등록되었습니다.', 'success');
 }
 
-// 차량 입력칸을 새 차량 등록 상태로 되돌린다. 수정 중이던 차량이 있으면 그 편집도 함께 취소된다.
-function resetPickupVehicleForm() {
-  const id = document.getElementById('pickup-vehicle-id');
-  if (!id) return;
-  id.value = '';
-  document.getElementById('pickup-vehicle-model').value = '';
-  document.getElementById('pickup-vehicle-plate').value = '';
-  document.getElementById('pickup-vehicle-capacity').value = '5';
-  document.getElementById('pickup-vehicle-memo').value = '';
-  renderPickupVehicleList();
+// 차량은 담당자 화면의 보조 정보다. 등록과 수정은 모달에서 하고, 화면에는 목록만 남긴다.
+function openPickupVehicleModal(vehicleId = null) {
+  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === Number(vehicleId));
+  const title = document.getElementById('pickup-vehicle-modal-title');
+  if (title) title.textContent = vehicle ? '픽업 차량 수정' : '픽업 차량 등록';
+  document.getElementById('pickup-vehicle-id').value = vehicle?.id || '';
+  document.getElementById('pickup-vehicle-model').value = vehicle?.model || '';
+  document.getElementById('pickup-vehicle-plate').value = vehicle?.plate || '';
+  document.getElementById('pickup-vehicle-capacity').value = String(vehicle?.capacity || 5);
+  document.getElementById('pickup-vehicle-memo').value = vehicle?.memo || '';
+  openModal('pickup-vehicle-modal');
 }
 
-function renderPickupVehicleList() {
-  const target = document.getElementById('pickup-vehicle-list');
+// 그 차가 실제로 물려 있는 배차 건수. 삭제를 막는 근거이자 목록에 그대로 보여주는 값이다.
+function countPickupVehicleUsage(vehicleId) {
+  return Object.values(PICKUP_DISPATCH_GROUPS).flat()
+    .filter(group => Number(group.vehicleId) === Number(vehicleId)).length;
+}
+
+// 차량 화면 맨 위 요약. 「몇 대를 굴리고, 한 번에 몇 명까지 태울 수 있나」가 배차를 짤 때 먼저 보는 값이다.
+function renderPickupVehicleSummary() {
+  const target = document.getElementById('pickup-vehicle-summary');
   if (!target) return;
-  const editingId = Number(document.getElementById('pickup-vehicle-id')?.value || 0);
-  target.innerHTML = MOCK_PICKUP_VEHICLES.length ? MOCK_PICKUP_VEHICLES.map(vehicle => `
-    <div style="display:grid;grid-template-columns:1fr 100px 76px 44px;gap:8px;align-items:center;padding:9px 10px;border:1px solid ${vehicle.id === editingId ? '#6366F1' : '#E5E7EB'};border-radius:8px;background:${vehicle.id === editingId ? '#EEF2FF' : '#fff'}">
-      <div><b style="font-size:11px;color:#111827">${vehicle.model}</b><div style="font-size:9.5px;color:#6B7280;margin-top:2px">${vehicle.plate}${vehicle.memo ? ` · ${vehicle.memo}` : ''}</div></div>
-      <span style="font-size:10.5px;color:#374151">${vehicle.capacity}인승</span>
-      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="editPickupVehicle(${vehicle.id})">${vehicle.id === editingId ? '수정 중' : '수정'}</button>
-      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" title="삭제" style="color:#EF4444;border-color:#FCA5A5;display:flex;align-items:center;justify-content:center;padding:0;width:32px;height:28px" onclick="removePickupVehicle(${vehicle.id})"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
-    </div>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:8px;color:#9CA3AF;font-size:10.5px">등록된 차량이 없습니다.</div>';
-  if (typeof refreshIcons === 'function') refreshIcons();
+  const seats = MOCK_PICKUP_VEHICLES.reduce((sum, vehicle) => sum + (Number(vehicle.capacity) || 0), 0);
+  const inUse = MOCK_PICKUP_VEHICLES.filter(vehicle => countPickupVehicleUsage(vehicle.id)).length;
+  target.innerHTML = renderPickupSummaryTiles([
+    { label: '등록 차량', value: `${MOCK_PICKUP_VEHICLES.length}대`, hint: '배차에서 고를 수 있는 차량', color: '#4338CA' },
+    { label: '전체 정원', value: `${seats}석`, hint: '모든 차량을 동시에 굴렸을 때', color: '#047857' },
+    { label: '배차 사용 중', value: `${inUse}대`, hint: '배차가 물려 있어 삭제할 수 없음', color: inUse ? '#B45309' : '#6B7280' },
+  ]);
 }
 
-function editPickupVehicle(vehicleId) {
-  const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === vehicleId);
-  if (!vehicle) return;
-  document.getElementById('pickup-vehicle-id').value = String(vehicle.id);
-  document.getElementById('pickup-vehicle-model').value = vehicle.model;
-  document.getElementById('pickup-vehicle-plate').value = vehicle.plate;
-  document.getElementById('pickup-vehicle-capacity').value = String(vehicle.capacity);
-  document.getElementById('pickup-vehicle-memo').value = vehicle.memo || '';
-  renderPickupVehicleList();
+function renderPickupVehicleTable() {
+  renderPickupVehicleSummary();
+  const body = document.getElementById('pickup-vehicle-tbody');
+  if (!body) return;
+  const keyword = (document.getElementById('pickup-vehicle-search')?.value || '').trim().toLowerCase();
+  const rows = MOCK_PICKUP_VEHICLES.filter(vehicle => !keyword
+    || (vehicle.model || '').toLowerCase().includes(keyword)
+    || (vehicle.plate || '').toLowerCase().includes(keyword)
+    || (vehicle.memo || '').toLowerCase().includes(keyword));
+
+  const countEl = document.getElementById('pickup-vehicle-count');
+  if (countEl) countEl.textContent = keyword ? `${rows.length} / ${MOCK_PICKUP_VEHICLES.length}대` : `${MOCK_PICKUP_VEHICLES.length}대`;
+
+  body.innerHTML = rows.length ? rows.map((vehicle, index) => {
+    const usage = countPickupVehicleUsage(vehicle.id);
+    return `<tr>
+      <td style="text-align:center;color:#9CA3AF">${index + 1}</td>
+      <td><b style="font-size:11.5px;color:#111827">${vehicle.model}</b></td>
+      <td style="font-variant-numeric:tabular-nums;color:#374151">${vehicle.plate}</td>
+      <td style="text-align:center;color:#374151">${vehicle.capacity}인승</td>
+      <td style="color:#6B7280">${vehicle.memo || '-'}</td>
+      <td style="text-align:center">${usage
+        ? `<span class="tsa-badge" style="background:#EEF2FF;color:#4338CA">${usage}건</span>`
+        : '<span style="color:#9CA3AF">-</span>'}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupVehicleModal(${vehicle.id})">수정</button>
+        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444;border-color:#FCA5A5;margin-left:4px" onclick="removePickupVehicle(${vehicle.id})">삭제</button>
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">${keyword ? '검색 조건에 맞는 차량이 없습니다.' : '등록된 차량이 없습니다. 오른쪽 위 [차량 등록]으로 추가하세요.'}</td></tr>`;
+  renderPickupKpiStrip();
+  if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 function savePickupVehicle() {
@@ -7668,20 +8123,20 @@ function savePickupVehicle() {
   } else {
     MOCK_PICKUP_VEHICLES.push({ id: Date.now(), model, plate, capacity, memo, active: true });
   }
-  resetPickupVehicleForm();
+  closeModal('pickup-vehicle-modal');
+  renderPickupVehicleTable();
   renderPickupDateAssignments();
   showToast('차량 정보가 저장되었습니다.', 'success');
 }
 
 function removePickupVehicle(vehicleId) {
-  const inUse = Object.values(PICKUP_DISPATCH_GROUPS).flat().some(group => Number(group.vehicleId) === vehicleId);
-  if (inUse) {
+  if (countPickupVehicleUsage(vehicleId)) {
     showToast('배차에 사용 중인 차량은 삭제할 수 없어.', 'warning');
     return;
   }
   const index = MOCK_PICKUP_VEHICLES.findIndex(vehicle => vehicle.id === vehicleId);
   if (index >= 0) MOCK_PICKUP_VEHICLES.splice(index, 1);
-  renderPickupVehicleList();
+  renderPickupVehicleTable();
   renderPickupDateAssignments();
   showToast('차량이 삭제되었습니다.', 'success');
 }
@@ -7717,7 +8172,7 @@ function changePickupCalendarMonth(offset) {
 }
 
 function goPickupCalendarToday() {
-  const today = new Date();
+  const today = getPickupToday();
   APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   APP.pickupSelectedDate = toPickupDateKey(today);
   renderPickupCalendar();
@@ -7773,7 +8228,7 @@ function savePickupManager() {
   if (existing) Object.assign(existing, payload);
   else MOCK_PICKUP_MANAGERS.push(payload);
   closeModal('pickup-manager-modal');
-  initPickupManagerView();
+  renderPickupManagerTable();
   showToast('픽업 담당자 프로필이 저장되었습니다.', 'success');
 }
 

@@ -1,1 +1,24 @@
-{"version":"0.0.1","configurations":[{"name":"lms-preview","runtimeExecutable":"python","runtimeArgs":["-m","http.server","5500"],"port":5500}]}
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lms-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5500"
+      ],
+      "port": 5500
+    },
+    {
+      "name": "lms-check",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scratch/static-server.js"
+      ],
+      "port": 5599,
+      "autoPort": true
+    }
+  ]
+}
