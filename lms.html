@@ -1659,6 +1659,10 @@
           <i data-lucide="calendar-days"></i>
           주간 수업 배정
         </a>
+        <a class="tsa-nav-item admin-only" id="menu-student-timetable" onclick="navigate('student-timetable')">
+          <i data-lucide="clock"></i>
+          학생 시간표 배정
+        </a>
         <a class="tsa-nav-item admin-only" id="menu-classroom-manage" onclick="navigate('classroom-manage')">
           <i data-lucide="building-2"></i>
           강의실 관리
@@ -3585,6 +3589,23 @@
         <!-- ================================================ -->
         <!--  VIEW: STUDENT CLASS ASSIGN (1:1 + 그룹 통합)      -->
         <!-- ================================================ -->
+        <!-- ================================================ -->
+        <!--  VIEW: STUDENT TIMETABLE (A/B 조 배정)            -->
+        <!-- ================================================ -->
+        <div id="view-student-timetable" class="tsa-view">
+          <div class="tsa-section-header" style="margin-bottom:16px">
+            <div>
+              <h2 class="tsa-page-title">⏱ 학생 시간표 배정</h2>
+              <p class="tsa-page-subtitle">학생을 A조 · B조에 넣습니다. 조가 정해져야 그 학생의 교시 시각이 정해지고, 반에도 들어갈 수 있습니다.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="navigate('course-period')"><i data-lucide="clock"></i> 시간표 설정</button>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="navigateStudentClassAssign()"><i data-lucide="calendar-days"></i> 주간 수업 배정</button>
+            </div>
+          </div>
+          <div id="student-timetable-body"></div>
+        </div>
+
         <div id="view-student-class-assign" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
@@ -7456,13 +7477,13 @@
 <div id="google_translate_element"></div>
 
 <script src="assets/js/lms-data.js?v=0.7.2"></script>
-<script src="assets/js/lms-util.js?v=0.6.11"></script>
+<script src="assets/js/lms-util.js?v=0.6.12"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.12"></script>
 <script src="assets/js/lms-student.js?v=0.6.8"></script>
     <script src="assets/js/lms-course.js?v=0.6.79"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.13"></script>
-<script src="assets/js/lms-classroom.js?v=0.15.1"></script>
+<script src="assets/js/lms-classroom.js?v=0.16.0"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>

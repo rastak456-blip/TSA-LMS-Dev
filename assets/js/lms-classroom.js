@@ -2834,13 +2834,20 @@ function getStudentDefaultTimetableId(student) {
   return getDefaultTimetable()?.id || null;
 }
 
+// 조를 바꾸면 두 화면이 다 흔들린다 — 지금 열려 있는 쪽만 다시 그린다.
+function refreshTimetableAssignViews() {
+  const page = document.getElementById('view-student-timetable');
+  if (page && page.classList.contains('active')) { renderStudentTimetableView(); return; }
+  if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
+}
+
 function assignStudentTimetable(studentId, timetableId) {
   const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
   const timetable = getTimetableById(timetableId);
   if (!student || !timetable) return;
   student.timetableId = timetable.id;
   showToast(`✓ ${student.nick || student.name} 학생을 ${timetable.name}에 넣었어.`, 'success');
-  renderStudentClassAssignView();
+  refreshTimetableAssignViews();
 }
 
 // 배정된 칩을 누르면 다음 시간표로 넘어간다. 조가 둘뿐이라 A ↔ B가 한 번에 바뀐다.
@@ -2853,15 +2860,17 @@ function cycleStudentTimetable(studentId) {
   assignStudentTimetable(student.id, list[(index + 1) % list.length].id);
 }
 
-function assignAllWaitingTimetable(timetableId) {
+// source='stt' 면 시간표 배정 화면에서 부른 것 — 그 화면이 보고 있는 범위(전원/이번 주)를 따른다.
+function assignAllWaitingTimetable(timetableId, source) {
   const timetable = getTimetableById(timetableId);
   if (!timetable) return;
-  const waiting = getScaWeekTimetableRows().filter(row => !row.timetable);
+  const waiting = (source === 'stt' ? getStudentTimetableRows() : getScaWeekTimetableRows())
+    .filter(row => !row.timetable);
   if (!waiting.length) return;
   if (!window.confirm(`대기 ${waiting.length}명을 전부 ${timetable.name}에 넣을까?`)) return;
   waiting.forEach(row => { row.student.timetableId = timetable.id; });
   showToast(`✓ ${waiting.length}명을 ${timetable.name}에 넣었어.`, 'success');
-  renderStudentClassAssignView();
+  refreshTimetableAssignViews();
 }
 
 function timetableCodeChip(timetable, extra) {
@@ -2907,8 +2916,11 @@ function renderScaTimetableBoard() {
         ? `<span style="font-size:10.5px;font-weight:700;color:#DC2626">대기 ${waiting.length}명</span>`
         : '<span style="font-size:10.5px;font-weight:700;color:#047857">전원 배정</span>'}
       <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:6px">${counts}</span>
-      ${waiting.length ? `<span style="margin-left:auto;display:inline-flex;gap:5px">${list.map(timetable =>
-        `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 10px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">대기 전부 ${lessonEsc(timetable.code || timetable.name)}조</button>`).join('')}</span>` : ''}
+      <span style="margin-left:auto;display:inline-flex;gap:5px;flex-wrap:wrap">
+        ${waiting.length ? list.map(timetable =>
+          `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 10px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">대기 전부 ${lessonEsc(timetable.code || timetable.name)}조</button>`).join('') : ''}
+        <button onclick="navigate('student-timetable')" style="border:1px solid #C7D2FE;border-radius:7px;padding:4px 10px;background:#EEF2FF;color:#4338CA;font-size:10px;font-weight:700;cursor:pointer">시간표 배정 화면 →</button>
+      </span>
     </div>
     ${waitingHtml}
   </div>`;
@@ -2916,6 +2928,156 @@ function renderScaTimetableBoard() {
 
 // 데모 시드: 과정으로 조를 나누되, 이번 주 신규 학생은 아직 조가 없는 상태로 둔다.
 // 실제로도 도착 직후에 정해지는 값이라 「대기」가 어떻게 보이는지 화면에 남는다.
+/* =============================================
+   학생 시간표 배정 — 누가 어느 조인가
+   ─────────────────────────────────────────────
+   점심을 나눠 먹는 두 조는 같은 5교시가 서로 다른 시각이다. 그래서 조가 먼저 정해져야
+   그 학생의 하루가 정해지고, 어느 반에 넣을 수 있는지도 정해진다.
+   주간 수업 배정 맨 위에 요약 띠가 있지만 거기서는 대기 학생만 다룬다 —
+   이 화면은 이번 주 밖(입학 예정)까지 포함해 전원을 놓고 본다.
+   ============================================= */
+let _sttScope = 'all';       // 'all' | 'week'
+let _sttFilter = 'all';      // 'all' | 'waiting' | 시간표 id
+let _sttSearch = '';
+
+function setStudentTimetableScope(scope) {
+  _sttScope = scope === 'week' ? 'week' : 'all';
+  renderStudentTimetableView();
+}
+
+function setStudentTimetableFilter(value) {
+  _sttFilter = value;
+  renderStudentTimetableView();
+}
+
+function setStudentTimetableSearch(value) {
+  _sttSearch = String(value || '').trim().toLowerCase();
+  renderStudentTimetableView(true);
+}
+
+function getStudentTimetableRows() {
+  ensureStudentTimetableSeed();
+  const weekIds = _sttScope === 'week' && typeof getScaWeekStudents === 'function'
+    ? new Set(getScaWeekStudents().map(student => student.id))
+    : null;
+  return MOCK_STUDENTS
+    .filter(student => ['current', 'waiting', 'extended'].includes(student.status))
+    .filter(student => !weekIds || weekIds.has(student.id))
+    .map(student => ({ student, timetable: getTimetableById(student.timetableId) }))
+    .sort((a, b) => (a.timetable ? 1 : 0) - (b.timetable ? 1 : 0)
+      || String(a.student.startDate || '').localeCompare(String(b.student.startDate || ''))
+      || a.student.id - b.student.id);
+}
+
+const STT_STATUS_LABEL = { current: '재원', waiting: '입학 예정', extended: '연장' };
+
+function renderStudentTimetableView(keepFocus) {
+  const host = document.getElementById('student-timetable-body');
+  if (!host) return;
+  const list = getTimetables().filter(item => item.active !== false);
+  const rows = getStudentTimetableRows();
+  const waiting = rows.filter(row => !row.timetable);
+
+  const visible = rows.filter(row => {
+    if (_sttFilter === 'waiting' && row.timetable) return false;
+    if (_sttFilter !== 'all' && _sttFilter !== 'waiting' && row.timetable?.id !== _sttFilter) return false;
+    if (!_sttSearch) return true;
+    const name = `${row.student.nick || ''} ${row.student.name || ''}`.toLowerCase();
+    return name.includes(_sttSearch);
+  });
+
+  // 조별 카드. 인원과 함께 점심·5교시 시각을 적어서 두 조가 어떻게 다른지 여기서 바로 읽히게 한다.
+  const cards = list.map(timetable => {
+    const count = rows.filter(row => row.timetable?.id === timetable.id).length;
+    const lunch = getTimetableLunchRow(timetable);
+    const noon = getTimetablePeriodRows(timetable).find(row => Number(row.p) === 5);
+    const on = _sttFilter === timetable.id;
+    return `<button onclick="setStudentTimetableFilter('${lessonEsc(timetable.id)}')" style="flex:1 1 190px;text-align:left;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};border-radius:11px;background:${on ? '#F5F3FF' : '#fff'};padding:11px 13px;cursor:pointer">
+      <span style="display:flex;align-items:center;gap:7px">
+        <span style="display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#EEF2FF;color:#4338CA;font-size:11px;font-weight:800">${lessonEsc(timetable.code || '-')}</span>
+        <b style="font-size:12.5px;color:#111827">${lessonEsc(timetable.name)}</b>
+        <b style="margin-left:auto;font-size:13px;color:#111827">${count}<span style="font-size:10px;font-weight:400;color:#9CA3AF">명</span></b>
+      </span>
+      <span style="display:block;margin-top:6px;font-size:10px;color:#8A90A2;line-height:1.6">
+        점심 ${lessonEsc(lunch ? `${lunch.start}~${lunch.end}` : '없음')}<br>
+        5교시 ${lessonEsc(noon ? `${noon.start}~${noon.end}` : '-')}
+      </span>
+    </button>`;
+  }).join('');
+
+  const waitingCard = `<button onclick="setStudentTimetableFilter('waiting')" style="flex:1 1 190px;text-align:left;border:1px solid ${_sttFilter === 'waiting' ? '#DC2626' : (waiting.length ? '#FCA5A5' : '#E5E7EB')};border-radius:11px;background:${_sttFilter === 'waiting' ? '#FEF2F2' : '#fff'};padding:11px 13px;cursor:pointer">
+    <span style="display:flex;align-items:center;gap:7px">
+      <span style="display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:${waiting.length ? '#FEE2E2' : '#F3F4F6'};color:${waiting.length ? '#DC2626' : '#9CA3AF'};font-size:11px;font-weight:800">!</span>
+      <b style="font-size:12.5px;color:#111827">대기</b>
+      <b style="margin-left:auto;font-size:13px;color:${waiting.length ? '#DC2626' : '#9CA3AF'}">${waiting.length}<span style="font-size:10px;font-weight:400;color:#9CA3AF">명</span></b>
+    </span>
+    <span style="display:block;margin-top:6px;font-size:10px;color:#8A90A2;line-height:1.6">아직 조가 없는 학생<br>조가 없으면 반에도 못 들어가</span>
+  </button>`;
+
+  const scopeBtn = (value, label) => `<button onclick="setStudentTimetableScope('${value}')" style="padding:5px 12px;border-radius:7px;border:1px solid ${_sttScope === value ? '#5E5CE6' : '#E5E7EB'};background:${_sttScope === value ? '#5E5CE6' : '#fff'};color:${_sttScope === value ? '#fff' : '#6B7280'};font-size:11px;font-weight:700;cursor:pointer">${label}</button>`;
+
+  const body = visible.map(row => {
+    const student = row.student;
+    const period = typeof getStudentPeriodText === 'function' ? getStudentPeriodText(student) : '';
+    return `<tr>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6">
+        <span style="display:flex;align-items:center;gap:8px">
+          <img src="${lessonEsc(getStudentPhotoSrc(student))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #E5E7EB"/>
+          <span style="min-width:0">
+            <b style="font-size:11.5px;color:#111827">${lessonEsc(student.nick || student.name)}</b>
+            <span style="display:block;font-size:9.5px;color:#8A90A2">${lessonEsc(getStudentOriginMetaText(student))}</span>
+          </span>
+        </span>
+      </td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;font-size:11px;color:#4B5563;white-space:nowrap">${lessonEsc(student.level || '레벨 없음')}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;font-size:11px;color:#4B5563">${lessonEsc(student.course || '-')}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;font-size:10px;color:#8A90A2;white-space:nowrap">${period || '기간 미등록'}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">
+        <span style="font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;background:${student.status === 'waiting' ? '#EEF2FF' : '#F3F4F6'};color:${student.status === 'waiting' ? '#4338CA' : '#6B7280'}">${STT_STATUS_LABEL[student.status] || student.status}</span>
+      </td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">${timetableCodeChip(row.timetable)}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap">
+        ${list.map(timetable => {
+          const on = row.timetable?.id === timetable.id;
+          return `<button ${on ? 'disabled' : `onclick="assignStudentTimetable(${student.id},'${lessonEsc(timetable.id)}')"`} style="margin-left:4px;border:1px solid ${on ? '#E5E7EB' : '#5E5CE6'};border-radius:7px;padding:3px 10px;background:${on ? '#F3F4F6' : '#fff'};color:${on ? '#C4C9D4' : '#5E5CE6'};font-size:10px;font-weight:700;cursor:${on ? 'default' : 'pointer'}">${lessonEsc(timetable.code || timetable.name)}조</button>`;
+        }).join('')}
+      </td>
+    </tr>`;
+  }).join('');
+
+  host.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">${cards}${waitingCard}</div>
+
+    ${waiting.length ? `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 13px;border:1px solid #FCA5A5;border-radius:11px;background:#FEF2F2;margin-bottom:14px">
+      <b style="font-size:11.5px;color:#B91C1C">대기 ${waiting.length}명</b>
+      <span style="font-size:10.5px;color:#8A90A2">${lessonEsc(waiting.slice(0, 6).map(row => row.student.nick || row.student.name).join(' · '))}${waiting.length > 6 ? ` 외 ${waiting.length - 6}명` : ''}</span>
+      <span style="margin-left:auto;display:inline-flex;gap:5px">${list.map(timetable =>
+        `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}','stt')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 11px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전부 ${lessonEsc(timetable.code || timetable.name)}조로</button>`).join('')}</span>
+    </div>` : ''}
+
+    <div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 13px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
+        <b style="font-size:11.5px;color:#111827">학생 ${visible.length}명</b>
+        ${_sttFilter !== 'all' ? `<button onclick="setStudentTimetableFilter('all')" style="border:1px solid #D1D5DB;border-radius:7px;padding:3px 9px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전체 보기</button>` : ''}
+        <span style="display:inline-flex;gap:5px;margin-left:6px">${scopeBtn('all', '전원')}${scopeBtn('week', '이번 주 재원')}</span>
+        <input id="stt-search" type="text" value="${lessonEsc(_sttSearch)}" placeholder="이름 검색" oninput="setStudentTimetableSearch(this.value)"
+          style="margin-left:auto;height:30px;border:1px solid #D1D5DB;border-radius:7px;padding:0 10px;font-size:11px;width:150px"/>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:800px">
+          <thead><tr>${['학생', '레벨', '과정', '수강 기간', '상태', '시간표', '조 변경'].map((label, index) =>
+            `<th style="text-align:${index === 6 ? 'right' : 'left'};padding:7px 12px;font-size:10px;font-weight:800;color:#9CA3AF;border-bottom:1px solid #E5E7EB;white-space:nowrap">${label}</th>`).join('')}</tr></thead>
+          <tbody>${body || '<tr><td colspan="7" style="padding:24px;text-align:center;font-size:11.5px;color:#9CA3AF">조건에 맞는 학생이 없어.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  if (keepFocus) {
+    const input = document.getElementById('stt-search');
+    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  }
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
+}
+
 // 데모 시드: 다니고 있는 학생은 과정으로 조를 나누고, 아직 입학 대기인 학생은 조를 비워둔다.
 // 실제로도 조는 도착해서 정해지는 값이라, 그 학생이 등록되는 주로 넘기면 「대기」로 올라온다.
 function ensureStudentTimetableSeed() {
