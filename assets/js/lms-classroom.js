@@ -2087,6 +2087,13 @@ function getScaStep1GroupOptions(student, requirement) {
       const when = periods.length ? `${periods.join(', ')}교시` : '시간 미정';
       if (group.studentIds.includes(student.id)) return { group, when, ok: false, reason: '이미 이 반이야' };
       if (level == null || !getGroupLevelSet(group).includes(level)) return { group, when, ok: false, reason: '레벨이 안 맞아' };
+      // 반의 교시는 그 반 학생들의 조 위에 놓여 있다. 조가 다른 학생을 넣으면 같은 「5교시」가
+      // 그 학생에게는 다른 시각이 돼서, 반 하나가 두 시각에 열리는 셈이 된다.
+      const groupTimetable = group.studentIds.length ? getGroupTimetable(group) : null;
+      const studentTimetable = getStudentTimetable(student);
+      if (groupTimetable && studentTimetable && groupTimetable.id !== studentTimetable.id) {
+        return { group, when, ok: false, reason: `${groupTimetable.code || groupTimetable.name}조 반이야 (이 학생은 ${studentTimetable.code || studentTimetable.name}조)` };
+      }
       if (count >= cap) return { group, when, ok: false, reason: `${count}/${cap}명 · 자리 없음` };
       const clash = periods.filter(period => busy.has(period));
       if (clash.length) return { group, when, ok: false, reason: `${clash.join('·')}교시에 다른 그룹 수업이 있어` };
@@ -2132,6 +2139,11 @@ function assignScaStep1(studentId, groupId) {
   if (group.studentIds.length >= cap) return { ok: false, message: `자리가 없어 (${cap}명).` };
   const level = getLevelGroupForStudent(student);
   if (level == null || !getGroupLevelSet(group).includes(level)) return { ok: false, message: '레벨이 안 맞아.' };
+  const groupTimetable = group.studentIds.length ? getGroupTimetable(group) : null;
+  const studentTimetable = getStudentTimetable(student);
+  if (groupTimetable && studentTimetable && groupTimetable.id !== studentTimetable.id) {
+    return { ok: false, message: `${groupTimetable.code || groupTimetable.name}조 반이라 ${studentTimetable.code || studentTimetable.name}조 학생은 못 들어가.` };
+  }
   const busy = getStudentGroupBusyPeriods(student, group.id);
   const clash = (Array.isArray(group.periods) ? group.periods.map(Number) : []).filter(period => busy.has(period));
   if (clash.length) return { ok: false, message: `${clash.join('·')}교시에 다른 그룹 수업이 있어.` };
@@ -2598,7 +2610,13 @@ function renderScaGroupRow(group, showLevel, slot, isLast) {
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''};white-space:nowrap">
       <button ${openDetail} style="border:0;border-bottom:1px dashed #C4C9D4;background:none;padding:0 0 1px;font-size:11.5px;font-weight:${count > capacity ? 700 : 400};color:${count > capacity ? '#B45309' : '#4B5563'};cursor:pointer">${count}/${capacity}명</button>
     </td>
-    <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''}">${placed}</td>
+    <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''}">${placed}${
+      isGroupTimetableMixed(group)
+        ? `<div title="A조와 B조 학생이 한 반에 있어 — 조마다 이 교시의 시각이 달라" style="margin-top:3px;font-size:9.5px;font-weight:800;color:#DC2626">⚠ 조 섞임</div>`
+        : (getGroupTimetable(group)?.id !== getDefaultTimetable()?.id
+          ? `<div style="margin-top:3px;font-size:9.5px;color:#8A90A2">${lessonEsc(getGroupTimetable(group)?.code || '')}조 · ${lessonEsc(getTimetablePeriodLabel(getGroupTimetable(group), (group.periods || [])[0]))}</div>`
+          : '')
+    }</td>
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''};text-align:right;white-space:nowrap">
       <button class="tsa-btn tsa-btn-xs ${isGroupScheduled(group) ? 'tsa-btn-outline' : 'tsa-btn-primary'}" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id}${_scaPeriodFocus != null && !isGroupScheduled(group) ? `,${_scaPeriodFocus}` : ''})">${isGroupScheduled(group) ? '강사 변경' : '강사 배정'}</button>
       <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="white-space:nowrap;margin-left:4px" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
@@ -2721,15 +2739,19 @@ function getScaGroupRooms() {
 
 // 한 교시의 그림. 강의실은 「이 방이 이 교시에 잡혀 있나」로 세고, 1:1 주간 세션이 잡아둔
 // 방도 쓴 것으로 친다 — 그룹을 넣으려 하면 똑같이 막히는 자리라서.
+// 이 띠의 가로축은 기본 시간표의 교시다. 조가 둘이면 「5교시」가 조마다 다른 시각이라,
+// 칸을 채울 때는 번호가 아니라 그 시각에 걸치는 수업을 센다 — B조 6교시가 A조 5교시와
+// 같은 시각이면 그 방은 A조 5교시 칸에서도 차 있는 것으로 보여야 한다.
 function getScaPeriodStatus(period) {
+  const base = getDefaultTimetable();
   const groups = MOCK_GROUP_CLASSES.filter(group => group.status === 'active'
-    && (group.periods || []).map(Number).includes(period));
+    && (group.periods || []).some(item => periodsCollide(base, period, getGroupTimetable(group), item)));
   const rooms = getScaGroupRooms();
   const busy = new Set(groups.map(group => Number(group.roomId)).filter(Number.isFinite));
   const count = type => {
     const list = rooms.filter(room => room.type === type);
     const used = list.filter(room => busy.has(room.id)
-      || getRoomSessionBusyDays(room.id, period).length).length;
+      || getRoomSessionBusyDays(room.id, period, base).length).length;
     return { used, total: list.length, free: list.length - used };
   };
   return {
@@ -2965,11 +2987,13 @@ function canTeacherTakeOneToOne(teacher) {
 }
 
 // 그 강사가 그 교시에 이미 맡고 있는 1:1
-function findOneToOneAt(teacherId, period) {
-  const target = Number(period);
+function findOneToOneAt(teacherId, period, timetable) {
+  const base = timetable || getDefaultTimetable();
   for (const student of MOCK_STUDENTS) {
     const entry = (student.oneToOneSchedule || []).find(item =>
-      Number(item.teacherId) === Number(teacherId) && Number(item.period) === target
+      Number(item.teacherId) === Number(teacherId)
+      // 1:1은 그 학생의 조를 따른다. 강사는 두 조를 오가니 번호가 아니라 시각으로 봐야 한다.
+      && periodsCollide(base, period, getStudentTimetable(student), item.period)
     );
     if (entry) return { student, entry };
   }
@@ -6438,22 +6462,101 @@ function getUnscheduledGroups(levelOrder) {
   );
 }
 
+/* =============================================
+   시간표를 넘나드는 충돌 판정
+   ─────────────────────────────────────────────
+   시간표가 하나일 땐 「5교시 == 5교시」로 충분했다. 조가 둘이 되면 그게 두 방향으로 틀린다 —
+   같은 번호인데 시각이 다르고(안 겹치는데 막는다), 다른 번호인데 시각이 같다(겹치는데 통과시킨다).
+
+   다만 학생끼리는 여전히 번호로 봐도 된다. 학생은 조를 하나만 갖고, 그 학생의 수업은
+   전부 같은 시간표 위에 있기 때문이다. 번호가 어긋나는 건 강의실과 강사처럼
+   두 조가 함께 쓰는 자원뿐이라, 여기만 시각으로 본다.
+   ============================================= */
+
+function getStudentTimetable(student) {
+  return getTimetableById(student?.timetableId) || getDefaultTimetable();
+}
+
+// 반이 따르는 시간표. 반 자체는 조를 갖지 않고 학생에게서 물려받는다 —
+// 점심을 나눠 먹는 건 사람이라서다. 학생이 아직 없으면 기본 시간표로 본다.
+function getGroupTimetableIds(group) {
+  return [...new Set((group?.studentIds || [])
+    .map(id => MOCK_STUDENTS.find(student => student.id === id)?.timetableId)
+    .filter(Boolean))];
+}
+
+function getGroupTimetable(group) {
+  const ids = getGroupTimetableIds(group);
+  return getTimetableById(ids[0]) || getDefaultTimetable();
+}
+
+// 한 반에 A조와 B조 학생이 섞이면 그 반의 시각이 학생마다 달라진다. 성립하지 않는 상태라 표시한다.
+function isGroupTimetableMixed(group) {
+  return getGroupTimetableIds(group).length > 1;
+}
+
+function getGroupTimetableById(groupId) {
+  const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(groupId));
+  return group ? getGroupTimetable(group) : getDefaultTimetable();
+}
+
+// 1:1 주간 세션은 그 학생의 조를 따른다.
+function getSessionTimetable(session) {
+  const studentId = (session?.studentIds || [])[0];
+  const student = studentId != null ? MOCK_STUDENTS.find(item => item.id === studentId) : null;
+  return getStudentTimetable(student);
+}
+
+function timeRangesOverlap(a, b) {
+  return Boolean(a && b && a.start < b.end && b.start < a.end);
+}
+
+// 두 (시간표, 교시)가 실제로 같은 시각을 쓰나. 같은 시간표면 번호만 봐도 답이 같고,
+// 시간표를 못 찾으면 예전처럼 번호로 떨어진다.
+function periodsCollide(timetableA, periodA, timetableB, periodB) {
+  if (!timetableA || !timetableB || timetableA.id === timetableB.id) {
+    return Number(periodA) === Number(periodB);
+  }
+  return timeRangesOverlap(
+    getTimetablePeriodRange(timetableA, periodA),
+    getTimetablePeriodRange(timetableB, periodB)
+  );
+}
+
+// 겹치는 상대 교시를 이유로 적기 위해 돌려준다 — 「7교시」가 아니라 「B조 6교시(13:50)」로 말해야
+// 다른 조 수업이라는 게 읽힌다.
+function describeCollidingPeriod(timetable, period) {
+  if (!timetable) return `${period}교시`;
+  const label = getTimetablePeriodLabel(timetable, period);
+  return `${timetable.code || timetable.name}조 ${period}교시${label ? ` (${label.split(' - ')[0]})` : ''}`;
+}
+
 // 강의실 주간 세션(1:1 등)이 그 교시를 쓰고 있는 요일. 주 5회 그룹은 요일 하나만 걸려도 그 방을 못 쓴다.
-function getRoomSessionBusyDays(roomId, period) {
-  const target = Number(period);
+function getRoomSessionBusyDays(roomId, period, timetable) {
+  const base = timetable || getDefaultTimetable();
   return [...new Set(MOCK_CLASS_SESSIONS
-    .filter(session => session.roomId === roomId && Array.isArray(session.periods) && session.periods.map(Number).includes(target))
+    .filter(session => session.roomId === roomId && Array.isArray(session.periods)
+      && session.periods.some(item => periodsCollide(base, period, getSessionTimetable(session), item)))
     .map(session => session.day))];
 }
 
 // 다른 운영 그룹이 그 교시에 이 강사/강의실을 이미 쓰고 있으면 그 그룹을 돌려준다.
-function findGroupOccupyingPeriod(period, matcher, excludeGroupId) {
-  const target = Number(period);
+function findGroupOccupyingPeriod(period, matcher, excludeGroupId, timetable) {
+  const base = timetable || getGroupTimetableById(excludeGroupId);
   return MOCK_GROUP_CLASSES.find(group =>
     group.id !== excludeGroupId && group.status === 'active' &&
-    Array.isArray(group.periods) && group.periods.map(Number).includes(target) &&
+    Array.isArray(group.periods) &&
+    group.periods.some(item => periodsCollide(base, period, getGroupTimetable(group), item)) &&
     matcher(group)
   ) || null;
+}
+
+// 충돌한 상대가 어느 교시로 걸렸는지. 다른 조면 그 조의 교시로 적어야 말이 된다.
+function findCollidingPeriodLabel(base, group, period) {
+  const other = getGroupTimetable(group);
+  const hit = (group.periods || []).find(item => periodsCollide(base, period, other, item));
+  if (hit == null) return `${period}교시`;
+  return base && other && base.id !== other.id ? describeCollidingPeriod(other, hit) : `${hit}교시`;
 }
 
 // 배치 팝업용 강사 목록. 못 고르는 사람도 같이 보여주되 이유를 붙인다 —
@@ -6461,6 +6564,8 @@ function findGroupOccupyingPeriod(period, matcher, excludeGroupId) {
 // group 을 같이 넘기면 제외 과정까지 걸러내고 적합도(fit)를 붙여서 돌려준다.
 // 안 넘기면 예전 그대로 — 유형 · 근무 · 충돌만 본다.
 function getGroupPlacementTeacherOptions(classType, period, excludeGroupId, group) {
+  // 이 반이 따르는 조. 강의실과 강사는 두 조가 함께 쓰는 자원이라 여기서부터 시각으로 본다.
+  const base = group ? getGroupTimetable(group) : getGroupTimetableById(excludeGroupId);
   return MOCK_TEACHERS
     .filter(teacher => teacher.status !== 'resigned')
     .map(teacher => {
@@ -6478,12 +6583,12 @@ function getGroupPlacementTeacherOptions(classType, period, excludeGroupId, grou
         return { teacher, ok: false, overridable: true, availState,
           reason: `${offDays.join('·')}요일 ${period}교시 ${TEACHER_AVAIL_LABEL[availState]}` };
       }
-      const clash = findGroupOccupyingPeriod(period, group => group.teacherId === teacher.id, excludeGroupId);
+      const clash = findGroupOccupyingPeriod(period, item => item.teacherId === teacher.id, excludeGroupId, base);
       if (clash) {
-        return { teacher, ok: false, reason: `${period}교시에 ${getGroupDisplayName(clash)} 담당 중` };
+        return { teacher, ok: false, reason: `${findCollidingPeriodLabel(base, clash, period)}에 ${getGroupDisplayName(clash)} 담당 중` };
       }
       // 1:1도 한 교시에 한 명이다. 여기를 안 보면 같은 강사에게 그룹과 1:1이 겹쳐 잡힌다.
-      const oneToOne = findOneToOneAt(teacher.id, period);
+      const oneToOne = findOneToOneAt(teacher.id, period, base);
       if (oneToOne) {
         const who = oneToOne.student.nick || oneToOne.student.name;
         return { teacher, ok: false, busyOneToOne: true, reason: `${period}교시에 ${who} 1:1 수업 중` };
@@ -6596,8 +6701,10 @@ function getTeacherGroupFit(teacher, group) {
 }
 
 // 배치 팝업용 강의실 목록. 다른 그룹뿐 아니라 강의실 배정(1:1 주간 세션)까지 같이 본다.
-function getGroupPlacementRoomOptions(classType, period, capacityNeeded, excludeGroupId) {
+function getGroupPlacementRoomOptions(classType, period, capacityNeeded, excludeGroupId, timetable) {
   const allowedTypes = classType === '1:8' ? ['1:8'] : ['1:4', '1:8'];
+  // 강의실은 A조와 B조가 같이 쓴다. 「5교시」가 조마다 다른 시각이라 번호로 보면 안 된다.
+  const base = timetable || getGroupTimetableById(excludeGroupId);
   return MOCK_CLASS_ROOMS
     .filter(room => room.roomNo && room.status === 'active' && ['1:4', '1:8'].includes(room.type))
     .map(room => {
@@ -6607,11 +6714,11 @@ function getGroupPlacementRoomOptions(classType, period, capacityNeeded, exclude
       if (room.capacity < (capacityNeeded || 1)) {
         return { room, ok: false, reason: `${room.capacity}석 — ${capacityNeeded}명이 안 들어가` };
       }
-      const clash = findGroupOccupyingPeriod(period, group => group.roomId === room.id, excludeGroupId);
+      const clash = findGroupOccupyingPeriod(period, group => group.roomId === room.id, excludeGroupId, base);
       if (clash) {
-        return { room, ok: false, reason: `${period}교시에 ${getGroupDisplayName(clash)} 사용 중` };
+        return { room, ok: false, reason: `${findCollidingPeriodLabel(base, clash, period)}에 ${getGroupDisplayName(clash)} 사용 중` };
       }
-      const sessionDays = getRoomSessionBusyDays(room.id, period);
+      const sessionDays = getRoomSessionBusyDays(room.id, period, base);
       if (sessionDays.length) {
         return { room, ok: false, reason: `${sessionDays.join('·')}요일 ${period}교시 1:1 수업 사용 중` };
       }
