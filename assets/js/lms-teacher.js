@@ -678,12 +678,11 @@ function switchCoursePricingTab(tab, el) {
     document.getElementById('course-pricing-tab-master').style.display = 'block';
     renderMasterSettings();
   } else if (tab === 'period') {
+    // 예전 벨 설정 폼(bell-settings-panel)은 여기로 옮겨 붙였었다. 이제 시간표가 여러 장이라
+    // 목록 → 편집 화면이 그 자리를 대신한다.
     const target = document.getElementById('course-pricing-tab-period');
-    const panel = document.getElementById('bell-settings-panel');
-    if (target && panel && panel.parentNode !== target) target.appendChild(panel);
     if (target) target.style.display = 'block';
-    if (panel) panel.style.display = 'block';
-    if (typeof initBellSettingsView === 'function') initBellSettingsView();
+    if (typeof renderCoursePeriodTab === 'function') renderCoursePeriodTab();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
   }
 }

@@ -28,6 +28,54 @@ const APP = {
 };
 
 /* =============================================
+   수업 시간표 (Timetable)
+   교시마다 시작·종료 시각을 직접 들고 있다. 예전엔 「시작 08:00 + 수업 50분 + 휴식 10분」
+   공식으로 매번 계산했는데, 그러면 4교시만 80분으로 늘리는 식이 안 됐다.
+   타입이 여럿인 이유는 점심을 나눠 먹기 때문이다 — A조와 B조가 같은 날 함께 돌고,
+   같은 「5교시」라도 시각이 다르다. 그래서 충돌은 교시 번호가 아니라 시각으로 봐야 한다.
+   ============================================= */
+const MOCK_TIMETABLES = [
+  {
+    id: 'TT_A', code: 'A', name: 'A조', note: '점심 1부',
+    validFrom: '2026-03-01', validTo: null, active: true, isDefault: true,
+    lunch: { start: '12:05', end: '13:05' },
+    periods: [
+      { order: 1, start: '08:00', end: '08:50' },
+      { order: 2, start: '09:00', end: '09:50' },
+      { order: 3, start: '10:00', end: '10:50' },
+      { order: 4, start: '11:00', end: '11:50' },
+      { order: 5, start: '13:05', end: '13:55' },
+      { order: 6, start: '14:05', end: '14:55' },
+      { order: 7, start: '15:05', end: '15:55' },
+      { order: 8, start: '16:05', end: '16:55' },
+      { order: 9, start: '17:05', end: '17:55' },
+      { order: 10, start: '18:05', end: '18:55' },
+      { order: 11, start: '19:05', end: '19:55' },
+      { order: 12, start: '20:05', end: '20:55' }
+    ]
+  },
+  {
+    id: 'TT_B', code: 'B', name: 'B조', note: '점심 2부 — 식당 자리를 나눠 쓴다',
+    validFrom: '2026-03-01', validTo: null, active: true, isDefault: false,
+    lunch: { start: '12:55', end: '13:55' },
+    periods: [
+      { order: 1, start: '08:00', end: '08:50' },
+      { order: 2, start: '09:00', end: '09:50' },
+      { order: 3, start: '10:00', end: '10:50' },
+      { order: 4, start: '11:00', end: '11:50' },
+      { order: 5, start: '12:00', end: '12:50' },
+      { order: 6, start: '13:55', end: '14:45' },
+      { order: 7, start: '14:55', end: '15:45' },
+      { order: 8, start: '15:55', end: '16:45' },
+      { order: 9, start: '16:55', end: '17:45' },
+      { order: 10, start: '17:55', end: '18:45' },
+      { order: 11, start: '18:55', end: '19:45' },
+      { order: 12, start: '19:55', end: '20:45' }
+    ]
+  }
+];
+
+/* =============================================
    MOCK DATA
    ============================================= */
 const MOCK_STUDENTS = [
