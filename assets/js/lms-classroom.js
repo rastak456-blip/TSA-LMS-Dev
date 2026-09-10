@@ -6465,8 +6465,9 @@ function getUnscheduledGroups(levelOrder) {
    두 조가 함께 쓰는 자원뿐이라, 여기만 시각으로 본다.
    ============================================= */
 
-function getStudentTimetable(student) {
-  return getTimetableById(student?.timetableId) || getDefaultTimetable();
+function getStudentTimetable(student, dateStr) {
+  if (!student?.timetableId) return getDefaultTimetable();
+  return resolveTimetableForDate(student.timetableId, dateStr);
 }
 
 // 반이 따르는 시간표. 반 자체는 조를 갖지 않고 학생에게서 물려받는다 —
@@ -12643,10 +12644,17 @@ function getTimetableLunchLabel(timetable) {
 }
 
 // 이 시간표를 쓰는 학생 수. 아직 아무 시간표도 못 받은 학생은 대기로 따로 센다.
+// 학생은 줄기의 첫 판을 가리킨 채로 둔다(옮겨 적으면 지난주를 다시 못 그린다).
+// 그래서 인원도 줄기 단위로 센다 — 교체 예약본에 0명이 뜨면 아무 정보가 아니다.
 function countStudentsOnTimetable(timetableId) {
+  const timetable = getTimetableById(timetableId);
+  const lineage = getTimetableLineageId(timetable);
+  const ids = new Set(getTimetables()
+    .filter(item => getTimetableLineageId(item) === lineage)
+    .map(item => item.id));
   return MOCK_STUDENTS.filter(student =>
     ['current', 'waiting', 'extended'].includes(student.status)
-    && student.timetableId === timetableId).length;
+    && ids.has(student.timetableId)).length;
 }
 
 function getTimetableWaitingStudents() {
@@ -12654,6 +12662,98 @@ function getTimetableWaitingStudents() {
   return MOCK_STUDENTS.filter(student =>
     ['current', 'waiting', 'extended'].includes(student.status)
     && !ids.has(student.timetableId));
+}
+
+// ── 교체 예약 ──────────────────────────────────────────
+// 「차주 월요일부터 이 시간표를 이렇게 바꾼다」를 담는 방법. 지금 걸 고쳐버리면 이번 주 시간표가
+// 같이 바뀌어서, 이미 나간 시간표와 실제 수업이 어긋난다. 그래서 복사본을 만들어 기간만 이어 붙인다 —
+// 지금 것은 일요일까지, 새 것은 월요일부터.
+//
+// 학생은 시간표 id 를 그대로 들고 있는다. 옮겨 적으면 지난주 시간표를 다시 그릴 수 없다.
+// 대신 같은 줄기(lineage)를 날짜로 훑어서 「그날 살아 있는 판」을 고른다.
+function getTimetableLineageId(timetable) {
+  return timetable?.lineageId || timetable?.id || null;
+}
+
+// 배정이 보고 있는 날짜. 주간 수업 배정은 특정 주를 놓고 일하니 그 주를 기준으로 삼는다.
+// toISOString() 은 쓰지 않는다 — 현지 자정을 UTC 로 되돌려서 한국(UTC+9)에서는 하루 전이 나온다.
+function getTimetableBaseDate() {
+  if (typeof _scaWeek !== 'undefined' && _scaWeek) return _scaWeek;
+  return studentScheduleIsoDate(new Date());
+}
+
+// 그 줄기에서 이 날짜에 살아 있는 판. 없으면 원래 판으로 떨어진다.
+function resolveTimetableForDate(timetableId, dateStr) {
+  const base = getTimetableById(timetableId);
+  if (!base) return getDefaultTimetable();
+  const lineage = getTimetableLineageId(base);
+  const date = dateStr || getTimetableBaseDate();
+  const live = getTimetables()
+    .filter(item => getTimetableLineageId(item) === lineage && isTimetableEffectiveOn(item, date))
+    .sort((a, b) => String(b.validFrom || '').localeCompare(String(a.validFrom || '')));
+  return live[0] || base;
+}
+
+function getTimetableSuccessors(timetable) {
+  const lineage = getTimetableLineageId(timetable);
+  return getTimetables().filter(item => item.id !== timetable.id && getTimetableLineageId(item) === lineage);
+}
+
+function shiftIsoDate(dateStr, days) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  date.setDate(date.getDate() + days);
+  return studentScheduleIsoDate(date);
+}
+
+// 기준 날짜가 속한 주의 다음 월요일.
+function getNextMondayIso(fromDateStr) {
+  const date = new Date(`${fromDateStr || getTimetableBaseDate()}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return getTimetableBaseDate();
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7) + 7);
+  return studentScheduleIsoDate(monday);
+}
+
+function scheduleTimetableReplacement(id) {
+  const timetable = getTimetableById(id);
+  if (!timetable) return;
+  const monday = getNextMondayIso();
+  const sunday = shiftIsoDate(monday, -1);
+  if (timetable.validFrom && timetable.validFrom >= monday) {
+    showToast('이 시간표는 아직 시작도 안 했어. 그냥 여기서 고치면 돼.', 'warning');
+    return;
+  }
+  if (!window.confirm(`${timetable.name}을 ${sunday}까지만 쓰고, ${monday}부터 새 판으로 바꿀까?\n지금 내용을 그대로 복사해서 만들어 줄게.`)) return;
+
+  const next = {
+    ...timetable,
+    id: `TT_${Date.now()}`,
+    lineageId: getTimetableLineageId(timetable),
+    validFrom: monday,
+    validTo: timetable.validTo && timetable.validTo > monday ? timetable.validTo : '',
+    periods: (timetable.periods || []).map(period => ({ ...period })),
+    isDefault: false
+  };
+  timetable.validTo = sunday;
+  MOCK_TIMETABLES.push(next);
+  showToast(`✓ ${monday}부터 쓸 판을 만들었어. 여기서 고치면 그 주부터 반영돼.`, 'success');
+  openTimetableEditor(next.id);
+}
+
+function cancelTimetableReplacement(id) {
+  const next = getTimetableById(id);
+  if (!next) return;
+  const lineage = getTimetableLineageId(next);
+  const previous = getTimetables().find(item => item.id !== next.id
+    && getTimetableLineageId(item) === lineage
+    && item.validTo && item.validTo < (next.validFrom || ''));
+  if (!window.confirm(`${next.validFrom}부터 쓸 판을 지울까? 지금 판이 계속 쓰이게 돼.`)) return;
+  if (previous) previous.validTo = next.validTo || '';
+  const index = MOCK_TIMETABLES.indexOf(next);
+  if (index >= 0) MOCK_TIMETABLES.splice(index, 1);
+  showToast('교체 예약을 취소했어.', 'success');
+  closeTimetableEditor();
 }
 
 // ── 목록 ────────────────────────────────────────────────
@@ -12672,7 +12772,7 @@ function renderCoursePeriodTab() {
 function renderTimetableList() {
   const list = getTimetables();
   const waiting = getTimetableWaitingStudents().length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTimetableBaseDate();
 
   const rows = list.map(timetable => {
     const issues = getTimetableIssues(timetable);
@@ -12701,7 +12801,9 @@ function renderTimetableList() {
           ? '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#F3F4F6;color:#9CA3AF">사용 안 함</span>'
           : (live
             ? '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#ECFDF5;color:#047857">사용 중</span>'
-            : '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FFFBEB;color:#B45309">기간 밖</span>')}
+            : (timetable.validFrom && timetable.validFrom > today
+              ? `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#EEF2FF;color:#4338CA">${lessonEsc(timetable.validFrom)}부터</span>`
+              : '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#F3F4F6;color:#9CA3AF">지난 판</span>'))}
         ${issues.length ? `<span title="${lessonEsc(issues.join(' · '))}" style="margin-left:5px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FEE2E2;color:#DC2626">확인 ${issues.length}건</span>` : ''}
       </td>
     </tr>`;
@@ -12805,6 +12907,27 @@ function renderTimetableEditor() {
     </tr>`;
   }).join('');
 
+  // 이 판이 줄기의 어디쯤인지. 교체 예약이 걸려 있으면 지금 고치는 게 어느 주부터인지 알려야 한다.
+  const today = getTimetableBaseDate();
+  const isFuture = Boolean(timetable.validFrom && timetable.validFrom > today);
+  const scheduled = getTimetableSuccessors(timetable)
+    .filter(item => item.validFrom && item.validFrom > today)
+    .sort((a, b) => String(a.validFrom).localeCompare(String(b.validFrom)))[0] || null;
+  const previous = getTimetableSuccessors(timetable)
+    .filter(item => item.validTo && item.validTo < (timetable.validFrom || '9999'))
+    .sort((a, b) => String(b.validTo).localeCompare(String(a.validTo)))[0] || null;
+  const lineageNote = isFuture
+    ? `<div style="padding:10px 13px;border:1px solid #C7D2FE;border-radius:10px;background:#EEF2FF;font-size:11.5px;color:#3730A3;line-height:1.7">
+        <b>${lessonEsc(timetable.validFrom)}부터 쓸 판이야.</b> 여기서 고치면 그 주부터 반영되고, 이번 주 시간표는 그대로 남아.
+        ${previous ? `<br>그 전까지는 <button onclick="openTimetableEditor('${lessonEsc(previous.id)}')" style="border:0;background:none;padding:0;color:#4338CA;font-weight:700;text-decoration:underline;cursor:pointer">${lessonEsc(previous.validTo)}까지 쓰는 판</button>이 쓰여.` : ''}
+      </div>`
+    : (scheduled
+      ? `<div style="padding:10px 13px;border:1px solid #FDE68A;border-radius:10px;background:#FFFBEB;font-size:11.5px;color:#92400E;line-height:1.7">
+          <b>${lessonEsc(scheduled.validFrom)}부터 바뀔 예정이야.</b> 지금 이 판을 고치면 <b>이번 주</b>가 바뀌어.
+          그 주부터 바꾸려면 <button onclick="openTimetableEditor('${lessonEsc(scheduled.id)}')" style="border:0;background:none;padding:0;color:#B45309;font-weight:700;text-decoration:underline;cursor:pointer">예약된 판</button>에서 고쳐줘.
+        </div>`
+      : '');
+
   const lunchOptions = periods.map(period =>
     `<option value="${period.order}" ${Number(timetable.lunchAfterPeriod) === Number(period.order) ? 'selected' : ''}>${period.order}교시 뒤</option>`
   ).join('');
@@ -12814,8 +12937,17 @@ function renderTimetableEditor() {
       <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="closeTimetableEditor()">← 목록</button>
       <b style="font-size:14px;color:#111827">${lessonEsc(timetable.name)}</b>
       <span style="font-size:11px;color:#9CA3AF">${lessonEsc(getTimetableRangeLabel(timetable))} · 소속 학생 ${countStudentsOnTimetable(timetable.id)}명</span>
-      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-left:auto" onclick="deleteTimetable('${id}')">시간표 삭제</button>
+      <span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap">
+        ${scheduled
+          ? `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="cancelTimetableReplacement('${lessonEsc(scheduled.id)}')">교체 예약 취소</button>`
+          : (isFuture
+            ? ''
+            : `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="scheduleTimetableReplacement('${id}')">차주 월요일부터 교체</button>`)}
+        <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="${isFuture ? `cancelTimetableReplacement('${id}')` : `deleteTimetable('${id}')`}">${isFuture ? '이 판 지우기' : '시간표 삭제'}</button>
+      </span>
     </div>
+
+    ${lineageNote}
 
     ${issues.length ? `<div style="padding:10px 13px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;font-size:11.5px;color:#B91C1C;line-height:1.7"><b>확인할 게 ${issues.length}건 있어.</b><br>${issues.map(lessonEsc).join('<br>')}</div>` : ''}
 
