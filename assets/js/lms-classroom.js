@@ -1936,6 +1936,12 @@ function getScaStepProgress() {
 
 // ── 화면 맨 위 두 줄 ──────────────────────────────────────
 let _scaStep = 1;
+// 1단계 학생 목록에서 「배정 완료」 묶음을 펼쳤는지. 기본은 접힘 — 손댈 학생만 보이게.
+let _scaDoneOpen = false;
+function toggleScaDoneRows() {
+  _scaDoneOpen = !_scaDoneOpen;
+  renderScaStep1Board();
+}
 function setScaStep(step) {
   const next = Number(step);
   // 2단계(그룹 시간표)는 없앴다 — 하던 일이 1단계 아래 「그룹 수업 목록」으로 들어왔다.
@@ -2378,13 +2384,13 @@ function renderScaStudentChip(chip, studentId) {
   const base = 'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap';
 
   if (chip.state === 'none') {
-    return `<button onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="갈 수 있는 반 고르기" style="${base};border:1px dashed #DC2626;background:#FEE2E2;color:#DC2626">
-      ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(requirement.classType)}</span>
+    return `<button class="sca-chip" onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="갈 수 있는 반 고르기" style="${base};border:1px dashed #DC2626;background:#FEE2E2;color:#DC2626">
+      <span style="font-weight:800;font-size:11px;line-height:1">＋</span>${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(getGroupSizeShortLabel(requirement.classType))} (${lessonEsc(requirement.classType)})</span>
     </button>`;
   }
 
   if (chip.state === 'pending') {
-    return `<button onclick="openTeacherAssignModal(${chip.group.id})" title="${lessonEsc(getGroupDisplayName(chip.group))} — 이 반의 교시·강사·강의실이 아직 없어" style="${base};border:1px solid #F59E0B;background:#FEF3C7;color:#B45309">
+    return `<button class="sca-chip" onclick="openTeacherAssignModal(${chip.group.id})" title="${lessonEsc(getGroupDisplayName(chip.group))} — 이 반의 교시·강사·강의실이 아직 없어" style="${base};border:1px solid #F59E0B;background:#FEF3C7;color:#B45309">
       ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px">· 시간 미정</span>
     </button>`;
   }
@@ -2392,13 +2398,40 @@ function renderScaStudentChip(chip, studentId) {
   const teacher = MOCK_TEACHERS.find(item => item.id === Number(chip.group.teacherId));
   const room = MOCK_CLASS_ROOMS.find(item => item.id === Number(chip.group.roomId));
   const title = `${getGroupDisplayName(chip.group)} · ${room?.roomNo || '-'} — 누르면 반을 바꿔`;
-  return `<button onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="${lessonEsc(title)}" style="${base};border:1px solid #E5E7EB;background:#F9FAFB;color:#6B7280;font-weight:400">
+  return `<button class="sca-chip" onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="${lessonEsc(title)}" style="${base};border:1px solid #E5E7EB;background:#F9FAFB;color:#6B7280;font-weight:400">
     ${lessonEsc(requirement.subjectName)} <b style="color:#111827">${chip.periods.join('·')}교시</b> ${lessonEsc(teacher?.nick || teacher?.name || '강사 미정')}
   </button>`;
 }
 
-// 위 구역. 예전엔 「아직 반이 없는 학생」만 담은 경고 상자였는데, 이제 이번 주 학생 전원이 남는다 —
-// 그래서 상자 자체는 흰 바탕으로 두고 경고색은 칩과 오른쪽 카운터에만 쓴다.
+// 위 구역. 이번 주에 그룹 수업을 듣는 학생 전원이 대상이지만,
+// 배정이 끝난 학생은 접어서 요약 한 줄로 두고 — 손댈 학생만 펼쳐 보인다.
+// 카운터는 줄 맨 앞에 세운다. 예전엔 오른쪽 끝에 붙여서 칩과 카운터 사이가 넓게 비었다.
+// 칩 뒤로 남는 폭은 그냥 여백으로 둔다.
+function scaStudentBoardRow(row, done) {
+  const meta = getStudentOriginMetaText(row.student);
+  const badge = `<span style="display:inline-block;font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 7px;white-space:nowrap;${done ? 'color:#047857;background:#ECFDF5' : 'color:#DC2626;background:#FEE2E2'}">${row.placed}/${row.total}</span>`;
+  // 이름 옆에 붙이면 이름 길이에 따라 레벨 시작 위치가 들쭉날쭉해진다.
+  // 레벨은 줄끼리 비교하며 읽는 값이라 폭이 고정된 제 열에 세워 세로로 맞춘다.
+  return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 13px;border-bottom:1px solid #F3F4F6;background:#fff;${done ? 'opacity:.6' : ''}">
+    <span style="flex:0 0 38px;padding-top:3px">${badge}</span>
+    <span style="flex:0 0 150px;min-width:0;display:flex;align-items:center;gap:8px">
+      <img src="${lessonEsc(getStudentPhotoSrc(row.student))}" alt="${lessonEsc(row.student.nick || row.student.name)}" style="flex:0 0 auto;width:30px;height:30px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #E5E7EB"/>
+      <span style="min-width:0">
+        <span style="display:flex;align-items:center;gap:5px;min-width:0">
+          <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(row.student.nick || row.student.name)}</b>
+          ${row.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
+        </span>
+        <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
+      </span>
+    </span>
+    <span style="flex:0 0 92px;min-width:0;padding-top:3px">${row.student.level
+      ? `<span style="display:inline-block;max-width:100%;font-size:10.5px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(row.student.level)}</span>`
+      : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
+    <span style="flex:0 0 128px;min-width:0;padding-top:4px;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(row.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
+    <span style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding-top:1px">${row.chips.map(chip => renderScaStudentChip(chip, row.student.id)).join('')}</span>
+  </div>`;
+}
+
 function renderScaStudentBoard() {
   const rows = getScaStep1Rows();
   const noGroupCount = getScaStep1NoGroupCount();
@@ -2412,42 +2445,37 @@ function renderScaStudentBoard() {
     </div>`;
   }
 
-  const remaining = rows.filter(row => row.missing > 0).length;
-  // 손댈 학생이 위로. 같은 조건이면 신규가 먼저 — 이번 주에 처음 오는 학생이라 시간표가 통째로 비어 있다.
-  const sorted = [...rows].sort((a, b) => b.missing - a.missing
-    || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)
+  // 남은 과목 수로는 정렬하지 않는다. 그러면 한 과목 배정할 때마다 그 학생이 아래로 미끄러져서
+  // 방금 누른 줄을 눈으로 다시 찾아야 한다. 줄은 제자리를 지키다가, 네 과목이 다 채워졌을 때만
+  // 아래 「배정 완료」 묶음으로 내려간다.
+  // 신규가 먼저 — 이번 주에 처음 오는 학생이라 시간표가 통째로 비어 있다.
+  const sorted = [...rows].sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)
     || a.student.id - b.student.id);
+  const todo = sorted.filter(row => row.missing > 0);
+  const doneRows = sorted.filter(row => row.missing === 0);
 
-  const body = sorted.map(row => {
-    const done = row.missing === 0;
-    const meta = getStudentOriginMetaText(row.student);
-    // 이름 옆에 붙이면 이름 길이에 따라 레벨 시작 위치가 들쭉날쭉해진다.
-    // 레벨은 줄끼리 비교하며 읽는 값이라 폭이 고정된 제 열에 세워 세로로 맞춘다.
-    return `<div style="display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid #F3F4F6;background:#fff;${done ? 'opacity:.62' : ''}">
-      <span style="flex:0 0 158px;min-width:0;display:flex;align-items:center;gap:8px">
-        <img src="${lessonEsc(getStudentPhotoSrc(row.student))}" alt="${lessonEsc(row.student.nick || row.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #E5E7EB"/>
-        <span style="min-width:0">
-          <span style="display:flex;align-items:center;gap:5px;min-width:0">
-            <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(row.student.nick || row.student.name)}</b>
-            ${row.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
-          </span>
-          <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
-        </span>
-      </span>
-      <span style="flex:0 0 104px;min-width:0">${row.student.level
-        ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(row.student.level)}</span>`
-        : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
-      <span style="flex:0 0 150px;min-width:0;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(row.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
-      <span style="flex:1 1 250px;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${row.chips.map(chip => renderScaStudentChip(chip, row.student.id)).join('')}</span>
-      <span style="flex:0 0 auto;font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 8px;white-space:nowrap;${done ? 'color:#047857;background:#ECFDF5' : 'color:#DC2626;background:#FEE2E2'}">${row.placed}/${row.total}</span>
-    </div>`;
-  }).join('');
+  const todoBlock = todo.length
+    ? todo.map(row => scaStudentBoardRow(row, false)).join('')
+    : '<div style="padding:13px;font-size:11px;font-weight:700;color:#047857;background:#F0FDF4">이번 주 학생 전원이 반에 들어갔어.</div>';
+
+  const doneNames = doneRows.map(row => lessonEsc(row.student.nick || row.student.name)).join(' · ');
+  const doneBlock = doneRows.length
+    ? `<div style="border-bottom:1px solid #F3F4F6;background:#FCFCFD">
+        <button onclick="toggleScaDoneRows()" style="width:100%;display:flex;align-items:center;gap:8px;padding:9px 13px;border:0;background:none;cursor:pointer;text-align:left">
+          <span style="flex:0 0 auto;font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 7px;color:#047857;background:#ECFDF5">✓ ${doneRows.length}</span>
+          <b style="flex:0 0 auto;font-size:11px;color:#047857">배정 완료</b>
+          <span style="flex:1 1 auto;min-width:0;font-size:9.5px;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${doneNames}</span>
+          <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:#6B7280">${_scaDoneOpen ? '접기 ▲' : '펼치기 ▼'}</span>
+        </button>
+        ${_scaDoneOpen ? doneRows.map(row => scaStudentBoardRow(row, true)).join('') : ''}
+      </div>`
+    : '';
 
   return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
       <b style="font-size:11.5px;color:#111827">그룹 수업 배정</b>
-      ${remaining
-        ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">${rows.length}명 중 ${remaining}명 남음</span>`
+      ${todo.length
+        ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">${rows.length}명 중 ${todo.length}명 남음</span>`
         : `<span style="font-size:10.5px;font-weight:700;color:#047857">${rows.length}명 전부 반에 들어갔어</span>`}
       <span style="margin-left:auto;display:inline-flex;align-items:center;gap:9px;font-size:9.5px;color:#8A90A2;flex-wrap:wrap">
         <span><b style="color:#DC2626">빨강</b> 반 없음</span>
@@ -2455,7 +2483,7 @@ function renderScaStudentBoard() {
         <span><b style="color:#6B7280">회색</b> 확정 — 누르면 반 변경</span>
       </span>
     </div>
-    ${body}${footer}
+    ${todoBlock}${doneBlock}${footer}
   </div>`;
 }
 
@@ -2490,11 +2518,13 @@ function sortScaGroupRows(groups) {
 
 const SCA_LIST_CELL = 'padding:9px 11px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;vertical-align:top';
 
-// 유형 열을 없애고 과목 옆 태그로 옮겼다. 여기서는 「소그룹/중그룹」보다 1:4 · 1:8이 짧고,
-// 정원이 바로 읽혀서 옆의 인원 칸과 같이 보기 좋다.
+// 유형 열을 없애고 과목 옆 태그로 옮겼다. 이 화면의 유형 표기는 여기 하나로만 만든다 —
+// 「소그룹 (1:4)」. 이름만 쓰면 정원이 안 보이고, 코드만 쓰면 소/중이 안 갈려서 둘을 같이 적는다.
+// 예전엔 반 줄은 「소그룹」, 아직 없는 반 줄은 「1:8」로 자리마다 표기가 달랐다.
 function scaTypeTagHtml(classType) {
   const { bg, ink } = getGroupTypeTagColors(classType);
-  return `<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;background:${bg};color:${ink};font-size:9.5px;font-weight:700;vertical-align:1px;white-space:nowrap">${lessonEsc(classType)}</span>`;
+  const label = `${getGroupSizeShortLabel(classType)} (${classType})`;
+  return `<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;background:${bg};color:${ink};font-size:9.5px;font-weight:700;vertical-align:1px;white-space:nowrap">${lessonEsc(label)}</span>`;
 }
 
 function renderScaLevelHeaderRow(title, meta, urgent) {
@@ -2551,10 +2581,16 @@ function renderScaGroupRow(group, showLevel, slot, isLast) {
     ? `<span style="display:inline-block;padding-left:15px;border-left:2px solid #E5E7EB;margin-left:3px">
         <button ${openDetail} style="border:0;background:none;padding:0;font-size:11.5px;font-weight:800;color:#4B5563;cursor:pointer">${lessonEsc(slot)}</button>
       </span>`
+    // 과정(Regular · Junior ESL …)은 여기서 뺐다. 레벨 섹션 안에서는 대개 같은 값이라
+    // 줄마다 반복되기만 하고, 반의 과정은 「수정」 팝업과 반 상세에서 볼 수 있다.
+    //
+    // 통합 레벨 줄은 이름 앞에 레벨 구간이 필요하다. getGroupDisplayName 은 끝에 「소그룹」을
+    // 덧붙여서 그대로 쓰면 유형이 두 번 나오니, 이름만 직접 짓고 유형은 아래 태그 하나로 통일한다.
     : `<button ${openDetail} style="border:0;background:none;padding:0;text-align:left;cursor:pointer">
-        <b style="font-size:12px;color:#111827">${lessonEsc(showLevel ? getGroupDisplayName(group) : getGroupSubjectNamesLabel(group))}</b>
-      </button>${showLevel ? '' : getGroupTypeTagHtml(group.classType, { hideCode: true })}
-      <div style="font-size:10px;color:#9CA3AF;margin-top:2px">${lessonEsc(group.course || '-')}</div>`;
+        <b style="font-size:12px;color:#111827">${lessonEsc(showLevel
+          ? `${getGroupLevelSetLabel(group)} · ${getGroupSubjectNamesLabel(group)}`
+          : getGroupSubjectNamesLabel(group))}</b>
+      </button>${scaTypeTagHtml(group.classType)}`;
 
   return `<tr>
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''}">${nameCell}</td>
@@ -2563,7 +2599,7 @@ function renderScaGroupRow(group, showLevel, slot, isLast) {
     </td>
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''}">${placed}</td>
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''};text-align:right;white-space:nowrap">
-      <button class="tsa-btn tsa-btn-xs tsa-btn-primary" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id})">강사 배정</button>
+      <button class="tsa-btn tsa-btn-xs ${isGroupScheduled(group) ? 'tsa-btn-outline' : 'tsa-btn-primary'}" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id}${_scaPeriodFocus != null && !isGroupScheduled(group) ? `,${_scaPeriodFocus}` : ''})">${isGroupScheduled(group) ? '강사 변경' : '강사 배정'}</button>
       <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="white-space:nowrap;margin-left:4px" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
     </td>
   </tr>`;
@@ -2594,7 +2630,11 @@ function renderScaSubjectBuckets(groups, showLevel) {
 }
 
 function renderScaGroupClassList() {
-  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
+  const focus = _scaPeriodFocus;
+  // 교시를 고르면 그 교시에 걸린 반과, 아직 시간이 없어 그 자리에 넣을 수 있는 반만 남긴다.
+  // 다른 교시에 이미 앉은 반은 지금 할 일이 아니다.
+  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active'
+    && (focus == null || !isGroupScheduled(group) || (group.periods || []).map(Number).includes(focus)));
   const mergedGroups = active.filter(isMergedLevelGroup);
   const mergedIds = new Set(mergedGroups.map(group => group.id));
   const needs = buildCsGroupDemandRows().filter(row => row.additionalGroups > 0);
@@ -2632,7 +2672,11 @@ function renderScaGroupClassList() {
 
   return `<div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 13px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
-      <b style="font-size:11.5px;color:#111827">그룹 수업 ${active.length}개</b>
+      ${focus != null
+        ? `<b style="font-size:11.5px;color:#4338CA">${focus}교시</b>
+           <span style="font-size:10.5px;color:#6B7280">이 교시 반과 시간 미정인 반 ${active.length}개</span>
+           <button onclick="setScaPeriodFocus(${focus})" style="border:1px solid #D1D5DB;border-radius:7px;padding:3px 9px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전체 보기</button>`
+        : `<b style="font-size:11.5px;color:#111827">그룹 수업 ${active.length}개</b>`}
       ${newCount ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">새로 열 반 ${newCount}개</span>` : ''}
       ${pending ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">배정 미정 ${pending}개</span>` : '<span style="font-size:10.5px;font-weight:700;color:#047857">전부 배정 완료</span>'}
       <span style="font-size:9.5px;color:#9CA3AF">반 이름이나 인원을 누르면 소속 학생이 나와</span>
@@ -2660,10 +2704,113 @@ function createGroupForDemand(subjectId, classType, levelGroup) {
 }
 
 // 1단계 = 위쪽 학생 목록 + 아래쪽 그룹 수업 목록. 둘로 끝난다.
+// ─────────────────────────────────────────────────────────────
+// 교시별 현황 — 1단계 맨 위.
+//
+// 그룹 강의실은 아홉 개뿐이다(소그룹 다섯, 중그룹 넷). 강사는 어느 교시든 스물넷 넘게 비어
+// 있어서 병목이 아니고, 자리를 좌우하는 건 늘 강의실이다. 그런데 어느 교시가 꽉 찼는지는
+// 배정 팝업을 열어봐야 알 수 있었다 — 「빈 강의실이 없어」를 보고 나서야.
+// 그래서 교시마다 몇 개가 돌아가고 몇 칸이 남았는지를 먼저 세워둔다.
+// ─────────────────────────────────────────────────────────────
+let _scaPeriodFocus = null; // 눌러서 고른 교시. 아래 그룹 수업 목록이 이 교시로 좁혀진다.
+
+function getScaGroupRooms() {
+  return MOCK_CLASS_ROOMS.filter(room => room.roomNo && room.status === 'active' && ['1:4', '1:8'].includes(room.type));
+}
+
+// 한 교시의 그림. 강의실은 「이 방이 이 교시에 잡혀 있나」로 세고, 1:1 주간 세션이 잡아둔
+// 방도 쓴 것으로 친다 — 그룹을 넣으려 하면 똑같이 막히는 자리라서.
+function getScaPeriodStatus(period) {
+  const groups = MOCK_GROUP_CLASSES.filter(group => group.status === 'active'
+    && (group.periods || []).map(Number).includes(period));
+  const rooms = getScaGroupRooms();
+  const busy = new Set(groups.map(group => Number(group.roomId)).filter(Number.isFinite));
+  const count = type => {
+    const list = rooms.filter(room => room.type === type);
+    const used = list.filter(room => busy.has(room.id)
+      || getRoomSessionBusyDays(room.id, period).length).length;
+    return { used, total: list.length, free: list.length - used };
+  };
+  return {
+    period,
+    groups,
+    small: count('1:4'),
+    large: count('1:8'),
+    seats: groups.reduce((sum, group) => sum + (group.studentIds || []).length, 0),
+    capacity: groups.reduce((sum, group) => sum + getGroupBaseCapacityFor(group), 0)
+  };
+}
+
+function setScaPeriodFocus(period) {
+  const next = Number(period);
+  _scaPeriodFocus = _scaPeriodFocus === next ? null : next;
+  renderScaStep1Board();
+}
+
+// 남은 칸을 네모로 그린다. 숫자만 적으면 「1/5」와 「4/5」가 훑을 때 안 갈린다.
+function scaRoomPips(stat, tone) {
+  if (!stat.total) return '<span style="font-size:9.5px;color:#C4C9D4">—</span>';
+  const pip = on => `<span style="display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:2px;background:${on ? tone : '#E5E7EB'}"></span>`;
+  return Array.from({ length: stat.total }, (unused, index) => pip(index < stat.used)).join('');
+}
+
+function renderScaPeriodBoard() {
+  const total = getScaTotalPeriods();
+  const stats = [];
+  for (let period = 1; period <= total; period += 1) stats.push(getScaPeriodStatus(period));
+  const running = stats.reduce((sum, stat) => sum + stat.groups.length, 0);
+  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
+  const unplaced = active.filter(group => !isGroupScheduled(group)).length;
+  // 수업이 아예 없고 앞으로도 볼 일 없는 교시가 뒤에 길게 남는다. 쓰는 구간만 세우되
+  // 양옆 한 칸씩은 남겨둔다 — 옆 교시로 밀 수 있는지 보이게.
+  const used = stats.filter(stat => stat.groups.length).map(stat => stat.period);
+  const from = used.length ? Math.max(1, Math.min(...used) - 1) : 1;
+  const to = used.length ? Math.min(total, Math.max(...used) + 1) : total;
+  const shown = stats.filter(stat => stat.period >= from && stat.period <= to);
+
+  const cells = shown.map(stat => {
+    const on = _scaPeriodFocus === stat.period;
+    const tight = (stat.small.free === 0 && stat.small.total) || (stat.large.free === 0 && stat.large.total)
+      ? false // 아예 없는 건 아래 warn 에서 따로 본다
+      : (stat.small.free <= 1 || stat.large.free <= 1);
+    const fullSmall = stat.small.total && !stat.small.free;
+    const fullLarge = stat.large.total && !stat.large.free;
+    const warn = tight || fullSmall || fullLarge;
+    const bell = (typeof getBellPeriods === 'function' ? getBellPeriods() : []).find(item => Number(item.period) === stat.period);
+    return `<button onclick="setScaPeriodFocus(${stat.period})" title="${lessonEsc(bell ? `${bell.start} ~ ${bell.end}` : '')}" style="flex:1 1 82px;min-width:82px;text-align:left;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};border-radius:10px;background:${on ? '#F5F3FF' : (stat.groups.length ? '#fff' : '#FCFCFD')};padding:8px 9px;cursor:pointer">
+      <span style="display:flex;align-items:baseline;gap:5px">
+        <b style="font-size:11.5px;color:${on ? '#4338CA' : '#111827'}">${stat.period}교시</b>
+        <span style="font-size:9.5px;color:#9CA3AF">${stat.groups.length ? `${stat.groups.length}개` : '없음'}</span>
+      </span>
+      <span style="display:block;margin-top:6px;line-height:1">${scaRoomPips(stat.small, '#4F46E5')}</span>
+      <span style="display:block;margin-top:3px;line-height:1">${scaRoomPips(stat.large, '#059669')}</span>
+      <span style="display:block;margin-top:6px;font-size:9px;font-weight:700;color:${warn ? '#B45309' : '#9CA3AF'}">${
+        stat.small.total || stat.large.total
+          ? `소 ${stat.small.free} · 중 ${stat.large.free} 남음`
+          : '강의실 없음'
+      }</span>
+    </button>`;
+  }).join('');
+
+  return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
+      <b style="font-size:11.5px;color:#111827">교시별 현황</b>
+      <span style="font-size:10.5px;color:#6B7280">진행 중 <b style="color:#111827">${running}개</b></span>
+      ${unplaced ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">시간 미정 ${unplaced}개</span>` : ''}
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px;font-size:9.5px;color:#8A90A2">
+        <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#4F46E5;margin-right:3px"></span>소그룹실 ${getScaGroupRooms().filter(room => room.type === '1:4').length}개</span>
+        <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#059669;margin-right:3px"></span>중그룹실 ${getScaGroupRooms().filter(room => room.type === '1:8').length}개</span>
+        <span>칸을 누르면 아래 목록이 그 교시로 좁혀져</span>
+      </span>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;padding:11px 12px">${cells}</div>
+  </div>`;
+}
+
 function renderScaStep1Board() {
   const panel = document.getElementById('sca-panel-step1');
   if (!panel) return;
-  panel.innerHTML = renderScaStudentBoard() + renderScaGroupClassList();
+  panel.innerHTML = renderScaPeriodBoard() + renderScaStudentBoard() + renderScaGroupClassList();
 }
 let _scaOnePick = null; // { studentId, sequence, subjectId } — 지금 고른 1:1 수업
 
@@ -6700,54 +6847,45 @@ function getGroupStudentFreePeriods(group) {
   return periods;
 }
 
-// 팝업에 뿌릴 강사 목록. 교시가 아직 안 정해졌으니 교시를 훑어서 강사마다 「가능한 교시」를 모은다.
-// 교시별로 한 번씩만 후보를 뽑고(강사 수 × 교시 수가 아니라 교시 수만큼) 강사별로 다시 묶는다.
-function getTeacherAssignCandidates(group) {
+// 교시 후보. 순서를 교시 → 강의실 → 강사로 잡은 이유는 셋의 희소성이 다르기 때문이다 —
+// 어느 교시든 배정 가능한 강사는 스물넷을 넘지만, 그룹 강의실은 전부 아홉 개고
+// 붐비는 교시엔 한 칸까지 줄어든다. 흔한 것을 먼저 고르게 하면 공들여 강사를 정한 뒤에
+// 방이 없다는 걸 알게 된다.
+function getTeacherAssignPeriodRows(group) {
   const need = Math.max(1, (group.studentIds || []).length);
-  const freePeriods = getGroupStudentFreePeriods(group);
-  const roomOk = new Set(freePeriods.filter(period =>
-    getGroupPlacementRoomOptions(group.classType, period, need, group.id).some(option => option.ok)));
+  const total = getScaTotalPeriods();
+  const rows = [];
+  for (let period = 1; period <= total; period += 1) {
+    const clash = getGroupStudentsClashingAtPeriod(group, period);
+    if (clash.length) {
+      const names = clash.slice(0, 2).map(student => student.nick || student.name).join('·');
+      rows.push({
+        period, ok: false, rooms: 0, teachers: 0,
+        reason: `${names}${clash.length > 2 ? ` 외 ${clash.length - 2}명` : ''} 다른 수업 중`
+      });
+      continue;
+    }
+    const rooms = getGroupPlacementRoomOptions(group.classType, period, need, group.id).filter(option => option.ok).length;
+    const teachers = getGroupPlacementTeacherOptions(group.classType, period, group.id, group).filter(option => option.ok).length;
+    if (!rooms) { rows.push({ period, ok: false, rooms: 0, teachers, reason: '빈 강의실이 없어' }); continue; }
+    if (!teachers) { rows.push({ period, ok: false, rooms, teachers: 0, reason: '가능한 강사가 없어' }); continue; }
+    rows.push({ period, ok: true, rooms, teachers });
+  }
+  return rows;
+}
 
-  const byTeacher = new Map();
-  freePeriods.forEach(period => {
-    getGroupPlacementTeacherOptions(group.classType, period, group.id, group).forEach(option => {
-      let row = byTeacher.get(option.teacher.id);
-      if (!row) {
-        row = { teacher: option.teacher, fit: option.fit, open: [], overridable: [], reasons: new Set() };
-        byTeacher.set(option.teacher.id, row);
-      }
-      if (!roomOk.has(period)) { row.reasons.add(`${period}교시 — 빈 강의실이 없어`); return; }
-      if (option.ok) row.open.push(period);
-      else if (option.overridable) row.overridable.push({ period, reason: option.reason });
-      else row.reasons.add(option.reason);
-    });
-  });
-
-  const rows = [...byTeacher.values()].map(row => {
-    const warnings = row.fit?.warnings || [];
+// 고른 교시의 강사 목록. 적합도 순으로 세우고, 못 고르는 사람도 이유를 붙여 남긴다.
+function getTeacherAssignRowsForPeriod(group, period) {
+  return getGroupPlacementTeacherOptions(group.classType, period, group.id, group).map(option => {
+    const warnings = option.fit?.warnings || [];
     let tier = 'blocked';
-    if (row.open.length) tier = warnings.length ? 'warn' : 'ok';
-    else if (row.overridable.length) tier = 'warn';
-    return { ...row, warnings, tier, reasons: [...row.reasons] };
+    if (option.ok) tier = warnings.length ? 'warn' : 'ok';
+    else if (option.overridable) tier = 'warn';
+    return { teacher: option.teacher, fit: option.fit, warnings, tier, ok: option.ok, reason: option.reason };
   });
-
-  const tierOrder = { ok: 0, warn: 1, blocked: 2 };
-  return rows.sort((a, b) => tierOrder[a.tier] - tierOrder[b.tier]
-    || (b.fit?.score || 0) - (a.fit?.score || 0)
-    || a.teacher.id - b.teacher.id);
 }
 
-// 고른 강사로 쓸 수 있는 교시. open 이 우선이고, 없으면 넘겨야 하는 교시까지 보여준다.
-function getTeacherAssignPeriodOptions(group, teacherId) {
-  const row = getTeacherAssignCandidates(group).find(item => item.teacher.id === Number(teacherId));
-  if (!row) return [];
-  return [
-    ...row.open.map(period => ({ period, ok: true })),
-    ...row.overridable.map(item => ({ period: item.period, ok: false, reason: item.reason }))
-  ].sort((a, b) => a.period - b.period);
-}
-
-function openTeacherAssignModal(groupId) {
+function openTeacherAssignModal(groupId, presetPeriod) {
   const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(groupId));
   if (!group) return;
   _teacherAssign = { groupId: group.id, teacherId: null, period: null, roomId: null };
@@ -6756,6 +6894,9 @@ function openTeacherAssignModal(groupId) {
     _teacherAssign.teacherId = Number(group.teacherId);
     _teacherAssign.period = Number(group.periods[0]);
     _teacherAssign.roomId = group.roomId != null ? Number(group.roomId) : null;
+  } else if (Number.isFinite(Number(presetPeriod))) {
+    // 교시별 현황에서 칸을 누르고 들어온 경우. 고른 교시를 그대로 물려받는다.
+    _teacherAssign.period = Number(presetPeriod);
   }
   let host = document.getElementById('teacher-assign-modal');
   if (!host) {
@@ -6774,21 +6915,13 @@ function closeTeacherAssignModal() {
   _teacherAssign = null;
 }
 
-function pickTeacherAssign(teacherId) {
-  if (!_teacherAssign) return;
-  const next = Number(teacherId);
-  _teacherAssign.teacherId = _teacherAssign.teacherId === next ? null : next;
-  // 강사가 바뀌면 그 사람이 가능한 교시도 달라진다. 교시·강의실 선택을 비운다.
-  _teacherAssign.period = null;
-  _teacherAssign.roomId = null;
-  renderTeacherAssignModal();
-}
-
 function pickTeacherAssignPeriod(period) {
   if (!_teacherAssign) return;
   const next = Number(period);
   _teacherAssign.period = _teacherAssign.period === next ? null : next;
+  // 교시가 바뀌면 그 시간에 비는 방도, 가능한 강사도 달라진다. 아래 두 칸을 비운다.
   _teacherAssign.roomId = null;
+  _teacherAssign.teacherId = null;
   renderTeacherAssignModal();
 }
 
@@ -6796,6 +6929,13 @@ function pickTeacherAssignRoom(roomId) {
   if (!_teacherAssign) return;
   const next = Number(roomId);
   _teacherAssign.roomId = _teacherAssign.roomId === next ? null : next;
+  renderTeacherAssignModal();
+}
+
+function pickTeacherAssign(teacherId) {
+  if (!_teacherAssign) return;
+  const next = Number(teacherId);
+  _teacherAssign.teacherId = _teacherAssign.teacherId === next ? null : next;
   renderTeacherAssignModal();
 }
 
@@ -6817,87 +6957,104 @@ function renderTeacherAssignModal() {
   if (!group) { closeTeacherAssignModal(); return; }
 
   const studentCount = (group.studentIds || []).length;
-  const candidates = getTeacherAssignCandidates(group);
-  const picked = candidates.find(row => row.teacher.id === _teacherAssign.teacherId) || null;
+  const need = Math.max(1, studentCount);
   const recommended = findBestPlacementForGroup(group, getScaTotalPeriods());
+  const period = _teacherAssign.period;
 
-  const sectionHead = (title, hint) => `<div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 7px">
+  const sectionHead = (index, title, hint) => `<div style="display:flex;align-items:baseline;gap:8px;margin:0 0 7px">
+    <span style="flex:0 0 auto;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#EEF2FF;color:#4338CA;font-size:9.5px;font-weight:800">${index}</span>
     <b style="font-size:11px;font-weight:800;color:#6B7280;letter-spacing:.3px">${title}</b>
     ${hint ? `<span style="font-size:10px;color:#9CA3AF">${hint}</span>` : ''}
   </div>`;
 
+  // ── 1 · 교시 ────────────────────────────────────────────
+  const periodRows = getTeacherAssignPeriodRows(group);
+  const periodChips = periodRows.map(row => {
+    const on = period === row.period;
+    const star = recommended && recommended.period === row.period;
+    const tint = row.ok ? (row.rooms <= 1 ? '#B45309' : '#6B7280') : '#C4C9D4';
+    return `<button ${row.ok ? `onclick="pickTeacherAssignPeriod(${row.period})"` : 'disabled'} title="${lessonEsc(row.reason || '')}" style="flex:0 0 auto;text-align:left;border:1px solid ${on ? '#5E5CE6' : (row.ok ? '#D1D5DB' : '#F3F4F6')};border-radius:9px;padding:6px 10px;margin:0 5px 5px 0;background:${on ? '#5E5CE6' : (row.ok ? '#fff' : '#FAFAFB')};cursor:${row.ok ? 'pointer' : 'not-allowed'}">
+      <span style="display:block;font-size:11px;font-weight:700;color:${on ? '#fff' : (row.ok ? '#111827' : '#C4C9D4')}">${star ? '★ ' : ''}${row.period}교시</span>
+      <span style="display:block;margin-top:1px;font-size:9px;font-weight:700;color:${on ? 'rgba(255,255,255,.85)' : tint}">${row.ok ? `방 ${row.rooms} · 강사 ${row.teachers}` : lessonEsc(row.reason)}</span>
+    </button>`;
+  }).join('');
+
+  // ── 2 · 강의실 ──────────────────────────────────────────
+  let roomHtml = '<div style="font-size:11px;color:#9CA3AF">교시를 고르면 그 시간에 비는 방만 남아.</div>';
+  if (period != null) {
+    const rooms = getGroupPlacementRoomOptions(group.classType, period, need, group.id);
+    const okRooms = rooms.filter(option => option.ok);
+    const blocked = rooms.filter(option => !option.ok);
+    const chips = okRooms.map(option => {
+      const on = _teacherAssign.roomId === option.room.id;
+      const star = recommended && recommended.period === period && recommended.room.id === option.room.id;
+      // 1:4 반이 8석 방을 쓰면 중그룹실 한 칸이 줄어든다. 붐빌 땐 이게 다음 반을 막는다.
+      const oversize = group.classType === '1:4' && option.room.type === '1:8';
+      return `<button onclick="pickTeacherAssignRoom(${option.room.id})" style="border:1px solid ${on ? '#5E5CE6' : (oversize ? '#FCD34D' : '#D1D5DB')};border-radius:8px;padding:6px 12px;margin:0 5px 5px 0;background:${on ? '#5E5CE6' : (oversize ? '#FFFBEB' : '#fff')};color:${on ? '#fff' : (oversize ? '#B45309' : '#111827')};font-size:11px;font-weight:700;cursor:pointer">${star ? '★ ' : ''}${lessonEsc(option.room.roomNo)} · ${option.room.capacity}석${oversize ? ' · 중그룹실' : ''}</button>`;
+    }).join('');
+    // 「이 유형에는 못 쓰는 방」은 교시와 상관없는 사실이라 여기 적으면 매번 같은 다섯 줄이 깔린다.
+    // 이 자리에 필요한 건 「쓸 수 있는 방인데 지금 누가 차지하고 있다」뿐이다.
+    const taken = blocked.filter(option => !/못 쓰는 강의실/.test(option.reason || ''));
+    const blockedHtml = taken.length
+      ? `<div style="margin-top:5px;font-size:9.5px;color:#9CA3AF;line-height:1.7">${taken.slice(0, 4).map(option => `${lessonEsc(option.room.roomNo)} — ${lessonEsc(option.reason)}`).join('<br>')}${taken.length > 4 ? `<br>외 ${taken.length - 4}개` : ''}</div>`
+      : '';
+    roomHtml = (chips || `<span style="font-size:11px;color:#B45309">${period}교시에 ${need}명이 들어갈 빈 강의실이 없어.</span>`) + blockedHtml;
+  }
+
+  // ── 3 · 강사 ────────────────────────────────────────────
   const teacherRow = row => {
     const selected = row.teacher.id === _teacherAssign.teacherId;
     const blocked = row.tier === 'blocked';
-    const star = recommended && recommended.teacher.id === row.teacher.id ? '<span style="color:#5E5CE6;font-weight:900">★ </span>' : '';
-    const periodChips = [...row.open, ...row.overridable.map(item => item.period)]
-      .sort((a, b) => a - b)
-      .map(period => `<span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:7px;margin-right:3px;background:${row.open.includes(period) ? '#EEF2FF' : '#F3F4F6'};color:${row.open.includes(period) ? '#4338CA' : '#9CA3AF'}">${period}</span>`)
-      .join('');
+    const star = recommended && recommended.period === period && recommended.teacher.id === row.teacher.id;
     const why = blocked
-      ? `<span style="font-size:10.5px;color:#9CA3AF">${lessonEsc(row.reasons[0] || '배정할 수 없어')}</span>`
-      : `${(row.fit?.badges || []).map(badge => teacherAssignBadge(badge.tone, badge.text)).join('')}${row.warnings.map(text => teacherAssignBadge('warn', text)).join('')}${row.overridable.length && !row.open.length ? teacherAssignBadge('warn', row.overridable[0].reason) : ''}`;
+      ? `<span style="font-size:10.5px;color:#9CA3AF">${lessonEsc(row.reason || '배정할 수 없어')}</span>`
+      : `${(row.fit?.badges || []).map(badge => teacherAssignBadge(badge.tone, badge.text)).join('')}${row.warnings.map(text => teacherAssignBadge('warn', text)).join('')}${row.ok ? '' : teacherAssignBadge('warn', row.reason || '넘기고 배정')}`;
     return `<button ${blocked ? 'disabled' : `onclick="pickTeacherAssign(${row.teacher.id})"`} style="width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;padding:9px 11px;margin-bottom:5px;border:1px solid ${selected ? '#5E5CE6' : '#E5E7EB'};border-radius:9px;background:${selected ? '#F5F3FF' : '#fff'};cursor:${blocked ? 'not-allowed' : 'pointer'};opacity:${blocked ? .55 : 1}">
       <span style="flex:1;min-width:0">
-        <span style="display:block;font-size:11.5px;font-weight:700;color:#111827">${star}${lessonEsc(row.teacher.nick || row.teacher.name)}<span style="font-weight:400;color:#9CA3AF"> · ${lessonEsc((row.teacher.classTypes || []).join('·') || '-')}</span></span>
+        <span style="display:block;font-size:11.5px;font-weight:700;color:#111827">${star ? '<span style="color:#5E5CE6;font-weight:900">★ </span>' : ''}${lessonEsc(row.teacher.nick || row.teacher.name)}<span style="font-weight:400;color:#9CA3AF"> · ${lessonEsc((row.teacher.classTypes || []).join('·') || '-')}</span></span>
         <span style="display:block;margin-top:3px">${why}</span>
       </span>
-      ${blocked ? '' : `<span style="flex:0 0 auto;text-align:right"><span style="display:block;font-size:9px;color:#9CA3AF;margin-bottom:2px">가능 교시</span>${periodChips || '<span style="font-size:10px;color:#9CA3AF">없음</span>'}</span>`}
     </button>`;
   };
 
-  const byTier = tier => candidates.filter(row => row.tier === tier);
-  const listHtml = [
-    byTier('ok').length ? sectionHead('배정 가능', '이 반에 잘 맞는 순서') + byTier('ok').map(teacherRow).join('') : '',
-    byTier('warn').length ? sectionHead('조건부', '넘기고 배정할 수 있어') + byTier('warn').map(teacherRow).join('') : '',
-    byTier('blocked').length ? sectionHead('배정 불가') + byTier('blocked').map(teacherRow).join('') : ''
-  ].join('');
-
-  // 강사를 고른 뒤에야 교시가 좁혀진다. 그 전에는 무엇을 고를지 알 수 없어 보여주지 않는다.
-  let stepHtml = '<div style="font-size:11px;color:#9CA3AF;padding:10px 0">강사를 먼저 고르면 교시와 강의실 후보가 좁혀져.</div>';
-  if (picked) {
-    const periodOptions = getTeacherAssignPeriodOptions(group, picked.teacher.id);
-    const periodChips = periodOptions.map(option => {
-      const on = _teacherAssign.period === option.period;
-      const star = recommended && recommended.period === option.period && recommended.teacher.id === picked.teacher.id;
-      return `<button onclick="pickTeacherAssignPeriod(${option.period})" title="${lessonEsc(option.reason || '')}" style="border:1px solid ${on ? '#5E5CE6' : (option.ok ? '#D1D5DB' : '#FCD34D')};border-radius:8px;padding:6px 12px;margin:0 5px 5px 0;background:${on ? '#5E5CE6' : (option.ok ? '#fff' : '#FFFBEB')};color:${on ? '#fff' : (option.ok ? '#111827' : '#B45309')};font-size:11px;font-weight:700;cursor:pointer">${star ? '★ ' : ''}${option.period}교시</button>`;
-    }).join('') || '<span style="font-size:11px;color:#9CA3AF">이 강사로 쓸 수 있는 교시가 없어.</span>';
-
-    let roomHtml = '<div style="font-size:11px;color:#9CA3AF">교시를 고르면 그 시간에 비는 강의실만 남아.</div>';
-    if (_teacherAssign.period != null) {
-      const need = Math.max(1, studentCount);
-      const rooms = getGroupPlacementRoomOptions(group.classType, _teacherAssign.period, need, group.id);
-      const okRooms = rooms.filter(option => option.ok);
-      roomHtml = okRooms.map(option => {
-        const on = _teacherAssign.roomId === option.room.id;
-        const star = recommended && recommended.room.id === option.room.id && recommended.period === _teacherAssign.period;
-        return `<button onclick="pickTeacherAssignRoom(${option.room.id})" style="border:1px solid ${on ? '#5E5CE6' : '#D1D5DB'};border-radius:8px;padding:6px 12px;margin:0 5px 5px 0;background:${on ? '#5E5CE6' : '#fff'};color:${on ? '#fff' : '#111827'};font-size:11px;font-weight:700;cursor:pointer">${star ? '★ ' : ''}${lessonEsc(option.room.roomNo)} · ${option.room.capacity}석</button>`;
-      }).join('') || `<span style="font-size:11px;color:#B45309">${_teacherAssign.period}교시에 ${need}명이 들어갈 빈 강의실이 없어.</span>`;
-    }
-
-    stepHtml = `<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:#6B7280;margin-bottom:6px">교시 <span style="font-weight:400;color:#9CA3AF">— ${lessonEsc(picked.teacher.nick || picked.teacher.name)}가 가능하고 학생 전원이 비는 교시</span></div>${periodChips}</div>
-      <div><div style="font-size:11px;font-weight:800;color:#6B7280;margin-bottom:6px">강의실 <span style="font-weight:400;color:#9CA3AF">— ${studentCount}명이 들어가고 그 교시에 비는 방</span></div>${roomHtml}</div>`;
+  let teacherHtml = '<div style="font-size:11px;color:#9CA3AF">교시를 고르면 그 시간에 가능한 강사만 남아.</div>';
+  if (period != null) {
+    const rows = getTeacherAssignRowsForPeriod(group, period);
+    const byTier = tier => rows.filter(row => row.tier === tier);
+    teacherHtml = [
+      byTier('ok').length ? sectionHead('·', '배정 가능', '이 반에 잘 맞는 순서') + byTier('ok').map(teacherRow).join('') : '',
+      byTier('warn').length ? sectionHead('·', '조건부', '넘기고 배정할 수 있어') + byTier('warn').map(teacherRow).join('') : '',
+      byTier('blocked').length ? sectionHead('·', '배정 불가') + byTier('blocked').map(teacherRow).join('') : ''
+    ].join('') || '<div style="font-size:11px;color:#9CA3AF">이 교시에 고를 수 있는 강사가 없어.</div>';
   }
 
-  const ready = Boolean(_teacherAssign.teacherId && _teacherAssign.period != null && _teacherAssign.roomId != null);
-  const overrideNeeded = picked && _teacherAssign.period != null
-    && !picked.open.includes(_teacherAssign.period);
+  const ready = Boolean(_teacherAssign.teacherId && period != null && _teacherAssign.roomId != null);
+  const pickedTeacher = period != null && _teacherAssign.teacherId != null
+    ? getTeacherAssignRowsForPeriod(group, period).find(row => row.teacher.id === _teacherAssign.teacherId)
+    : null;
+  const overrideNeeded = Boolean(pickedTeacher && !pickedTeacher.ok);
+
+  const panel = body => `<div style="padding:11px 13px;border:1px solid #E5E7EB;border-radius:11px;background:#F9FAFB;margin-bottom:8px">${body}</div>`;
 
   host.innerHTML = `<div style="width:min(760px,96vw);max-height:92vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:15px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:10px">
       <div style="flex:1;min-width:0">
-        <h3 style="font-size:15px;margin:0;color:#111827">강사 배정 — ${lessonEsc(getGroupDisplayName(group))}</h3>
+        <h3 style="font-size:15px;margin:0;color:#111827">수업 배정 — ${lessonEsc(getGroupDisplayName(group))}</h3>
         <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${lessonEsc(group.course || '-')} · ${lessonEsc(group.classType)} · 학생 ${studentCount}명 · 월~금</div>
       </div>
       <button onclick="closeTeacherAssignModal()" style="border:0;background:none;font-size:20px;color:#6B7280;cursor:pointer">×</button>
     </div>
     <div style="padding:14px 20px;overflow:auto;flex:1">
-      ${studentCount === 0 ? '<div style="padding:10px 12px;border-radius:9px;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:11px;line-height:1.7;margin-bottom:10px"><b>이 반에는 아직 학생이 없어.</b><br>인원이 정해져야 들어갈 강의실을 고를 수 있어서, 지금 배정하면 강의실 추천은 근거가 없어. 위쪽 <b>반 없는 학생</b>에서 먼저 넣어줘.</div>' : ''}
-      <div style="padding:11px 13px;border:1px solid #E5E7EB;border-radius:11px;background:#F9FAFB;margin-bottom:6px">${stepHtml}</div>
-      ${listHtml || '<div style="font-size:11px;color:#9CA3AF;padding:10px 0">고를 수 있는 강사가 없어.</div>'}
+      ${studentCount === 0 ? '<div style="padding:10px 12px;border-radius:9px;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:11px;line-height:1.7;margin-bottom:10px"><b>이 반에는 아직 학생이 없어.</b><br>인원이 정해져야 들어갈 강의실을 고를 수 있어서, 지금 배정하면 강의실 추천은 근거가 없어. 위쪽 <b>그룹 수업 배정</b>에서 학생을 먼저 넣어줘.</div>' : ''}
+      ${panel(sectionHead(1, '교시', '학생 전원이 비는 시간 · 방과 강사가 몇 개 남았는지 같이 보여') + `<div style="display:flex;flex-wrap:wrap">${periodChips}</div>`)}
+      ${panel(sectionHead(2, '강의실', studentCount ? `${studentCount}명이 들어가고 그 교시에 비는 방` : '그 교시에 비는 방') + roomHtml)}
+      <div style="padding:11px 13px;border:1px solid #E5E7EB;border-radius:11px;background:#fff">
+        ${sectionHead(3, '강사', period != null ? `${period}교시에 수업할 수 있는 사람` : '')}
+        ${teacherHtml}
+      </div>
     </div>
     <div style="padding:12px 20px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;align-items:center;gap:8px">
-      <span style="flex:1;font-size:10.5px;color:${overrideNeeded ? '#B45309' : '#9CA3AF'}">${overrideNeeded ? '⚠ 넘기고 배정하는 시간이야. 확정하면 그대로 들어가.' : (ready ? '강사 · 교시 · 강의실이 다 정해졌어.' : '강사 → 교시 → 강의실 순으로 골라줘.')}</span>
+      <span style="flex:1;font-size:10.5px;color:${overrideNeeded ? '#B45309' : '#9CA3AF'}">${overrideNeeded ? '⚠ 넘기고 배정하는 강사야. 확정하면 그대로 들어가.' : (ready ? '교시 · 강의실 · 강사가 다 정해졌어.' : '교시 → 강의실 → 강사 순으로 골라줘.')}</span>
       <button class="tsa-btn tsa-btn-outline" onclick="closeTeacherAssignModal()">취소</button>
       <button class="tsa-btn tsa-btn-primary" ${ready ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} onclick="confirmTeacherAssign()">배정 확정</button>
     </div>
