@@ -2417,7 +2417,7 @@ function scaStudentBoardRow(row, done) {
         <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
       </span>
     </span>
-    <span style="flex:0 0 30px;padding-top:3px"><button onclick="cycleStudentTimetable(${row.student.id})" title="시간표 — 누르면 다음 조로 바꿔" style="border:0;background:none;padding:0;cursor:pointer">${timetableCodeChip(getTimetableById(row.student.timetableId))}</button></span>
+    <span style="flex:0 0 30px;padding-top:3px" title="시간표 — 학생 시간표 배정 화면에서 정한다">${timetableCodeChip(getTimetableById(row.student.timetableId))}</span>
     <span style="flex:0 0 92px;min-width:0;padding-top:3px">${row.student.level
       ? `<span style="display:inline-block;max-width:100%;font-size:10.5px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(row.student.level)}</span>`
       : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
@@ -2811,23 +2811,6 @@ function renderScaPeriodBoard() {
   </div>`;
 }
 
-// ─────────────────────────────────────────────────────────────
-// 시간표 배정 — 학생을 A조·B조에 넣는 자리.
-//
-// 반 배정보다 먼저다. 조가 정해져야 그 학생의 5교시가 몇 시인지 정해지고,
-// 그래야 어느 반에 넣을 수 있는지도 정해진다. 그래서 1단계 맨 위에 둔다.
-// ─────────────────────────────────────────────────────────────
-function getScaWeekTimetableRows() {
-  const students = typeof getScaWeekStudents === 'function' ? getScaWeekStudents() : [];
-  const arrivals = new Set((typeof getScaWeekArrivals === 'function' ? getScaWeekArrivals() : []).map(student => student.id));
-  return students.map(student => ({
-    student,
-    timetable: getTimetableById(student.timetableId),
-    isNew: arrivals.has(student.id),
-    justAssigned: isRecentlyAssignedTimetable(student.id)
-  }));
-}
-
 // 과정이 기본 조를 들고 있으면 그걸 쓰고, 없으면 기본 시간표로 간다.
 function getStudentDefaultTimetableId(student) {
   const course = MOCK_COURSES.find(item => item.name === student?.course);
@@ -2877,22 +2860,11 @@ function assignStudentTimetable(studentId, timetableId) {
   refreshTimetableAssignViews();
 }
 
-// 배정된 칩을 누르면 다음 시간표로 넘어간다. 조가 둘뿐이라 A ↔ B가 한 번에 바뀐다.
-function cycleStudentTimetable(studentId) {
-  const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
-  if (!student) return;
-  const list = getTimetables().filter(item => item.active !== false);
-  if (!list.length) return;
-  const index = list.findIndex(item => item.id === student.timetableId);
-  assignStudentTimetable(student.id, list[(index + 1) % list.length].id);
-}
-
-// source='stt' 면 시간표 배정 화면에서 부른 것 — 그 화면이 보고 있는 범위(전원/이번 주)를 따른다.
-function assignAllWaitingTimetable(timetableId, source) {
+// 시간표 배정 화면이 보고 있는 범위(전원/이번 주)를 그대로 따른다.
+function assignAllWaitingTimetable(timetableId) {
   const timetable = getTimetableById(timetableId);
   if (!timetable) return;
-  const waiting = (source === 'stt' ? getStudentTimetableRows() : getScaWeekTimetableRows())
-    .filter(row => !row.timetable);
+  const waiting = getStudentTimetableRows().filter(row => !row.timetable);
   if (!waiting.length) return;
   if (!window.confirm(`대기 ${waiting.length}명을 전부 ${timetable.name}에 넣을까?`)) return;
   waiting.forEach(row => {
@@ -2906,61 +2878,6 @@ function assignAllWaitingTimetable(timetableId, source) {
 function timetableCodeChip(timetable, extra) {
   if (!timetable) return `<span style="display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;background:#FEE2E2;color:#DC2626;${extra || ''}">대기</span>`;
   return `<span title="${lessonEsc(timetable.name)}" style="display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;background:#EEF2FF;color:#4338CA;${extra || ''}">${lessonEsc(timetable.code || timetable.name)}</span>`;
-}
-
-function renderScaTimetableBoard() {
-  ensureStudentTimetableSeed();
-  const rows = getScaWeekTimetableRows();
-  const list = getTimetables().filter(item => item.active !== false);
-  if (!list.length || !rows.length) return '';
-  // 방금 넣은 학생도 이 줄에 남긴다. 누르자마자 칩이 사라지면 잘못 넣었을 때 되돌릴 데가 없다.
-  const waiting = rows.filter(row => !row.timetable || row.justAssigned);
-  const pending = waiting.filter(row => !row.timetable);
-
-  const counts = list.map(timetable => {
-    const count = rows.filter(row => row.timetable?.id === timetable.id).length;
-    const lunch = getTimetableLunchRow(timetable);
-    const noon = getTimetablePeriodRows(timetable).find(row => Number(row.p) === 5);
-    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid #E5E7EB;border-radius:9px;background:#fff">
-      ${timetableCodeChip(timetable)}
-      <b style="font-size:11px;color:#111827">${count}명</b>
-      <span style="font-size:9.5px;color:#9CA3AF">점심 ${lessonEsc(lunch ? lunch.start : '-')}${noon ? ` · 5교시 ${lessonEsc(noon.start)}` : ''}</span>
-    </span>`;
-  }).join('');
-
-  // 대기 학생만 줄로 세운다. 이미 조가 있는 학생은 아래 「그룹 수업 배정」 줄의 칩에서 바꾼다 —
-  // 여기까지 전원을 늘어놓으면 같은 명단이 화면에 두 번 나온다.
-  const waitingHtml = waiting.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px">
-        ${waiting.map(row => {
-          const done = Boolean(row.timetable);
-          return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 5px 4px 9px;border:1px ${done ? 'solid #A7F3D0' : 'dashed #FCA5A5'};border-radius:999px;background:${done ? '#F0FDF4' : '#FEF2F2'}">
-          <b style="font-size:10.5px;color:${done ? '#047857' : '#B91C1C'}">${done ? '✓ ' : ''}${lessonEsc(row.student.nick || row.student.name)}</b>
-          ${row.isNew ? '<span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
-          <span style="font-size:9.5px;color:#9CA3AF">${lessonEsc(done ? `${row.timetable.code || row.timetable.name}조` : (row.student.course || '-'))}</span>
-          ${done
-            ? `<button onclick="undoStudentTimetable(${row.student.id})" title="되돌리기" style="border:0;border-radius:6px;padding:2px 7px;background:#fff;border:1px solid #A7F3D0;color:#047857;font-size:9.5px;font-weight:800;cursor:pointer">되돌리기</button>`
-            : list.map(timetable => `<button onclick="assignStudentTimetable(${row.student.id},'${lessonEsc(timetable.id)}')" title="${lessonEsc(timetable.name)}로 배정" style="border:0;border-radius:6px;padding:2px 7px;background:#4338CA;color:#fff;font-size:9.5px;font-weight:800;cursor:pointer">${lessonEsc(timetable.code || timetable.name)}</button>`).join('')}
-        </span>`;
-        }).join('')}
-      </div>`
-    : '<div style="padding:10px 12px;font-size:11px;font-weight:700;color:#047857;background:#F0FDF4">이번 주 학생 전원이 시간표를 받았어.</div>';
-
-  return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
-      <b style="font-size:11.5px;color:#111827">시간표 배정</b>
-      ${pending.length
-        ? `<span style="font-size:10.5px;font-weight:700;color:#DC2626">대기 ${pending.length}명</span>`
-        : '<span style="font-size:10.5px;font-weight:700;color:#047857">전원 배정</span>'}
-      <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:6px">${counts}</span>
-      <span style="margin-left:auto;display:inline-flex;gap:5px;flex-wrap:wrap">
-        ${pending.length ? list.map(timetable =>
-          `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 10px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">대기 전부 ${lessonEsc(timetable.code || timetable.name)}조</button>`).join('') : ''}
-        <button onclick="navigate('student-timetable')" style="border:1px solid #C7D2FE;border-radius:7px;padding:4px 10px;background:#EEF2FF;color:#4338CA;font-size:10px;font-weight:700;cursor:pointer">시간표 배정 화면 →</button>
-      </span>
-    </div>
-    ${waitingHtml}
-  </div>`;
 }
 
 // 데모 시드: 과정으로 조를 나누되, 이번 주 신규 학생은 아직 조가 없는 상태로 둔다.
@@ -3104,7 +3021,7 @@ function renderStudentTimetableView(keepFocus) {
       <b style="font-size:11.5px;color:#B91C1C">대기 ${waiting.length}명</b>
       <span style="font-size:10.5px;color:#8A90A2">${lessonEsc(waiting.slice(0, 6).map(row => row.student.nick || row.student.name).join(' · '))}${waiting.length > 6 ? ` 외 ${waiting.length - 6}명` : ''}</span>
       <span style="margin-left:auto;display:inline-flex;gap:5px">${list.map(timetable =>
-        `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}','stt')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 11px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전부 ${lessonEsc(timetable.code || timetable.name)}조로</button>`).join('')}</span>
+        `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 11px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전부 ${lessonEsc(timetable.code || timetable.name)}조로</button>`).join('')}</span>
     </div>` : ''}
 
     ${justAssigned.length ? `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 13px;border:1px solid #A7F3D0;border-radius:11px;background:#F0FDF4;margin-bottom:14px">
@@ -3154,7 +3071,9 @@ function ensureStudentTimetableSeed() {
 function renderScaStep1Board() {
   const panel = document.getElementById('sca-panel-step1');
   if (!panel) return;
-  panel.innerHTML = renderScaTimetableBoard() + renderScaPeriodBoard()
+  // 조는 「학생 시간표 배정」 화면에서 정한다. 여기서는 학생 줄의 A/B 칩으로 읽기만 한다.
+  ensureStudentTimetableSeed();
+  panel.innerHTML = renderScaPeriodBoard()
     + renderScaStudentBoard() + renderScaGroupClassList();
 }
 let _scaOnePick = null; // { studentId, sequence, subjectId } — 지금 고른 1:1 수업
