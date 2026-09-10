@@ -121,7 +121,8 @@ function navigate(view) {
   } else if (view === 'student-class-assign') {
     if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
   } else if (view === 'student-timetable') {
-    if (typeof renderStudentTimetableView === 'function') renderStudentTimetableView();
+    if (typeof openStudentTimetableView === 'function') openStudentTimetableView();
+    else if (typeof renderStudentTimetableView === 'function') renderStudentTimetableView();
   } else if (view === 'class-schedule') {
     initClassSchedule();
   } else if (view === 'classroom-manage') {

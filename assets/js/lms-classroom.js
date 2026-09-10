@@ -2823,7 +2823,8 @@ function getScaWeekTimetableRows() {
   return students.map(student => ({
     student,
     timetable: getTimetableById(student.timetableId),
-    isNew: arrivals.has(student.id)
+    isNew: arrivals.has(student.id),
+    justAssigned: isRecentlyAssignedTimetable(student.id)
   }));
 }
 
@@ -2841,10 +2842,36 @@ function refreshTimetableAssignViews() {
   if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
 }
 
+// 방금 조를 정해준 학생. 누른 순간 목록에서 사라지면 방금 어느 줄을 눌렀는지 알 수 없고,
+// 잘못 눌렀을 때 되돌릴 자리도 같이 없어진다. 그래서 화면을 다시 열 때까지 제자리를 지킨다.
+// 값은 「누르기 전의 조」 — 되돌리기가 그걸 그대로 쓴다.
+let _sttRecent = new Map();
+
+function isRecentlyAssignedTimetable(studentId) {
+  return _sttRecent.has(Number(studentId));
+}
+
+function clearRecentTimetableAssignments() {
+  if (!_sttRecent.size) return;
+  _sttRecent = new Map();
+  refreshTimetableAssignViews();
+}
+
+function undoStudentTimetable(studentId) {
+  const id = Number(studentId);
+  const student = MOCK_STUDENTS.find(item => item.id === id);
+  if (!student || !_sttRecent.has(id)) return;
+  student.timetableId = _sttRecent.get(id) || null;
+  _sttRecent.delete(id);
+  showToast(`${student.nick || student.name} 학생 배정을 되돌렸어.`, 'info');
+  refreshTimetableAssignViews();
+}
+
 function assignStudentTimetable(studentId, timetableId) {
   const student = MOCK_STUDENTS.find(item => item.id === Number(studentId));
   const timetable = getTimetableById(timetableId);
   if (!student || !timetable) return;
+  if (!_sttRecent.has(student.id)) _sttRecent.set(student.id, student.timetableId || null);
   student.timetableId = timetable.id;
   showToast(`✓ ${student.nick || student.name} 학생을 ${timetable.name}에 넣었어.`, 'success');
   refreshTimetableAssignViews();
@@ -2868,7 +2895,10 @@ function assignAllWaitingTimetable(timetableId, source) {
     .filter(row => !row.timetable);
   if (!waiting.length) return;
   if (!window.confirm(`대기 ${waiting.length}명을 전부 ${timetable.name}에 넣을까?`)) return;
-  waiting.forEach(row => { row.student.timetableId = timetable.id; });
+  waiting.forEach(row => {
+    if (!_sttRecent.has(row.student.id)) _sttRecent.set(row.student.id, row.student.timetableId || null);
+    row.student.timetableId = timetable.id;
+  });
   showToast(`✓ ${waiting.length}명을 ${timetable.name}에 넣었어.`, 'success');
   refreshTimetableAssignViews();
 }
@@ -2883,7 +2913,9 @@ function renderScaTimetableBoard() {
   const rows = getScaWeekTimetableRows();
   const list = getTimetables().filter(item => item.active !== false);
   if (!list.length || !rows.length) return '';
-  const waiting = rows.filter(row => !row.timetable);
+  // 방금 넣은 학생도 이 줄에 남긴다. 누르자마자 칩이 사라지면 잘못 넣었을 때 되돌릴 데가 없다.
+  const waiting = rows.filter(row => !row.timetable || row.justAssigned);
+  const pending = waiting.filter(row => !row.timetable);
 
   const counts = list.map(timetable => {
     const count = rows.filter(row => row.timetable?.id === timetable.id).length;
@@ -2900,24 +2932,29 @@ function renderScaTimetableBoard() {
   // 여기까지 전원을 늘어놓으면 같은 명단이 화면에 두 번 나온다.
   const waitingHtml = waiting.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px">
-        ${waiting.map(row => `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 5px 4px 9px;border:1px dashed #FCA5A5;border-radius:999px;background:#FEF2F2">
-          <b style="font-size:10.5px;color:#B91C1C">${lessonEsc(row.student.nick || row.student.name)}</b>
+        ${waiting.map(row => {
+          const done = Boolean(row.timetable);
+          return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 5px 4px 9px;border:1px ${done ? 'solid #A7F3D0' : 'dashed #FCA5A5'};border-radius:999px;background:${done ? '#F0FDF4' : '#FEF2F2'}">
+          <b style="font-size:10.5px;color:${done ? '#047857' : '#B91C1C'}">${done ? '✓ ' : ''}${lessonEsc(row.student.nick || row.student.name)}</b>
           ${row.isNew ? '<span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
-          <span style="font-size:9.5px;color:#9CA3AF">${lessonEsc(row.student.course || '-')}</span>
-          ${list.map(timetable => `<button onclick="assignStudentTimetable(${row.student.id},'${lessonEsc(timetable.id)}')" title="${lessonEsc(timetable.name)}로 배정" style="border:0;border-radius:6px;padding:2px 7px;background:#4338CA;color:#fff;font-size:9.5px;font-weight:800;cursor:pointer">${lessonEsc(timetable.code || timetable.name)}</button>`).join('')}
-        </span>`).join('')}
+          <span style="font-size:9.5px;color:#9CA3AF">${lessonEsc(done ? `${row.timetable.code || row.timetable.name}조` : (row.student.course || '-'))}</span>
+          ${done
+            ? `<button onclick="undoStudentTimetable(${row.student.id})" title="되돌리기" style="border:0;border-radius:6px;padding:2px 7px;background:#fff;border:1px solid #A7F3D0;color:#047857;font-size:9.5px;font-weight:800;cursor:pointer">되돌리기</button>`
+            : list.map(timetable => `<button onclick="assignStudentTimetable(${row.student.id},'${lessonEsc(timetable.id)}')" title="${lessonEsc(timetable.name)}로 배정" style="border:0;border-radius:6px;padding:2px 7px;background:#4338CA;color:#fff;font-size:9.5px;font-weight:800;cursor:pointer">${lessonEsc(timetable.code || timetable.name)}</button>`).join('')}
+        </span>`;
+        }).join('')}
       </div>`
     : '<div style="padding:10px 12px;font-size:11px;font-weight:700;color:#047857;background:#F0FDF4">이번 주 학생 전원이 시간표를 받았어.</div>';
 
   return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
       <b style="font-size:11.5px;color:#111827">시간표 배정</b>
-      ${waiting.length
-        ? `<span style="font-size:10.5px;font-weight:700;color:#DC2626">대기 ${waiting.length}명</span>`
+      ${pending.length
+        ? `<span style="font-size:10.5px;font-weight:700;color:#DC2626">대기 ${pending.length}명</span>`
         : '<span style="font-size:10.5px;font-weight:700;color:#047857">전원 배정</span>'}
       <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:6px">${counts}</span>
       <span style="margin-left:auto;display:inline-flex;gap:5px;flex-wrap:wrap">
-        ${waiting.length ? list.map(timetable =>
+        ${pending.length ? list.map(timetable =>
           `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 10px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">대기 전부 ${lessonEsc(timetable.code || timetable.name)}조</button>`).join('') : ''}
         <button onclick="navigate('student-timetable')" style="border:1px solid #C7D2FE;border-radius:7px;padding:4px 10px;background:#EEF2FF;color:#4338CA;font-size:10px;font-weight:700;cursor:pointer">시간표 배정 화면 →</button>
       </span>
@@ -2963,13 +3000,25 @@ function getStudentTimetableRows() {
   return MOCK_STUDENTS
     .filter(student => ['current', 'waiting', 'extended'].includes(student.status))
     .filter(student => !weekIds || weekIds.has(student.id))
-    .map(student => ({ student, timetable: getTimetableById(student.timetableId) }))
-    .sort((a, b) => (a.timetable ? 1 : 0) - (b.timetable ? 1 : 0)
+    .map(student => ({
+      student,
+      timetable: getTimetableById(student.timetableId),
+      justAssigned: isRecentlyAssignedTimetable(student.id)
+    }))
+    // 방금 배정한 학생은 대기 자리에 그대로 둔다 — 누르자마자 줄이 아래로 미끄러지면
+    // 눈이 그 줄을 다시 찾아야 하고, 잘못 눌렀을 때 되돌릴 자리도 사라진다.
+    .sort((a, b) => ((a.timetable && !a.justAssigned) ? 1 : 0) - ((b.timetable && !b.justAssigned) ? 1 : 0)
       || String(a.student.startDate || '').localeCompare(String(b.student.startDate || ''))
       || a.student.id - b.student.id);
 }
 
 const STT_STATUS_LABEL = { current: '재원', waiting: '입학 예정', extended: '연장' };
+
+function openStudentTimetableView() {
+  // 화면을 새로 열 때는 「방금 배정」 표시를 지운다 — 지난번에 뭘 눌렀는지는 이제 알 필요가 없다.
+  _sttRecent = new Map();
+  renderStudentTimetableView();
+}
 
 function renderStudentTimetableView(keepFocus) {
   const host = document.getElementById('student-timetable-body');
@@ -2977,9 +3026,10 @@ function renderStudentTimetableView(keepFocus) {
   const list = getTimetables().filter(item => item.active !== false);
   const rows = getStudentTimetableRows();
   const waiting = rows.filter(row => !row.timetable);
+  const justAssigned = rows.filter(row => row.justAssigned);
 
   const visible = rows.filter(row => {
-    if (_sttFilter === 'waiting' && row.timetable) return false;
+    if (_sttFilter === 'waiting' && row.timetable && !row.justAssigned) return false;
     if (_sttFilter !== 'all' && _sttFilter !== 'waiting' && row.timetable?.id !== _sttFilter) return false;
     if (!_sttSearch) return true;
     const name = `${row.student.nick || ''} ${row.student.name || ''}`.toLowerCase();
@@ -3019,7 +3069,7 @@ function renderStudentTimetableView(keepFocus) {
   const body = visible.map(row => {
     const student = row.student;
     const period = typeof getStudentPeriodText === 'function' ? getStudentPeriodText(student) : '';
-    return `<tr>
+    return `<tr style="${row.justAssigned ? 'background:#F0FDF4' : ''}">
       <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6">
         <span style="display:flex;align-items:center;gap:8px">
           <img src="${lessonEsc(getStudentPhotoSrc(student))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #E5E7EB"/>
@@ -3035,8 +3085,11 @@ function renderStudentTimetableView(keepFocus) {
       <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">
         <span style="font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;background:${student.status === 'waiting' ? '#EEF2FF' : '#F3F4F6'};color:${student.status === 'waiting' ? '#4338CA' : '#6B7280'}">${STT_STATUS_LABEL[student.status] || student.status}</span>
       </td>
-      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">${timetableCodeChip(row.timetable)}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">${timetableCodeChip(row.timetable)}${
+        row.justAssigned ? '<span style="margin-left:5px;font-size:9.5px;font-weight:800;color:#047857">✓ 방금</span>' : ''
+      }</td>
       <td style="padding:9px 12px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap">
+        ${row.justAssigned ? `<button onclick="undoStudentTimetable(${student.id})" style="margin-right:6px;border:1px solid #D1D5DB;border-radius:7px;padding:3px 9px;background:#fff;color:#6B7280;font-size:10px;font-weight:700;cursor:pointer">되돌리기</button>` : ''}
         ${list.map(timetable => {
           const on = row.timetable?.id === timetable.id;
           return `<button ${on ? 'disabled' : `onclick="assignStudentTimetable(${student.id},'${lessonEsc(timetable.id)}')"`} style="margin-left:4px;border:1px solid ${on ? '#E5E7EB' : '#5E5CE6'};border-radius:7px;padding:3px 10px;background:${on ? '#F3F4F6' : '#fff'};color:${on ? '#C4C9D4' : '#5E5CE6'};font-size:10px;font-weight:700;cursor:${on ? 'default' : 'pointer'}">${lessonEsc(timetable.code || timetable.name)}조</button>`;
@@ -3052,6 +3105,13 @@ function renderStudentTimetableView(keepFocus) {
       <span style="font-size:10.5px;color:#8A90A2">${lessonEsc(waiting.slice(0, 6).map(row => row.student.nick || row.student.name).join(' · '))}${waiting.length > 6 ? ` 외 ${waiting.length - 6}명` : ''}</span>
       <span style="margin-left:auto;display:inline-flex;gap:5px">${list.map(timetable =>
         `<button onclick="assignAllWaitingTimetable('${lessonEsc(timetable.id)}','stt')" style="border:1px solid #D1D5DB;border-radius:7px;padding:4px 11px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전부 ${lessonEsc(timetable.code || timetable.name)}조로</button>`).join('')}</span>
+    </div>` : ''}
+
+    ${justAssigned.length ? `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 13px;border:1px solid #A7F3D0;border-radius:11px;background:#F0FDF4;margin-bottom:14px">
+      <b style="font-size:11.5px;color:#047857">방금 ${justAssigned.length}명 넣었어</b>
+      <span style="font-size:10.5px;color:#8A90A2">${lessonEsc(justAssigned.slice(0, 6).map(row => `${row.student.nick || row.student.name} → ${row.timetable?.code || '-'}조`).join(' · '))}${justAssigned.length > 6 ? ` 외 ${justAssigned.length - 6}명` : ''}</span>
+      <span style="font-size:10px;color:#9CA3AF">자리를 지키고 있어. 다 됐으면 정리해줘.</span>
+      <button onclick="clearRecentTimetableAssignments()" style="margin-left:auto;border:1px solid #A7F3D0;border-radius:7px;padding:4px 11px;background:#fff;color:#047857;font-size:10px;font-weight:700;cursor:pointer">목록 정리</button>
     </div>` : ''}
 
     <div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
