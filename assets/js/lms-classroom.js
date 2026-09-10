@@ -2875,12 +2875,12 @@ function renderScaTimetableBoard() {
 
   const counts = list.map(timetable => {
     const count = rows.filter(row => row.timetable?.id === timetable.id).length;
-    const periods = timetable.periods || [];
-    const noon = periods.find(row => Number(row.order) === 5);
+    const lunch = getTimetableLunchRow(timetable);
+    const noon = getTimetablePeriodRows(timetable).find(row => Number(row.p) === 5);
     return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid #E5E7EB;border-radius:9px;background:#fff">
       ${timetableCodeChip(timetable)}
       <b style="font-size:11px;color:#111827">${count}명</b>
-      <span style="font-size:9.5px;color:#9CA3AF">점심 ${lessonEsc(timetable.lunch?.start || '-')}${noon ? ` · 5교시 ${lessonEsc(noon.start)}` : ''}</span>
+      <span style="font-size:9.5px;color:#9CA3AF">점심 ${lessonEsc(lunch ? lunch.start : '-')}${noon ? ` · 5교시 ${lessonEsc(noon.start)}` : ''}</span>
     </span>`;
   }).join('');
 
@@ -12430,6 +12430,41 @@ function getDefaultTimetable() {
     || null;
 }
 
+// 하루를 만든다. 시작 시각부터 「수업 길이 → 쉬는 시간」을 쌓고, 점심이 걸린 교시 뒤에서는
+// 쉬는 시간을 건너뛴다 — 수업 끝나면 바로 점심, 점심 끝나면 바로 다음 교시다.
+// 시각을 저장하지 않고 매번 만드는 이유는, 3교시를 80분으로 늘리면 그 뒤가 전부 밀려야 해서다.
+function buildTimetableSchedule(timetable) {
+  const rows = [];
+  if (!timetable) return rows;
+  let current = bellTimeToMinutes(timetable.startTime || '08:00');
+  if (current == null) current = 8 * 60;
+  const lunchAfter = Number(timetable.lunchAfterPeriod) || 0;
+  const lunchDuration = Math.max(0, Number(timetable.lunchDuration) || 0);
+  const periods = [...(timetable.periods || [])].sort((a, b) => a.order - b.order);
+
+  periods.forEach((period, index) => {
+    const duration = Math.max(0, Number(period.duration) || 0);
+    const end = current + duration;
+    rows.push({ p: period.order, start: bellMinutesToTime(current), end: bellMinutesToTime(end), duration });
+    current = end;
+    if (lunchDuration && lunchAfter === Number(period.order)) {
+      rows.push({ p: 'lunch', start: bellMinutesToTime(current), end: bellMinutesToTime(current + lunchDuration), duration: lunchDuration });
+      current += lunchDuration;
+      return; // 점심 자리에는 쉬는 시간을 얹지 않는다
+    }
+    if (index < periods.length - 1) current += Math.max(0, Number(period.breakAfter) || 0);
+  });
+  return rows;
+}
+
+function getTimetablePeriodRows(timetable) {
+  return buildTimetableSchedule(timetable).filter(row => row.p !== 'lunch');
+}
+
+function getTimetableLunchRow(timetable) {
+  return buildTimetableSchedule(timetable).find(row => row.p === 'lunch') || null;
+}
+
 // 그 날짜에 살아 있는 시간표. 기간이 비어 있으면 열려 있는 것으로 본다.
 function isTimetableEffectiveOn(timetable, dateStr) {
   if (!timetable || timetable.active === false) return false;
@@ -12446,7 +12481,7 @@ function getEffectiveTimetables(dateStr) {
 // 교시 하나가 차지하는 시각 구간(분). 시간표가 여럿이면 「5교시」만으로는 자리를 알 수 없어서,
 // 충돌을 볼 때는 번호가 아니라 이 구간이 겹치는지를 봐야 한다.
 function getTimetablePeriodRange(timetable, period) {
-  const row = (timetable?.periods || []).find(item => Number(item.order) === Number(period));
+  const row = getTimetablePeriodRows(timetable).find(item => Number(item.p) === Number(period));
   if (!row) return null;
   const start = bellTimeToMinutes(row.start);
   const end = bellTimeToMinutes(row.end);
@@ -12455,7 +12490,7 @@ function getTimetablePeriodRange(timetable, period) {
 }
 
 function getTimetablePeriodLabel(timetable, period) {
-  const row = (timetable?.periods || []).find(item => Number(item.order) === Number(period));
+  const row = getTimetablePeriodRows(timetable).find(item => Number(item.p) === Number(period));
   return row ? `${row.start} - ${row.end}` : '';
 }
 
@@ -12463,24 +12498,25 @@ function getTimetableTotalPeriods(timetable) {
   return (timetable?.periods || []).length;
 }
 
-// 교시가 서로 겹치거나 순서가 뒤집힌 곳. 시각을 직접 넣게 되면서 생길 수 있는 실수라
-// 목록과 편집 화면 양쪽에서 같은 함수로 잡는다.
+// 손으로 넣는 값이라 말이 안 되는 조합이 나올 수 있다. 목록과 편집 화면이 같은 함수로 잡는다.
 function getTimetableIssues(timetable) {
   const issues = [];
-  const rows = [...(timetable?.periods || [])].sort((a, b) => a.order - b.order);
-  rows.forEach(row => {
-    const start = bellTimeToMinutes(row.start);
-    const end = bellTimeToMinutes(row.end);
-    if (start == null || end == null) { issues.push(`${row.order}교시 시각이 비었어`); return; }
-    if (end <= start) issues.push(`${row.order}교시 종료가 시작보다 빨라`);
+  const periods = [...(timetable?.periods || [])].sort((a, b) => a.order - b.order);
+  if (bellTimeToMinutes(timetable?.startTime) == null) issues.push('시작 시각이 비었어');
+  if (!periods.length) issues.push('교시가 하나도 없어');
+  periods.forEach(period => {
+    const duration = Number(period.duration);
+    if (!Number.isFinite(duration) || duration <= 0) issues.push(`${period.order}교시 수업 길이가 0분이야`);
+    const breakAfter = Number(period.breakAfter);
+    if (!Number.isFinite(breakAfter) || breakAfter < 0) issues.push(`${period.order}교시 쉬는 시간이 이상해`);
   });
-  for (let i = 1; i < rows.length; i += 1) {
-    const prevEnd = bellTimeToMinutes(rows[i - 1].end);
-    const start = bellTimeToMinutes(rows[i].start);
-    if (prevEnd != null && start != null && start < prevEnd) {
-      issues.push(`${rows[i - 1].order}교시와 ${rows[i].order}교시가 겹쳐`);
-    }
+  const lunchAfter = Number(timetable?.lunchAfterPeriod) || 0;
+  if (Number(timetable?.lunchDuration) > 0 && lunchAfter
+    && !periods.some(period => Number(period.order) === lunchAfter)) {
+    issues.push(`점심을 ${lunchAfter}교시 뒤로 뒀는데 그 교시가 없어`);
   }
+  const last = buildTimetableSchedule(timetable).slice(-1)[0];
+  if (last && bellTimeToMinutes(last.end) > 24 * 60) issues.push('마지막 교시가 자정을 넘어가');
   return issues;
 }
 
@@ -12488,6 +12524,12 @@ function getTimetableRangeLabel(timetable) {
   if (!timetable.validFrom && !timetable.validTo) return '기간 없음';
   const fmt = value => (value || '').replace(/^20/, '').replace(/-/g, '.');
   return `${fmt(timetable.validFrom) || '~'} ~ ${fmt(timetable.validTo) || '계속'}`;
+}
+
+function getTimetableLunchLabel(timetable) {
+  const lunch = getTimetableLunchRow(timetable);
+  if (!lunch) return '점심 없음';
+  return `${timetable.lunchAfterPeriod}교시 뒤 · ${lunch.start} ~ ${lunch.end}`;
 }
 
 // 이 시간표를 쓰는 학생 수. 아직 아무 시간표도 못 받은 학생은 대기로 따로 센다.
@@ -12510,6 +12552,9 @@ let _timetableEditId = null;
 function renderCoursePeriodTab() {
   const host = document.getElementById('course-pricing-tab-period');
   if (!host) return;
+  // 소속 학생 수를 세려면 씨앗이 돌아 있어야 한다. 주간 수업 배정을 거치지 않고
+  // 이 화면으로 바로 들어오면 전원이 대기로 보인다.
+  if (typeof ensureStudentTimetableSeed === 'function') ensureStudentTimetableSeed();
   host.innerHTML = _timetableEditId ? renderTimetableEditor() : renderTimetableList();
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 20);
 }
@@ -12523,9 +12568,10 @@ function renderTimetableList() {
     const issues = getTimetableIssues(timetable);
     const live = isTimetableEffectiveOn(timetable, today);
     const students = countStudentsOnTimetable(timetable.id);
-    const periods = timetable.periods || [];
+    const periods = getTimetablePeriodRows(timetable);
     const first = periods[0];
     const last = periods[periods.length - 1];
+    const breaks = [...new Set((timetable.periods || []).slice(0, -1).map(period => Number(period.breakAfter) || 0))];
     return `<tr style="cursor:pointer" onclick="openTimetableEditor('${lessonEsc(timetable.id)}')">
       <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6">
         <span style="display:inline-flex;align-items:center;gap:7px">
@@ -12536,7 +12582,8 @@ function renderTimetableList() {
         ${timetable.note ? `<div style="font-size:10px;color:#9CA3AF;margin-top:3px">${lessonEsc(timetable.note)}</div>` : ''}
       </td>
       <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${periods.length}교시<div style="font-size:10px;color:#9CA3AF;margin-top:2px">${first ? lessonEsc(first.start) : '-'} ~ ${last ? lessonEsc(last.end) : '-'}</div></td>
-      <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${lessonEsc(timetable.lunch?.start || '-')} ~ ${lessonEsc(timetable.lunch?.end || '-')}</td>
+      <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${breaks.length === 1 ? `${breaks[0]}분` : `${Math.min(...breaks)}~${Math.max(...breaks)}분`}</td>
+      <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${lessonEsc(getTimetableLunchLabel(timetable))}</td>
       <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${lessonEsc(getTimetableRangeLabel(timetable))}</td>
       <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap">${students}명</td>
       <td style="padding:11px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">
@@ -12545,7 +12592,7 @@ function renderTimetableList() {
           : (live
             ? '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#ECFDF5;color:#047857">사용 중</span>'
             : '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FFFBEB;color:#B45309">기간 밖</span>')}
-        ${issues.length ? `<span title="${lessonEsc(issues.join(' · '))}" style="margin-left:5px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FEE2E2;color:#DC2626">교시 ${issues.length}건 확인</span>` : ''}
+        ${issues.length ? `<span title="${lessonEsc(issues.join(' · '))}" style="margin-left:5px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FEE2E2;color:#DC2626">확인 ${issues.length}건</span>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -12556,16 +12603,16 @@ function renderTimetableList() {
       <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="createTimetable()"><i data-lucide="plus-square"></i> 시간표 추가</button>
     </div>
     <div style="padding:11px 14px;border-bottom:1px solid #E5E7EB;background:#F9FAFB;font-size:11px;color:#6B7280;line-height:1.75">
-      교시마다 시작·종료 시각을 직접 넣어. 타입이 여럿인 건 <b>같은 날 함께 돌기</b> 때문이야 — 점심을 나눠 먹으면 같은 5교시라도 조마다 시각이 달라져.
+      교시마다 <b>수업 길이</b>와 <b>쉬는 시간</b>을 넣으면 시각이 만들어져. 점심은 <b>「N교시 뒤」</b>로 잡고, 그 자리에는 쉬는 시간이 붙지 않아 — 수업이 끝나면 바로 점심이야.
       ${waiting ? `<br><b style="color:#B45309">아직 시간표를 못 받은 학생이 ${waiting}명</b> 있어. 주간 수업 배정 화면에서 배정해줘.` : ''}
     </div>
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:760px">
+      <table style="width:100%;border-collapse:collapse;min-width:860px">
         <thead><tr>
-          ${['시간표', '교시', '점심', '적용 기간', '소속 학생', '상태'].map(label =>
+          ${['시간표', '교시', '쉬는 시간', '점심', '적용 기간', '소속 학생', '상태'].map(label =>
             `<th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:800;color:#9CA3AF;border-bottom:1px solid #E5E7EB;white-space:nowrap">${label}</th>`).join('')}
         </tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" style="padding:22px;text-align:center;font-size:11.5px;color:#9CA3AF">시간표가 없어. 오른쪽 위에서 만들어줘.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="7" style="padding:22px;text-align:center;font-size:11.5px;color:#9CA3AF">시간표가 없어. 오른쪽 위에서 만들어줘.</td></tr>'}</tbody>
       </table>
     </div>
   </div>`;
@@ -12593,12 +12640,14 @@ function createTimetable() {
     validTo: '',
     active: true,
     isDefault: false,
-    lunch: { ...(base?.lunch || { start: '12:05', end: '13:05' }) },
+    startTime: base?.startTime || '08:00',
+    lunchAfterPeriod: base?.lunchAfterPeriod || 4,
+    lunchDuration: base?.lunchDuration || 60,
     // 빈 칸부터 채우게 하면 열두 줄을 손으로 다 넣어야 한다. 기본 시간표를 베껴 시작한다.
     periods: (base?.periods || []).map(row => ({ ...row }))
   };
   MOCK_TIMETABLES.push(timetable);
-  showToast(`✓ ${timetable.name} 시간표를 만들었어. 교시 시각을 확인해줘.`, 'success');
+  showToast(`✓ ${timetable.name} 시간표를 만들었어. 수업 길이와 점심 위치를 확인해줘.`, 'success');
   openTimetableEditor(timetable.id);
 }
 
@@ -12607,61 +12656,80 @@ function renderTimetableEditor() {
   const timetable = getTimetableById(_timetableEditId);
   if (!timetable) return renderTimetableList();
   const issues = getTimetableIssues(timetable);
-  const lunchStart = bellTimeToMinutes(timetable.lunch?.start);
-  const lunchEnd = bellTimeToMinutes(timetable.lunch?.end);
+  const schedule = buildTimetableSchedule(timetable);
+  const periods = [...(timetable.periods || [])].sort((a, b) => a.order - b.order);
+  const id = lessonEsc(timetable.id);
 
   const field = (label, html) => `<div style="display:flex;flex-direction:column;gap:5px">
     <label style="font-size:10.5px;font-weight:800;color:#6B7280">${label}</label>${html}
   </div>`;
   const input = 'class="tsa-input" style="height:34px;font-size:12px"';
+  const numCell = (value, onchange, suffix) => `<span style="display:inline-flex;align-items:center;gap:4px">
+    <input type="number" min="0" max="240" value="${value}" class="tsa-input" style="height:29px;font-size:11.5px;width:62px;text-align:right" onchange="${onchange}"/>
+    <span style="font-size:10px;color:#9CA3AF">${suffix}</span>
+  </span>`;
 
-  const rows = [...(timetable.periods || [])].sort((a, b) => a.order - b.order).map((row, index, list) => {
-    const start = bellTimeToMinutes(row.start);
-    const end = bellTimeToMinutes(row.end);
-    const minutes = start != null && end != null ? end - start : null;
-    const prev = index ? list[index - 1] : null;
-    const gap = prev && bellTimeToMinutes(prev.end) != null && start != null ? start - bellTimeToMinutes(prev.end) : null;
-    const bad = minutes != null && minutes <= 0;
-    const overlap = gap != null && gap < 0;
-    // 점심이 이 교시 앞에 놓이면 줄을 하나 끼워 보여준다 — 표만 보고 하루가 읽히게.
-    const lunchRow = lunchStart != null && start != null && prev && bellTimeToMinutes(prev.end) <= lunchStart && start >= lunchEnd
-      ? `<tr style="background:#FFFBEB"><td style="padding:7px 12px;font-size:11px;font-weight:700;color:#B45309" colspan="4">🍱 점심 ${lessonEsc(timetable.lunch.start)} - ${lessonEsc(timetable.lunch.end)}</td></tr>`
-      : '';
-    return `${lunchRow}<tr>
-      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;font-weight:700;color:#111827;white-space:nowrap">${row.order}교시</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6"><input type="time" value="${lessonEsc(row.start)}" ${input} style="height:31px;font-size:11.5px;width:118px" onchange="updateTimetablePeriod('${lessonEsc(timetable.id)}',${row.order},'start',this.value)"/></td>
-      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6"><input type="time" value="${lessonEsc(row.end)}" ${input} style="height:31px;font-size:11.5px;width:118px" onchange="updateTimetablePeriod('${lessonEsc(timetable.id)}',${row.order},'end',this.value)"/></td>
-      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;font-size:10.5px;white-space:nowrap;color:${bad || overlap ? '#DC2626' : '#9CA3AF'}">
-        ${minutes != null ? `${minutes}분` : '-'}${overlap ? ' · 앞 교시와 겹침' : (gap != null && gap > 0 ? ` · 쉬는 시간 ${gap}분` : '')}
-      </td>
+  const rows = schedule.map(row => {
+    if (row.p === 'lunch') {
+      return `<tr style="background:#FFFBEB">
+        <td style="padding:8px 12px;font-size:11.5px;font-weight:700;color:#B45309;white-space:nowrap">🍱 점심</td>
+        <td style="padding:8px 12px;font-size:11.5px;color:#B45309;white-space:nowrap">${lessonEsc(row.start)} - ${lessonEsc(row.end)}</td>
+        <td style="padding:8px 12px;font-size:11.5px;color:#B45309">${row.duration}분</td>
+        <td style="padding:8px 12px;font-size:10.5px;color:#C08A2E">쉬는 시간 없음 — 수업이 끝나면 바로 점심이야</td>
+      </tr>`;
+    }
+    const period = periods.find(item => Number(item.order) === Number(row.p));
+    const isLast = periods[periods.length - 1] && Number(periods[periods.length - 1].order) === Number(row.p);
+    const lunchHere = Number(timetable.lunchAfterPeriod) === Number(row.p) && Number(timetable.lunchDuration) > 0;
+    return `<tr>
+      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;font-weight:700;color:#111827;white-space:nowrap">${row.p}교시</td>
+      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;font-size:11.5px;color:#4B5563;white-space:nowrap;font-variant-numeric:tabular-nums">${lessonEsc(row.start)} - ${lessonEsc(row.end)}</td>
+      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">${numCell(period?.duration ?? 0, `updateTimetablePeriod('${id}',${row.p},'duration',this.value)`, '분 수업')}</td>
+      <td style="padding:6px 12px;border-bottom:1px solid #F3F4F6;white-space:nowrap">${
+        lunchHere
+          ? '<span style="font-size:10.5px;color:#B45309;font-weight:700">↓ 점심</span>'
+          : (isLast
+            ? '<span style="font-size:10.5px;color:#C4C9D4">마지막 교시</span>'
+            : numCell(period?.breakAfter ?? 0, `updateTimetablePeriod('${id}',${row.p},'breakAfter',this.value)`, '분 쉬고'))
+      }</td>
     </tr>`;
   }).join('');
+
+  const lunchOptions = periods.map(period =>
+    `<option value="${period.order}" ${Number(timetable.lunchAfterPeriod) === Number(period.order) ? 'selected' : ''}>${period.order}교시 뒤</option>`
+  ).join('');
 
   return `<div style="display:flex;flex-direction:column;gap:14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="closeTimetableEditor()">← 목록</button>
       <b style="font-size:14px;color:#111827">${lessonEsc(timetable.name)}</b>
       <span style="font-size:11px;color:#9CA3AF">${lessonEsc(getTimetableRangeLabel(timetable))} · 소속 학생 ${countStudentsOnTimetable(timetable.id)}명</span>
-      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-left:auto" onclick="deleteTimetable('${lessonEsc(timetable.id)}')">시간표 삭제</button>
+      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" style="margin-left:auto" onclick="deleteTimetable('${id}')">시간표 삭제</button>
     </div>
 
-    ${issues.length ? `<div style="padding:10px 13px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;font-size:11.5px;color:#B91C1C;line-height:1.7"><b>확인할 교시가 ${issues.length}건 있어.</b><br>${issues.map(lessonEsc).join('<br>')}</div>` : ''}
+    ${issues.length ? `<div style="padding:10px 13px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;font-size:11.5px;color:#B91C1C;line-height:1.7"><b>확인할 게 ${issues.length}건 있어.</b><br>${issues.map(lessonEsc).join('<br>')}</div>` : ''}
 
-    <div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(340px,1.4fr);gap:16px;align-items:start">
+    <div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(380px,1.5fr);gap:16px;align-items:start">
       <div class="tsa-card"><div class="tsa-card-header"><h3 class="tsa-card-title" style="font-size:12.5px">기본 정보</h3></div>
         <div class="tsa-card-body" style="padding:16px;display:flex;flex-direction:column;gap:13px">
-          ${field('이름', `<input type="text" value="${lessonEsc(timetable.name)}" ${input} onchange="updateTimetableField('${lessonEsc(timetable.id)}','name',this.value)"/>`)}
-          ${field('코드 <span style="font-weight:400;color:#9CA3AF">— 화면에 A · B로 붙는 글자</span>', `<input type="text" maxlength="2" value="${lessonEsc(timetable.code || '')}" ${input} style="height:34px;font-size:12px;width:80px" onchange="updateTimetableField('${lessonEsc(timetable.id)}','code',this.value)"/>`)}
-          ${field('설명', `<input type="text" value="${lessonEsc(timetable.note || '')}" ${input} placeholder="예: 점심 2부" onchange="updateTimetableField('${lessonEsc(timetable.id)}','note',this.value)"/>`)}
-          ${field('적용 시작', `<input type="date" value="${lessonEsc(timetable.validFrom || '')}" ${input} onchange="updateTimetableField('${lessonEsc(timetable.id)}','validFrom',this.value)"/>`)}
-          ${field('적용 종료 <span style="font-weight:400;color:#9CA3AF">— 비우면 계속</span>', `<input type="date" value="${lessonEsc(timetable.validTo || '')}" ${input} onchange="updateTimetableField('${lessonEsc(timetable.id)}','validTo',this.value)"/>`)}
-          <div style="display:flex;gap:16px;flex-wrap:wrap;padding-top:2px">
-            <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#4B5563;cursor:pointer"><input type="checkbox" ${timetable.active !== false ? 'checked' : ''} onchange="updateTimetableField('${lessonEsc(timetable.id)}','active',this.checked)"/> 사용</label>
-            <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#4B5563;cursor:pointer"><input type="checkbox" ${timetable.isDefault ? 'checked' : ''} onchange="updateTimetableField('${lessonEsc(timetable.id)}','isDefault',this.checked)"/> 기본 시간표</label>
+          ${field('이름', `<input type="text" value="${lessonEsc(timetable.name)}" ${input} onchange="updateTimetableField('${id}','name',this.value)"/>`)}
+          ${field('코드 <span style="font-weight:400;color:#9CA3AF">— 화면에 A · B로 붙는 글자</span>', `<input type="text" maxlength="2" value="${lessonEsc(timetable.code || '')}" ${input} style="height:34px;font-size:12px;width:80px" onchange="updateTimetableField('${id}','code',this.value)"/>`)}
+          ${field('설명', `<input type="text" value="${lessonEsc(timetable.note || '')}" ${input} placeholder="예: 점심 2부" onchange="updateTimetableField('${id}','note',this.value)"/>`)}
+          ${field('첫 교시 시작', `<input type="time" value="${lessonEsc(timetable.startTime || '08:00')}" ${input} style="height:34px;font-size:12px;width:130px" onchange="updateTimetableField('${id}','startTime',this.value)"/>`)}
+          ${field('쉬는 시간 <span style="font-weight:400;color:#9CA3AF">— 전 교시에 한 번에 적용</span>',
+            `<span style="display:inline-flex;align-items:center;gap:6px">
+              <input type="number" min="0" max="120" value="${Number(periods[0]?.breakAfter ?? 10)}" class="tsa-input" style="height:34px;font-size:12px;width:82px;text-align:right" id="tt-bulk-break"/>
+              <span style="font-size:11px;color:#9CA3AF">분</span>
+              <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="applyTimetableBreakToAll('${id}')">전체 적용</button>
+            </span>
+            <div style="font-size:10px;color:#9CA3AF;margin-top:4px">교시마다 다르게 두고 싶으면 오른쪽 표에서 그 줄만 고치면 돼.</div>`)}
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            ${field('점심 위치', `<select ${input} style="height:34px;font-size:12px;width:130px" onchange="updateTimetableField('${id}','lunchAfterPeriod',this.value)">${lunchOptions}</select>`)}
+            ${field('점심 길이', `<span style="display:inline-flex;align-items:center;gap:5px"><input type="number" min="0" max="240" value="${Number(timetable.lunchDuration) || 0}" class="tsa-input" style="height:34px;font-size:12px;width:82px;text-align:right" onchange="updateTimetableField('${id}','lunchDuration',this.value)"/><span style="font-size:11px;color:#9CA3AF">분</span></span>`)}
           </div>
-          <div style="display:flex;gap:10px">
-            ${field('점심 시작', `<input type="time" value="${lessonEsc(timetable.lunch?.start || '')}" ${input} style="height:34px;font-size:12px;width:118px" onchange="updateTimetableLunch('${lessonEsc(timetable.id)}','start',this.value)"/>`)}
-            ${field('점심 종료', `<input type="time" value="${lessonEsc(timetable.lunch?.end || '')}" ${input} style="height:34px;font-size:12px;width:118px" onchange="updateTimetableLunch('${lessonEsc(timetable.id)}','end',this.value)"/>`)}
+          <div style="display:flex;gap:16px;flex-wrap:wrap;padding-top:2px">
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#4B5563;cursor:pointer"><input type="checkbox" ${timetable.active !== false ? 'checked' : ''} onchange="updateTimetableField('${id}','active',this.checked)"/> 사용</label>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#4B5563;cursor:pointer"><input type="checkbox" ${timetable.isDefault ? 'checked' : ''} onchange="updateTimetableField('${id}','isDefault',this.checked)"/> 기본 시간표</label>
           </div>
         </div>
       </div>
@@ -12669,13 +12737,13 @@ function renderTimetableEditor() {
       <div class="tsa-card"><div class="tsa-card-header">
           <h3 class="tsa-card-title" style="font-size:12.5px">교시별 시간</h3>
           <span style="display:inline-flex;gap:6px">
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addTimetablePeriod('${lessonEsc(timetable.id)}')">＋ 교시 추가</button>
-            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="removeTimetablePeriod('${lessonEsc(timetable.id)}')">마지막 교시 삭제</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="addTimetablePeriod('${id}')">＋ 교시 추가</button>
+            <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="removeTimetablePeriod('${id}')">마지막 교시 삭제</button>
           </span>
         </div>
         <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;min-width:430px">
-            <thead><tr>${['교시', '시작', '종료', ''].map(label =>
+          <table style="width:100%;border-collapse:collapse;min-width:470px">
+            <thead><tr>${['교시', '시간대', '수업', '그 뒤'].map(label =>
               `<th style="text-align:left;padding:7px 12px;font-size:10px;font-weight:800;color:#9CA3AF;border-bottom:1px solid #E5E7EB">${label}</th>`).join('')}</tr></thead>
             <tbody>${rows || '<tr><td colspan="4" style="padding:18px;text-align:center;font-size:11px;color:#9CA3AF">교시가 없어.</td></tr>'}</tbody>
           </table>
@@ -12689,14 +12757,7 @@ function updateTimetableField(id, key, value) {
   const timetable = getTimetableById(id);
   if (!timetable) return;
   if (key === 'isDefault' && value) getTimetables().forEach(item => { item.isDefault = false; });
-  timetable[key] = value;
-  renderCoursePeriodTab();
-}
-
-function updateTimetableLunch(id, key, value) {
-  const timetable = getTimetableById(id);
-  if (!timetable) return;
-  timetable.lunch = { ...(timetable.lunch || {}), [key]: value };
+  timetable[key] = ['lunchAfterPeriod', 'lunchDuration'].includes(key) ? Number(value) || 0 : value;
   renderCoursePeriodTab();
 }
 
@@ -12705,8 +12766,20 @@ function updateTimetablePeriod(id, order, key, value) {
   if (!timetable) return;
   const row = (timetable.periods || []).find(item => Number(item.order) === Number(order));
   if (!row) return;
-  row[key] = value;
-  syncCsPeriodsFromBellSystem();
+  row[key] = Math.max(0, Number(value) || 0);
+  renderCoursePeriodTab();
+}
+
+// 쉬는 시간은 대개 전 교시가 같다. 열두 줄을 하나씩 고치게 두면 아무도 안 바꾼다.
+// 마지막 교시는 뒤가 없어서 건드리지 않는다.
+function applyTimetableBreakToAll(id) {
+  const timetable = getTimetableById(id);
+  const input = document.getElementById('tt-bulk-break');
+  if (!timetable || !input) return;
+  const minutes = Math.max(0, Number(input.value) || 0);
+  const periods = [...(timetable.periods || [])].sort((a, b) => a.order - b.order);
+  periods.forEach((period, index) => { if (index < periods.length - 1) period.breakAfter = minutes; });
+  showToast(`✓ 쉬는 시간을 ${minutes}분으로 맞췄어.`, 'success');
   renderCoursePeriodTab();
 }
 
@@ -12715,9 +12788,12 @@ function addTimetablePeriod(id) {
   if (!timetable) return;
   const rows = timetable.periods || (timetable.periods = []);
   const last = rows[rows.length - 1];
-  const lastEnd = last ? bellTimeToMinutes(last.end) : 8 * 60;
-  const start = lastEnd == null ? 8 * 60 : lastEnd + 10;
-  rows.push({ order: (last?.order || 0) + 1, start: bellMinutesToTime(start), end: bellMinutesToTime(start + 50) });
+  if (last) last.breakAfter = Number(last.breakAfter) || 10;
+  rows.push({
+    order: (last?.order || 0) + 1,
+    duration: Number(last?.duration) || 50,
+    breakAfter: 0
+  });
   renderCoursePeriodTab();
 }
 
@@ -12729,6 +12805,9 @@ function removeTimetablePeriod(id) {
     && (group.periods || []).map(Number).includes(Number(last.order)));
   if (used && !window.confirm(`${last.order}교시에 이미 수업이 있어. 그래도 지울까?`)) return;
   timetable.periods.pop();
+  const newLast = timetable.periods[timetable.periods.length - 1];
+  if (newLast) newLast.breakAfter = 0;
+  if (Number(timetable.lunchAfterPeriod) > (newLast?.order || 0)) timetable.lunchAfterPeriod = newLast?.order || 0;
   renderCoursePeriodTab();
 }
 
