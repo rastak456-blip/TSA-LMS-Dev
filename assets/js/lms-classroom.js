@@ -2208,6 +2208,20 @@ function renderScaStep1Picker() {
   const options = getScaStep1GroupOptions(student, requirement);
   const levelName = getLevelGroupName(getLevelGroupForStudent(student));
 
+  // 이미 반이 있는 칩으로도 이 팝업이 열린다(회색 칩 = 반 바꾸기). 그럴 땐 지금 반을 맨 위에 세우고
+  // 빼는 길을 열어둔다 — 빼지 않고는 다른 반을 고를 수 없어서(같은 과목을 두 반 들 수는 없다).
+  const currentGroup = requirement.groupId != null
+    ? MOCK_GROUP_CLASSES.find(item => item.id === Number(requirement.groupId))
+    : null;
+  const currentHtml = currentGroup ? `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 11px;margin-bottom:12px;border:1px solid #E5E7EB;border-radius:9px;background:#F9FAFB">
+    <span style="font-size:10px;font-weight:800;color:#6B7280">지금 이 반</span>
+    <b style="font-size:11.5px;color:#111827">${lessonEsc(getGroupDisplayName(currentGroup))}</b>
+    <span style="font-size:10.5px;color:#6B7280">${lessonEsc(isGroupScheduled(currentGroup)
+      ? `${currentGroup.periods.map(Number).sort((a, b) => a - b).join('·')}교시`
+      : '시간 미정')}</span>
+    <button onclick="unassignScaStep1FromPicker(${currentGroup.id})" style="margin-left:auto;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;background:#fff;color:#DC2626;font-size:10px;font-weight:700;cursor:pointer">이 반에서 빼기</button>
+  </div>` : '';
+
   const rows = options.map(option => `<button ${option.ok ? `onclick="pickScaStep1Group(${option.group.id})"` : 'disabled'} style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;padding:9px 11px;margin-bottom:5px;border:1px solid #E5E7EB;border-radius:9px;background:#fff;cursor:${option.ok ? 'pointer' : 'not-allowed'};opacity:${option.ok ? 1 : .5}">
     <span style="font-size:11.5px;font-weight:700;color:#111827">${lessonEsc(getGroupDisplayName(option.group))} <span style="font-weight:400;color:#6B7280">· ${lessonEsc(option.when)}</span></span>
     <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:${option.ok ? '#047857' : '#9CA3AF'}">${option.ok ? '✓ ' : ''}${lessonEsc(option.reason)}</span>
@@ -2220,7 +2234,8 @@ function renderScaStep1Picker() {
       <button onclick="closeScaStep1Picker()" style="margin-left:auto;border:0;background:none;font-size:20px;color:#6B7280;cursor:pointer">×</button>
     </div>
     <div style="padding:16px 20px;overflow:auto">
-      <div style="font-size:10.5px;font-weight:800;color:#6B7280;margin-bottom:8px">갈 수 있는 반 <span style="font-weight:400;color:#9CA3AF">— 여기서는 정원 · 레벨 · 이미 잡힌 그룹 시간만 본다</span></div>
+      ${currentHtml}
+      <div style="font-size:10.5px;font-weight:800;color:#6B7280;margin-bottom:8px">${currentGroup ? '옮길 수 있는 반' : '갈 수 있는 반'} <span style="font-weight:400;color:#9CA3AF">— 여기서는 정원 · 레벨 · 이미 잡힌 그룹 시간만 본다</span></div>
       ${rows}
       <div style="display:flex;align-items:center;gap:9px;margin:11px 0;color:#9CA3AF;font-size:9.5px"><span style="flex:1;height:1px;background:#E5E7EB"></span>또는<span style="flex:1;height:1px;background:#E5E7EB"></span></div>
       <button onclick="createGroupFromScaStep1()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;padding:10px 11px;border:1px solid #5E5CE6;border-radius:9px;background:#EEF2FF;cursor:pointer">
@@ -2234,11 +2249,32 @@ function renderScaStep1Picker() {
 
 function pickScaStep1Group(groupId) {
   if (!_scaPick) return;
+  const student = MOCK_STUDENTS.find(item => item.id === _scaPick.studentId);
+  const requirement = student
+    ? getStudentLessonRequirements(student).find(item => item.sequence === _scaPick.sequence)
+    : null;
+  // 이미 반이 있는 칩에서 다른 반을 고르면 「옮기는」 것이다. 지금 반에서 먼저 빼야 한다 —
+  // 안 그러면 같은 과목을 두 반 듣게 되고, 지금 반 교시가 겹침 판정에 그대로 남아 옮길 수도 없다.
+  const previous = requirement && requirement.groupId != null && Number(requirement.groupId) !== Number(groupId)
+    ? MOCK_GROUP_CLASSES.find(item => item.id === Number(requirement.groupId))
+    : null;
+  if (previous) previous.studentIds = previous.studentIds.filter(id => id !== student.id);
+
   const result = assignScaStep1(_scaPick.studentId, groupId);
+  // 새 반이 막히면 원래 반으로 되돌린다. 고르다 만 학생이 어느 반에도 없는 상태로 남으면 안 된다.
+  if (!result.ok && previous && !previous.studentIds.includes(student.id)) previous.studentIds.push(student.id);
+
   showToast(`${result.ok ? '✓ ' : ''}${result.message}`, result.ok ? 'success' : 'warning');
   if (!result.ok) { renderScaStep1Picker(); return; }
   closeScaStep1Picker();
   renderStudentClassAssignView();
+}
+
+function unassignScaStep1FromPicker(groupId) {
+  if (!_scaPick) return;
+  const studentId = _scaPick.studentId;
+  closeScaStep1Picker();
+  unassignScaStep1(studentId, groupId);
 }
 
 function createGroupFromScaStep1() {
@@ -2265,26 +2301,47 @@ function getScaStep1Columns(students) {
     .sort((a, b) => a.order - b.order);
 }
 
-// 1단계 아래에 붙는 「반 상태」 표. 여기서는 학생을 배정하지 않는다 — 반을 더 열지만 정한다.
-// 위 표(학생 × 과목)가 "빠진 사람"을 찾는다면, 이 표는 "반이 모자란 데"를 찾는다.
-// 자동 배정이 「자리 없음」으로 막혔을 때 여기에 「생성 필요 +N」이 뜬다. 같은 사실을 두 각도에서 보는 것.
-// 1단계 맨 위 — 아직 반이 없는 학생만 모은 목록.
+// 1단계 맨 위 — 이번 주에 그룹 수업을 듣는 학생 전원.
 //
-// 학생 × 과목 표를 만들어봤더니 스무 줄 중 열네 줄이 빈 줄이었다.
-// 그룹 수업이 아예 없는 학생(1:1만 듣는 과정)과 이미 다 찬 학생이 자리만 차지한다.
-// 그래서 표를 버리고, 손댈 학생만 남긴다. 목록이 비면 1단계가 끝난 것이다.
+// 배정이 끝난 학생을 목록에서 지우지 않는다. 지워버리면 방금 어느 반에 넣었는지 확인할 길이 없고,
+// 「반은 정해졌는데 그 반에 강사가 없는」 중간 상태가 어느 화면에도 나오지 않는다.
+// 대신 칩이 세 가지 상태를 갖는다 — 반 없음 / 반은 있고 시간 미정 / 확정.
 //
-// 어디가 모자란지(대기 인원·생성 필요)는 아래 레벨별 화면이 이미 더 잘 보여준다.
-// 위는 "누가 빠졌나"(이름), 아래는 "어디가 모자라나"(숫자) — 둘이 겹치지 않는다.
-function getScaStep1Gaps() {
+// 그룹 수업이 아예 없는 학생(1:1만 듣는 과정)만 뺀다. 손댈 게 없는 줄이라 스무 명 중 아홉 줄이
+// 빈 줄이 된다. 몇 명을 뺐는지는 목록 끝에 한 줄로 적어둔다.
+function getScaStep1Rows() {
   const arrivals = new Set(getScaWeekArrivals().map(student => student.id));
   return getScaWeekStudents().map(student => {
-    const missing = getStudentLessonRequirements(student)
-      .filter(requirement => requirement.classType !== '1:1' && requirement.status !== 'ASSIGNED');
-    if (!missing.length) return null;
-    const total = getStudentLessonRequirements(student).filter(r => r.classType !== '1:1').length;
-    return { student, missing, total, isNew: arrivals.has(student.id) };
+    const requirements = getStudentLessonRequirements(student).filter(item => item.classType !== '1:1');
+    if (!requirements.length) return null;
+    const chips = requirements.map(requirement => {
+      const group = requirement.groupId != null
+        ? MOCK_GROUP_CLASSES.find(item => item.id === Number(requirement.groupId))
+        : null;
+      const periods = group && Array.isArray(group.periods) ? group.periods.map(Number).sort((a, b) => a - b) : [];
+      const state = !group ? 'none' : (isGroupScheduled(group) ? 'placed' : 'pending');
+      // 확정된 칩은 교시 순으로 세운다 — 그러면 줄 하나가 그대로 그 학생의 하루가 된다.
+      // 아직 손대야 하는 칩은 세울 교시가 없으니 맨 앞에 모아 할 일이 왼쪽에 붙게 한다.
+      const rank = state === 'none' ? -2 : (state === 'pending' ? -1 : periods[0]);
+      return { requirement, group, periods, state, rank };
+    }).sort((a, b) => a.rank - b.rank);
+    const placed = chips.filter(chip => chip.state !== 'none').length;
+    return {
+      student,
+      chips,
+      total: requirements.length,
+      placed,
+      missing: requirements.length - placed,
+      isNew: arrivals.has(student.id)
+    };
   }).filter(Boolean);
+}
+
+// 그룹 수업이 없어 목록에 세우지 않은 학생 수. 「20명인데 왜 11줄이지」에 답하는 숫자다.
+function getScaStep1NoGroupCount() {
+  return getScaWeekStudents().filter(student =>
+    !getStudentLessonRequirements(student).some(item => item.classType !== '1:1')
+  ).length;
 }
 
 // 학생 사진. 등록된 사진이 없으면 성별 기본 이미지로 떨어진다.
@@ -2312,128 +2369,220 @@ function getStudentOriginMetaText(student) {
   ].filter(Boolean).join(' · ');
 }
 
-function renderScaGapList() {
-  const gaps = getScaStep1Gaps();
-  if (!gaps.length) {
-    return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 13px;border:1.5px solid #047857;border-radius:11px;background:#ECFDF5;margin-bottom:14px">
-      <b style="font-size:11.5px;color:#047857">이번 주 학생이 전부 반에 들어갔어.</b>
-      <span style="font-size:10.5px;color:#6B7280">아래 그룹 수업 목록에서 반마다 강사를 배정하면 돼.</span>
+// 칩 하나 = 그 학생이 들어야 할 그룹 수업 한 과목. 세 상태를 색으로 가른다.
+//   빨강(점선) 반 없음        → 갈 수 있는 반 고르기
+//   노랑        반은 있고 시간 미정 → 그 반의 강사 배정 팝업으로 (할 일이 학생이 아니라 반 쪽에 있다)
+//   회색        확정           → 누르면 반을 바꾼다
+function renderScaStudentChip(chip, studentId) {
+  const requirement = chip.requirement;
+  const base = 'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap';
+
+  if (chip.state === 'none') {
+    return `<button onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="갈 수 있는 반 고르기" style="${base};border:1px dashed #DC2626;background:#FEE2E2;color:#DC2626">
+      ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(requirement.classType)}</span>
+    </button>`;
+  }
+
+  if (chip.state === 'pending') {
+    return `<button onclick="openTeacherAssignModal(${chip.group.id})" title="${lessonEsc(getGroupDisplayName(chip.group))} — 이 반의 교시·강사·강의실이 아직 없어" style="${base};border:1px solid #F59E0B;background:#FEF3C7;color:#B45309">
+      ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px">· 시간 미정</span>
+    </button>`;
+  }
+
+  const teacher = MOCK_TEACHERS.find(item => item.id === Number(chip.group.teacherId));
+  const room = MOCK_CLASS_ROOMS.find(item => item.id === Number(chip.group.roomId));
+  const title = `${getGroupDisplayName(chip.group)} · ${room?.roomNo || '-'} — 누르면 반을 바꿔`;
+  return `<button onclick="openScaStep1Picker(${studentId},${requirement.sequence})" title="${lessonEsc(title)}" style="${base};border:1px solid #E5E7EB;background:#F9FAFB;color:#6B7280;font-weight:400">
+    ${lessonEsc(requirement.subjectName)} <b style="color:#111827">${chip.periods.join('·')}교시</b> ${lessonEsc(teacher?.nick || teacher?.name || '강사 미정')}
+  </button>`;
+}
+
+// 위 구역. 예전엔 「아직 반이 없는 학생」만 담은 경고 상자였는데, 이제 이번 주 학생 전원이 남는다 —
+// 그래서 상자 자체는 흰 바탕으로 두고 경고색은 칩과 오른쪽 카운터에만 쓴다.
+function renderScaStudentBoard() {
+  const rows = getScaStep1Rows();
+  const noGroupCount = getScaStep1NoGroupCount();
+  const footer = noGroupCount
+    ? `<div style="padding:8px 13px;border-top:1px solid #F3F4F6;font-size:9.5px;color:#9CA3AF">그룹 수업이 없는 학생 ${noGroupCount}명은 이 목록에 없어 — 1:1만 듣는 과정이야.</div>`
+    : '';
+
+  if (!rows.length) {
+    return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
+      <div style="padding:14px 13px;font-size:11.5px;color:#6B7280">이번 주에 그룹 수업을 듣는 학생이 없어.</div>${footer}
     </div>`;
   }
 
-  const rows = gaps.map(gap => {
-    const chips = gap.missing.map(requirement =>
-      `<button onclick="openScaStep1Picker(${gap.student.id},${requirement.sequence})" title="갈 수 있는 반 고르기" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;border:1px dashed #DC2626;background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:700;cursor:pointer">
-        ${lessonEsc(requirement.subjectName)}<span style="font-weight:400;font-size:9px;opacity:.75">${lessonEsc(requirement.classType)}</span>
-      </button>`
-    ).join('');
+  const remaining = rows.filter(row => row.missing > 0).length;
+  // 손댈 학생이 위로. 같은 조건이면 신규가 먼저 — 이번 주에 처음 오는 학생이라 시간표가 통째로 비어 있다.
+  const sorted = [...rows].sort((a, b) => b.missing - a.missing
+    || (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)
+    || a.student.id - b.student.id);
+
+  const body = sorted.map(row => {
+    const done = row.missing === 0;
+    const meta = getStudentOriginMetaText(row.student);
     // 이름 옆에 붙이면 이름 길이에 따라 레벨 시작 위치가 들쭉날쭉해진다.
     // 레벨은 줄끼리 비교하며 읽는 값이라 폭이 고정된 제 열에 세워 세로로 맞춘다.
-    const meta = getStudentOriginMetaText(gap.student);
-    return `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid #FDF0CE;background:#fff">
+    return `<div style="display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid #F3F4F6;background:#fff;${done ? 'opacity:.62' : ''}">
       <span style="flex:0 0 158px;min-width:0;display:flex;align-items:center;gap:8px">
-        <img src="${lessonEsc(getStudentPhotoSrc(gap.student))}" alt="${lessonEsc(gap.student.nick || gap.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #F3D89B"/>
+        <img src="${lessonEsc(getStudentPhotoSrc(row.student))}" alt="${lessonEsc(row.student.nick || row.student.name)}" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;object-fit:cover;background:#F3F4F6;border:1px solid #E5E7EB"/>
         <span style="min-width:0">
           <span style="display:flex;align-items:center;gap:5px;min-width:0">
-            <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(gap.student.nick || gap.student.name)}</b>
-            ${gap.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
+            <b style="font-size:11.5px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(row.student.nick || row.student.name)}</b>
+            ${row.isNew ? '<span style="flex:0 0 auto;font-weight:800;font-size:8.5px;padding:1px 5px;border-radius:999px;background:#ECFDF5;color:#047857">신규</span>' : ''}
           </span>
           <span style="display:block;font-size:9.5px;color:#8A90A2;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta}</span>
         </span>
       </span>
-      <span style="flex:0 0 104px;min-width:0">${gap.student.level
-        ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(gap.student.level)}</span>`
+      <span style="flex:0 0 104px;min-width:0">${row.student.level
+        ? `<span style="display:inline-block;max-width:100%;font-size:11px;font-weight:700;color:#4F46E5;background:#EEF2FF;border-radius:5px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${lessonEsc(row.student.level)}</span>`
         : '<span style="font-size:10px;color:#C4C9D4">레벨 없음</span>'}</span>
-      <span style="flex:0 0 150px;min-width:0;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(gap.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
-      ${chips}
-      <span style="margin-left:auto;font-size:9.5px;font-weight:800;color:#DC2626;background:#FEE2E2;border-radius:999px;padding:2px 8px;white-space:nowrap">${gap.total - gap.missing.length}/${gap.total}</span>
+      <span style="flex:0 0 150px;min-width:0;font-size:9.5px;color:#8A90A2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="수강 기간">${getStudentPeriodText(row.student) || '<span style="color:#C4C9D4">기간 미등록</span>'}</span>
+      <span style="flex:1 1 250px;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${row.chips.map(chip => renderScaStudentChip(chip, row.student.id)).join('')}</span>
+      <span style="flex:0 0 auto;font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 8px;white-space:nowrap;${done ? 'color:#047857;background:#ECFDF5' : 'color:#DC2626;background:#FEE2E2'}">${row.placed}/${row.total}</span>
     </div>`;
   }).join('');
 
-  return `<div style="border:1.5px solid #B45309;border-radius:11px;background:#FEF3C7;overflow:hidden;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #F3D89B">
-      <b style="font-size:11.5px;color:#B45309">아직 반이 없는 학생 ${gaps.length}명</b>
-      <span style="font-size:10.5px;color:#8A90A2">빨간 칩을 누르면 갈 수 있는 반이 떠.</span>
-      
+  return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
+      <b style="font-size:11.5px;color:#111827">그룹 수업 배정</b>
+      ${remaining
+        ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">${rows.length}명 중 ${remaining}명 남음</span>`
+        : `<span style="font-size:10.5px;font-weight:700;color:#047857">${rows.length}명 전부 반에 들어갔어</span>`}
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:9px;font-size:9.5px;color:#8A90A2;flex-wrap:wrap">
+        <span><b style="color:#DC2626">빨강</b> 반 없음</span>
+        <span><b style="color:#B45309">노랑</b> 반은 있고 시간 미정</span>
+        <span><b style="color:#6B7280">회색</b> 확정 — 누르면 반 변경</span>
+      </span>
     </div>
-    ${rows}
+    ${body}${footer}
   </div>`;
 }
 
-// 1단계 = 위쪽 미배정 목록 + 아래쪽 레벨별 화면(원래 있던 것 그대로).
-function renderScaStep1Board() {
-  const panel = document.getElementById('sca-panel-step1');
-  if (!panel) return;
-  panel.innerHTML = renderScaGapList() + renderScaGroupClassList();
-
-  // 레벨별 수요 표는 「이 레벨에 반이 몇 개 더 필요한가」를 보는 표다. 배정 자체는 위의 그룹 수업
-  // 목록에서 하기 때문에 기본은 접어둔다 — 통합 레벨 반이 레벨마다 한 번씩 나와서, 이 표에서
-  // 강사를 걸면 같은 반이 두 줄에 걸쳐 뭐가 되는지 애매해진다.
-  const demand = document.createElement('details');
-  demand.style.cssText = 'margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;background:#fff;padding:11px 13px';
-  demand.innerHTML = '<summary style="cursor:pointer;font-size:11.5px;font-weight:800;color:#4B5563;outline:none">레벨별 수요 <span style="font-weight:400;color:#9CA3AF">— 반을 몇 개 더 열어야 하는지 보는 표</span></summary>';
-  const host = document.createElement('div');
-  host.style.marginTop = '10px';
-  demand.appendChild(host);
-  panel.appendChild(demand);
-  renderGroupManagementActive(host);
-}
-
 // ─────────────────────────────────────────────────────────────
-// 그룹 수업 목록 — 반이 한 번씩만 나오고, 강사 배정 팝업을 여는 자리.
-// 줄에 「학생을 먼저 넣어야」 같은 상태를 판정해 적지 않는다. 그런 사유는 팝업을 열었을 때 나온다.
-// 배정 여부는 「교시 · 강사 · 강의실」 칸이 이미 말해준다.
+// 그룹 수업 목록 — 레벨로 끊고, 레벨마다 「아직 없는 반」을 위에, 「있는 반」을 아래에 둔다.
+//
+// 규칙 하나: 반 하나 = 줄 하나. 어디에도 두 번 나오지 않는다.
+// 통합 레벨 반은 두 레벨에 걸쳐 있어서 레벨 섹션에 넣으면 같은 반의 버튼이 화면에 두 개 생긴다.
+// 그래서 맨 아래 「통합 레벨」 섹션에 한 번만 세우고, 레벨 머리에는 「통합 N개 공유」만 적는다.
+//
+// 예전엔 이 목록과 「레벨별 수요」 표가 따로 있었다. 수요표는 학생 수요로 줄을 만들기 때문에
+// 학생이 아직 없는 반은 표에서 통째로 사라졌다 — 반부터 먼저 여는 흐름과 정면으로 부딪혔다.
+// 그래서 수요표가 하던 일(생성 필요 +N)만 이 목록 안으로 들어왔다.
 // ─────────────────────────────────────────────────────────────
 function isGroupScheduled(group) {
   return Boolean(group.teacherId != null && group.roomId != null
     && Array.isArray(group.periods) && group.periods.length);
 }
 
-function renderScaGroupClassList() {
-  const groups = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
-  // 미정인 반이 위로. 학생이 0명인 반은 지금 당장 할 일이 없어 그 아래.
-  const rank = group => (isGroupScheduled(group) ? 2 : ((group.studentIds || []).length ? 0 : 1));
-  const sorted = [...groups].sort((a, b) => rank(a) - rank(b)
-    || (b.studentIds || []).length - (a.studentIds || []).length
-    || a.id - b.id);
-  const pending = sorted.filter(group => !isGroupScheduled(group)).length;
+function getGroupFirstPeriod(group) {
+  const periods = Array.isArray(group.periods) ? group.periods.map(Number) : [];
+  return periods.length ? Math.min(...periods) : 99;
+}
 
-  const rows = sorted.map(group => {
-    const count = (group.studentIds || []).length;
-    const capacity = getGroupBaseCapacityFor(group);
-    const teacher = MOCK_TEACHERS.find(item => item.id === Number(group.teacherId));
-    const room = MOCK_CLASS_ROOMS.find(item => item.id === Number(group.roomId));
-    const placed = isGroupScheduled(group)
-      ? `<b style="color:#111827">${group.periods.map(Number).sort((a, b) => a - b).join('·')}교시</b> · ${lessonEsc(teacher?.nick || teacher?.name || '-')} · ${lessonEsc(room?.roomNo || '-')}`
-      : '<span style="display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FFFBEB;color:#B45309">미정</span>';
-    return `<tr>
-      <td style="padding:9px 10px;border-bottom:1px solid #F3F4F6"><b style="font-size:11.5px;color:#111827">${lessonEsc(getGroupDisplayName(group))}</b><div style="font-size:10px;color:#9CA3AF;margin-top:2px">${lessonEsc(group.course || '-')}</div></td>
-      <td style="padding:9px 10px;border-bottom:1px solid #F3F4F6;font-size:11px;color:#4B5563;white-space:nowrap">${lessonEsc(group.classType)}</td>
-      <td style="padding:9px 10px;border-bottom:1px solid #F3F4F6;font-size:11px;white-space:nowrap;color:${count > capacity ? '#B45309' : '#4B5563'};font-weight:${count > capacity ? 700 : 400}">${count}/${capacity}명</td>
-      <td style="padding:9px 10px;border-bottom:1px solid #F3F4F6;font-size:11px;color:#4B5563">${placed}</td>
-      <td style="padding:9px 10px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap">
-        <button class="tsa-btn tsa-btn-xs tsa-btn-primary" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id})">강사 배정</button>
-        <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="white-space:nowrap;margin-left:4px" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
-      </td>
-    </tr>`;
+// 미정인 반이 위로, 그다음 교시 순. 섹션 안에서 손댈 줄이 먼저 눈에 들어오게.
+function sortScaGroupRows(groups) {
+  return [...groups].sort((a, b) => (isGroupScheduled(a) ? 1 : 0) - (isGroupScheduled(b) ? 1 : 0)
+    || getGroupFirstPeriod(a) - getGroupFirstPeriod(b)
+    || getGroupTypeRank(a.classType) - getGroupTypeRank(b.classType)
+    || a.id - b.id);
+}
+
+const SCA_LIST_CELL = 'padding:9px 10px;border-bottom:1px solid #F3F4F6;font-size:11px;color:#4B5563';
+
+function renderScaLevelHeaderRow(title, meta, urgent) {
+  return `<tr><td colspan="5" style="padding:8px 13px;background:${urgent ? '#FFFBEB' : '#F3F4F6'};border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB">
+    <b style="font-size:11px;color:#111827">${lessonEsc(title)}</b>
+    <span style="margin-left:8px;font-size:10.5px;color:${urgent ? '#B45309' : '#8A90A2'};font-weight:${urgent ? 700 : 400}">${meta.map(lessonEsc).join(' · ')}</span>
+  </td></tr>`;
+}
+
+// 아직 열지 않은 반. 대기 인원이 있는데 자리가 모자란 만큼만 나온다.
+function renderScaNeedRow(row) {
+  return `<tr style="background:#FFFDF7">
+    <td style="${SCA_LIST_CELL}"><b style="font-size:11.5px;color:#B45309">＋ ${lessonEsc(row.subjectName)}</b><div style="font-size:10px;color:#C08A2E;margin-top:2px">아직 없는 반${row.additionalGroups > 1 ? ` · ${row.additionalGroups}개 필요` : ''}</div></td>
+    <td style="${SCA_LIST_CELL};white-space:nowrap">${lessonEsc(row.classType)}</td>
+    <td style="${SCA_LIST_CELL};white-space:nowrap;color:#B45309;font-weight:700">대기 ${row.waitingCount}명</td>
+    <td style="${SCA_LIST_CELL};color:#C4C9D4">—</td>
+    <td style="${SCA_LIST_CELL};text-align:right;white-space:nowrap">
+      <button class="tsa-btn tsa-btn-xs tsa-btn-primary" style="white-space:nowrap" onclick="createGroupForDemand('${lessonEsc(row.subjectId)}','${lessonEsc(row.classType)}',${row.levelGroup})">만들기</button>
+    </td>
+  </tr>`;
+}
+
+function renderScaGroupRow(group, showLevel) {
+  const count = (group.studentIds || []).length;
+  const capacity = getGroupBaseCapacityFor(group);
+  const teacher = MOCK_TEACHERS.find(item => item.id === Number(group.teacherId));
+  const room = MOCK_CLASS_ROOMS.find(item => item.id === Number(group.roomId));
+  const placed = isGroupScheduled(group)
+    ? `<b style="color:#111827">${group.periods.map(Number).sort((a, b) => a - b).join('·')}교시</b> · ${lessonEsc(teacher?.nick || teacher?.name || '-')} · ${lessonEsc(room?.roomNo || '-')}`
+    : '<span style="display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#FFFBEB;color:#B45309">미정</span>';
+  const name = showLevel ? getGroupDisplayName(group) : getGroupSubjectNamesLabel(group);
+  return `<tr>
+    <td style="${SCA_LIST_CELL}"><b style="font-size:11.5px;color:#111827">${lessonEsc(name)}</b><div style="font-size:10px;color:#9CA3AF;margin-top:2px">${lessonEsc(group.course || '-')}</div></td>
+    <td style="${SCA_LIST_CELL};white-space:nowrap">${lessonEsc(group.classType)}</td>
+    <td style="${SCA_LIST_CELL};white-space:nowrap;color:${count > capacity ? '#B45309' : '#4B5563'};font-weight:${count > capacity ? 700 : 400}">${count}/${capacity}명</td>
+    <td style="${SCA_LIST_CELL}">${placed}</td>
+    <td style="${SCA_LIST_CELL};text-align:right;white-space:nowrap">
+      <button class="tsa-btn tsa-btn-xs tsa-btn-primary" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id})">강사 배정</button>
+      <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="white-space:nowrap;margin-left:4px" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
+    </td>
+  </tr>`;
+}
+
+function renderScaGroupClassList() {
+  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
+  const mergedGroups = active.filter(isMergedLevelGroup);
+  const mergedIds = new Set(mergedGroups.map(group => group.id));
+  const needs = buildCsGroupDemandRows().filter(row => row.additionalGroups > 0);
+  const levels = [...MOCK_MASTER_LEVELS].filter(level => level.visible !== false).sort((a, b) => a.order - b.order);
+  const newCount = needs.reduce((sum, row) => sum + row.additionalGroups, 0);
+  const pending = active.filter(group => !isGroupScheduled(group)).length;
+
+  const emptyRow = '<tr><td colspan="5" style="padding:11px 13px;font-size:10.5px;color:#C4C9D4">이 레벨은 반도 대기도 없어.</td></tr>';
+
+  const sections = levels.map(level => {
+    const groups = active.filter(group => !mergedIds.has(group.id) && getGroupLevelSet(group).includes(level.order));
+    const levelNeeds = needs.filter(row => row.levelGroup === level.order);
+    const shared = mergedGroups.filter(group => getGroupLevelSet(group).includes(level.order)).length;
+    const waiting = levelNeeds.reduce((sum, row) => sum + row.waitingCount, 0);
+    const extra = levelNeeds.reduce((sum, row) => sum + row.additionalGroups, 0);
+    const meta = [
+      `반 ${groups.length}개`,
+      shared ? `통합 ${shared}개 공유` : '',
+      waiting ? `대기 ${waiting}명` : '',
+      extra ? `필요 +${extra}` : ''
+    ].filter(Boolean);
+    const body = [
+      ...levelNeeds.map(row => renderScaNeedRow(row)),
+      ...sortScaGroupRows(groups).map(group => renderScaGroupRow(group, false))
+    ].join('');
+    return renderScaLevelHeaderRow(getLevelGroupName(level.order), meta, Boolean(extra)) + (body || emptyRow);
   }).join('');
 
-  return `<div style="margin-top:14px;border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
+  // 통합 레벨은 맨 아래 한 섹션. 여기서만 반 이름에 레벨 구간을 함께 적는다.
+  const mergedSection = mergedGroups.length
+    ? renderScaLevelHeaderRow('통합 레벨', [`반 ${mergedGroups.length}개`, '레벨 두 개가 함께 쓰는 반'], false)
+      + sortScaGroupRows(mergedGroups).map(group => renderScaGroupRow(group, true)).join('')
+    : '';
+
+  const head = ['반', '유형', '인원', '교시 · 강사 · 강의실', '동작'].map((label, index) =>
+    `<th style="text-align:${index === 4 ? 'right' : 'left'};padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">${label}</th>`
+  ).join('');
+
+  return `<div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 13px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
-      <b style="font-size:11.5px;color:#111827">그룹 수업 ${sorted.length}개</b>
+      <b style="font-size:11.5px;color:#111827">그룹 수업 ${active.length}개</b>
+      ${newCount ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">새로 열 반 ${newCount}개</span>` : ''}
       ${pending ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">배정 미정 ${pending}개</span>` : '<span style="font-size:10.5px;font-weight:700;color:#047857">전부 배정 완료</span>'}
       <button onclick="openGroupCreateFromScaList()" style="margin-left:auto;border:0;border-radius:8px;padding:6px 13px;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer">＋ 그룹 수업 만들기</button>
     </div>
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:620px">
-        <thead><tr>
-          <th style="text-align:left;padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">반</th>
-          <th style="text-align:left;padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">유형</th>
-          <th style="text-align:left;padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">인원</th>
-          <th style="text-align:left;padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">교시 · 강사 · 강의실</th>
-          <th style="text-align:right;padding:7px 10px;font-size:10px;color:#9CA3AF;font-weight:800;border-bottom:1px solid #E5E7EB">동작</th>
-        </tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" style="padding:18px 10px;text-align:center;font-size:11px;color:#9CA3AF">운영 중인 그룹 수업이 없어. 오른쪽 위에서 만들어줘.</td></tr>'}</tbody>
+      <table style="width:100%;border-collapse:collapse;min-width:680px;table-layout:fixed">
+        <colgroup><col style="width:32%"><col style="width:10%"><col style="width:11%"><col style="width:27%"><col style="width:20%"></colgroup>
+        <thead><tr>${head}</tr></thead>
+        <tbody>${sections}${mergedSection}</tbody>
       </table>
     </div>
   </div>`;
@@ -2443,6 +2592,18 @@ function renderScaGroupClassList() {
 // 저쪽은 그 학생의 과목·레벨·유형이 채워진 채로, 이쪽은 빈 채로 열릴 뿐이다.
 function openGroupCreateFromScaList() {
   openGroupCreateBrowserPopup([], '1:4', null);
+}
+
+// 「아직 없는 반」 줄의 만들기. 그 줄이 이미 과목·유형·레벨을 들고 있으니 그대로 채워 연다.
+function createGroupForDemand(subjectId, classType, levelGroup) {
+  openGroupCreateBrowserPopup([{ id: subjectId, hours: 1 }], classType, Number(levelGroup));
+}
+
+// 1단계 = 위쪽 학생 목록 + 아래쪽 그룹 수업 목록. 둘로 끝난다.
+function renderScaStep1Board() {
+  const panel = document.getElementById('sca-panel-step1');
+  if (!panel) return;
+  panel.innerHTML = renderScaStudentBoard() + renderScaGroupClassList();
 }
 let _scaOnePick = null; // { studentId, sequence, subjectId } — 지금 고른 1:1 수업
 
