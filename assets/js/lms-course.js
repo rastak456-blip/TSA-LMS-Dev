@@ -7049,7 +7049,8 @@ const MOCK_PICKUP_VEHICLES = [
   { id: 2, model: 'Hyundai Staria', plate: 'XYZ 9087', capacity: 9, memo: 'White', active: true },
 ];
 
-const PICKUP_DATE_ASSIGNMENTS = {};
+// 픽업 배정의 단위는 '배차 그룹' 하나뿐이다 — 어떤 학생들을, 누가, 어떤 차로, 몇 시에.
+// 예전에 있던 '그날 나갈 담당자만 찍어두는' PICKUP_DATE_ASSIGNMENTS 는 쓰는 화면이 없어 걷어냈다.
 const PICKUP_DISPATCH_GROUPS = {};
 let pickupSelectedStudentIds = [];
 
@@ -7057,38 +7058,25 @@ function getPickupDispatchGroups(dateKey) {
   return PICKUP_DISPATCH_GROUPS[dateKey] || [];
 }
 
-function getPickupManagerIdsForDate(dateKey) {
-  return [...new Set((PICKUP_DATE_ASSIGNMENTS[dateKey] || []).map(Number).filter(Boolean))];
-}
-
-function getPickupManagersForDate(dateKey) {
-  const ids = getPickupManagerIdsForDate(dateKey);
-  return ids.map(id => MOCK_PICKUP_MANAGERS.find(manager => manager.id === id && manager.visible !== false)).filter(Boolean);
-}
-
+// 공항 픽업 확인서에 찍을 담당자. 그 학생이 실제로 탄 배차 그룹의 담당자가 곧 답이다.
 function getPickupManagersForStudent(student) {
   if (!student) return [];
   const dateKey = student.arrivalDate || student.startDate;
-  const dispatchManagers = getPickupDispatchGroups(dateKey)
+  const managers = getPickupDispatchGroups(dateKey)
     .filter(group => group.studentIds.includes(student.id) && group.managerId)
     .map(group => MOCK_PICKUP_MANAGERS.find(manager => manager.id === Number(group.managerId)))
     .filter(Boolean);
-  if (dispatchManagers.length) return [...new Map(dispatchManagers.map(manager => [manager.id, manager])).values()];
-  return getPickupManagersForDate(student.arrivalDate || student.startDate);
+  return [...new Map(managers.map(manager => [manager.id, manager])).values()];
 }
 
+// 픽업 담당자 관리 — 담당자와 차량, 즉 바뀌는 일이 드문 쪽만 둔다.
 function initPickupManagerView() {
   renderPickupManagerCards();
-  if (!APP.pickupDateAssignmentsInitialized) {
-    getPickupStudents().forEach(student => {
-      const dateKey = student.arrivalDate || student.startDate;
-      if (student.pickupManagerId) {
-        const currentIds = PICKUP_DATE_ASSIGNMENTS[dateKey] || [];
-        PICKUP_DATE_ASSIGNMENTS[dateKey] = [...new Set([...currentIds, Number(student.pickupManagerId)])];
-      }
-    });
-    APP.pickupDateAssignmentsInitialized = true;
-  }
+  resetPickupVehicleForm();
+}
+
+// 픽업 배정 — 입국일별 배차 편성. 매주 손대는 쪽.
+function initPickupAssignView() {
   if (!APP.pickupCalendarMonth) {
     const today = new Date();
     APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -7247,7 +7235,10 @@ function changePickupTimetableDate(dateKey) {
   if (!dateKey) return;
   APP.pickupSelectedDate = dateKey;
   const selected = new Date(`${dateKey}T00:00:00`);
-  if (selected.getFullYear() !== APP.pickupCalendarMonth.getFullYear() || selected.getMonth() !== APP.pickupCalendarMonth.getMonth()) {
+  // 담당자 관리 화면에서 배차표만 열어본 경우엔 달력이 아직 없다.
+  if (!APP.pickupCalendarMonth
+    || selected.getFullYear() !== APP.pickupCalendarMonth.getFullYear()
+    || selected.getMonth() !== APP.pickupCalendarMonth.getMonth()) {
     APP.pickupCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
   }
   renderPickupCalendar();
@@ -7619,25 +7610,27 @@ function savePickupDispatch(dateKey, groupId) {
   showToast('차량 배차가 등록되었습니다.', 'success');
 }
 
-function openPickupVehicleModal() {
-  document.getElementById('pickup-vehicle-id').value = '';
+// 차량 입력칸을 새 차량 등록 상태로 되돌린다. 수정 중이던 차량이 있으면 그 편집도 함께 취소된다.
+function resetPickupVehicleForm() {
+  const id = document.getElementById('pickup-vehicle-id');
+  if (!id) return;
+  id.value = '';
   document.getElementById('pickup-vehicle-model').value = '';
   document.getElementById('pickup-vehicle-plate').value = '';
   document.getElementById('pickup-vehicle-capacity').value = '5';
   document.getElementById('pickup-vehicle-memo').value = '';
   renderPickupVehicleList();
-  openModal('pickup-vehicle-modal');
-  setTimeout(function() { if (typeof refreshIcons === 'function') refreshIcons(); }, 50);
 }
 
 function renderPickupVehicleList() {
   const target = document.getElementById('pickup-vehicle-list');
   if (!target) return;
+  const editingId = Number(document.getElementById('pickup-vehicle-id')?.value || 0);
   target.innerHTML = MOCK_PICKUP_VEHICLES.length ? MOCK_PICKUP_VEHICLES.map(vehicle => `
-    <div style="display:grid;grid-template-columns:1fr 100px 76px 44px;gap:8px;align-items:center;padding:9px 10px;border:1px solid #E5E7EB;border-radius:8px;background:#fff">
+    <div style="display:grid;grid-template-columns:1fr 100px 76px 44px;gap:8px;align-items:center;padding:9px 10px;border:1px solid ${vehicle.id === editingId ? '#6366F1' : '#E5E7EB'};border-radius:8px;background:${vehicle.id === editingId ? '#EEF2FF' : '#fff'}">
       <div><b style="font-size:11px;color:#111827">${vehicle.model}</b><div style="font-size:9.5px;color:#6B7280;margin-top:2px">${vehicle.plate}${vehicle.memo ? ` · ${vehicle.memo}` : ''}</div></div>
       <span style="font-size:10.5px;color:#374151">${vehicle.capacity}인승</span>
-      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="editPickupVehicle(${vehicle.id})">수정</button>
+      <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="editPickupVehicle(${vehicle.id})">${vehicle.id === editingId ? '수정 중' : '수정'}</button>
       <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" title="삭제" style="color:#EF4444;border-color:#FCA5A5;display:flex;align-items:center;justify-content:center;padding:0;width:32px;height:28px" onclick="removePickupVehicle(${vehicle.id})"><i data-lucide="trash-2" style="width:15px;height:15px"></i></button>
     </div>`).join('') : '<div style="padding:18px;text-align:center;border:1px dashed #CBD5E1;border-radius:8px;color:#9CA3AF;font-size:10.5px">등록된 차량이 없습니다.</div>';
   if (typeof refreshIcons === 'function') refreshIcons();
@@ -7651,6 +7644,7 @@ function editPickupVehicle(vehicleId) {
   document.getElementById('pickup-vehicle-plate').value = vehicle.plate;
   document.getElementById('pickup-vehicle-capacity').value = String(vehicle.capacity);
   document.getElementById('pickup-vehicle-memo').value = vehicle.memo || '';
+  renderPickupVehicleList();
 }
 
 function savePickupVehicle() {
@@ -7674,12 +7668,7 @@ function savePickupVehicle() {
   } else {
     MOCK_PICKUP_VEHICLES.push({ id: Date.now(), model, plate, capacity, memo, active: true });
   }
-  document.getElementById('pickup-vehicle-id').value = '';
-  document.getElementById('pickup-vehicle-model').value = '';
-  document.getElementById('pickup-vehicle-plate').value = '';
-  document.getElementById('pickup-vehicle-capacity').value = '5';
-  document.getElementById('pickup-vehicle-memo').value = '';
-  renderPickupVehicleList();
+  resetPickupVehicleForm();
   renderPickupDateAssignments();
   showToast('차량 정보가 저장되었습니다.', 'success');
 }

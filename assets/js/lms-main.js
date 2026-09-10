@@ -3248,7 +3248,6 @@ function syncStudentPopupArrays(source) {
   if (typeof MOCK_PICKUP_MANAGERS !== 'undefined') syncArray(MOCK_PICKUP_MANAGERS, source.pickupManagers);
   if (typeof MOCK_PICKUP_VEHICLES !== 'undefined') syncArray(MOCK_PICKUP_VEHICLES, source.pickupVehicles);
   if (typeof PICKUP_DISPATCH_GROUPS !== 'undefined' && source.pickupDispatchGroups) Object.assign(PICKUP_DISPATCH_GROUPS, source.pickupDispatchGroups);
-  if (typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' && source.pickupDateAssignments) Object.assign(PICKUP_DATE_ASSIGNMENTS, source.pickupDateAssignments);
 }
 
 // 부모 창(opener)이 postMessage로 보내주는 mock 데이터 스냅샷 페이로드를 만든다.
@@ -3260,7 +3259,6 @@ function buildStudentPopupSyncPayload() {
     pickupManagers: typeof MOCK_PICKUP_MANAGERS !== 'undefined' ? MOCK_PICKUP_MANAGERS : undefined,
     pickupVehicles: typeof MOCK_PICKUP_VEHICLES !== 'undefined' ? MOCK_PICKUP_VEHICLES : undefined,
     pickupDispatchGroups: typeof PICKUP_DISPATCH_GROUPS !== 'undefined' ? PICKUP_DISPATCH_GROUPS : undefined,
-    pickupDateAssignments: typeof PICKUP_DATE_ASSIGNMENTS !== 'undefined' ? PICKUP_DATE_ASSIGNMENTS : undefined,
   };
 }
 
@@ -3326,7 +3324,6 @@ function initializeStudentPopupMode() {
         pickupManagers: typeof window.opener.MOCK_PICKUP_MANAGERS !== 'undefined' ? window.opener.MOCK_PICKUP_MANAGERS : undefined,
         pickupVehicles: typeof window.opener.MOCK_PICKUP_VEHICLES !== 'undefined' ? window.opener.MOCK_PICKUP_VEHICLES : undefined,
         pickupDispatchGroups: window.opener.PICKUP_DISPATCH_GROUPS,
-        pickupDateAssignments: window.opener.PICKUP_DATE_ASSIGNMENTS,
       });
     } catch (e) { /* 접근 불가 시(다른 오리진 등) 무시하고 postMessage 응답을 기다린다 */ }
 
