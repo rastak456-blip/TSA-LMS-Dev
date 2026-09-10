@@ -1115,11 +1115,12 @@ function getAvailState(t, d, p) {
   return 'open';
 }
 
-// 강사 가용성 그리드의 교시 수는 과정 기준 설정의 종(벨) 시간표를 그대로 따른다 —
+// 강사 가용성 그리드의 교시 수는 기본 시간표를 그대로 따른다 —
 // 예전엔 8교시로 고정돼 있어서 9교시 이후 시간대의 가용성을 아예 설정할 수 없었다.
+// 강사는 조를 갖지 않고 두 조를 오가므로 여기서는 기본 시간표의 교시 수만 쓴다.
 function teacherAvailPeriodCount() {
   const periods = typeof getBellPeriods === 'function' ? getBellPeriods() : null;
-  return (periods && periods.length) || ((APP && APP.bellSystem && APP.bellSystem.total) || 8);
+  return (periods && periods.length) || 12;
 }
 
 function cycleAvailState(teacherId, d, p) {

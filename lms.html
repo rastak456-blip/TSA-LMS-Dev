@@ -3863,120 +3863,8 @@
           </div>
 
           <!-- [탭] 수업 시간 설정 -->
-          <div id="bell-settings-panel" style="display:none">
-            <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;align-items:start;">
-              <!-- Left: Settings Card -->
-              <div class="tsa-card">
-                <div class="tsa-card-header" style="background:#F0F1FE">
-                  <h3 class="tsa-card-title"><i data-lucide="settings" style="color:#5E5CE6"></i> 수업 시간 설정</h3>
-                </div>
-                <div class="tsa-card-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">수업 진행 시간 (수업 Duration)</label>
-                    <select id="bell-settings-duration" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="40">40분 수업</option>
-                      <option value="45">45분 수업</option>
-                      <option value="50" selected>50분 수업</option>
-                      <option value="60">60분 수업</option>
-                    </select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">쉬는 시간 (Break Time)</label>
-                    <select id="bell-settings-break" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="5">5분 휴식</option>
-                      <option value="10" selected>10분 휴식</option>
-                      <option value="15">15분 휴식</option>
-                    </select>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">시작 시간 (Start Time)</label>
-                    <input type="text" id="bell-settings-start" class="tsa-input" value="08:00" placeholder="HH:MM" oninput="previewBellSettings()"/>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">하루 총 교시 수</label>
-                    <select id="bell-settings-total-periods" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="6">6교시</option>
-                      <option value="7">7교시</option>
-                      <option value="8">8교시</option>
-                      <option value="9">9교시</option>
-                      <option value="10">10교시</option>
-                      <option value="11">11교시</option>
-                      <option value="12" selected>12교시</option>
-                      <option value="13">13교시</option>
-                      <option value="14">14교시</option>
-                      <option value="15">15교시</option>
-                    </select>
-                  </div>
-                  <div class="tsa-divider"></div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">점심 시작 시간 (Lunch Start Time)</label>
-                    <input type="time" id="bell-settings-lunch-start" class="tsa-input" value="12:05" oninput="previewBellSettings()"/>
-                    <div style="font-size:10.5px;color:#6B7280;margin-top:5px">특정 교시 뒤가 아니라 실제 점심 시작 시간을 직접 설정합니다.</div>
-                  </div>
-                  <div class="tsa-form-group">
-                    <label class="tsa-label">점심시간 (Lunch Break Duration)</label>
-                    <select id="bell-settings-lunch-duration" class="tsa-input" onchange="previewBellSettings()">
-                      <option value="30">30분 점심</option>
-                      <option value="45">45분 점심</option>
-                      <option value="60" selected>60분 점심</option>
-                      <option value="90">90분 점심</option>
-                    </select>
-                  </div>
-                  <div style="margin-top:10px;">
-                    <button class="tsa-btn tsa-btn-primary" style="width:100%;justify-content:center;" onclick="applyBellSettings()">
-                      <i data-lucide="check-circle"></i> 설정 저장 및 시간표 적용
-                    </button>
-                  </div>
-
-                  <!-- 확정(Published) 상태일 때만 표시되는 인라인 선택 바 -->
-                  <div id="bell-apply-confirm-bar" style="display:none;margin-top:12px;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:10px;padding:14px">
-                    <div style="font-size:12px;font-weight:700;color:#B91C1C;margin-bottom:10px">
-                      🚨 시간표가 확정(Published) 상태입니다. 적용 시점을 선택해 주세요.
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:8px">
-                      <button onclick="window._bellApplyChoice='1'; applyBellSettings();"
-                        style="padding:9px 12px;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:7px;font-size:12px;font-weight:700;color:#B91C1C;cursor:pointer;text-align:left">
-                        ⚡ 즉시 적용 — 현재 시간표에 바로 반영
-                      </button>
-                      <button onclick="window._bellApplyChoice='2'; applyBellSettings();"
-                        style="padding:9px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:7px;font-size:12px;font-weight:700;color:#C2410C;cursor:pointer;text-align:left">
-                        📅 차주 월요일부터 적용 예약
-                      </button>
-                      <button onclick="document.getElementById('bell-apply-confirm-bar').style.display='none'"
-                        style="padding:7px 12px;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:7px;font-size:11.5px;color:#6B7280;cursor:pointer">
-                        취소
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Right: Preview Card -->
-              <div class="tsa-card">
-                <div class="tsa-card-header" style="background:#F8F9FC">
-                  <h3 class="tsa-card-title"><i data-lucide="eye" style="color:#0ea5e9"></i> 실시간 타임테이블 구성 미리보기</h3>
-                </div>
-                <div class="tsa-card-body" style="padding:20px;">
-                  <div style="background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;padding:12px;border-radius:8px;font-size:12px;margin-bottom:16px;">
-                    💡 <strong>실시간 계산기:</strong> 위 파라미터를 변경하시면 아래 시간표의 시작 및 종료 시간이 즉시 계산되어 미리 표시됩니다. 저장 버튼을 누르면 전체 시간표에 최종 반영됩니다.
-                  </div>
-
-                  <table class="tsa-table" style="width:100%;font-size:13px;">
-                    <thead>
-                      <tr style="background:#F3F4F6;">
-                        <th style="padding:10px;text-align:center;width:100px;">교시</th>
-                        <th style="padding:10px;text-align:center;">진행 시간대</th>
-                        <th style="padding:10px;text-align:center;width:150px;">구분</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bell-settings-preview-body">
-                      <!-- Rendered dynamically -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 예전 「수업 시간 설정」 폼이 있던 자리. 시간표가 여러 장이 되면서
+               커리큘럼 관리 · 수업 시간 설정의 목록 → 편집 화면이 그 일을 대신한다. -->
         </div>
 
         <!-- ================================================ -->
@@ -7567,14 +7455,14 @@
 <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 <div id="google_translate_element"></div>
 
-<script src="assets/js/lms-data.js?v=0.7.1"></script>
+<script src="assets/js/lms-data.js?v=0.7.2"></script>
 <script src="assets/js/lms-util.js?v=0.6.11"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.11"></script>
-<script src="assets/js/lms-student.js?v=0.6.7"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.12"></script>
+<script src="assets/js/lms-student.js?v=0.6.8"></script>
     <script src="assets/js/lms-course.js?v=0.6.79"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.13"></script>
-<script src="assets/js/lms-classroom.js?v=0.13.0"></script>
+<script src="assets/js/lms-classroom.js?v=0.14.2"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.13"></script>

@@ -1166,35 +1166,16 @@ function bellMinutesToTime(totalMinutes) {
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
 
+// 예전 이름 그대로 둔 자리. 안에서 하던 「시작 + 수업 + 휴식」 공식은 시간표가 대신한다 —
+// 시간표 객체를 주면 그걸로, 안 주면 기본 시간표로 하루를 만든다.
+// 이 함수를 부르는 화면(시간표 현황·주간 시간표·교시 마스터)이 여럿이라 이름을 남겼다.
 function buildBellSchedule(settings) {
-  const config = settings || APP.bellSystem || {};
-  const duration = Number(config.duration) || 50;
-  const breakDuration = Number(config.break) || 10;
-  const total = Math.min(15, Math.max(1, Number(config.total) || 12));
-  let current = bellTimeToMinutes(config.start || '08:00');
-  if (current == null) current = 8 * 60;
-  const lunchStart = bellTimeToMinutes(config.lunchStart || '12:05');
-  const lunchDuration = Math.max(0, Number(config.lunchDuration) || 60);
-  const lunchEnd = lunchStart == null ? null : lunchStart + lunchDuration;
-  let lunchInserted = lunchStart == null || lunchDuration === 0;
-  const rows = [];
-
-  for (let period = 1; period <= total; period++) {
-    const proposedEnd = current + duration;
-    if (!lunchInserted && (current >= lunchStart || proposedEnd > lunchStart)) {
-      rows.push({ p: 'lunch', start: bellMinutesToTime(lunchStart), end: bellMinutesToTime(lunchEnd) });
-      current = Math.max(current, lunchEnd);
-      lunchInserted = true;
-    }
-    const end = current + duration;
-    rows.push({ p: period, start: bellMinutesToTime(current), end: bellMinutesToTime(end) });
-    current = end + breakDuration;
-  }
-  return rows;
+  if (settings && Array.isArray(settings.periods)) return buildTimetableSchedule(settings);
+  return buildTimetableSchedule(getDefaultTimetable());
 }
 
 function getBellPeriodMap() {
-  return Object.fromEntries(buildBellSchedule(APP.bellSystem).filter(row => row.p !== 'lunch').map(row => [row.p, row.start]));
+  return Object.fromEntries(buildBellSchedule().filter(row => row.p !== 'lunch').map(row => [row.p, row.start]));
 }
 
 let CS_PERIODS = getBellPeriodMap();
@@ -1475,7 +1456,7 @@ function planStudentOneToOneSchedule(student, teacher, requirements) {
   if (!teacher.room) {
     return { ok: false, message: '담당 1:1 강의실이 없어.' };
   }
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const planned = [];
   for (const requirement of oneToOneReqs) {
     const period = Number(requirement.sequence);
@@ -3058,7 +3039,7 @@ function unassignScaOneToOne(studentId, sequence, subjectId) {
 // 한 강사는 여러 학생을 맡을 수 있다. 한 사람에게 하루를 통째로 몰아주면
 // 그 강사가 다른 학생을 못 받으니, 수업이 적은 강사부터 채워 골고루 퍼뜨린다.
 function runScaStep3AutoAssign() {
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const pending = getScaOneToOnePending();
   if (!pending.length) {
     showToast('아직 못 붙인 1:1이 없어. 다 배정돼 있어.', 'info');
@@ -3185,7 +3166,7 @@ function getScaScheduleConflicts(lessons) {
 function renderScaScheduleBoard() {
   const panel = document.getElementById('sca-panel-schedule');
   if (!panel) return;
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const periods = Array.from({ length: totalPeriods }, (_, i) => i + 1);
   const lessons = getScaWeekLessons();
   const conflicts = getScaScheduleConflicts(lessons);
@@ -3353,7 +3334,7 @@ function renderScaScheduleBoard() {
 function renderScaStep3Board() {
   const panel = document.getElementById('sca-panel-step3');
   if (!panel) return;
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const periods = Array.from({ length: totalPeriods }, (_, i) => i + 1);
   const teachers = getScaOneToOneTeachers();
   const pending = getScaOneToOnePending();
@@ -4905,9 +4886,9 @@ function renderScheduleCellStatusBadge(cellState, logEntry) {
 // "이 슬롯이 무슨 상태인가"(템플릿 유무 + 실제 출결 기록 유무 + 미래/과거 여부) 판단 로직을 한 곳에 모은다.
 function buildStudentScheduleWeekCells(student) {
   const entries = buildFinalTimetableEntries().filter(entry => (entry.studentIds || []).includes(student.id));
-  const periods = typeof getBellPeriods === 'function'
-    ? getBellPeriods()
-    : Array.from({ length: (APP && APP.bellSystem && APP.bellSystem.total) || 8 }, (_, i) => ({ period: i + 1, start: '', end: '' }));
+  // 그 학생의 조로 시각을 그린다. 같은 5교시라도 A조는 12:50, B조는 12:00이라 기본 시간표로 그리면
+  // B조 학생에게 남의 시간표를 보여주게 된다.
+  const periods = getBellPeriods(getStudentTimetable(student));
   const bySlot = new Map();
   entries.forEach(entry => bySlot.set(`${entry.dayOfWeek}|${entry.period}`, entry));
 
@@ -5259,9 +5240,9 @@ function pickTeacherScheduleWeek(teacherId, isoValue) {
 function buildTeacherWeeklyScheduleHtml(teacher) {
   if (!teacher) return '<div style="padding:30px;text-align:center;color:#9CA3AF;font-size:12px">강사 정보를 찾을 수 없어.</div>';
   const allEntries = buildFinalTimetableEntries().filter(entry => entry.teacherId === teacher.id);
-  const periods = typeof getBellPeriods === 'function'
-    ? getBellPeriods()
-    : Array.from({ length: (APP && APP.bellSystem && APP.bellSystem.total) || 8 }, (_, i) => ({ period: i + 1, start: '', end: '' }));
+  // 강사는 두 조를 오간다. 세로축은 기본 시간표의 교시로 두되, 조가 다른 수업이 걸린 칸에는
+  // 그 조의 시각을 따로 적어야 강사가 몇 시에 어디 있어야 하는지가 맞는다.
+  const periods = getBellPeriods();
   const bySlot = new Map();
   allEntries.forEach(entry => {
     const key = `${entry.dayOfWeek}|${entry.period}`;
@@ -5325,6 +5306,17 @@ function buildTeacherWeeklyScheduleHtml(teacher) {
           </div>
           <div style="font-size:10px;font-weight:700;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lessonEsc(entry.studentLabel)}</div>
           <div style="font-size:9.5px;color:#6B7280;margin-top:2px">${lessonEsc(entry.roomLabel)}</div>
+          ${(() => {
+            // 강사는 두 조를 오간다. 세로축은 기본 시간표라, 다른 조 수업이면 실제 시각을 여기 적어야
+            // 몇 시에 어느 교실에 있어야 하는지가 맞는다.
+            const entryTimetable = getTimetableEntryTimetable(entry);
+            const base = getDefaultTimetable();
+            if (!entryTimetable || !base || entryTimetable.id === base.id) return '';
+            const label = getTimetablePeriodLabel(entryTimetable, entry.period);
+            // 조가 달라도 그 교시의 시각이 같으면 적을 게 없다. 오전처럼 두 조가 겹치는 구간이 그렇다.
+            if (label === getTimetablePeriodLabel(base, entry.period)) return '';
+            return `<div style="font-size:9.5px;font-weight:700;color:#B45309;margin-top:2px">${lessonEsc(entryTimetable.code || entryTimetable.name)}조 ${lessonEsc(label)}</div>`;
+          })()}
         </div>`;
       }).join('');
       return `<td style="border:1px solid #E5E7EB;padding:4px;height:68px;vertical-align:top">${cards}</td>`;
@@ -6507,6 +6499,17 @@ function getSessionTimetable(session) {
   return getStudentTimetable(student);
 }
 
+// 시간표 화면의 항목 하나가 어느 조에 속하나. 그룹이면 반의 조, 1:1이면 그 학생의 조다.
+function getTimetableEntryTimetable(entry) {
+  if (entry?.groupId != null) {
+    const group = MOCK_GROUP_CLASSES.find(item => item.id === Number(entry.groupId));
+    if (group) return getGroupTimetable(group);
+  }
+  const studentId = (entry?.studentIds || [])[0];
+  const student = studentId != null ? MOCK_STUDENTS.find(item => item.id === studentId) : null;
+  return getStudentTimetable(student);
+}
+
 function timeRangesOverlap(a, b) {
   return Boolean(a && b && a.start < b.end && b.start < a.end);
 }
@@ -7062,7 +7065,8 @@ function explainPlacementFailure(group, totalPeriods) {
 let _teacherAssign = null;
 
 function getScaTotalPeriods() {
-  return (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const total = getTimetableTotalPeriods(getDefaultTimetable());
+  return total || 12;
 }
 
 // 이 반 학생이 전원 비어 있는 교시. 여기서 벗어난 교시는 강사가 아무리 남아도 후보가 아니다.
@@ -7310,7 +7314,7 @@ function confirmTeacherAssign() {
 }
 
 function runScaStep2AutoPlace() {
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   // 자리 맞추기 어려운 반부터 놓는다 — 중그룹(강의실이 적다)과 인원 많은 반이 먼저.
   const pending = MOCK_GROUP_CLASSES
     .filter(group => group.status === 'active' && (group.studentIds || []).length && (!Array.isArray(group.periods) || !group.periods.length))
@@ -7351,7 +7355,7 @@ function runScaStep2AutoPlace() {
   renderStudentClassAssignView();
 }
 function renderGroupManagementMatrix() {
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const levels = [...MOCK_MASTER_LEVELS].filter(level => level.visible !== false).sort((a, b) => a.order - b.order)
     .filter(level => _gmLevelFilter === 'all' || _gmLevelFilter === String(level.order));
   if (!levels.length) return '<div style="padding:30px;text-align:center;color:#9CA3AF">표시할 레벨이 없어.</div>';
@@ -8425,7 +8429,7 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
   // 두 군데서 같은 값을 정하면 어느 쪽이 최신인지 알 수 없어서, 만들 때뿐 아니라 고칠 때도 감춘다.
   // (요소는 남겨둔다 — 숨은 입력이 지금 값을 그대로 들고 있다가 저장 때 되돌려준다.)
   const hideSchedule = ' style="display:none"';
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
   const selectedPeriods = isCreate
     ? []
     : (Array.isArray(group.periods) ? group.periods.map(Number).filter(Number.isFinite) : []);
@@ -10372,7 +10376,7 @@ function renderTimetable(conflictMode) {
   const days = ['월', '화', '수', '목', '금', '토'];
   const week = getWeekDates(APP.selectedWeek || 0);
 
-  const periods = buildBellSchedule(APP.bellSystem);
+  const periods = buildBellSchedule();
   const realPeriods = periods.filter(p => p.p !== 'lunch');
 
   function typeTagStyle(type) {
@@ -10616,7 +10620,7 @@ function renderWeeklyTimetable() {
   const days = ['월', '화', '수', '목', '금', '토'];
   const dayEn = { '월': 'Mon', '화': 'Tue', '수': 'Wed', '목': 'Thu', '금': 'Fri', '토': 'Sat' };
 
-  const periods = buildBellSchedule(APP.bellSystem);
+  const periods = buildBellSchedule();
 
   function typeStyle(type) {
     if (type.includes('IELTS')) return 'background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;';
@@ -11312,7 +11316,7 @@ function confirmManualAssignment(optStudentId) {
   }
 
   // S-04. 식사 시간 수업 오버랩 경고
-  const bellSchedule = buildBellSchedule(APP.bellSystem);
+  const bellSchedule = buildBellSchedule();
   const targetRange = bellSchedule.find(item => item.p === APP.assignTarget.period);
   const lunchRange = bellSchedule.find(item => item.p === 'lunch');
   if (targetRange && lunchRange) {
@@ -11812,11 +11816,10 @@ function recalculateBellSystem() {
 
 /* =============================================
    수업 편성(Scheduling) — 공통 교시(Period) 리스트 파생
-   APP.bellSystem(교시 및 벨 설정)이 곧 PRD의 Period 개념이므로
-   별도 마스터 데이터 없이 여기서 매 교시 시작/종료 시각을 계산해 반환한다.
+   기본 시간표가 곧 PRD의 Period 개념이라, 별도 마스터 데이터 없이 여기서 파생한다.
    ============================================= */
 function getPeriodList() {
-  return buildBellSchedule(APP.bellSystem)
+  return buildBellSchedule()
     .filter(row => row.p !== 'lunch')
     .map(row => ({ id: `P${row.p}`, order: row.p, startTime: row.start, endTime: row.end, active: true }));
 }
@@ -12934,127 +12937,11 @@ function deleteTimetable(id) {
 }
 
 /* =============================================
-   BELL & PERIOD SETTINGS PAGE
+   예전 「벨 설정」 폼(initBellSettingsView · previewBellSettings · applyBellSettings)이 있던 자리.
+   시작 시각과 수업·휴식 길이를 한 벌만 받아 APP.bellSystem 에 넣던 화면인데, 시간표가 여러 장이
+   되면서 목록 → 편집(renderCoursePeriodTab)이 그 일을 대신한다. 폼으로 들어오는 길이 사라진 뒤에도
+   코드가 남아 있으면 어느 쪽이 진짜인지 헷갈려서 지웠다.
    ============================================= */
-function initBellSettingsView() {
-  const settings = APP.bellSystem || { duration: 50, break: 10, start: '08:00', total: 12, lunchStart: '12:05', lunchDuration: 60 };
-  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-  setVal('bell-settings-duration', settings.duration);
-  setVal('bell-settings-break', settings.break);
-  setVal('bell-settings-start', settings.start || '08:00');
-  setVal('bell-settings-total-periods', settings.total || 12);
-  setVal('bell-settings-lunch-start', settings.lunchStart || '12:05');
-  setVal('bell-settings-lunch-duration', settings.lunchDuration || 60);
-  if (document.getElementById('bell-settings-duration')) previewBellSettings();
-}
-
-function previewBellSettings() {
-  const dur = parseInt(document.getElementById('bell-settings-duration').value);
-  const brk = parseInt(document.getElementById('bell-settings-break').value);
-  const start = document.getElementById('bell-settings-start').value || '08:00';
-  const total = parseInt(document.getElementById('bell-settings-total-periods').value);
-  const lunchStart = document.getElementById('bell-settings-lunch-start').value || '12:05';
-  const lunchDur = parseInt(document.getElementById('bell-settings-lunch-duration').value);
-
-  const previewBody = document.getElementById('bell-settings-preview-body');
-  if (!previewBody) return;
-
-  const schedule = buildBellSchedule({ duration: dur, break: brk, start, total, lunchStart, lunchDuration: lunchDur });
-  const rowsHtml = schedule.map(row => {
-    if (row.p === 'lunch') {
-      return `
-        <tr style="background:#FFFBEB;color:#B45309;font-weight:700;">
-          <td style="padding:10px;text-align:center;">🍱 점심</td>
-          <td style="padding:10px;text-align:center;">${row.start} - ${row.end}</td>
-          <td style="padding:10px;text-align:center;">식사 및 휴식 (${lunchDur}분)</td>
-        </tr>
-      `;
-    }
-    return `
-      <tr>
-        <td style="padding:10px;text-align:center;font-weight:700;">${row.p}교시</td>
-        <td style="padding:10px;text-align:center;">${row.start} - ${row.end}</td>
-        <td style="padding:10px;text-align:center;"><span class="tsa-badge tsa-badge-success">${dur}분 수업</span></td>
-      </tr>
-    `;
-  }).join('');
-  previewBody.innerHTML = rowsHtml;
-}
-
-function applyBellSettings() {
-  const dur = parseInt(document.getElementById('bell-settings-duration').value);
-  const brk = parseInt(document.getElementById('bell-settings-break').value);
-  const start = document.getElementById('bell-settings-start').value || '08:00';
-  const total = parseInt(document.getElementById('bell-settings-total-periods').value);
-  const lunchStart = document.getElementById('bell-settings-lunch-start').value || '12:05';
-  const lunchDur = parseInt(document.getElementById('bell-settings-lunch-duration').value);
-
-  // Time format regex check (HH:MM)
-  if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(start)) {
-    alert("❌ 시작 시간 형식이 유효하지 않습니다. (예: 08:00 형식으로 입력)");
-    return;
-  }
-  if (!/^([0-1]\d|2[0-3]):[0-5]\d$/.test(lunchStart)) {
-    alert("❌ 점심 시작 시간 형식이 유효하지 않습니다. (예: 12:05)");
-    return;
-  }
-  if (total < 1 || total > 15) {
-    alert("❌ 하루 총 교시 수는 1교시부터 15교시까지 설정할 수 있습니다.");
-    return;
-  }
-
-  let applyOption = "1";
-  if (APP.timetableStatus === 'Published') {
-    // 확정 상태일 때만 선택 모달 표시
-    const choice = window._bellApplyChoice;
-    if (!choice) {
-      // 인라인 확인 UI 표시
-      const confirmEl = document.getElementById('bell-apply-confirm-bar');
-      if (confirmEl) {
-        confirmEl.style.display = '';
-        confirmEl.scrollIntoView({ behavior: 'smooth' });
-      }
-      return;
-    }
-    applyOption = choice;
-    window._bellApplyChoice = null;
-    const confirmEl = document.getElementById('bell-apply-confirm-bar');
-    if (confirmEl) confirmEl.style.display = 'none';
-  }
-  // Draft 상태는 바로 적용 (confirm 다이얼로그 없음)
-
-  // Update global state
-  APP.bellSystem = {
-    duration: dur,
-    break: brk,
-    start: start,
-    total: total,
-    lunchStart: lunchStart,
-    lunchDuration: lunchDur
-  };
-  syncCsPeriodsFromBellSystem();
-
-  if (applyOption === "1") {
-    showToast(`✓ 교시 설정 변경: 총 ${total}교시 / 점심 ${lunchStart}부터 ${lunchDur}분이 즉시 적용되었습니다.`, 'success');
-  } else {
-    showToast(`✓ 교시 설정 예약: 총 ${total}교시 / 점심 ${lunchStart}부터 ${lunchDur}분이 차주 월요일 적용 예약되었습니다.`, 'success');
-  }
-
-  // Log to Audit History
-  MOCK_TIMETABLE_HISTORY.unshift({
-    date: new Date().toISOString().slice(0,10),
-    time: new Date().toTimeString().slice(0,5),
-    actor: 'Head Teacher (Kim)',
-    change: `벨 시스템 변경: ${dur}분 수업 / ${brk}분 휴식 / 총 ${total}교시 / 점심 ${lunchStart}~${bellMinutesToTime(bellTimeToMinutes(lunchStart) + lunchDur)}`,
-    reason: applyOption === "1" ? '벨 설정 즉시 적용' : '벨 설정 차주 예약 적용',
-    type: 'info'
-  });
-
-  // 현재 설정 화면은 유지하고, 연결된 시간표 화면 데이터만 갱신한다.
-  previewBellSettings();
-  renderTimetable(APP.conflictMode);
-  if (document.getElementById('cs-panel-view')?.style.display !== 'none') renderFinalTimetableView();
-}
 
 // ── 데모용 시드: "학생 수업 배정" 목록의 약 1/4을 미리 배정 완료 상태로 채워둔다.
 // 실제 배정 함수(그룹 배정/1:1 담당강사/1:1 스케줄)를 그대로 사용해서 정원·시간 충돌 없이 만든다.
@@ -13065,7 +12952,7 @@ function applyBellSettings() {
   if (typeof getStudentLessonRequirements !== 'function') return;
 
   const ALL_DAYS = ['월', '화', '수', '목', '금'];
-  const totalPeriods = (typeof APP !== 'undefined' && APP.bellSystem?.total) || 8;
+  const totalPeriods = getScaTotalPeriods();
 
   // 실제로 손으로 채운 시드 그룹들과 같은 모양(주 5회 · 요일 전체)이 되도록 월~금 풀타임 조합을 먼저 시도하고,
   // 그래도 강사·강의실이 안 나면 2일짜리 조합으로 좁혀서 재시도한다.

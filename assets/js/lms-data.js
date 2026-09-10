@@ -24,7 +24,7 @@ const APP = {
   selectedWeek: 0,
   timetableTab: '1on1',
   timetableStatus: 'Draft',
-  bellSystem: { duration: 50, break: 10, start: '08:00', total: 12, lunchStart: '12:05', lunchDuration: 60 },
+  // bellSystem 은 MOCK_TIMETABLES 로 옮겼다. 시간표가 여러 장이라 전역 한 벌로는 표현이 안 된다.
 };
 
 /* =============================================

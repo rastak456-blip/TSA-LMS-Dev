@@ -1302,22 +1302,17 @@ function renderChangelogTab() {
    수업 현황 탭
    ════════════════════════════════════════════ */
 
-function getBellPeriods() {
-  const bs = APP.bellSystem || { duration:50, break:10, start:'08:00', total:8, lunchAfter:4, lunchDuration:30 };
-  const addMins = (t, m) => {
-    const [h, mn] = t.split(':').map(Number);
-    const d = new Date(2000,0,1,h,mn+m);
-    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-  };
-  const periods = [];
-  let cur = bs.start;
-  for (let i = 1; i <= bs.total; i++) {
-    const end = addMins(cur, bs.duration);
-    periods.push({ period: i, start: cur, end });
-    if (i === bs.lunchAfter) cur = addMins(end, bs.lunchDuration);
-    else cur = addMins(end, bs.break);
+// 교시별 시각. 시간표를 넘기면 그 조로, 안 넘기면 기본 시간표로 만든다 —
+// 학생 화면처럼 「이 사람의 조」가 정해져 있는 자리에서는 그 시간표를 넘겨야 시각이 맞는다.
+function getBellPeriods(timetable) {
+  const target = timetable
+    || (typeof getDefaultTimetable === 'function' ? getDefaultTimetable() : null);
+  if (target && typeof buildTimetableSchedule === 'function') {
+    return buildTimetableSchedule(target)
+      .filter(row => row.p !== 'lunch')
+      .map(row => ({ period: row.p, start: row.start, end: row.end }));
   }
-  return periods;
+  return [];
 }
 
 // (스케줄 탭에 통합됨: renderStudentClassLogTab / selectClassLogDate / shiftClassLogMonth 삭제,
@@ -2754,32 +2749,13 @@ function setupStudentDashboard() {
     const dayMapEnToKo = { 'Mon': '월', 'Tue': '화', 'Wed': '수', 'Thu': '목', 'Fri': '금', 'Sat': '토', 'Sun': '일' };
     const queryDay = dayMapEnToKo[studentPortalDay] || APP.selectedDay || '월';
 
-    const durVal = APP.bellSystem ? APP.bellSystem.duration : 50;
-    const brkVal = APP.bellSystem ? APP.bellSystem.break : 10;
-    const startVal = APP.bellSystem ? (APP.bellSystem.start || '08:00') : '08:00';
-    const totalVal = APP.bellSystem ? (APP.bellSystem.total || 8) : 8;
-    const lunchAfterVal = APP.bellSystem ? (APP.bellSystem.lunchAfter || 4) : 4;
-    const lunchDurVal = APP.bellSystem ? (APP.bellSystem.lunchDuration || 30) : 30;
-
-    function addMins(timeStr, mins) {
-      const [h, m] = timeStr.split(':').map(Number);
-      const date = new Date();
-      date.setHours(h, m, 0, 0);
-      date.setMinutes(date.getMinutes() + mins);
-      return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
-    }
-
-    let curr = startVal;
+    // 이 학생이 속한 조의 시각으로 그린다. 점심을 나눠 먹는 두 조는 같은 5교시가 서로 다른 시각이라,
+    // 기본 시간표로 그리면 B조 학생에게 A조 시간표를 보여주게 된다.
+    const studentTimetable = typeof getStudentTimetable === 'function' ? getStudentTimetable(s) : null;
     const periodTimes = {};
-    for (let p = 1; p <= totalVal; p++) {
-      if (p === lunchAfterVal + 1) {
-        curr = addMins(curr, lunchDurVal); // Skip lunch
-      }
-      const start = curr;
-      const end = addMins(start, durVal);
-      periodTimes[p] = `${start} - ${end}`;
-      curr = addMins(end, brkVal);
-    }
+    getBellPeriods(studentTimetable).forEach(row => {
+      periodTimes[row.period] = `${row.start} - ${row.end}`;
+    });
 
     // Gather Minjun's classes on queryDay
     const minjunClasses = [];
