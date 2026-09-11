@@ -1292,6 +1292,89 @@ function getEffectiveNationalityCap(group) {
   return getGroupNationalityCap(group ? group.classType : null);
 }
 
+// 그룹 강사 선택 카드. 1:1 배정 화면의 강사 카드와 같은 모양을 쓴다 —
+// 아바타, 이름과 성별, 담당 강의실·유형, 태그 한 줄, 배정 가능 여부, 오른쪽 실행 버튼.
+// 그룹 쪽은 「가능 과목 / 가능 레벨」 라벨을 붙인 세로 목록이라 같은 정보가 더 길고 덜 읽혔다.
+// 팝업도 group-popup.html에서 이 파일을 먼저 읽으므로 세 화면이 같은 함수를 그대로 부른다.
+const GROUP_TEACHER_CARD_CSS = [
+  '.tsa-teacher-card{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid #E5E7EB;background:#fff;cursor:pointer;text-align:left}',
+  '.tsa-teacher-card:last-child{border-bottom:0}',
+  '.tsa-teacher-card:hover{background:#F8FAFC}',
+  '.tsa-teacher-card.selected{background:#F5F3FF;box-shadow:inset 3px 0 0 #6366F1}',
+  '.tsa-teacher-card.disabled{opacity:.5;cursor:not-allowed}',
+  '.tsa-teacher-card.disabled:hover{background:#fff}',
+  '.tsa-teacher-card>img{width:34px;height:34px;flex:0 0 34px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB}',
+  '.tsa-teacher-copy{display:flex;flex-direction:column;flex:1;min-width:0}',
+  '.tsa-teacher-copy b{font-size:11.5px;color:#111827;font-weight:800}',
+  '.tsa-teacher-copy b small{font-size:9.5px;color:#6B7280;font-weight:700}',
+  '.tsa-teacher-copy>small{margin-top:2px;font-size:9.5px;color:#6B7280}',
+  '.tsa-teacher-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}',
+  '.tsa-teacher-tag{font-size:9px;padding:1px 6px;border-radius:7px;font-weight:600;line-height:1.5}',
+  '.tsa-teacher-tag.pref{background:#D1FAE5;color:#065F46}',
+  '.tsa-teacher-tag.cap{background:#E0F2FE;color:#0369A1}',
+  '.tsa-teacher-tag.level{background:#F3E8FF;color:#7E22CE}',
+  '.tsa-teacher-side{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:0 0 auto;max-width:250px}',
+  '.tsa-teacher-notes{display:flex;flex-wrap:wrap;gap:2px;justify-content:flex-end}',
+  '.tsa-teacher-fit{flex:0 0 auto;font-size:9.5px;font-weight:800;white-space:nowrap}',
+  '.tsa-teacher-fit.ok{color:#047857}',
+  '.tsa-teacher-fit.no{color:#B45309}',
+  '.tsa-teacher-action{flex:0 0 auto;padding:6px 11px;border-radius:7px;border:1px solid #5E5CE6;background:#5E5CE6;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap}',
+  '.tsa-teacher-action[disabled]{opacity:.45;cursor:not-allowed}',
+  '.tsa-teacher-picked{flex:0 0 auto;padding:5px 10px;border-radius:999px;background:#D1FAE5;color:#047857;font-size:10px;font-weight:800;white-space:nowrap}',
+  '.tsa-teacher-empty{padding:18px;text-align:center;font-size:10.5px;color:#9CA3AF}',
+].join('');
+
+// 팝업은 document.write로 문서를 다시 쓰므로 스타일도 그때마다 다시 넣어 줘야 한다.
+function ensureGroupTeacherCardStyles(targetDocument) {
+  const doc = targetDocument || document;
+  if (!doc || !doc.head || doc.getElementById('tsa-teacher-card-style')) return;
+  const style = doc.createElement('style');
+  style.id = 'tsa-teacher-card-style';
+  style.textContent = GROUP_TEACHER_CARD_CSS;
+  doc.head.appendChild(style);
+}
+
+function getGroupTeacherCardTags(teacher) {
+  const subjectIds = typeof getTeacherCapableSubjectIds === 'function' ? getTeacherCapableSubjectIds(teacher) : [];
+  const levelIds = typeof getTeacherCapableLevelIds === 'function' ? getTeacherCapableLevelIds(teacher) : [];
+  const subjects = subjectIds.map(id => MOCK_MASTER_SUBJECTS.find(item => item.id === id)).filter(Boolean).map(item => item.name);
+  const levels = levelIds.map(id => MOCK_MASTER_LEVELS.find(item => item.id === id)).filter(Boolean).map(item => item.name);
+  return [
+    ...(teacher.preferredCourses || []).map(name => ({ tone: 'pref', name })),
+    ...subjects.map(name => ({ tone: 'cap', name })),
+    ...levels.map(name => ({ tone: 'level', name })),
+  ];
+}
+
+// options: { selected, disabled, fitText, fitOk, onSelect, actionLabel }
+function renderGroupTeacherCard(teacher, options) {
+  const opts = options || {};
+  if (!teacher) return '';
+  const name = teacher.nick || teacher.name || '';
+  const avatar = teacher.photoUrl || `assets/images/${teacher.gender === '남' ? 'teacher_male.png' : 'teacher_female.png'}`;
+  const meta = `${teacher.room || '담당 강의실 없음'} · ${teacher.type || '일반'}`;
+  const tags = getGroupTeacherCardTags(teacher);
+  const disabled = opts.disabled === true;
+  const fitText = opts.fitText
+    ? `<span class="tsa-teacher-fit ${opts.fitOk === false ? 'no' : 'ok'}">${lessonEsc(opts.fitText)}</span>`
+    : '';
+  // 배지는 「과목 담당」처럼 이미 만들어진 HTML이라 그대로 받아 오른쪽 칸에 쌓는다.
+  const notes = opts.notesHtml ? `<span class="tsa-teacher-notes">${opts.notesHtml}</span>` : '';
+  const fit = fitText || notes ? `<span class="tsa-teacher-side">${fitText}${notes}</span>` : '';
+  const action = opts.selected
+    ? '<span class="tsa-teacher-picked">선택됨</span>'
+    : `<button type="button" class="tsa-teacher-action"${disabled ? ' disabled' : ''}>${lessonEsc(opts.actionLabel || '선택')}</button>`;
+  const handler = !disabled && opts.onSelect ? ` onmousedown="${opts.onSelect}"` : '';
+  const tagHtml = tags.length
+    ? `<span class="tsa-teacher-tags">${tags.map(tag => `<span class="tsa-teacher-tag ${tag.tone}">${lessonEsc(tag.name)}</span>`).join('')}</span>`
+    : '';
+  return `<div class="tsa-teacher-card${opts.selected ? ' selected' : ''}${disabled ? ' disabled' : ''}"${handler}>
+    <img src="${lessonEsc(avatar)}" alt="">
+    <span class="tsa-teacher-copy"><b>${lessonEsc(name)} <small>(${teacher.gender === '여' ? 'F' : 'M'})</small></b><small>${lessonEsc(meta)}</small>${tagHtml}</span>
+    ${fit}${action}
+  </div>`;
+}
+
 // 그룹 생성/수정 시 선택한 요일·교시에 실제로 가능한 담당 강사 후보. 다른 운영 그룹과 요일·교시가 겹치면 제외한다.
 function getGroupTeacherCandidates(classType, days, periods, excludeGroupId) {
   if (!classType || !Array.isArray(days) || !days.length || !Array.isArray(periods) || !periods.length) return [];
@@ -2212,21 +2295,52 @@ function renderScaStep1Picker() {
   const currentGroup = requirement.groupId != null
     ? MOCK_GROUP_CLASSES.find(item => item.id === Number(requirement.groupId))
     : null;
-  const currentHtml = currentGroup ? `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 11px;margin-bottom:12px;border:1px solid #E5E7EB;border-radius:9px;background:#F9FAFB">
-    <span style="font-size:10px;font-weight:800;color:#6B7280">지금 이 반</span>
-    <b style="font-size:11.5px;color:#111827">${lessonEsc(getGroupDisplayName(currentGroup))}</b>
-    <span style="font-size:10.5px;color:#6B7280">${lessonEsc(isGroupScheduled(currentGroup)
-      ? `${currentGroup.periods.map(Number).sort((a, b) => a - b).join('·')}교시`
-      : '시간 미정')}</span>
-    <button onclick="unassignScaStep1FromPicker(${currentGroup.id})" style="margin-left:auto;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;background:#fff;color:#DC2626;font-size:10px;font-weight:700;cursor:pointer">이 반에서 빼기</button>
+  // 반 이름·정원만으로는 고를 수 없다. 누가 가르치는지, 몇 시에 어디서 하는지를 한 줄로 같이 건다.
+  // 시각은 이 학생의 조로 그린다 — 같은 5교시라도 조마다 시각이 다르다.
+  const studentTimetable = getStudentTimetable(student);
+  const groupPlacementLine = group => {
+    const teacher = group.teacherId != null ? MOCK_TEACHERS.find(item => item.id === Number(group.teacherId)) : null;
+    const room = group.roomId != null ? MOCK_CLASS_ROOMS.find(item => item.id === Number(group.roomId)) : null;
+    const periods = Array.isArray(group.periods) ? group.periods.map(Number).sort((a, b) => a - b) : [];
+    const clock = periods.length && studentTimetable ? getTimetablePeriodLabel(studentTimetable, periods[0]) : '';
+    const avatar = teacher
+      ? (teacher.photoUrl || `assets/images/${teacher.gender === '남' ? 'teacher_male.png' : 'teacher_female.png'}`)
+      : '';
+    const when = periods.length
+      ? `${periods.join('·')}교시${clock ? ` ${lessonEsc(clock)}` : ''}`
+      : '시간 미정';
+    const teacherMeta = teacher?.type || '';
+    return `<span style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10.5px;color:#6B7280;flex-wrap:wrap">
+      ${teacher
+        ? `<img src="${lessonEsc(avatar)}" alt="" onerror="this.onerror=null;this.src='assets/images/teacher_male.png'" style="width:22px;height:22px;flex:0 0 22px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB">`
+        : ''}
+      <b style="font-weight:700;color:${teacher ? '#374151' : '#B45309'}">${teacher ? lessonEsc(teacher.nick || teacher.name) : '강사 미정'}</b>
+      ${teacherMeta ? `<span style="color:#9CA3AF">${lessonEsc(teacherMeta)}</span>` : ''}
+      <span style="color:#D1D5DB">|</span>
+      <span>${when}</span>
+      <span style="color:#D1D5DB">|</span>
+      <span style="color:${room ? '#6B7280' : '#B45309'}">${room ? lessonEsc(room.roomNo) : '강의실 미정'}</span>
+    </span>`;
+  };
+
+  const currentHtml = currentGroup ? `<div style="padding:9px 11px;margin-bottom:12px;border:1px solid #E5E7EB;border-radius:9px;background:#F9FAFB">
+    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <span style="font-size:10px;font-weight:800;color:#6B7280">지금 이 반</span>
+      <b style="font-size:11.5px;color:#111827">${lessonEsc(getGroupDisplayName(currentGroup))}</b>
+      <button onclick="unassignScaStep1FromPicker(${currentGroup.id})" style="margin-left:auto;border:1px solid #FCA5A5;border-radius:7px;padding:4px 10px;background:#fff;color:#DC2626;font-size:10px;font-weight:700;cursor:pointer">이 반에서 빼기</button>
+    </div>
+    ${groupPlacementLine(currentGroup)}
   </div>` : '';
 
-  const rows = options.map(option => `<button ${option.ok ? `onclick="pickScaStep1Group(${option.group.id})"` : 'disabled'} style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;padding:9px 11px;margin-bottom:5px;border:1px solid #E5E7EB;border-radius:9px;background:#fff;cursor:${option.ok ? 'pointer' : 'not-allowed'};opacity:${option.ok ? 1 : .5}">
-    <span style="font-size:11.5px;font-weight:700;color:#111827">${lessonEsc(getGroupDisplayName(option.group))} <span style="font-weight:400;color:#6B7280">· ${lessonEsc(option.when)}</span></span>
-    <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:${option.ok ? '#047857' : '#9CA3AF'}">${option.ok ? '✓ ' : ''}${lessonEsc(option.reason)}</span>
+  const rows = options.map(option => `<button ${option.ok ? `onclick="pickScaStep1Group(${option.group.id})"` : 'disabled'} style="width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;text-align:left;padding:9px 11px;margin-bottom:5px;border:1px solid #E5E7EB;border-radius:9px;background:#fff;cursor:${option.ok ? 'pointer' : 'not-allowed'};opacity:${option.ok ? 1 : .5}">
+    <span style="min-width:0">
+      <span style="display:block;font-size:11.5px;font-weight:700;color:#111827">${lessonEsc(getGroupDisplayName(option.group))}</span>
+      ${groupPlacementLine(option.group)}
+    </span>
+    <span style="flex:0 0 auto;padding-top:2px;font-size:10px;font-weight:700;color:${option.ok ? '#047857' : '#9CA3AF'}">${option.ok ? '✓ ' : ''}${lessonEsc(option.reason)}</span>
   </button>`).join('') || '<div style="font-size:11px;color:#9CA3AF;padding:6px 0">이 과목·레벨로 열린 반이 아직 없어.</div>';
 
-  modal.innerHTML = `<div style="width:min(520px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
+  modal.innerHTML = `<div style="width:min(660px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:10px">
       <h3 style="font-size:15px;margin:0;color:#111827">${lessonEsc(student.nick || student.name)} · ${lessonEsc(requirement.subjectName)} · ${lessonEsc(levelName)}</h3>
       <span style="font-size:10px;font-weight:700;color:#6B7280;background:#F3F4F6;border-radius:5px;padding:2px 7px">${lessonEsc(requirement.classType)}</span>
@@ -2234,7 +2348,7 @@ function renderScaStep1Picker() {
     </div>
     <div style="padding:16px 20px;overflow:auto">
       ${currentHtml}
-      <div style="font-size:10.5px;font-weight:800;color:#6B7280;margin-bottom:8px">${currentGroup ? '옮길 수 있는 반' : '갈 수 있는 반'} <span style="font-weight:400;color:#9CA3AF">— 여기서는 정원 · 레벨 · 이미 잡힌 그룹 시간만 본다</span></div>
+      <div style="font-size:10.5px;font-weight:800;color:#6B7280;margin-bottom:8px">${currentGroup ? '옮길 수 있는 반' : '갈 수 있는 반'} <span style="font-weight:400;color:#9CA3AF">— 정원 · 레벨 · 이미 잡힌 그룹 시간으로 가릅니다. 강사 · 교시 · 강의실은 참고용</span></div>
       ${rows}
       <div style="display:flex;align-items:center;gap:9px;margin:11px 0;color:#9CA3AF;font-size:9.5px"><span style="flex:1;height:1px;background:#E5E7EB"></span>또는<span style="flex:1;height:1px;background:#E5E7EB"></span></div>
       <button onclick="createGroupFromScaStep1()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;padding:10px 11px;border:1px solid #5E5CE6;border-radius:9px;background:#EEF2FF;cursor:pointer">
@@ -2599,7 +2713,7 @@ function renderScaGroupRow(group, showLevel, slot, isLast) {
           : '')
     }</td>
     <td style="${SCA_LIST_CELL}${isLast === false ? ';border-bottom-color:transparent' : ''};text-align:right;white-space:nowrap">
-      <button class="tsa-btn tsa-btn-xs ${isGroupScheduled(group) ? 'tsa-btn-outline' : 'tsa-btn-primary'}" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id}${_scaPeriodFocus != null && !isGroupScheduled(group) ? `,${_scaPeriodFocus}` : ''})">${isGroupScheduled(group) ? '강사 변경' : '강사 배정'}</button>
+      <button class="tsa-btn tsa-btn-xs ${isGroupScheduled(group) ? 'tsa-btn-outline' : 'tsa-btn-primary'}" style="white-space:nowrap" onclick="openTeacherAssignModal(${group.id})">${isGroupScheduled(group) ? '강사 변경' : '강사 배정'}</button>
       <button class="tsa-btn tsa-btn-xs tsa-btn-outline" style="white-space:nowrap;margin-left:4px" onclick="openGroupEditBrowserPopup(${group.id})">수정</button>
     </td>
   </tr>`;
@@ -2630,11 +2744,7 @@ function renderScaSubjectBuckets(groups, showLevel) {
 }
 
 function renderScaGroupClassList() {
-  const focus = _scaPeriodFocus;
-  // 교시를 고르면 그 교시에 걸린 반과, 아직 시간이 없어 그 자리에 넣을 수 있는 반만 남긴다.
-  // 다른 교시에 이미 앉은 반은 지금 할 일이 아니다.
-  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active'
-    && (focus == null || !isGroupScheduled(group) || (group.periods || []).map(Number).includes(focus)));
+  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
   const mergedGroups = active.filter(isMergedLevelGroup);
   const mergedIds = new Set(mergedGroups.map(group => group.id));
   const needs = buildCsGroupDemandRows().filter(row => row.additionalGroups > 0);
@@ -2672,11 +2782,7 @@ function renderScaGroupClassList() {
 
   return `<div style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden">
     <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 13px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
-      ${focus != null
-        ? `<b style="font-size:11.5px;color:#4338CA">${focus}교시</b>
-           <span style="font-size:10.5px;color:#6B7280">이 교시 반과 시간 미정인 반 ${active.length}개</span>
-           <button onclick="setScaPeriodFocus(${focus})" style="border:1px solid #D1D5DB;border-radius:7px;padding:3px 9px;background:#fff;color:#4B5563;font-size:10px;font-weight:700;cursor:pointer">전체 보기</button>`
-        : `<b style="font-size:11.5px;color:#111827">그룹 수업 ${active.length}개</b>`}
+      <b style="font-size:11.5px;color:#111827">그룹 수업 ${active.length}개</b>
       ${newCount ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">새로 열 반 ${newCount}개</span>` : ''}
       ${pending ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">배정 미정 ${pending}개</span>` : '<span style="font-size:10.5px;font-weight:700;color:#047857">전부 배정 완료</span>'}
       <span style="font-size:9.5px;color:#9CA3AF">반 이름이나 인원을 누르면 소속 학생이 나와</span>
@@ -2704,112 +2810,6 @@ function createGroupForDemand(subjectId, classType, levelGroup) {
 }
 
 // 1단계 = 위쪽 학생 목록 + 아래쪽 그룹 수업 목록. 둘로 끝난다.
-// ─────────────────────────────────────────────────────────────
-// 교시별 현황 — 1단계 맨 위.
-//
-// 그룹 강의실은 아홉 개뿐이다(소그룹 다섯, 중그룹 넷). 강사는 어느 교시든 스물넷 넘게 비어
-// 있어서 병목이 아니고, 자리를 좌우하는 건 늘 강의실이다. 그런데 어느 교시가 꽉 찼는지는
-// 배정 팝업을 열어봐야 알 수 있었다 — 「빈 강의실이 없어」를 보고 나서야.
-// 그래서 교시마다 몇 개가 돌아가고 몇 칸이 남았는지를 먼저 세워둔다.
-// ─────────────────────────────────────────────────────────────
-let _scaPeriodFocus = null; // 눌러서 고른 교시. 아래 그룹 수업 목록이 이 교시로 좁혀진다.
-
-function getScaGroupRooms() {
-  return MOCK_CLASS_ROOMS.filter(room => room.roomNo && room.status === 'active' && ['1:4', '1:8'].includes(room.type));
-}
-
-// 한 교시의 그림. 강의실은 「이 방이 이 교시에 잡혀 있나」로 세고, 1:1 주간 세션이 잡아둔
-// 방도 쓴 것으로 친다 — 그룹을 넣으려 하면 똑같이 막히는 자리라서.
-// 이 띠의 가로축은 기본 시간표의 교시다. 조가 둘이면 「5교시」가 조마다 다른 시각이라,
-// 칸을 채울 때는 번호가 아니라 그 시각에 걸치는 수업을 센다 — B조 6교시가 A조 5교시와
-// 같은 시각이면 그 방은 A조 5교시 칸에서도 차 있는 것으로 보여야 한다.
-function getScaPeriodStatus(period) {
-  const base = getDefaultTimetable();
-  const groups = MOCK_GROUP_CLASSES.filter(group => group.status === 'active'
-    && (group.periods || []).some(item => periodsCollide(base, period, getGroupTimetable(group), item)));
-  const rooms = getScaGroupRooms();
-  const busy = new Set(groups.map(group => Number(group.roomId)).filter(Number.isFinite));
-  const count = type => {
-    const list = rooms.filter(room => room.type === type);
-    const used = list.filter(room => busy.has(room.id)
-      || getRoomSessionBusyDays(room.id, period, base).length).length;
-    return { used, total: list.length, free: list.length - used };
-  };
-  return {
-    period,
-    groups,
-    small: count('1:4'),
-    large: count('1:8'),
-    seats: groups.reduce((sum, group) => sum + (group.studentIds || []).length, 0),
-    capacity: groups.reduce((sum, group) => sum + getGroupBaseCapacityFor(group), 0)
-  };
-}
-
-function setScaPeriodFocus(period) {
-  const next = Number(period);
-  _scaPeriodFocus = _scaPeriodFocus === next ? null : next;
-  renderScaStep1Board();
-}
-
-// 남은 칸을 네모로 그린다. 숫자만 적으면 「1/5」와 「4/5」가 훑을 때 안 갈린다.
-function scaRoomPips(stat, tone) {
-  if (!stat.total) return '<span style="font-size:9.5px;color:#C4C9D4">—</span>';
-  const pip = on => `<span style="display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:2px;background:${on ? tone : '#E5E7EB'}"></span>`;
-  return Array.from({ length: stat.total }, (unused, index) => pip(index < stat.used)).join('');
-}
-
-function renderScaPeriodBoard() {
-  const total = getScaTotalPeriods();
-  const stats = [];
-  for (let period = 1; period <= total; period += 1) stats.push(getScaPeriodStatus(period));
-  const running = stats.reduce((sum, stat) => sum + stat.groups.length, 0);
-  const active = MOCK_GROUP_CLASSES.filter(group => group.status === 'active');
-  const unplaced = active.filter(group => !isGroupScheduled(group)).length;
-  // 수업이 아예 없고 앞으로도 볼 일 없는 교시가 뒤에 길게 남는다. 쓰는 구간만 세우되
-  // 양옆 한 칸씩은 남겨둔다 — 옆 교시로 밀 수 있는지 보이게.
-  const used = stats.filter(stat => stat.groups.length).map(stat => stat.period);
-  const from = used.length ? Math.max(1, Math.min(...used) - 1) : 1;
-  const to = used.length ? Math.min(total, Math.max(...used) + 1) : total;
-  const shown = stats.filter(stat => stat.period >= from && stat.period <= to);
-
-  const cells = shown.map(stat => {
-    const on = _scaPeriodFocus === stat.period;
-    const tight = (stat.small.free === 0 && stat.small.total) || (stat.large.free === 0 && stat.large.total)
-      ? false // 아예 없는 건 아래 warn 에서 따로 본다
-      : (stat.small.free <= 1 || stat.large.free <= 1);
-    const fullSmall = stat.small.total && !stat.small.free;
-    const fullLarge = stat.large.total && !stat.large.free;
-    const warn = tight || fullSmall || fullLarge;
-    const bell = (typeof getBellPeriods === 'function' ? getBellPeriods() : []).find(item => Number(item.period) === stat.period);
-    return `<button onclick="setScaPeriodFocus(${stat.period})" title="${lessonEsc(bell ? `${bell.start} ~ ${bell.end}` : '')}" style="flex:1 1 82px;min-width:82px;text-align:left;border:1px solid ${on ? '#5E5CE6' : '#E5E7EB'};border-radius:10px;background:${on ? '#F5F3FF' : (stat.groups.length ? '#fff' : '#FCFCFD')};padding:8px 9px;cursor:pointer">
-      <span style="display:flex;align-items:baseline;gap:5px">
-        <b style="font-size:11.5px;color:${on ? '#4338CA' : '#111827'}">${stat.period}교시</b>
-        <span style="font-size:9.5px;color:#9CA3AF">${stat.groups.length ? `${stat.groups.length}개` : '없음'}</span>
-      </span>
-      <span style="display:block;margin-top:6px;line-height:1">${scaRoomPips(stat.small, '#4F46E5')}</span>
-      <span style="display:block;margin-top:3px;line-height:1">${scaRoomPips(stat.large, '#059669')}</span>
-      <span style="display:block;margin-top:6px;font-size:9px;font-weight:700;color:${warn ? '#B45309' : '#9CA3AF'}">${
-        stat.small.total || stat.large.total
-          ? `소 ${stat.small.free} · 중 ${stat.large.free} 남음`
-          : '강의실 없음'
-      }</span>
-    </button>`;
-  }).join('');
-
-  return `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;overflow:hidden;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid #E5E7EB;background:#F9FAFB">
-      <b style="font-size:11.5px;color:#111827">교시별 현황</b>
-      <span style="font-size:10.5px;color:#6B7280">진행 중 <b style="color:#111827">${running}개</b></span>
-      ${unplaced ? `<span style="font-size:10.5px;font-weight:700;color:#B45309">시간 미정 ${unplaced}개</span>` : ''}
-      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px;font-size:9.5px;color:#8A90A2">
-        <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#4F46E5;margin-right:3px"></span>소그룹실 ${getScaGroupRooms().filter(room => room.type === '1:4').length}개</span>
-        <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#059669;margin-right:3px"></span>중그룹실 ${getScaGroupRooms().filter(room => room.type === '1:8').length}개</span>
-        <span>칸을 누르면 아래 목록이 그 교시로 좁혀져</span>
-      </span>
-    </div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;padding:11px 12px">${cells}</div>
-  </div>`;
-}
 
 // 과정이 기본 조를 들고 있으면 그걸 쓰고, 없으면 기본 시간표로 간다.
 function getStudentDefaultTimetableId(student) {
@@ -3073,8 +3073,7 @@ function renderScaStep1Board() {
   if (!panel) return;
   // 조는 「학생 시간표 배정」 화면에서 정한다. 여기서는 학생 줄의 A/B 칩으로 읽기만 한다.
   ensureStudentTimetableSeed();
-  panel.innerHTML = renderScaPeriodBoard()
-    + renderScaStudentBoard() + renderScaGroupClassList();
+  panel.innerHTML = renderScaStudentBoard() + renderScaGroupClassList();
 }
 let _scaOnePick = null; // { studentId, sequence, subjectId } — 지금 고른 1:1 수업
 
@@ -3242,6 +3241,7 @@ function getScaWeekLessons() {
       kind: 'group',
       period,
       groupId: group.id,
+      classType: group.classType,
       title: getGroupDisplayName(group),
       teacherId: teacher ? teacher.id : null,
       teacherName: teacher ? (teacher.nick || teacher.name) : '강사 미정',
@@ -3258,6 +3258,7 @@ function getScaWeekLessons() {
       const subject = MOCK_MASTER_SUBJECTS.find(row => row.id === item.subjectId);
       lessons.push({
         kind: 'one',
+        classType: '1:1',
         period: Number(item.period),
         title: `${student.nick || student.name} · ${subject?.name || item.subjectId}`,
         studentName: student.nick || student.name,
@@ -3401,11 +3402,14 @@ function renderScaScheduleBoard() {
     rows = teacherList.map(({ teacher, busy }) => {
       // 블랙타임은 강사가 정해져야 판정되는 값이라 교시 칸(열)에는 칠할 수 없다. 강사별 보기의
       // 그 강사 줄에서만 칠한다. 넘겨서 배정한 자리는 검은 바탕 위에 수업이 얹혀 나중에 눈에 띈다.
-      let blackCount = 0;
+      // 막힌 교시는 몇 개인지가 아니라 몇 교시인지가 필요하다. 번호를 그대로 모은다.
+      const blackPeriods = [];
+      const grayPeriods = [];
       const cells = periods.map(period => {
         const here = lessons.filter(lesson => lesson.teacherId === teacher.id && lesson.period === period);
         const availState = getTeacherWeeklyAvailState(teacher, period);
-        if (availState === 'black') blackCount += 1;
+        if (availState === 'black') blackPeriods.push(period);
+        else if (availState === 'gray') grayPeriods.push(period);
         const shade = availState === 'black' ? '#374151' : availState === 'gray' ? '#F3F4F6' : '';
         const bg = shade ? `background:${shade};` : '';
         const empty = availState === 'black'
@@ -3415,10 +3419,50 @@ function renderScaScheduleBoard() {
             : '<div style="text-align:center;color:#E5E7EB;font-size:9px;padding:7px 0">·</div>';
         return `<td style="padding:4px;border-top:1px solid #F3F4F6;border-left:1px solid #F3F4F6;vertical-align:top;${bg}">${here.map(lesson => chip(lesson, 'teacher')).join('') || empty}</td>`;
       }).join('');
+      // 유형별로 하루에 몇 칸을 더 받을 수 있는지. 배정 담당자가 표를 떠나지 않고 판단할 수 있어야 한다.
+      const typeUsed = { '1:1': 0, '1:4': 0, '1:8': 0 };
+      lessons.filter(lesson => lesson.teacherId === teacher.id).forEach(lesson => {
+        const type = lesson.classType || (lesson.kind === 'one' ? '1:1' : null);
+        if (type && typeUsed[type] != null) typeUsed[type] += 1;
+      });
+      const typeChips = ['1:1', '1:4', '1:8'].map(type => {
+        const canTeach = (teacher.classTypes || []).includes(type);
+        const limit = Number(teacher.dailyTypeLimits?.[type]);
+        const used = typeUsed[type];
+        const left = Number.isFinite(limit) ? Math.max(0, limit - used) : null;
+        const tone = !canTeach
+          ? { bg: '#F3F4F6', fg: '#C4C9D4' }
+          : left === 0
+            ? { bg: '#FFF7ED', fg: '#C2410C' }
+            : { bg: '#ECFDF5', fg: '#047857' };
+        const text = !canTeach ? `${type} 불가` : left == null ? `${type} ${used}개` : `${type} ${left}칸`;
+        const title = !canTeach
+          ? `${type} 수업을 맡지 않는 강사`
+          : `${type} · 배정 ${used}${Number.isFinite(limit) ? ` / 하루 한도 ${limit}` : ''}`;
+        return `<span title="${lessonEsc(title)}" style="font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:6px;background:${tone.bg};color:${tone.fg};white-space:nowrap">${text}</span>`;
+      }).join('');
+
+      // 블랙타임은 요일마다 다를 수 있다. 줄에는 교시만 적고, 어떤 요일인지는 툴팁으로 넘긴다.
+      const availDetail = (list, state) => list
+        .map(period => `${period}교시 ${LESSON_DAYS.filter(day => lessonTeacherAvailState(teacher, day, period) === state).join('')}`)
+        .join(' / ');
+      const availLine = [
+        blackPeriods.length ? `<span title="블랙타임 — ${lessonEsc(availDetail(blackPeriods, 'black'))}" style="color:#374151;font-weight:800">블랙 ${blackPeriods.join('·')}교시</span>` : '',
+        grayPeriods.length ? `<span title="화상 수업만 가능 — ${lessonEsc(availDetail(grayPeriods, 'gray'))}" style="color:#6B7280;font-weight:700">화상 ${grayPeriods.join('·')}교시</span>` : '',
+      ].filter(Boolean).join(' · ');
+      const avatar = teacher.photoUrl || `assets/images/${teacher.gender === '남' ? 'teacher_male.png' : 'teacher_female.png'}`;
+
       return `<tr>
-        <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
-          <b style="display:block;font-size:11px;color:${busy ? '#111827' : '#9CA3AF'}">${lessonEsc(teacher.nick || teacher.name)}</b>
-          <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${teacher.room ? lessonEsc(teacher.room) : '그룹만 담당'} · ${busy ? `${busy}교시` : '수업 없음'}${blackCount ? ` · <span style="color:#6B7280;font-weight:700">블랙 ${blackCount}교시</span>` : ''}</span>
+        <td style="padding:8px 10px;border-top:1px solid #F3F4F6;background:#F8FAFC;vertical-align:middle;min-width:196px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <img src="${lessonEsc(avatar)}" alt="" style="width:32px;height:32px;flex:0 0 32px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;${busy ? '' : 'filter:grayscale(1);opacity:.6'}">
+            <div style="min-width:0">
+              <b style="display:block;font-size:11px;color:${busy ? '#111827' : '#9CA3AF'}">${lessonEsc(teacher.nick || teacher.name)}</b>
+              <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px;white-space:nowrap">${teacher.room ? lessonEsc(teacher.room) : '그룹만 담당'} · ${busy ? `${busy}교시` : '수업 없음'}</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">${typeChips}</div>
+          ${availLine ? `<div style="font-size:8.5px;margin-top:4px;white-space:nowrap">${availLine}</div>` : ''}
         </td>${cells}
       </tr>`;
     }).join('');
@@ -3431,11 +3475,19 @@ function renderScaScheduleBoard() {
         return `<td style="padding:4px;border-top:1px solid #F3F4F6;border-left:1px solid #F3F4F6;vertical-align:top">${here.map(lesson => chip(lesson, 'student')).join('') || '<div style="text-align:center;color:#E5E7EB;font-size:9px;padding:7px 0">·</div>'}</td>`;
       }).join('');
       const count = periods.filter(period => lessons.some(lesson => lesson.period === period && lesson.studentIds.includes(student.id))).length;
+      // 줄 머리에 사진을 달아 긴 표에서도 누구 줄인지 바로 읽힌다 — 강사별 보기와 같은 형식.
+      // 수업이 하나도 없는 학생은 흑백으로 내려 배정이 비어있다는 것을 드러낸다.
+      const photo = getStudentPhotoSrc(student);
       return `<tr>
         <td style="padding:8px 11px;border-top:1px solid #F3F4F6;background:#F8FAFC;white-space:nowrap;vertical-align:middle">
-          <b style="display:block;font-size:11px;color:#111827">${lessonEsc(student.nick || student.name)}</b>
-          <span style="display:block;font-size:9px;color:#8A90A2;margin-top:1px">${getStudentOriginMetaText(student) || '-'}</span>
-          <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(student.level || '-')} · ${count}교시</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <img src="${lessonEsc(photo)}" alt="" onerror="this.onerror=null;this.src='assets/images/student_male.png'" style="width:32px;height:32px;flex:0 0 32px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;${count ? '' : 'filter:grayscale(1);opacity:.6'}">
+            <div style="min-width:0">
+              <b style="display:block;font-size:11px;color:${count ? '#111827' : '#9CA3AF'}">${lessonEsc(student.nick || student.name)}</b>
+              <span style="display:block;font-size:9px;color:#8A90A2;margin-top:1px">${getStudentOriginMetaText(student) || '-'}</span>
+              <span style="display:block;font-size:9px;color:#9CA3AF;margin-top:1px">${lessonEsc(student.level || '-')} · ${count}교시</span>
+            </div>
+          </div>
         </td>${cells}
       </tr>`;
     }).join('');
@@ -4329,16 +4381,12 @@ function openStudentLessonAssignment(studentId, popupTarget, focusClassType) {
           var room=(t.room||'').toLowerCase();
           return !query||name.indexOf(query)>-1||room.indexOf(query)>-1;
         });
+        ensureGroupTeacherCardStyles(document);
+        var inlineRow=getInlineGroupRow();
+        var inlineFit=inlineRow&&inlineRow.sequence?inlineRow.sequence+'교시 배정 가능':'배정 가능';
         box.innerHTML=matches.length?matches.map(function(t){
-          var selected=t.id===inlineTeacherId;
-          var avatar=t.photoUrl||('assets/images/'+(t.gender==='남'?'teacher_male.png':'teacher_female.png'));
-          var typeText=(t.type||'일반')+' · '+((t.classTypes||[]).join(', ')||'그룹 수업');
-          var subjects=(typeof getTeacherCapableSubjectIds==='function'?getTeacherCapableSubjectIds(t):[]).map(function(id){var item=MOCK_MASTER_SUBJECTS.find(function(subject){return subject.id===id});return item?item.name:id});
-          var levels=(typeof getTeacherCapableLevelIds==='function'?getTeacherCapableLevelIds(t):[]).map(function(id){var item=MOCK_MASTER_LEVELS.find(function(level){return level.id===id});return item?item.name:id});
-          function capabilityLine(title,items,type){return '<span class="capability-line"><span class="capability-title">'+title+'</span>'+(items.length?items.map(function(item){return '<span class="capability-tag '+type+'">'+item+'</span>'}).join(''):'<span class="capability-empty">등록 없음</span>')+'</span>'}
-          var capabilities='<span class="teacher-capabilities">'+capabilityLine('가능 과목',subjects,'subject')+capabilityLine('가능 레벨',levels,'level')+'</span>';
-          return '<div class="entity-option'+(selected?' selected':'')+'" onmousedown="selectInlineTeacherOption('+t.id+')"><img class="entity-avatar" src="'+avatar+'"><span class="entity-main"><b>'+(t.nick||t.name)+' '+(t.gender==='여'?'(F)':'(M)')+'</b><small>'+(t.room||'담당 강의실 없음')+' · '+typeText+'</small>'+capabilities+'</span><span class="entity-status">배정 가능</span></div>';
-        }).join(''):'<div class="entity-empty">배정 가능한 강사가 없어.</div>';
+          return renderGroupTeacherCard(t,{selected:t.id===inlineTeacherId,fitText:inlineFit,fitOk:true,onSelect:'selectInlineTeacherOption('+t.id+')',actionLabel:'선택 및 배정'});
+        }).join(''):'<div class="tsa-teacher-empty">배정 가능한 강사가 없어.</div>';
       }
       function selectInlineTeacherOption(id){
         inlineTeacherId=id;
@@ -6984,14 +7032,15 @@ function renderGroupPlacementModal() {
     );
   }).join('');
 
-  const teacherRows = teacherOptions.map(option => optionRow(
-    option.teacher.id === _gpPlacement.teacherId,
-    !option.ok,
-    `setGroupPlacementTeacher(${option.teacher.id})`,
-    lessonEsc(option.teacher.nick || option.teacher.name),
-    (option.ok ? '✓ ' : '') + lessonEsc(option.reason),
-    option.ok ? '#047857' : '#9CA3AF'
-  )).join('');
+  ensureGroupTeacherCardStyles();
+  const teacherRows = teacherOptions.map(option => renderGroupTeacherCard(option.teacher, {
+    selected: option.teacher.id === _gpPlacement.teacherId,
+    disabled: !option.ok,
+    fitText: option.ok ? `${period}교시 배정 가능` : option.reason,
+    fitOk: option.ok,
+    onSelect: `setGroupPlacementTeacher(${option.teacher.id})`,
+    actionLabel: '선택 및 배정',
+  })).join('');
 
   const roomRows = roomOptions.map(option => optionRow(
     option.room.id === _gpPlacement.roomId,
@@ -7002,7 +7051,7 @@ function renderGroupPlacementModal() {
     option.ok ? '#047857' : '#9CA3AF'
   )).join('');
 
-  modal.innerHTML = `<div style="width:min(560px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
+  modal.innerHTML = `<div style="width:min(720px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:10px">
       <h3 style="font-size:15px;margin:0;color:#111827">${period}교시 · ${lessonEsc(getLevelGroupName(levelOrder))}</h3>
       <span style="font-size:10px;font-weight:700;color:#6B7280;background:#F3F4F6;border-radius:5px;padding:2px 7px">월~금 · 주 5회</span>
@@ -7010,7 +7059,7 @@ function renderGroupPlacementModal() {
     </div>
     <div style="padding:16px 20px;overflow:auto;display:flex;flex-direction:column;gap:16px">
       <div>${stepHead(1, '여기에 놓을 반', '시간이 안 정해진 반만 나와')}${groupRows}</div>
-      <div>${stepHead(2, '담당 선생님', `${period}교시에 비는 사람 ${teacherOptions.filter(option => option.ok).length}명`)}<div style="max-height:212px;overflow:auto;padding-right:2px">${teacherRows || '<div style="font-size:11px;color:#9CA3AF">고를 수 있는 강사가 없어.</div>'}</div></div>
+      <div>${stepHead(2, '담당 선생님', `${period}교시에 비는 사람 ${teacherOptions.filter(option => option.ok).length}명`)}<div style="max-height:250px;overflow:auto;border:1px solid #E5E7EB;border-radius:9px">${teacherRows || '<div class="tsa-teacher-empty">고를 수 있는 강사가 없어.</div>'}</div></div>
       <div>${stepHead(3, '강의실', group.studentIds.length ? `학생 ${group.studentIds.length}명이 들어갈 방` : '정원에 맞는 방')}<div style="max-height:212px;overflow:auto;padding-right:2px">${roomRows || '<div style="font-size:11px;color:#9CA3AF">고를 수 있는 강의실이 없어.</div>'}</div></div>
     </div>
     <div style="padding:13px 20px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -7326,6 +7375,7 @@ function teacherAssignBadge(tone, text) {
 function renderTeacherAssignModal() {
   const host = document.getElementById('teacher-assign-modal');
   if (!host || !_teacherAssign) return;
+  ensureGroupTeacherCardStyles();
   const group = MOCK_GROUP_CLASSES.find(item => item.id === _teacherAssign.groupId);
   if (!group) { closeTeacherAssignModal(); return; }
 
@@ -7375,29 +7425,38 @@ function renderTeacherAssignModal() {
   }
 
   // ── 3 · 강사 ────────────────────────────────────────────
+  // 강사 줄은 1:1 배정 화면과 같은 카드를 쓴다 — 사진, 담당 과정·과목·레벨 태그까지 한눈에 본다.
+  // 이름과 배지만 있던 예전 줄로는 「이 반에 맞는 강사인가」를 강사 관리 화면과 번갈아 봐야 알 수 있었다.
   const teacherRow = row => {
-    const selected = row.teacher.id === _teacherAssign.teacherId;
     const blocked = row.tier === 'blocked';
     const star = recommended && recommended.period === period && recommended.teacher.id === row.teacher.id;
-    const why = blocked
-      ? `<span style="font-size:10.5px;color:#9CA3AF">${lessonEsc(row.reason || '배정할 수 없어')}</span>`
+    const notesHtml = blocked
+      ? ''
       : `${(row.fit?.badges || []).map(badge => teacherAssignBadge(badge.tone, badge.text)).join('')}${row.warnings.map(text => teacherAssignBadge('warn', text)).join('')}${row.ok ? '' : teacherAssignBadge('warn', row.reason || '넘기고 배정')}`;
-    return `<button ${blocked ? 'disabled' : `onclick="pickTeacherAssign(${row.teacher.id})"`} style="width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;padding:9px 11px;margin-bottom:5px;border:1px solid ${selected ? '#5E5CE6' : '#E5E7EB'};border-radius:9px;background:${selected ? '#F5F3FF' : '#fff'};cursor:${blocked ? 'not-allowed' : 'pointer'};opacity:${blocked ? .55 : 1}">
-      <span style="flex:1;min-width:0">
-        <span style="display:block;font-size:11.5px;font-weight:700;color:#111827">${star ? '<span style="color:#5E5CE6;font-weight:900">★ </span>' : ''}${lessonEsc(row.teacher.nick || row.teacher.name)}<span style="font-weight:400;color:#9CA3AF"> · ${lessonEsc((row.teacher.classTypes || []).join('·') || '-')}</span></span>
-        <span style="display:block;margin-top:3px">${why}</span>
-      </span>
-    </button>`;
+    return renderGroupTeacherCard(row.teacher, {
+      selected: row.teacher.id === _teacherAssign.teacherId,
+      disabled: blocked,
+      fitText: blocked
+        ? (row.reason || '배정할 수 없어')
+        : `${star ? '★ ' : ''}${period}교시 배정 가능`,
+      fitOk: !blocked,
+      notesHtml,
+      onSelect: `pickTeacherAssign(${row.teacher.id})`,
+      actionLabel: '선택 및 배정',
+    });
   };
 
   let teacherHtml = '<div style="font-size:11px;color:#9CA3AF">교시를 고르면 그 시간에 가능한 강사만 남아.</div>';
   if (period != null) {
     const rows = getTeacherAssignRowsForPeriod(group, period);
     const byTier = tier => rows.filter(row => row.tier === tier);
+    const tierBlock = (tier, title, hint) => (byTier(tier).length
+      ? sectionHead('·', title, hint) + `<div style="border:1px solid #E5E7EB;border-radius:9px;overflow:hidden;margin-bottom:10px">${byTier(tier).map(teacherRow).join('')}</div>`
+      : '');
     teacherHtml = [
-      byTier('ok').length ? sectionHead('·', '배정 가능', '이 반에 잘 맞는 순서') + byTier('ok').map(teacherRow).join('') : '',
-      byTier('warn').length ? sectionHead('·', '조건부', '넘기고 배정할 수 있어') + byTier('warn').map(teacherRow).join('') : '',
-      byTier('blocked').length ? sectionHead('·', '배정 불가') + byTier('blocked').map(teacherRow).join('') : ''
+      tierBlock('ok', '배정 가능', '이 반에 잘 맞는 순서'),
+      tierBlock('warn', '조건부', '넘기고 배정할 수 있어'),
+      tierBlock('blocked', '배정 불가', ''),
     ].join('') || '<div style="font-size:11px;color:#9CA3AF">이 교시에 고를 수 있는 강사가 없어.</div>';
   }
 
@@ -8767,17 +8826,11 @@ function openGroupEditBrowserPopup(groupId, detailRowIndex, popupTarget, createD
           return (!query||name.indexOf(query)>-1||room.indexOf(query)>-1)&&(!grade||teacherGrade===grade);
         });
         var box=document.getElementById('teacherOptions');
+        ensureGroupTeacherCardStyles(document);
+        var periodText=selectedPeriods.length?selectedPeriods.join(', ')+'교시 배정 가능':'배정 가능';
         box.innerHTML=matches.length?matches.map(function(t){
-          var selected=String(t.id)===current;
-          var avatar=t.photoUrl||('assets/images/'+(t.gender==='남'?'teacher_male.png':'teacher_female.png'));
-          var typeText=(t.type||'일반')+' · '+((t.classTypes||[]).join(', ')||'그룹 수업');
-          var courses=(t.preferredCourses||[]);
-          var subjects=(typeof getTeacherCapableSubjectIds==='function'?getTeacherCapableSubjectIds(t):[]).map(function(id){var item=MOCK_MASTER_SUBJECTS.find(function(subject){return subject.id===id});return item?item.name:id});
-          var levels=(typeof getTeacherCapableLevelIds==='function'?getTeacherCapableLevelIds(t):[]).map(function(id){var item=MOCK_MASTER_LEVELS.find(function(level){return level.id===id});return item?item.name:id});
-          function capabilityLine(title,items,type){return '<span class="capability-line"><span class="capability-title">'+title+'</span>'+(items.length?items.map(function(item){return '<span class="capability-tag '+type+'">'+item+'</span>'}).join(''):'<span class="capability-empty">등록 없음</span>')+'</span>'}
-          var capabilities='<span class="teacher-capabilities">'+capabilityLine('담당 과정',courses,'course')+capabilityLine('가능 과목',subjects,'subject')+capabilityLine('가능 레벨',levels,'level')+'</span>';
-          return '<div class="entity-option'+(selected?' selected':'')+'" onmousedown="selectTeacherOption('+t.id+')"><img class="entity-avatar" src="'+avatar+'"><span class="entity-main"><b>'+(t.nick||t.name)+' '+(t.gender==='여'?'(F)':'(M)')+'</b><small>'+(t.room||'담당 강의실 없음')+' · '+typeText+'</small>'+capabilities+'</span><span class="entity-status">배정 가능</span></div>';
-        }).join(''):'<div class="entity-empty">검색 결과가 없어.</div>';
+          return renderGroupTeacherCard(t,{selected:String(t.id)===current,fitText:periodText,fitOk:true,onSelect:'selectTeacherOption('+t.id+')',actionLabel:'선택 및 배정'});
+        }).join(''):'<div class="tsa-teacher-empty">검색 결과가 없어.</div>';
       }
       function filterRoomPanel(){renderRoomOptions(document.getElementById('roomSearch').value);}
       function renderRoomOptions(query){
@@ -9244,6 +9297,22 @@ function initClassSchedule() {
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
 
+// 강의실 표의 「담당 강사」 칸. 누가 쓰는 방인지 알아보는 자리라 얼굴과 신원만 둔다.
+// 등급·과목·가용 시간은 강사 관리와 수업 배정 화면에서 본다.
+function renderCsTeacherSummary(teacher) {
+  if (!teacher) return '';
+  const avatar = teacher.photoUrl || `assets/images/${teacher.gender === '남' ? 'teacher_male.png' : 'teacher_female.png'}`;
+  const age = typeof getTeacherAge === 'function' ? getTeacherAge(teacher) : null;
+  const meta = [teacher.gender ? `${teacher.gender}성` : '', age != null ? `${age}세` : ''].filter(Boolean).join(' · ');
+  return `<div style="display:flex;gap:9px;align-items:center;padding:2px 0">
+    <img src="${lessonEsc(avatar)}" alt="" style="width:36px;height:36px;flex:0 0 36px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB">
+    <div style="min-width:0">
+      <div><b style="font-size:12px;color:#111827">${lessonEsc(teacher.nick || teacher.name)}</b> <span style="font-size:10.5px;color:#6B7280">${lessonEsc(teacher.name || '')}</span></div>
+      ${meta ? `<div style="font-size:10px;color:#9CA3AF;margin-top:2px">${meta}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderCsRooms() {
   // 유형별 섹션 테이블
   const tbody = document.getElementById('cs-rooms-tbody');
@@ -9261,7 +9330,7 @@ function renderCsRooms() {
       : null;
     const teacherHtml = r.type === '1:1'
       ? (assignedTeacher
-          ? `<strong>${assignedTeacher.nick}</strong> <span style="font-size:10.5px;color:#6B7280">${assignedTeacher.name}</span>`
+          ? renderCsTeacherSummary(assignedTeacher)
           : '<span style="font-size:10.5px;color:#B45309;font-weight:700">강사 미배정</span>')
       : '<span style="color:#D1D5DB">-</span>';
     return `<tr>
@@ -9271,6 +9340,7 @@ function renderCsRooms() {
       <td><span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;background:${statusBg};color:${statusColor}">${statusLabel}</span></td>
       <td>
         ${['1:4', '1:8'].includes(r.type) && r.roomNo ? `<button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openCsRoomSchedulePopup(${r.id})"><i data-lucide="calendar-days" style="width:12px;height:12px"></i> 스케줄</button>` : ''}
+        ${r.type === '1:1' && r.roomNo && !assignedTeacher ? `<button class="tsa-btn tsa-btn-xs tsa-btn-primary" style="margin-right:4px" onclick="openCsAssignRoomTeacher(${r.id})">강사 배정</button>` : ''}
         <button class="tsa-btn tsa-btn-xs tsa-btn-outline" onclick="openCsEditRoomModal(${r.id})">수정</button>
         ${!r.roomNo ? `<button class="tsa-btn tsa-btn-xs" style="background:#EEF2FF;color:#5E5CE6;border:none;margin-left:4px" onclick="openCsAddRoomModal(${r.id})">호실 배정</button>` : ''}
       </td>
@@ -9289,10 +9359,14 @@ function renderCsRooms() {
         return a.roomNo.localeCompare(b.roomNo, undefined, { numeric: true, sensitivity: 'base' });
       });
     if (rooms.length === 0) return '';
+    // 담당 강의실이 없는 강사를 줄로 깔면 강의실 표에 강의실이 아닌 줄이 섞인다.
+    // 숫자만 머리에 적고, 배정은 빈 호실 줄의 [강사 배정]에서 한다.
+    const roomlessCount = type === '1:1' ? countCsRoomlessTeachers() : 0;
     return `<tr><td colspan="5" style="padding:8px 14px 4px;background:#F9FAFB;border-top:1.5px solid ${typeAccent[type]}30">
       <span style="font-size:12px;font-weight:700;color:${typeAccent[type]}">${typeLabel[type]}</span>
       <span style="font-size:11px;color:#9CA3AF;margin-left:8px">${rooms.filter(r=>r.roomNo).length}개 운영</span>
-    </td></tr>` + rooms.map(renderRow).join('') + (type === '1:1' ? renderCsUnassignedTeachers() : '');
+      ${roomlessCount ? `<span style="font-size:11px;font-weight:700;color:#B45309;margin-left:8px">담당 강의실 없는 강사 ${roomlessCount}명</span>` : ''}
+    </td></tr>` + rooms.map(renderRow).join('');
   }).join('');
   if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 }
@@ -11966,44 +12040,49 @@ function getPeriodList() {
     .map(row => ({ id: `P${row.p}`, order: row.p, startTime: row.start, endTime: row.end, active: true }));
 }
 
-function renderCsUnassignedTeachers() {
+function getCsRoomlessTeachers() {
   const assignedNicks = new Set(
     MOCK_CLASS_ROOMS.filter(room => room.type === '1:1' && room.teacherNick).map(room => room.teacherNick)
   );
-  return MOCK_TEACHERS
-    .filter(teacher => teacher.status !== 'resigned' && !assignedNicks.has(teacher.nick))
-    .map(teacher => `
-      <tr style="background:#FFFBEB">
-        <td><span style="font-size:10.5px;color:#B45309;font-weight:800">담당 강의실 필요</span></td>
-        <td style="color:#9CA3AF">최대 1명</td>
-        <td><strong>${teacher.nick}</strong> <span style="font-size:10.5px;color:#6B7280">${teacher.name}</span></td>
-        <td><span style="font-size:10.5px;padding:3px 8px;border-radius:8px;background:#FEF3C7;color:#B45309;font-weight:700">미배정</span></td>
-        <td><button class="tsa-btn tsa-btn-xs tsa-btn-primary" onclick="openCsAssignTeacherRoom('${teacher.nick}')">강의실 배정</button></td>
-      </tr>
-    `).join('');
+  return MOCK_TEACHERS.filter(teacher => teacher.status !== 'resigned' && !assignedNicks.has(teacher.nick));
 }
 
+function countCsRoomlessTeachers() {
+  return getCsRoomlessTeachers().length;
+}
+
+// 1:1 강의실 하나에 강사 한 명이다. 다른 방을 이미 쓰는 강사를 목록에 두면
+// 고를 수 없는 이름만 길게 깔린다. 담당 강의실이 없는 강사만 남긴다.
+// 지금 이 방의 담당자는 예외다 — 빼면 수정 창을 여는 순간 값이 사라진다.
 function fillCsRoomTeacherSelect(selectedNick) {
   const select = document.getElementById('cs-room-teacher');
   if (!select) return;
-  const assignedElsewhere = new Map(
-    MOCK_CLASS_ROOMS.filter(room => room.type === '1:1' && room.teacherNick).map(room => [room.teacherNick, room.roomNo])
+  const assignedNicks = new Set(
+    MOCK_CLASS_ROOMS.filter(room => room.type === '1:1' && room.teacherNick).map(room => room.teacherNick)
   );
-  select.innerHTML = '<option value="">담당 강사 미배정</option>' + MOCK_TEACHERS
+  const options = MOCK_TEACHERS
     .filter(teacher => teacher.status !== 'resigned')
+    .filter(teacher => !assignedNicks.has(teacher.nick) || teacher.nick === selectedNick)
+    .sort((a, b) => String(a.nick || '').localeCompare(String(b.nick || '')))
     .map(teacher => {
-      const roomNo = assignedElsewhere.get(teacher.nick);
-      const suffix = roomNo && teacher.nick !== selectedNick ? ` · ${roomNo} 배정 중` : '';
-      return `<option value="${teacher.nick}" ${teacher.nick === selectedNick ? 'selected' : ''}>${teacher.nick} (${teacher.name})${suffix}</option>`;
+      const current = teacher.nick === selectedNick;
+      return `<option value="${teacher.nick}" ${current ? 'selected' : ''}>${teacher.nick} (${teacher.name})${current ? ' · 현재 담당' : ''}</option>`;
     }).join('');
+  select.innerHTML = '<option value="">담당 강사 미배정</option>' + options;
+  const hint = document.getElementById('cs-room-teacher-hint');
+  if (hint) {
+    const free = MOCK_TEACHERS.filter(teacher => teacher.status !== 'resigned' && !assignedNicks.has(teacher.nick)).length;
+    hint.textContent = free
+      ? `담당 강의실이 없는 강사 ${free}명만 나옵니다. 다른 방을 쓰는 강사는 그 방에서 먼저 내려야 합니다.`
+      : '담당 강의실이 없는 강사가 없습니다. 다른 방을 쓰는 강사는 그 방에서 먼저 내려야 합니다.';
+  }
 }
 
-function openCsAssignTeacherRoom(teacherNick) {
-  const emptyRoom = MOCK_CLASS_ROOMS.find(room => room.type === '1:1' && !room.teacherNick);
-  openCsAddRoomModal(emptyRoom?.id);
-  fillCsRoomTeacherSelect(teacherNick);
+// 빈 1:1 호실 줄의 [강사 배정]. 그 호실로 수정 모달을 열고 담당 강사 칸에 바로 커서를 둔다.
+function openCsAssignRoomTeacher(roomId) {
+  openCsAddRoomModal(roomId);
   const select = document.getElementById('cs-room-teacher');
-  if (select) select.value = teacherNick;
+  if (select) setTimeout(() => select.focus(), 50);
 }
 
 function changeTimetableStatus() {
@@ -12671,6 +12750,7 @@ function getTimetables() {
 }
 
 function getTimetableById(id) {
+  if (_timetableDraft && _timetableDraft.id === id) return _timetableDraft;
   return getTimetables().find(item => item.id === id) || null;
 }
 
@@ -12899,6 +12979,9 @@ function cancelTimetableReplacement(id) {
 
 // ── 목록 ────────────────────────────────────────────────
 let _timetableEditId = null;
+// 「시간표 추가」는 목록에 바로 꽂지 않는다. 초안을 한 장 만들어 편집 화면만 열고,
+// 「적용하기」를 눌러야 MOCK_TIMETABLES 에 들어간다 — 실수로 누른 빈 시간표가 목록에 쌓이지 않게.
+let _timetableDraft = null;
 
 function renderCoursePeriodTab() {
   const host = document.getElementById('course-pricing-tab-period');
@@ -12977,6 +13060,8 @@ function openTimetableEditor(id) {
 }
 
 function closeTimetableEditor() {
+  // 초안을 열어둔 채 목록으로 나가면 만들던 내용이 사라진다. 한 번 묻는다.
+  if (_timetableDraft && _timetableDraft.id === _timetableEditId) return discardTimetableDraft();
   _timetableEditId = null;
   renderCoursePeriodTab();
 }
@@ -12999,9 +13084,48 @@ function createTimetable() {
     // 빈 칸부터 채우게 하면 열두 줄을 손으로 다 넣어야 한다. 기본 시간표를 베껴 시작한다.
     periods: (base?.periods || []).map(row => ({ ...row }))
   };
-  MOCK_TIMETABLES.push(timetable);
-  showToast(`✓ ${timetable.name} 시간표를 만들었어. 수업 길이와 점심 위치를 확인해줘.`, 'success');
+  _timetableDraft = timetable;
   openTimetableEditor(timetable.id);
+}
+
+// 초안을 목록에 올린다. 여기를 지나야 학생을 붙일 수 있다.
+function saveTimetableDraft() {
+  const draft = _timetableDraft;
+  if (!draft) return;
+  const issues = getTimetableIssues(draft);
+  if (issues.length) {
+    showToast(`${issues[0]} — 고치고 다시 적용해줘.`, 'warning');
+    return;
+  }
+  if (!String(draft.name || '').trim()) {
+    showToast('이름이 비었어. 채우고 다시 적용해줘.', 'warning');
+    return;
+  }
+  const code = String(draft.code || '').trim();
+  if (!code) {
+    showToast('코드가 비었어. 화면에 A · B로 붙는 글자야.', 'warning');
+    return;
+  }
+  if (getTimetables().some(item => String(item.code || '').trim().toUpperCase() === code.toUpperCase())) {
+    showToast(`코드 ${code}는 이미 쓰는 시간표가 있어. 다른 글자로 바꿔줘.`, 'warning');
+    return;
+  }
+  // 기본 시간표 표시는 저장 시점에 옮긴다 — 적용도 안 한 초안이 남의 기본을 떼면 안 된다.
+  if (draft.isDefault) getTimetables().forEach(item => { item.isDefault = false; });
+  MOCK_TIMETABLES.push(draft);
+  _timetableDraft = null;
+  _timetableEditId = null;
+  showToast(`✓ ${draft.name} 시간표를 목록에 올렸어.`, 'success');
+  renderCoursePeriodTab();
+}
+
+// 초안 버리기. 목록에 올라간 적이 없어서 지울 것도 없다.
+function discardTimetableDraft(skipConfirm) {
+  if (!_timetableDraft) return;
+  if (!skipConfirm && !window.confirm('만들던 시간표를 버릴까? 적용하지 않은 내용은 사라져.')) return;
+  _timetableDraft = null;
+  _timetableEditId = null;
+  renderCoursePeriodTab();
 }
 
 // ── 편집 ────────────────────────────────────────────────
@@ -13073,21 +13197,37 @@ function renderTimetableEditor() {
     `<option value="${period.order}" ${Number(timetable.lunchAfterPeriod) === Number(period.order) ? 'selected' : ''}>${period.order}교시 뒤</option>`
   ).join('');
 
+  // 초안은 아직 목록에 없다. 교체 예약도 삭제도 걸 대상이 없어서 단추를 적용/취소로 바꾼다.
+  const isDraft = Boolean(_timetableDraft && _timetableDraft.id === id);
+  const draftNote = isDraft
+    ? `<div style="padding:10px 13px;border:1px solid #C7D2FE;border-radius:10px;background:#EEF2FF;font-size:11.5px;color:#3730A3;line-height:1.7">
+        <b>아직 목록에 없는 새 시간표야.</b> 이름 · 코드 · 교시를 확인하고 <b>적용하기</b>를 눌러야 목록에 올라가.
+      </div>`
+    : '';
+  const replaceButton = scheduled
+    ? `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="cancelTimetableReplacement('${lessonEsc(scheduled.id)}')">교체 예약 취소</button>`
+    : (isFuture
+      ? ''
+      : `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="scheduleTimetableReplacement('${id}')">차주 월요일부터 교체</button>`);
+  const removeAction = isFuture ? `cancelTimetableReplacement('${id}')` : `deleteTimetable('${id}')`;
+  const removeButton = `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="${removeAction}">${isFuture ? '이 판 지우기' : '시간표 삭제'}</button>`;
+  const headerActions = isDraft
+    ? `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="discardTimetableDraft()">취소</button>
+       <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="saveTimetableDraft()">적용하기</button>`
+    : `${replaceButton}${removeButton}`;
+  const headerMeta = isDraft
+    ? '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;background:#EEF2FF;color:#4338CA">새 시간표 · 적용 전</span>'
+    : `<span style="font-size:11px;color:#9CA3AF">${lessonEsc(getTimetableRangeLabel(timetable))} · 소속 학생 ${countStudentsOnTimetable(timetable.id)}명</span>`;
+
   return `<div style="display:flex;flex-direction:column;gap:14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="closeTimetableEditor()">← 목록</button>
       <b style="font-size:14px;color:#111827">${lessonEsc(timetable.name)}</b>
-      <span style="font-size:11px;color:#9CA3AF">${lessonEsc(getTimetableRangeLabel(timetable))} · 소속 학생 ${countStudentsOnTimetable(timetable.id)}명</span>
-      <span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap">
-        ${scheduled
-          ? `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="cancelTimetableReplacement('${lessonEsc(scheduled.id)}')">교체 예약 취소</button>`
-          : (isFuture
-            ? ''
-            : `<button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="scheduleTimetableReplacement('${id}')">차주 월요일부터 교체</button>`)}
-        <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="${isFuture ? `cancelTimetableReplacement('${id}')` : `deleteTimetable('${id}')`}">${isFuture ? '이 판 지우기' : '시간표 삭제'}</button>
-      </span>
+      ${headerMeta}
+      <span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap">${headerActions}</span>
     </div>
 
+    ${draftNote}
     ${lineageNote}
 
     ${issues.length ? `<div style="padding:10px 13px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;font-size:11.5px;color:#B91C1C;line-height:1.7"><b>확인할 게 ${issues.length}건 있어.</b><br>${issues.map(lessonEsc).join('<br>')}</div>` : ''}
@@ -13101,7 +13241,7 @@ function renderTimetableEditor() {
           ${field('첫 교시 시작', `<input type="time" value="${lessonEsc(timetable.startTime || '08:00')}" ${input} style="height:34px;font-size:12px;width:130px" onchange="updateTimetableField('${id}','startTime',this.value)"/>`)}
           ${field('쉬는 시간 <span style="font-weight:400;color:#9CA3AF">— 전 교시에 한 번에 적용</span>',
             `<span style="display:inline-flex;align-items:center;gap:6px">
-              <input type="number" min="0" max="120" value="${Number(periods[0]?.breakAfter ?? 10)}" class="tsa-input" style="height:34px;font-size:12px;width:82px;text-align:right" id="tt-bulk-break"/>
+              <input type="number" min="0" max="120" value="${Number(periods[0]?.breakAfter ?? 5)}" class="tsa-input" style="height:34px;font-size:12px;width:82px;text-align:right" id="tt-bulk-break"/>
               <span style="font-size:11px;color:#9CA3AF">분</span>
               <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="applyTimetableBreakToAll('${id}')">전체 적용</button>
             </span>
@@ -13171,10 +13311,10 @@ function addTimetablePeriod(id) {
   if (!timetable) return;
   const rows = timetable.periods || (timetable.periods = []);
   const last = rows[rows.length - 1];
-  if (last) last.breakAfter = Number(last.breakAfter) || 10;
+  if (last) last.breakAfter = Number(last.breakAfter) || 5;
   rows.push({
     order: (last?.order || 0) + 1,
-    duration: Number(last?.duration) || 50,
+    duration: Number(last?.duration) || 45,
     breakAfter: 0
   });
   renderCoursePeriodTab();

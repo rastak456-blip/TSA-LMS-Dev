@@ -24,7 +24,7 @@ const APP = {
   selectedWeek: 0,
   timetableTab: '1on1',
   timetableStatus: 'Draft',
-  bellSystem: { duration: 50, break: 10, start: '08:00', total: 8, lunchAfter: 4, lunchDuration: 30 },
+  bellSystem: { duration: 45, break: 5, start: '08:00', total: 8, lunchAfter: 4, lunchDuration: 30 },
 };
 
 /* =============================================
@@ -3240,7 +3240,7 @@ function renderWeeklyTimetable() {
   const days = ['월', '화', '수', '목', '금', '토'];
   const dayEn = { '월': 'Mon', '화': 'Tue', '수': 'Wed', '목': 'Thu', '금': 'Fri', '토': 'Sat' };
 
-  const dur = APP.bellSystem?.duration || 50;
+  const dur = APP.bellSystem?.duration || 45;
   const brk = APP.bellSystem?.break || 10;
   const startTime = APP.bellSystem?.start || '08:00';
   const totalPeriods = APP.bellSystem?.total || 8;
@@ -3961,7 +3961,7 @@ function confirmManualAssignment(optStudentId) {
   }
 
   // S-04. 식사 시간 수업 오버랩 경고
-  const durVal = APP.bellSystem ? APP.bellSystem.duration : 50;
+  const durVal = APP.bellSystem ? APP.bellSystem.duration : 45;
   const brkVal = APP.bellSystem ? APP.bellSystem.break : 10;
   const startVal = APP.bellSystem ? (APP.bellSystem.start || '08:00') : '08:00';
   const totalVal = APP.bellSystem ? (APP.bellSystem.total || 8) : 8;
@@ -5873,7 +5873,7 @@ function renderChangelogTab() {
    ════════════════════════════════════════════ */
 
 function getBellPeriods() {
-  const bs = APP.bellSystem || { duration:50, break:10, start:'08:00', total:8, lunchAfter:4, lunchDuration:30 };
+  const bs = APP.bellSystem || { duration:45, break:5, start:'08:00', total:8, lunchAfter:4, lunchDuration:30 };
   const addMins = (t, m) => {
     const [h, mn] = t.split(':').map(Number);
     const d = new Date(2000,0,1,h,mn+m);
@@ -12517,7 +12517,7 @@ function setupStudentDashboard() {
     const dayMapEnToKo = { 'Mon': '월', 'Tue': '화', 'Wed': '수', 'Thu': '목', 'Fri': '금', 'Sat': '토', 'Sun': '일' };
     const queryDay = dayMapEnToKo[studentPortalDay] || APP.selectedDay || '월';
 
-    const durVal = APP.bellSystem ? APP.bellSystem.duration : 50;
+    const durVal = APP.bellSystem ? APP.bellSystem.duration : 45;
     const brkVal = APP.bellSystem ? APP.bellSystem.break : 10;
     const startVal = APP.bellSystem ? (APP.bellSystem.start || '08:00') : '08:00';
     const totalVal = APP.bellSystem ? (APP.bellSystem.total || 8) : 8;
@@ -13238,7 +13238,7 @@ function toggleTimetableSubmenu() {
    BELL & PERIOD SETTINGS PAGE
    ============================================= */
 function initBellSettingsView() {
-  const settings = APP.bellSystem || { duration: 50, break: 10, start: '08:00', total: 8, lunchAfter: 4, lunchDuration: 30 };
+  const settings = APP.bellSystem || { duration: 45, break: 5, start: '08:00', total: 8, lunchAfter: 4, lunchDuration: 30 };
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   setVal('bell-settings-duration', settings.duration);
   setVal('bell-settings-break', settings.break);

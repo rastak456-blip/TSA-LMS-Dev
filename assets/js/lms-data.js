@@ -30,7 +30,7 @@ const APP = {
 /* =============================================
    수업 시간표 (Timetable)
    교시마다 수업 길이와 그 뒤 쉬는 시간을 따로 들고 있고, 시각은 시작 시각부터 쌓아 만든다.
-   예전엔 전 교시가 같은 「50분 수업 + 10분 휴식」이라 4교시만 80분으로 늘리는 식이 안 됐다.
+   예전엔 전 교시가 같은 「45분 수업 + 5분 휴식」이라 4교시만 80분으로 늘리는 식이 안 됐다.
    점심은 시계 시각이 아니라 「N교시 뒤」로 잡는다 — 앞 교시 길이가 바뀌면 점심도 같이 밀려야
    해서다. 점심 자리에는 쉬는 시간을 넣지 않는다(수업 끝 → 바로 점심 → 바로 다음 교시).
    타입이 여럿인 이유는 점심을 나눠 먹기 때문이다 — A조와 B조가 같은 날 함께 돌고,
@@ -43,18 +43,18 @@ const MOCK_TIMETABLES = [
     startTime: '08:00',
     lunchAfterPeriod: 4, lunchDuration: 60,
     periods: [
-      { order: 1, duration: 50, breakAfter: 10 },
-      { order: 2, duration: 50, breakAfter: 10 },
-      { order: 3, duration: 50, breakAfter: 10 },
-      { order: 4, duration: 50, breakAfter: 10 },
-      { order: 5, duration: 50, breakAfter: 10 },
-      { order: 6, duration: 50, breakAfter: 10 },
-      { order: 7, duration: 50, breakAfter: 10 },
-      { order: 8, duration: 50, breakAfter: 10 },
-      { order: 9, duration: 50, breakAfter: 10 },
-      { order: 10, duration: 50, breakAfter: 10 },
-      { order: 11, duration: 50, breakAfter: 10 },
-      { order: 12, duration: 50, breakAfter: 0 }
+      { order: 1, duration: 45, breakAfter: 5 },
+      { order: 2, duration: 45, breakAfter: 5 },
+      { order: 3, duration: 45, breakAfter: 5 },
+      { order: 4, duration: 45, breakAfter: 5 },
+      { order: 5, duration: 45, breakAfter: 5 },
+      { order: 6, duration: 45, breakAfter: 5 },
+      { order: 7, duration: 45, breakAfter: 5 },
+      { order: 8, duration: 45, breakAfter: 5 },
+      { order: 9, duration: 45, breakAfter: 5 },
+      { order: 10, duration: 45, breakAfter: 5 },
+      { order: 11, duration: 45, breakAfter: 5 },
+      { order: 12, duration: 45, breakAfter: 0 }
     ]
   },
   {
@@ -63,18 +63,18 @@ const MOCK_TIMETABLES = [
     startTime: '08:00',
     lunchAfterPeriod: 5, lunchDuration: 60,
     periods: [
-      { order: 1, duration: 50, breakAfter: 10 },
-      { order: 2, duration: 50, breakAfter: 10 },
-      { order: 3, duration: 50, breakAfter: 10 },
-      { order: 4, duration: 50, breakAfter: 10 },
-      { order: 5, duration: 50, breakAfter: 10 },
-      { order: 6, duration: 50, breakAfter: 10 },
-      { order: 7, duration: 50, breakAfter: 10 },
-      { order: 8, duration: 50, breakAfter: 10 },
-      { order: 9, duration: 50, breakAfter: 10 },
-      { order: 10, duration: 50, breakAfter: 10 },
-      { order: 11, duration: 50, breakAfter: 10 },
-      { order: 12, duration: 50, breakAfter: 0 }
+      { order: 1, duration: 45, breakAfter: 5 },
+      { order: 2, duration: 45, breakAfter: 5 },
+      { order: 3, duration: 45, breakAfter: 5 },
+      { order: 4, duration: 45, breakAfter: 5 },
+      { order: 5, duration: 45, breakAfter: 5 },
+      { order: 6, duration: 45, breakAfter: 5 },
+      { order: 7, duration: 45, breakAfter: 5 },
+      { order: 8, duration: 45, breakAfter: 5 },
+      { order: 9, duration: 45, breakAfter: 5 },
+      { order: 10, duration: 45, breakAfter: 5 },
+      { order: 11, duration: 45, breakAfter: 5 },
+      { order: 12, duration: 45, breakAfter: 0 }
     ]
   }
 ];

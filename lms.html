@@ -1720,12 +1720,11 @@
       </a>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px">
         <a class="tsa-nav-item" id="menu-pickup-parent" aria-controls="pickup-submenu" aria-expanded="false" onclick="toggleSidebarGroup('pickup-submenu')">
-          <i data-lucide="car-front"></i>픽업 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
+          <i data-lucide="car-front"></i>학생 픽업 관리<i data-lucide="chevron-down" style="width:14px;margin-left:auto;transition:transform .15s"></i>
         </a>
         <div id="pickup-submenu" style="display:none;flex-direction:column;gap:1px;padding-left:8px">
-          <a class="tsa-nav-sub-item" id="menu-pickup-assign" onclick="navigate('pickup-assign')">픽업 배정</a>
           <a class="tsa-nav-sub-item" id="menu-pickup-managers" onclick="navigate('pickup-managers')">픽업 담당자 관리</a>
-          <a class="tsa-nav-sub-item" id="menu-pickup-vehicles" onclick="navigate('pickup-vehicles')">픽업 차량 관리</a>
+          <a class="tsa-nav-sub-item" id="menu-pickup-assign" onclick="navigate('pickup-assign')">픽업 배정 현황</a>
         </div>
       </div>
 
@@ -2168,136 +2167,75 @@
         </div>
 
         <!-- ================================================ -->
-        <!--  VIEW: PICKUP (배정 · 담당자 · 차량 통합)          -->
+        <!--  VIEW: PICKUP MANAGERS (픽업 담당자 관리)           -->
         <!-- ================================================ -->
-        <div id="view-pickup" class="tsa-view">
+        <div id="view-pickup-managers" class="tsa-view">
           <div class="tsa-section-header">
             <div>
-              <h2 class="tsa-page-title">🚐 픽업 관리</h2>
-              <p class="tsa-page-subtitle">입국 학생 배차 · 픽업 담당자 · 픽업 차량을 한 화면에서 관리합니다.</p>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="tsa-btn tsa-btn-outline" onclick="openPickupTimetableModal()"><i data-lucide="clock"></i> 전체 배차표</button>
-              <button id="pickup-primary-action" class="tsa-btn tsa-btn-primary" onclick="handlePickupPrimaryAction()"><i data-lucide="plus"></i> 등록</button>
+              <h2 class="tsa-page-title">🗂️ 픽업 담당자 관리</h2>
+              <p class="tsa-page-subtitle">공항에서 학생을 맞이하는 담당자와 픽업 차량을 관리합니다.</p>
             </div>
           </div>
-
-          <!-- 상단 요약: 어느 탭에서도 같은 값을 본다 -->
-          <div id="pickup-kpi-strip" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px"></div>
-
-          <!-- 서브 탭 -->
-          <div class="tsa-tabs" style="margin-bottom:16px">
-            <div class="tsa-tab active" id="pickup-tab-btn-assign" onclick="switchPickupTab('assign', this)">배정 현황</div>
-            <div class="tsa-tab" id="pickup-tab-btn-managers" onclick="switchPickupTab('managers', this)">픽업 담당자</div>
-            <div class="tsa-tab" id="pickup-tab-btn-vehicles" onclick="switchPickupTab('vehicles', this)">픽업 차량</div>
-          </div>
-
-          <!-- [탭 A] 배정 현황 -->
-          <div id="pickup-tab-assign" class="pickup-tab-content">
-            <div class="tsa-card" style="margin-bottom:16px">
-              <div class="tsa-card-header">
-                <div>
-                  <h3 class="tsa-card-title"><i data-lucide="alarm-clock" style="color:#F97316"></i> 다가오는 입국일</h3>
-                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">오늘 이후 입국 예정인 날짜를 가까운 순으로 보여 줍니다. 눌러서 해당 날짜 배정으로 이동합니다.</div>
-                </div>
+          <div class="tsa-card">
+            <div class="tsa-card-header">
+              <div style="display:flex;align-items:center;gap:8px">
+                <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 픽업 담당자</h3>
+                <span id="pickup-manager-count" class="tsa-badge" style="background:#EEF2FF;color:#4338CA"></span>
               </div>
-              <div id="pickup-upcoming-strip" style="padding:12px 16px;display:flex;gap:8px;overflow-x:auto"></div>
-            </div>
-
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <div>
-                  <h3 class="tsa-card-title"><i data-lucide="calendar-days" style="color:#5E5CE6"></i> 입국 예정일별 픽업 배정</h3>
-                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">날짜를 선택하면 해당일 입국 학생과 담당자 배정 현황을 확인할 수 있습니다.</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(-1)" aria-label="이전 달"><i data-lucide="chevron-left"></i></button>
-                  <b id="pickup-calendar-title" style="min-width:110px;text-align:center;font-size:13px;color:#111827"></b>
-                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(1)" aria-label="다음 달"><i data-lucide="chevron-right"></i></button>
-                  <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="goPickupCalendarToday()">오늘</button>
-                </div>
-              </div>
-              <div style="padding:16px;display:grid;grid-template-columns:minmax(400px,1.1fr) minmax(360px,1fr);gap:16px;align-items:start">
-                <div style="border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;background:#fff">
-                  <div id="pickup-calendar-weekdays" style="display:grid;grid-template-columns:repeat(7,1fr);background:#F8FAFC;border-bottom:1px solid #E5E7EB"></div>
-                  <div id="pickup-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
-                  <div style="display:flex;gap:12px;padding:8px 12px;border-top:1px solid #E5E7EB;background:#FCFCFD;font-size:9.5px;color:#6B7280">
-                    <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid #FDBA74;background:#FFF7ED;vertical-align:-1px"></i> 배차 필요</span>
-                    <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid #6EE7B7;background:#ECFDF5;vertical-align:-1px"></i> 배차 완료</span>
-                    <span style="margin-left:auto">입국 학생이 있는 날짜만 표시됩니다</span>
-                  </div>
-                </div>
-                <div id="pickup-date-assignment-panel" style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;min-height:430px"></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="openPickupVehicleWindow()"><i data-lucide="car-front"></i> 차량 관리 <span id="pickup-vehicle-count-chip" class="tsa-badge" style="background:#EEF2FF;color:#4338CA;margin-left:4px"></span></button>
+                <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openPickupManagerModal()"><i data-lucide="plus"></i> 담당자 등록</button>
               </div>
             </div>
-          </div>
-
-          <!-- [탭 B] 픽업 담당자 -->
-          <div id="pickup-tab-managers" class="pickup-tab-content" style="display:none">
-            <div id="pickup-manager-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px"></div>
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <div>
-                  <h3 class="tsa-card-title"><i data-lucide="users" style="color:#5E5CE6"></i> 픽업 담당자</h3>
-                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">여기 등록한 프로필이 학생 공항 픽업 확인서에 그대로 표시됩니다. 배차에 물려 있는 담당자는 삭제할 수 없습니다.</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <input id="pickup-manager-search" class="tsa-input" style="width:200px;height:32px;font-size:11.5px" placeholder="이름 · 연락처 검색" oninput="renderPickupManagerTable()"/>
-                  <span id="pickup-manager-count" class="tsa-badge" style="background:#EEF2FF;color:#4338CA"></span>
-                  <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openPickupManagerModal()"><i data-lucide="user-plus"></i> 담당자 등록</button>
-                </div>
-              </div>
-              <div class="tsa-table-scroll">
-                <table class="tsa-table" style="font-size:11.5px">
-                  <thead>
-                    <tr>
-                      <th style="width:46px;text-align:center">No</th>
-                      <th style="min-width:210px">담당자</th>
-                      <th style="width:96px;text-align:center">성별 · 나이</th>
-                      <th style="width:160px">연락처</th>
-                      <th style="width:190px">메신저</th>
-                      <th style="width:110px;text-align:center">확인서 노출</th>
-                      <th style="width:150px;text-align:center">배차 현황</th>
-                      <th style="width:212px;text-align:center">동작</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pickup-manager-tbody"></tbody>
-                </table>
-              </div>
+            <div style="padding:12px 16px 0;font-size:11.5px;color:#6B7280">배정 화면이 이 목록에서 담당자를 고릅니다.</div>
+            <div class="tsa-table-scroll">
+              <table class="tsa-table" style="font-size:12px">
+                <thead>
+                  <tr>
+                    <th style="min-width:200px">담당자</th>
+                    <th style="width:90px">성별</th>
+                    <th style="width:90px">나이</th>
+                    <th style="width:180px">연락처</th>
+                    <th style="min-width:200px">메신저 ID</th>
+                    <th style="width:150px;text-align:right">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="pickup-manager-tbody"></tbody>
+              </table>
             </div>
           </div>
+        </div>
 
-          <!-- [탭 C] 픽업 차량 -->
-          <div id="pickup-tab-vehicles" class="pickup-tab-content" style="display:none">
-            <div id="pickup-vehicle-summary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px"></div>
-            <div class="tsa-card">
-              <div class="tsa-card-header">
-                <div>
-                  <h3 class="tsa-card-title"><i data-lucide="car-front" style="color:#5E5CE6"></i> 등록 차량</h3>
-                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">배차에서 고를 수 있는 차량입니다. 정원보다 많은 인원은 배차되지 않고, 배차에 물려 있는 차량은 삭제할 수 없습니다.</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <input id="pickup-vehicle-search" class="tsa-input" style="width:200px;height:32px;font-size:11.5px" placeholder="모델 · 차량번호 검색" oninput="renderPickupVehicleTable()"/>
-                  <span id="pickup-vehicle-count" class="tsa-badge" style="background:#EEF2FF;color:#4338CA"></span>
-                  <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openPickupVehicleModal()"><i data-lucide="plus"></i> 차량 등록</button>
-                </div>
+        <!-- ================================================ -->
+        <!--  VIEW: PICKUP ASSIGN (픽업 배정 현황)               -->
+        <!-- ================================================ -->
+        <div id="view-pickup-assign" class="tsa-view">
+          <div class="tsa-section-header">
+            <div>
+              <h2 class="tsa-page-title">🗂️ 픽업 배정 현황</h2>
+              <p class="tsa-page-subtitle">공항에서 학생을 맞이하는 담당자와 픽업 차량을 관리합니다.</p>
+            </div>
+          </div>
+          <div class="tsa-card">
+            <div class="tsa-card-header">
+              <div>
+                <h3 class="tsa-card-title"><i data-lucide="calendar-days" style="color:#5E5CE6"></i> 입국 예정일별 픽업 배정</h3>
+                <div style="font-size:10.5px;color:#6B7280;margin-top:3px">날짜를 선택하면 해당일 입국 학생과 담당자 배정 현황을 확인할 수 있습니다.</div>
               </div>
-              <div class="tsa-table-scroll">
-                <table class="tsa-table" style="font-size:11.5px">
-                  <thead>
-                    <tr>
-                      <th style="width:46px;text-align:center">No</th>
-                      <th style="min-width:180px">차량 모델</th>
-                      <th style="width:130px">차량번호</th>
-                      <th style="width:80px;text-align:center">정원</th>
-                      <th style="min-width:170px">메모</th>
-                      <th style="width:130px;text-align:center">사용 중 배차</th>
-                      <th style="width:150px;text-align:center">동작</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pickup-vehicle-tbody"></tbody>
-                </table>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal()"><i data-lucide="clock"></i> 전체 시간 배차표</button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(-1)" aria-label="이전 달"><i data-lucide="chevron-left"></i></button>
+                <b id="pickup-calendar-title" style="min-width:110px;text-align:center;font-size:13px;color:#111827"></b>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="changePickupCalendarMonth(1)" aria-label="다음 달"><i data-lucide="chevron-right"></i></button>
+                <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="goPickupCalendarToday()">오늘</button>
               </div>
+            </div>
+            <div style="padding:16px;display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(340px,1fr);gap:16px;align-items:start">
+              <div style="border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;background:#fff">
+                <div id="pickup-calendar-weekdays" style="display:grid;grid-template-columns:repeat(7,1fr);background:#fff;border-bottom:1px solid #E5E7EB"></div>
+                <div id="pickup-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
+              </div>
+              <div id="pickup-date-assignment-panel" style="border:1px solid #E5E7EB;border-radius:12px;background:#fff;min-height:520px"></div>
             </div>
           </div>
         </div>
@@ -3913,7 +3851,7 @@
             <div id="cs-room-teacher-row">
               <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px">1:1 담당 강사</label>
               <select id="cs-room-teacher" class="tsa-input" style="width:100%"></select>
-              <div style="font-size:10.5px;color:#6B7280;margin-top:5px">강사 등록 단계에서는 배정하지 않고, 이 강의실 관리에서 담당 강사를 지정해.</div>
+              <div id="cs-room-teacher-hint" style="font-size:10.5px;color:#6B7280;margin-top:5px"></div>
             </div>
           </div>
           <div style="padding:14px 24px;border-top:1px solid #E5E7EB;background:#F9FAFB;display:flex;justify-content:flex-end;gap:8px">
@@ -5993,27 +5931,64 @@
   </div>
 </div>
 
-<!-- Pickup Vehicle Modal -->
-<div id="pickup-vehicle-modal" style="display:none">
-  <div class="tsa-modal-backdrop" onclick="closeModal('pickup-vehicle-modal')">
-    <div class="tsa-modal" style="max-width:620px" onclick="event.stopPropagation()">
-      <div class="tsa-modal-header">
-        <div>
-          <h3 class="tsa-modal-title" id="pickup-vehicle-modal-title">픽업 차량 등록</h3>
-          <p class="tsa-modal-subtitle">배차에서 고를 수 있는 차량입니다. 정원은 배차 인원 검증에 쓰입니다.</p>
+<!-- Pickup Vehicle Window (실제 화면의 픽업 차량 창과 같은 구성) -->
+<div id="pickup-vehicle-window" style="display:none">
+  <div class="tsa-modal-backdrop" onclick="closeModal('pickup-vehicle-window')">
+    <div class="tsa-modal" style="max-width:760px;background:#F8FAFC" onclick="event.stopPropagation()">
+      <div class="tsa-modal-body" style="padding:18px;display:flex;flex-direction:column;gap:14px;max-height:82vh;overflow:auto">
+
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border:1px solid #E5E7EB;border-radius:12px">
+          <span style="display:inline-grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:50%;background:#F3F4F6;color:#4B5563"><i data-lucide="car-front" style="width:18px;height:18px"></i></span>
+          <div style="flex:1;min-width:0">
+            <b style="display:block;font-size:15px;color:#111827">픽업 차량</b>
+            <span style="display:block;font-size:11.5px;color:#6B7280;margin-top:2px">위에서 등록하거나 고치고, 아래 목록에서 확인합니다</span>
+          </div>
+          <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="closeModal('pickup-vehicle-window')"><i data-lucide="x"></i> 창 닫기</button>
         </div>
-        <button class="tsa-modal-close" onclick="closeModal('pickup-vehicle-modal')"><i data-lucide="x"></i></button>
-      </div>
-      <div class="tsa-modal-body">
-        <input id="pickup-vehicle-id" type="hidden"/>
-        <div style="display:grid;grid-template-columns:1.2fr 1fr 110px;gap:12px">
-          <div class="tsa-form-group"><label class="tsa-label">차량 모델 <span style="color:#EF4444">*</span></label><input id="pickup-vehicle-model" class="tsa-input" placeholder="예: Toyota Innova"/></div>
-          <div class="tsa-form-group"><label class="tsa-label">차량번호 <span style="color:#EF4444">*</span></label><input id="pickup-vehicle-plate" class="tsa-input" placeholder="예: ABC 1234"/></div>
-          <div class="tsa-form-group"><label class="tsa-label">차량 정원 <span style="color:#EF4444">*</span></label><input id="pickup-vehicle-capacity" type="number" min="1" class="tsa-input" value="5"/></div>
+
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid #E5E7EB"><b id="pickup-vehicle-form-title" style="font-size:13px;color:#111827">차량 등록</b></div>
+          <div style="padding:16px 18px">
+            <input id="pickup-vehicle-id" type="hidden"/>
+            <div style="display:grid;grid-template-columns:1fr 1fr 180px;gap:14px">
+              <div class="tsa-form-group" style="margin:0"><label class="tsa-label">모델 <span style="color:#EF4444">*</span></label><input id="pickup-vehicle-model" class="tsa-input" placeholder="예: 하이에이스"/></div>
+              <div class="tsa-form-group" style="margin:0"><label class="tsa-label">차량 번호 <span style="color:#EF4444">*</span></label><input id="pickup-vehicle-plate" class="tsa-input" placeholder="예: ABC 1234"/></div>
+              <div class="tsa-form-group" style="margin:0">
+                <label class="tsa-label">정원</label>
+                <div style="display:flex;align-items:center;gap:6px"><input id="pickup-vehicle-capacity" type="number" min="1" class="tsa-input" value="0"/><span style="font-size:11.5px;color:#6B7280">명</span></div>
+                <div style="font-size:10.5px;color:#2563EB;margin-top:4px">기사를 뺀, 태울 수 있는 인원입니다.</div>
+              </div>
+            </div>
+            <div class="tsa-form-group" style="margin:14px 0 0"><label class="tsa-label">비고</label><input id="pickup-vehicle-memo" class="tsa-input" placeholder=""/></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+              <button id="pickup-vehicle-cancel" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="display:none" onclick="resetPickupVehicleForm()">취소</button>
+              <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="savePickupVehicle()"><i data-lucide="check"></i> 저장</button>
+            </div>
+          </div>
         </div>
-        <div class="tsa-form-group" style="margin-top:4px"><label class="tsa-label">차량 메모</label><input id="pickup-vehicle-memo" class="tsa-input" placeholder="예: Silver · 기사 포함"/></div>
+
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:8px">
+            <b style="font-size:13px;color:#111827">등록된 차량</b>
+            <span id="pickup-vehicle-count" class="tsa-badge" style="background:#EEF2FF;color:#4338CA"></span>
+          </div>
+          <div class="tsa-table-scroll">
+            <table class="tsa-table" style="font-size:12px">
+              <thead>
+                <tr>
+                  <th style="min-width:150px">모델</th>
+                  <th style="width:140px">차량 번호</th>
+                  <th style="width:90px">정원</th>
+                  <th style="min-width:150px">비고</th>
+                  <th style="width:140px;text-align:right">관리</th>
+                </tr>
+              </thead>
+              <tbody id="pickup-vehicle-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
-      <div class="tsa-modal-footer"><button class="tsa-btn tsa-btn-outline" onclick="closeModal('pickup-vehicle-modal')">취소</button><button class="tsa-btn tsa-btn-primary" onclick="savePickupVehicle()"><i data-lucide="check"></i> 차량 저장</button></div>
     </div>
   </div>
 </div>
@@ -6021,7 +5996,7 @@
 <!-- Pickup Dispatch Modal -->
 <div id="pickup-dispatch-modal" style="display:none">
   <div class="tsa-modal-backdrop" onclick="closeModal('pickup-dispatch-modal')">
-    <div class="tsa-modal" style="max-width:820px" onclick="event.stopPropagation()">
+    <div class="tsa-modal" style="max-width:700px" onclick="event.stopPropagation()">
       <div class="tsa-modal-header">
         <div><h3 class="tsa-modal-title" id="pickup-dispatch-modal-title">선택 인원 배차</h3><p class="tsa-modal-subtitle">선택한 학생을 확인하고 픽업 담당자와 등록 차량을 배정합니다.</p></div>
         <button class="tsa-modal-close" onclick="closeModal('pickup-dispatch-modal')"><i data-lucide="x"></i></button>
@@ -6030,24 +6005,37 @@
         <input id="pickup-dispatch-date" type="hidden"/>
         <input id="pickup-dispatch-group-id" type="hidden"/>
         <input id="pickup-dispatch-student-ids" type="hidden"/>
-        <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:8px">선택 학생</div>
-        <div id="pickup-dispatch-selected-students" style="display:grid;gap:7px;max-height:300px;overflow:auto;margin-bottom:18px"></div>
-        <div style="padding:14px;border:1px solid #C7D2FE;background:#F8FAFF;border-radius:11px">
-          <div style="font-size:12px;font-weight:800;color:#111827;margin-bottom:10px">담당자 및 차량 배차</div>
-          <div style="display:grid;grid-template-columns:1fr 1.35fr;gap:12px">
-            <div class="tsa-form-group"><label class="tsa-label">픽업 담당자 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-manager" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"></select></div>
-            <div class="tsa-form-group"><label class="tsa-label">등록 차량 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-vehicle" class="tsa-input"></select></div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
-            <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 시작 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-start-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
-            <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 종료 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-end-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
-          </div>
-          <div id="pickup-dispatch-modal-manager-availability" style="padding:9px 11px;margin-top:10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;color:#6B7280"></div>
+
+        <div style="font-size:12.5px;font-weight:800;color:#111827;margin-bottom:9px">선택 학생</div>
+        <div id="pickup-dispatch-selected-students" style="display:grid;gap:8px;max-height:260px;overflow:auto;margin-bottom:20px"></div>
+
+        <div id="pickup-dispatch-existing-section" style="margin-bottom:16px">
+          <div style="font-size:12.5px;font-weight:800;color:#111827">이미 잡아 둔 배차</div>
+          <div style="font-size:11px;color:#6B7280;margin:4px 0 10px">고른 학생을 여기에 태우거나, 아래에서 새 배차를 만듭니다.</div>
+          <div id="pickup-dispatch-existing-list" style="display:grid;gap:8px"></div>
         </div>
+
+        <label id="pickup-dispatch-new-box" style="display:block;padding:15px;border:2px solid #2563EB;background:#fff;border-radius:12px;cursor:pointer">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <input type="radio" name="pickup-dispatch-target" id="pickup-dispatch-target-new" value="new" checked style="margin-top:2px;width:16px;height:16px;accent-color:#2563EB;flex-shrink:0" onchange="updatePickupDispatchTarget()"/>
+            <div style="flex:1;min-width:0">
+              <b style="font-size:12.5px;color:#111827">새 배차 만들기</b>
+              <div style="font-size:11px;color:#6B7280;margin-top:3px">담당자·차량·시간을 새로 정합니다.</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px">
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 담당자 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-manager" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"></select></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">등록 차량 <span style="color:#EF4444">*</span></label><select id="pickup-dispatch-modal-vehicle" class="tsa-input"></select></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 시작 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-start-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
+                <div class="tsa-form-group" style="margin:0"><label class="tsa-label">픽업 종료 시간 <span style="color:#EF4444">*</span></label><input id="pickup-dispatch-end-time" type="time" class="tsa-input" onchange="updatePickupDispatchModalManagerAvailability()"/></div>
+              </div>
+              <div id="pickup-dispatch-modal-manager-availability" style="padding:10px 12px;margin-top:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;font-size:11px;color:#6B7280"></div>
+            </div>
+          </div>
+        </label>
       </div>
       <div class="tsa-modal-footer" style="justify-content:space-between">
         <button id="pickup-dispatch-delete-btn" class="tsa-btn tsa-btn-outline" style="display:none;color:#EF4444" onclick="deletePickupDispatchFromModal()"><i data-lucide="trash-2"></i> 배차 삭제</button>
-        <div style="display:flex;gap:8px;margin-left:auto"><button class="tsa-btn tsa-btn-outline" onclick="closeModal('pickup-dispatch-modal')">취소</button><button class="tsa-btn tsa-btn-primary" onclick="savePickupDispatchModal()"><i data-lucide="car-front"></i> 차량 배차 등록</button></div>
+        <button class="tsa-btn tsa-btn-outline" onclick="closeModal('pickup-dispatch-modal')">취소</button>
+        <button class="tsa-btn tsa-btn-primary" style="margin-left:auto" onclick="savePickupDispatchModal()"><i data-lucide="car-front"></i> 차량 배차 등록</button>
       </div>
     </div>
   </div>
@@ -7576,9 +7564,9 @@
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
 <script src="assets/js/lms-teacher.js?v=0.6.12"></script>
 <script src="assets/js/lms-student.js?v=0.6.8"></script>
-    <script src="assets/js/lms-course.js?v=0.6.82"></script>
+    <script src="assets/js/lms-course.js?v=0.6.84"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.13"></script>
-<script src="assets/js/lms-classroom.js?v=0.16.2"></script>
+<script src="assets/js/lms-classroom.js?v=0.16.10"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.14"></script>

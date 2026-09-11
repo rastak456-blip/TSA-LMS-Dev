@@ -3722,10 +3722,13 @@ function renderAgencyStudentEnrollmentHub() {
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:9.5px;font-weight:800;color:#5E5CE6;background:#EEF2FF;border-radius:999px;padding:1px 7px;white-space:nowrap">${e.sessionNumber}차 수강</span>
                 <div style="font-size:12.5px;font-weight:800;color:#111827;flex:1">${e.course}</div>
+                <div style="font-size:12.5px;font-weight:900;color:#111827;white-space:nowrap">${formatCourseRegMoney(getEnrollmentAmounts(s, e).total)}</div>
                 ${deletable ? `<button type="button" title="이 등록 삭제" onclick="event.stopPropagation(); deleteAgencyStudentEnrollment('${e.id}')" style="border:none;background:none;padding:2px;cursor:pointer;color:#9CA3AF;line-height:0"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>` : ''}
               </div>
               <div style="font-size:10.5px;color:#6B7280;margin-top:4px">${fmtDate(e.startDate)} ~ ${fmtDate(e.endDate)} · ${e.duration}주${e.segments && e.segments.length > 1 ? ` · ${e.segments.length}개 구간` : ''}</div>
               <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+                <span class="tsa-badge ${e.paymentStatus === 'paid' ? 'tsa-badge-success' : 'tsa-badge-warning'}">${e.paymentStatus === 'paid' ? '완납' : '미납'}</span>
+                <span class="tsa-badge" style="background:#EEF2FF;color:#4338CA">${getRemittanceRouteLabel(e.remittanceRoute || s.remittanceRoute)}</span>
                 <span class="tsa-badge ${e.status === 'current' ? 'tsa-badge-success' : e.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(e.status)}</span>
                 ${selected ? '<span class="tsa-badge tsa-badge-primary">현재 선택</span>' : ''}
               </div>
@@ -3753,6 +3756,48 @@ function renderAgencyStudentEnrollmentHub() {
 
   const availableTabs = ['class', 'schedule', 'flightdocs', 'dorm', 'settle', 'admdocs'];
   switchAgencyEnrollmentHubTab(availableTabs.includes(currentAdetailTab) ? currentAdetailTab : 'class');
+}
+
+// 수강 구간과 등록금·기타 항목을 합친 청구 금액. 수강정보 화면과 수강 목록이 같은 값을 쓴다.
+// 기숙사비와 에이전시 커미션은 여기 들어가지 않는다 — 각각 기숙사 탭과 에이전시 관리에서 다룬다.
+const ENROLL_REGISTRATION_PATTERN = /등록금|입학금|registration/i;
+
+function getEnrollmentCourseSegments(view) {
+  return Array.isArray(view.segments) && view.segments.length
+    ? view.segments
+    : [{
+        course: view.course || '코스 미등록',
+        duration: Number(view.duration || 0),
+        startDate: view.startDate || '',
+        endDate: view.endDate || '',
+        recommendedLevels: getFallbackRecommendedLevels(view.course, view.level),
+        tuitionAmount: Number(view.tuitionAmount || 0),
+      }];
+}
+
+function getEnrollmentFeeItems(student) {
+  return (Array.isArray(student?.fees) ? student.fees : []).map(fee => ({
+    name: fee.item || '-',
+    amount: Number(fee.amount || 0),
+    kind: ENROLL_REGISTRATION_PATTERN.test(fee.item || '') ? 'registration' : 'extra',
+  }));
+}
+
+function getEnrollmentAmounts(student, view) {
+  const rawSegments = getEnrollmentCourseSegments(view);
+  const fees = getEnrollmentFeeItems(student);
+  const stored = rawSegments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
+  // 구간에 금액이 저장돼 있지 않은 등록도 있다. 그럴 때는 요금표에서 계산한 수강료를 쓴다.
+  const fallback = stored ? 0 : Number((typeof calculatePrices === 'function' ? calculatePrices(student).tuition : 0) || 0);
+  const segments = stored || !fallback
+    ? rawSegments
+    : rawSegments.map((segment, index) => ({
+        ...segment,
+        tuitionAmount: index === 0 ? fallback : 0,
+      }));
+  const tuition = stored || fallback;
+  const feeTotal = fees.reduce((sum, fee) => sum + fee.amount, 0);
+  return { segments, fees, tuition, feeTotal, total: tuition + feeTotal };
 }
 
 function getStudentEnrollmentSnapshots(s) {
@@ -5894,91 +5939,84 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
       </div>
     `;
   } else if (tab === 'class') {
-    const courseSegments = Array.isArray(s.segments) && s.segments.length
-      ? s.segments
-      : [{
-          course: s.course || '코스 미등록',
-          duration: Number(s.duration || 0),
-          startDate: s.startDate || '',
-          endDate: s.endDate || '',
-          recommendedLevels: getFallbackRecommendedLevels(s.course, s.level),
-          tuitionAmount: Number(s.tuitionAmount || 0),
-        }];
-    const totalWeeks = courseSegments.reduce((sum, segment) => sum + Number(segment.duration || 0), 0);
-    const totalTuition = courseSegments.reduce((sum, segment) => sum + Number(segment.tuitionAmount || 0), 0);
+    // 실제 운영 화면과 같은 구성이다. 등록할 때 저장한 값을 그대로 보여주기만 하고,
+    // 고치는 일은 수강 등록 화면 한 곳에서만 한다 — 두 곳에서 고치면 값이 갈라진다.
+    const amounts = getEnrollmentAmounts(baseStudent, s);
+    const paid = (s.paymentStatus || baseStudent.remittanceStatus) === 'paid';
+    const registrationFees = amounts.fees.filter(fee => fee.kind === 'registration');
+    const extraFees = amounts.fees.filter(fee => fee.kind !== 'registration');
+    const enrolledAt = s.enrollDate || baseStudent.enrollDate || baseStudent.remittanceSubmittedDate || '-';
+    const memo = (s.enrollMemo || baseStudent.enrollMemo || '').trim();
+
+    const summaryCard = (label, value, color) => `<div style="padding:14px 16px;border:1px solid #E5E7EB;border-radius:11px;background:#fff">
+      <div style="font-size:11px;color:#6B7280">${label}</div>
+      <div style="font-size:14px;font-weight:800;color:${color || '#111827'};margin-top:7px">${value}</div>
+    </div>`;
+
+    const sectionCard = (title, total, rows) => `<div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;padding:15px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <b style="font-size:12.5px;color:#111827">${title}</b>
+        <b style="font-size:13px;color:#111827">${formatCourseRegMoney(total)}</b>
+      </div>
+      <div style="margin-top:11px">${rows}</div>
+    </div>`;
+
+    const segmentRows = amounts.segments.map((segment, index) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:${index ? '1px solid #F3F4F6' : '0'}">
+        <span style="width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">${index + 1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course || '-'} · ${segment.duration || 0}주</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:3px">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
+        </div>
+        <b style="font-size:12.5px;color:#111827;white-space:nowrap">${segment.tuitionAmount ? formatCourseRegMoney(segment.tuitionAmount) : '-'}</b>
+      </div>`).join('');
+
+    const feeRow = (fee, index) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:${index ? '1px solid #F3F4F6' : '0'}">
+        <span class="tsa-badge" style="background:${fee.kind === 'registration' ? '#DBEAFE' : '#F3F4F6'};color:${fee.kind === 'registration' ? '#1D4ED8' : '#6B7280'};flex:0 0 auto">${fee.kind === 'registration' ? '등록금' : '기타'}</span>
+        <b style="font-size:12px;color:#111827;flex:1;min-width:0">${fee.name}</b>
+        <b style="font-size:12.5px;color:#111827;white-space:nowrap">${formatCourseRegMoney(fee.amount)}</b>
+      </div>`;
+    const feeRows = [...registrationFees, ...extraFees].map(feeRow).join('')
+      || '<div style="padding:10px 0;font-size:11.5px;color:#9CA3AF">등록금·기타 항목이 없습니다.</div>';
+
+    const infoCell = (label, value) => `<div><div style="font-size:11px;color:#6B7280">${label}</div><div style="margin-top:6px">${value}</div></div>`;
 
     html = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:10px">
-        <div style="grid-column:span 2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
-          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
-            <div style="font-size:10.5px;color:#6B7280;font-weight:700">전체 수강 기간</div>
-            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">${fmtDate(s.startDate)} ~ ${fmtDate(s.endDate)}</div>
-          </div>
-          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
-            <div style="font-size:10.5px;color:#6B7280;font-weight:700">수강 구성</div>
-            <div style="font-size:12px;color:#111827;font-weight:800;margin-top:5px">총 ${totalWeeks}주 · ${courseSegments.length}개 구간</div>
-          </div>
-          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
-            <div style="font-size:10.5px;color:#6B7280;font-weight:700">등록 상태</div>
-            <div style="margin-top:5px"><span class="tsa-badge ${s.status === 'current' ? 'tsa-badge-success' : s.status === 'completed' ? 'tsa-badge-gray' : 'tsa-badge-warning'}">${getEnrollmentStatusLabel(s.status)}</span></div>
-          </div>
-          <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#F8FAFC">
-            <div style="font-size:10.5px;color:#6B7280;font-weight:700">수강료</div>
-            <div style="font-size:12px;color:#111827;font-weight:900;margin-top:5px">${totalTuition ? formatCourseRegMoney(totalTuition) : '-'}</div>
-          </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+          ${summaryCard('결제 상태', paid ? '완납' : '미납')}
+          ${summaryCard('수강 기간', `${fmtDate(s.startDate)} ~ ${fmtDate(s.endDate)}`)}
+          ${summaryCard('총 금액', formatCourseRegMoney(amounts.total), '#2563EB')}
         </div>
-        <div class="tsa-form-group" style="grid-column:span 2;padding:12px 14px;border:1px solid #C7D2FE;border-radius:10px;background:#F8F9FF">
-          <label class="tsa-label" style="color:#3730A3">학생 정산 방식</label>
-          <select id="ad-remittance-route" class="tsa-input" style="max-width:260px;background:#fff" onchange="updateStudentRemittanceRoute(${baseStudent.id}, this.value, '상세')">
-            ${renderRemittanceRouteOptions(s.remittanceRoute || baseStudent.remittanceRoute)}
-          </select>
-          <div style="font-size:10.5px;color:#6B7280;margin-top:5px">에이전시 / 직접 송금 / 현장 결제를 구분해 커미션 및 정산 오류를 방지합니다.</div>
-        </div>
-        <div style="grid-column:span 2;border:1px solid #E5E7EB;border-radius:12px;padding:14px;background:#fff">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div style="font-size:13px;font-weight:800;color:#111827">수강 구간</div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:10.5px;color:#6B7280">등록 당시 선택한 과정과 기간</span>
-              <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openCourseSegmentAddModal(${baseStudent.id})"><i data-lucide="plus" style="font-size:11px"></i> 구간 추가</button>
+
+        <div style="border:1px solid #E5E7EB;border-radius:12px;background:#F8FAFC;padding:16px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+            <div>
+              <b style="font-size:13px;color:#111827">수강 등록 내용</b>
+              <div style="font-size:11px;color:#6B7280;margin-top:4px">등록할 때 저장된 값입니다. 수정은 수강 등록 화면에서 합니다.</div>
+            </div>
+            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="white-space:nowrap" onclick="openStudentCourseRegistration(${baseStudent.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i> 등록 내용 수정</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${sectionCard('수강 구간', amounts.tuition, segmentRows)}
+            ${sectionCard('등록금 · 기타 항목', amounts.feeTotal, feeRows)}
+            <div style="border:1px solid #E5E7EB;border-radius:11px;background:#fff;padding:15px 16px">
+              <b style="font-size:12.5px;color:#111827">등록 정보</b>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:12px">
+                ${infoCell('정산 방식', `<span class="tsa-badge" style="background:#DBEAFE;color:#1D4ED8">${getRemittanceRouteLabel(s.remittanceRoute || baseStudent.remittanceRoute)}</span>`)}
+                ${infoCell('통화', '<b style="font-size:12.5px;color:#111827">USD</b>')}
+                ${infoCell('등록일', `<b style="font-size:12.5px;color:#111827">${enrolledAt}</b>`)}
+              </div>
+              <div style="margin-top:14px">
+                <div style="font-size:11px;color:#6B7280">메모</div>
+                <div style="font-size:12px;color:${memo ? '#111827' : '#9CA3AF'};margin-top:6px">${memo || '남긴 메모가 없습니다.'}</div>
+              </div>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            ${courseSegments.map((segment, index) => `
-              <div style="display:grid;grid-template-columns:32px minmax(0,1fr) 90px 120px 110px;gap:10px;align-items:center;padding:10px 12px;border-top:${index ? '1px solid #EEF0F4' : '0'}">
-                <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
-                <div>
-                  <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course || '-'}</div>
-                  <div style="font-size:10.5px;color:#6B7280;margin-top:3px">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)} · 추천 레벨 ${(segment.recommendedLevels || []).join(', ') || '-'}</div>
-                </div>
-                <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration || 0}주</div>
-                <div style="text-align:right;font-size:12px;font-weight:900;color:#111827">${segment.tuitionAmount ? formatCourseRegMoney(segment.tuitionAmount) : '-'}</div>
-                <div style="display:flex;gap:5px;justify-content:flex-end">
-                  <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openCourseSegmentEditModal(${baseStudent.id}, ${index})">수정</button>
-                  ${courseSegments.length > 1 ? `<button type="button" class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444;border-color:#FCA5A5" onclick="deleteCourseSegment(${baseStudent.id}, ${index})">삭제</button>` : ''}
-                </div>
-              </div>
-            `).join('')}
-          </div>
         </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label">레벨 <span style="font-size:10px;color:#9CA3AF;font-weight:400">(현지 테스트 후 어학원 기입)</span></label>
-          ${isAgency
-            ? `<input class="tsa-input" type="text" value="${s.level || '미정'}" style="background:#F9FAFB" readonly/>`
-            : `<select class="tsa-input" onchange="updateStudentLevel(${baseStudent.id}, this.value, '상세')">
-                <option value="" ${!s.level ? 'selected' : ''}>미정</option>
-                ${[...MOCK_MASTER_LEVELS].filter(l => l.visible !== false).sort((a, b) => a.order - b.order).map(l => `<option value="${l.name}" ${s.level === l.name ? 'selected' : ''}>${l.name}</option>`).join('')}
-              </select>`}
-        </div>
-        <div class="tsa-form-group">
-          <label class="tsa-label" style="display:flex;align-items:center;gap:6px">
-            수강 등록일
-            ${s.adminApprovedAt
-              ? `<span style="font-size:10px;background:#D1FAE5;color:#059669;padding:1px 7px;border-radius:10px;font-weight:700">✅ 승인완료 (${s.adminApprovedAt})</span>`
-              : `<span style="font-size:10px;background:#FEF3C7;color:#D97706;padding:1px 7px;border-radius:10px;font-weight:700">⏳ 승인 대기</span>`}
-          </label>
-          <input id="ad-enroll-date" type="date" class="tsa-input" value="${s.enrollDate || ''}" ${lockAttr}/>
-          <div style="font-size:10.5px;color:#6B7280;margin-top:3px">등록일 + 어학원 어드민 승인 시 → <strong style="color:#059669">재학생</strong> 전환</div>
-        </div>
+
+        <div style="font-size:11px;color:#6B7280;line-height:1.6">학생에게 청구되는 최종 금액입니다. 에이전시 커미션은 포함하지 않으며 에이전시 관리 메뉴에서 별도로 적용합니다.</div>
       </div>
     `;
   } else if (tab === 'settle') {
@@ -7069,217 +7107,47 @@ function getPickupManagersForStudent(student) {
   return [...new Map(managers.map(manager => [manager.id, manager])).values()];
 }
 
-// 픽업은 한 화면 세 탭이다 — 배정(매주 손대는 쪽), 담당자, 차량.
-// 예전에는 사이드바 화면 세 개로 갈라져 있어서, 배차 한 건 짜는 동안 화면을 세 번 옮겨 다녀야 했다.
-// 상단 요약은 어느 탭에 있든 같은 값을 보여 준다. 사이드바 메뉴 세 개는 이제 탭 바로가기다.
-// 이 프로토타입의 '오늘'은 실제 시스템 날짜가 아니라 목업 데이터 기준일이다.
-// 대시보드 캘린더(AGENCY_VISIT_TODAY)·식단(MEAL_TODAY)과 같은 날짜를 써야 화면끼리 말이 맞는다.
-const PICKUP_TODAY = '2026-06-17';
-function getPickupToday() { return new Date(`${PICKUP_TODAY}T00:00:00`); }
+// 픽업 화면의 '오늘'은 실제 운영 화면과 같이 시스템 날짜를 쓴다.
+const PICKUP_TODAY = toPickupDateKey(new Date());
+function getPickupToday() { return new Date(PICKUP_TODAY + 'T00:00:00'); }
 
-const PICKUP_TABS = ['assign', 'managers', 'vehicles'];
-const PICKUP_UPCOMING_LIMIT = 8;   // 다가오는 입국일 줄에 세워 둘 날짜 수
-const PICKUP_KPI_WINDOW_DAYS = 7;  // 상단 요약이 말하는 '앞으로 7일'
+// 픽업은 화면 두 개다 — 픽업 담당자 관리와 픽업 배정 현황.
+// 픽업 차량은 담당자 화면의 [차량 관리] 버튼으로 여는 별도 창이다.
+// 운영 중인 실제 화면과 같은 구성이라, 프로토타입과 제품이 같은 그림을 보여준다.
 
-function initPickupView(tab = 'assign') {
+function initPickupManagerView() {
+  renderPickupManagerTable();
+}
+
+// 픽업 배정 현황 — 처음에는 날짜를 고르지 않은 상태로 연다.
+function initPickupAssignView() {
   if (!APP.pickupCalendarMonth) {
     const today = getPickupToday();
     APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    APP.pickupSelectedDate = toPickupDateKey(today);
   }
-  switchPickupTab(PICKUP_TABS.includes(tab) ? tab : 'assign');
+  APP.pickupAssignTab = APP.pickupAssignTab || 'pending';
+  renderPickupCalendar();
 }
 
-// 예전 화면 이름으로 들어오는 호출을 그대로 받아 준다.
-function initPickupManagerView() { initPickupView('managers'); }
-function initPickupVehicleView() { initPickupView('vehicles'); }
-function initPickupAssignView() { initPickupView('assign'); }
+// 픽업 차량 창. 실제 화면은 별도 브라우저 창이지만, 프로토타입은 같은 구성의 창으로 띄운다.
+function openPickupVehicleWindow() {
+  resetPickupVehicleForm();
+  renderPickupVehicleTable();
+  openModal('pickup-vehicle-window');
+  if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 30);
+}
 
-function switchPickupTab(tab, el) {
-  if (!PICKUP_TABS.includes(tab)) tab = 'assign';
-  APP.pickupTab = tab;
-  PICKUP_TABS.forEach(name => {
-    const content = document.getElementById(`pickup-tab-${name}`);
-    if (content) content.style.display = name === tab ? '' : 'none';
-    const button = (el && name === tab) ? el : document.getElementById(`pickup-tab-btn-${name}`);
-    if (button) button.classList.toggle('active', name === tab);
+function resetPickupVehicleForm() {
+  const title = document.getElementById('pickup-vehicle-form-title');
+  if (title) title.textContent = '차량 등록';
+  const cancel = document.getElementById('pickup-vehicle-cancel');
+  if (cancel) cancel.style.display = 'none';
+  ['pickup-vehicle-id', 'pickup-vehicle-model', 'pickup-vehicle-plate', 'pickup-vehicle-memo'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.value = '';
   });
-  updatePickupPrimaryAction();
-  syncPickupMenuHighlight(tab);
-  if (tab === 'managers') renderPickupManagerTable();
-  else if (tab === 'vehicles') renderPickupVehicleTable();
-  else renderPickupCalendar();
-  renderPickupKpiStrip();
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-// 사이드바 메뉴 세 개는 이 화면의 탭 바로가기다. 탭을 바꾸면 사이드바와 브레드크럼도 같은 곳을 가리켜야 한다.
-const PICKUP_TAB_MENU = {
-  assign: { menu: 'menu-pickup-assign', label: '픽업 배정' },
-  managers: { menu: 'menu-pickup-managers', label: '픽업 담당자 관리' },
-  vehicles: { menu: 'menu-pickup-vehicles', label: '픽업 차량 관리' },
-};
-
-function syncPickupMenuHighlight(tab) {
-  const preset = PICKUP_TAB_MENU[tab];
-  if (!preset) return;
-  Object.values(PICKUP_TAB_MENU).forEach(item => document.getElementById(item.menu)?.classList.remove('active'));
-  document.getElementById(preset.menu)?.classList.add('active');
-  const current = document.getElementById('breadcrumb-current');
-  if (current) current.textContent = preset.label;
-}
-
-// 헤더 오른쪽 버튼은 지금 보고 있는 탭에서 할 일 하나만 가리킨다.
-function updatePickupPrimaryAction() {
-  const action = document.getElementById('pickup-primary-action');
-  if (!action) return;
-  const preset = {
-    assign: { icon: 'alarm-clock', label: '미배정 날짜로 이동' },
-    managers: { icon: 'user-plus', label: '담당자 등록' },
-    vehicles: { icon: 'plus', label: '차량 등록' },
-  }[APP.pickupTab || 'assign'];
-  action.innerHTML = `<i data-lucide="${preset.icon}"></i> ${preset.label}`;
-}
-
-function handlePickupPrimaryAction() {
-  const tab = APP.pickupTab || 'assign';
-  if (tab === 'managers') return openPickupManagerModal();
-  if (tab === 'vehicles') return openPickupVehicleModal();
-  return goPickupNextUnassigned();
-}
-
-// 배정 탭에서 가장 급한 곳으로 한 번에 보낸다 — 오늘 이후 미배정이 남은 가장 빠른 날짜.
-function goPickupNextUnassigned() {
-  const stats = getPickupOverviewStats();
-  if (!stats.nextUnassignedDate) {
-    showToast('오늘 이후 배정이 필요한 입국 학생이 없습니다.', 'success');
-    return;
-  }
-  switchPickupTab('assign');
-  selectPickupCalendarDate(stats.nextUnassignedDate);
-}
-
-// 날짜 한 칸의 집계. 달력·임박 픽업 줄·상단 요약이 같은 값을 쓰도록 여기 한 곳에서만 센다.
-function getPickupDateStat(dateKey, students) {
-  const source = students || getPickupStudents();
-  const arrivals = source.filter(student => (student.arrivalDate || student.startDate) === dateKey);
-  const groups = getPickupDispatchGroups(dateKey);
-  const assignedIds = new Set(groups.flatMap(group => group.studentIds));
-  const pickupArrivals = arrivals.filter(isPickupRequired);
-  const unassigned = pickupArrivals.filter(student => !assignedIds.has(student.id)).length;
-  return {
-    dateKey,
-    arrivals: arrivals.length,
-    pickup: pickupArrivals.length,
-    noPickup: arrivals.length - pickupArrivals.length,
-    unassigned,
-    assigned: pickupArrivals.length - unassigned,
-    dispatches: groups.length,
-    pending: groups.filter(group => group.status !== 'dispatched').length,
-  };
-}
-
-function getPickupOverviewStats() {
-  const students = getPickupStudents();
-  const today = getPickupToday();
-  const todayKey = PICKUP_TODAY;
-  const weekKey = toPickupDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + PICKUP_KPI_WINDOW_DAYS));
-  const dateKeys = [...new Set(students.map(student => student.arrivalDate || student.startDate).filter(Boolean))].sort();
-  const futureStats = dateKeys.filter(key => key >= todayKey).map(key => getPickupDateStat(key, students));
-  const weekStats = futureStats.filter(stat => stat.dateKey <= weekKey);
-  const sum = (list, field) => list.reduce((total, stat) => total + stat[field], 0);
-
-  return {
-    todayKey,
-    today: getPickupDateStat(todayKey, students),
-    weekPickup: sum(weekStats, 'pickup'),
-    weekUnassigned: sum(weekStats, 'unassigned'),
-    weekDispatches: sum(weekStats, 'dispatches'),
-    weekPending: sum(weekStats, 'pending'),
-    upcoming: futureStats.filter(stat => stat.arrivals).slice(0, PICKUP_UPCOMING_LIMIT),
-    nextUnassignedDate: (futureStats.find(stat => stat.unassigned) || {}).dateKey || '',
-    managerTotal: MOCK_PICKUP_MANAGERS.length,
-    managerVisible: MOCK_PICKUP_MANAGERS.filter(manager => manager.visible !== false).length,
-    vehicleTotal: MOCK_PICKUP_VEHICLES.length,
-    vehicleSeats: MOCK_PICKUP_VEHICLES.reduce((total, vehicle) => total + (Number(vehicle.capacity) || 0), 0),
-  };
-}
-
-// 요약 타일 한 줄. 담당자 탭·차량 탭·상단 요약이 같은 모양을 쓴다.
-function renderPickupSummaryTiles(tiles) {
-  return tiles.map(tile => `
-    <div class="tsa-card" style="padding:14px 16px;${tile.action ? 'cursor:pointer' : ''}" ${tile.action ? `onclick="${tile.action}"` : ''}>
-      <div style="font-size:10.5px;font-weight:700;color:#6B7280">${tile.label}</div>
-      <div style="font-size:20px;font-weight:900;color:${tile.color};margin-top:4px">${tile.value}</div>
-      <div style="font-size:9.5px;color:#9CA3AF;margin-top:3px">${tile.hint}</div>
-    </div>`).join('');
-}
-
-function renderPickupKpiStrip() {
-  const target = document.getElementById('pickup-kpi-strip');
-  if (!target) return;
-  const stats = getPickupOverviewStats();
-  target.innerHTML = renderPickupSummaryTiles([
-    {
-      label: '오늘 입국 픽업',
-      value: `${stats.today.pickup}명`,
-      hint: stats.today.arrivals
-        ? `배차 완료 ${stats.today.assigned}명 · 대기 ${stats.today.unassigned}명`
-        : '오늘 입국 예정 학생 없음',
-      color: stats.today.unassigned ? '#C2410C' : stats.today.pickup ? '#047857' : '#6B7280',
-      action: `selectPickupCalendarDate('${stats.todayKey}')`,
-    },
-    {
-      label: `미배정 인원 (${PICKUP_KPI_WINDOW_DAYS}일)`,
-      value: `${stats.weekUnassigned}명`,
-      hint: stats.nextUnassignedDate ? `가장 빠른 미배정 ${stats.nextUnassignedDate.slice(5)}` : `앞으로 ${PICKUP_KPI_WINDOW_DAYS}일 배정 완료`,
-      color: stats.weekUnassigned ? '#DC2626' : '#047857',
-      action: 'goPickupNextUnassigned()',
-    },
-    {
-      label: `배차 건수 (${PICKUP_KPI_WINDOW_DAYS}일)`,
-      value: `${stats.weekDispatches}건`,
-      hint: stats.weekPending ? `정보 미완 ${stats.weekPending}건` : `픽업 대상 ${stats.weekPickup}명 기준`,
-      color: stats.weekPending ? '#B45309' : '#4338CA',
-    },
-    {
-      label: '담당자 · 차량',
-      value: `${stats.managerTotal}명 / ${stats.vehicleTotal}대`,
-      hint: `확인서 노출 ${stats.managerVisible}명 · 전체 정원 ${stats.vehicleSeats}석`,
-      color: '#4338CA',
-      action: "switchPickupTab('managers')",
-    },
-  ]);
-  if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-// 다가오는 입국일 줄 — 달력을 넘겨 가며 찾지 않아도 급한 날짜가 먼저 눈에 들어오게 한다.
-function renderPickupUpcomingStrip() {
-  const target = document.getElementById('pickup-upcoming-strip');
-  if (!target) return;
-  const stats = getPickupOverviewStats();
-  if (!stats.upcoming.length) {
-    target.innerHTML = '<div style="padding:10px 2px;font-size:11px;color:#9CA3AF">오늘 이후 입국 예정인 학생이 없습니다.</div>';
-    return;
-  }
-  target.innerHTML = stats.upcoming.map(stat => {
-    const selected = APP.pickupSelectedDate === stat.dateKey;
-    const isToday = stats.todayKey === stat.dateKey;
-    const warn = stat.unassigned > 0;
-    const label = new Date(`${stat.dateKey}T00:00:00`).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' });
-    return `<button type="button" onclick="selectPickupCalendarDate('${stat.dateKey}')" title="${stat.dateKey}"
-      style="flex:0 0 auto;min-width:132px;text-align:left;padding:9px 11px;border-radius:10px;cursor:pointer;
-      border:1px solid ${selected ? '#6366F1' : warn ? '#FDBA74' : '#6EE7B7'};
-      background:${selected ? '#EEF2FF' : warn ? '#FFF7ED' : '#ECFDF5'};
-      box-shadow:${selected ? '0 0 0 2px #C7D2FE' : 'none'}">
-      <div style="display:flex;align-items:center;gap:5px">
-        <b style="font-size:11.5px;color:#111827">${label}</b>
-        ${isToday ? '<span class="tsa-badge" style="background:#5E5CE6;color:#fff;font-size:8.5px">오늘</span>' : ''}
-      </div>
-      <div style="font-size:9.5px;color:#6B7280;margin-top:3px">입국 ${stat.arrivals}명 · 픽업 ${stat.pickup}명</div>
-      <div style="font-size:10px;font-weight:800;margin-top:3px;color:${warn ? '#C2410C' : '#047857'}">${warn ? `미배정 ${stat.unassigned}명` : `배차 ${stat.dispatches}건 완료`}</div>
-    </button>`;
-  }).join('');
+  const capacity = document.getElementById('pickup-vehicle-capacity');
+  if (capacity) capacity.value = '0';
 }
 
 // 그 담당자가 물고 있는 배차. 지울 수 있는 사람인지 판단하는 값이자, 목록에 그대로 보여주는 값이다.
@@ -7300,76 +7168,29 @@ function getPickupManagerDispatchStats(managerId) {
 
 function renderPickupManagerTable() {
   const body = document.getElementById('pickup-manager-tbody');
-  if (!body) return;
-  const keyword = (document.getElementById('pickup-manager-search')?.value || '').trim().toLowerCase();
-  const rows = MOCK_PICKUP_MANAGERS.filter(manager => !keyword
-    || (manager.name || '').toLowerCase().includes(keyword)
-    || (manager.phone || '').toLowerCase().includes(keyword)
-    || (manager.messenger || '').toLowerCase().includes(keyword));
-
   const countEl = document.getElementById('pickup-manager-count');
-  if (countEl) countEl.textContent = keyword ? `${rows.length} / ${MOCK_PICKUP_MANAGERS.length}명` : `${MOCK_PICKUP_MANAGERS.length}명`;
+  if (countEl) countEl.textContent = `${MOCK_PICKUP_MANAGERS.length}명`;
+  const chip = document.getElementById('pickup-vehicle-count-chip');
+  if (chip) chip.textContent = `${MOCK_PICKUP_VEHICLES.length}대`;
+  if (!body) return;
 
-  body.innerHTML = rows.length ? rows.map((manager, index) => {
-    const stats = getPickupManagerDispatchStats(manager.id);
-    const visible = manager.visible !== false;
-    return `<tr>
-      <td style="text-align:center;color:#9CA3AF">${index + 1}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:9px">
-          <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:34px;height:40px;border-radius:6px;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
-          <div style="min-width:0">
-            <b style="font-size:12px;color:#111827">${manager.name}</b>
-            <div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">사번 P-${String(manager.id).padStart(3, '0')}</div>
-          </div>
-        </div>
-      </td>
-      <td style="text-align:center;color:#374151">${manager.gender || '-'}성<div style="font-size:9.5px;color:#6B7280;margin-top:2px">${manager.age ? `${manager.age}세` : '나이 미등록'}</div></td>
-      <td style="font-variant-numeric:tabular-nums;color:#374151">${manager.phone || '<span style="color:#DC2626">미등록</span>'}</td>
-      <td style="color:#6B7280">${manager.messenger || '-'}</td>
-      <td style="text-align:center">
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" title="확인서에 이 담당자를 띄울지 여부"
-          style="color:${visible ? '#047857' : '#9CA3AF'};border-color:${visible ? '#A7F3D0' : '#E5E7EB'};background:${visible ? '#ECFDF5' : '#fff'}"
-          onclick="togglePickupManagerVisible(${manager.id})">${visible ? '노출' : '숨김'}</button>
-      </td>
-      <td style="text-align:center">
-        ${stats.total
-          ? `<div style="font-size:10.5px;font-weight:800;color:${stats.upcoming ? '#4338CA' : '#6B7280'}">예정 ${stats.upcoming}건</div>
-             <div style="font-size:9px;color:#9CA3AF;margin-top:2px">누적 ${stats.total}건${stats.nextDate ? ` · 다음 ${stats.nextDate.slice(5)}` : ''}</div>`
-          : '<span style="font-size:10.5px;color:#9CA3AF">배차 없음</span>'}
-      </td>
-      <td style="text-align:center;white-space:nowrap">
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupTimetableModal(${manager.id})"><i data-lucide="clock"></i> 배차표</button>
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="margin-left:4px" onclick="openPickupManagerModal(${manager.id})">수정</button>
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="margin-left:4px;color:#EF4444;border-color:#FCA5A5" onclick="removePickupManager(${manager.id})">삭제</button>
-      </td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="8" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">${keyword ? '검색 조건에 맞는 담당자가 없습니다.' : '등록된 픽업 담당자가 없습니다. 오른쪽 위 [담당자 등록]으로 추가하세요.'}</td></tr>`;
-  renderPickupManagerSummary();
-  renderPickupKpiStrip();
+  body.innerHTML = MOCK_PICKUP_MANAGERS.length ? MOCK_PICKUP_MANAGERS.map(manager => `<tr>
+    <td>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="${manager.photo || 'assets/images/teacher_male.png'}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
+        <b style="font-size:12.5px;color:#111827">${manager.name}</b>
+      </div>
+    </td>
+    <td style="color:#374151">${manager.gender === '여' ? '여성' : manager.gender === '남' ? '남성' : '-'}</td>
+    <td style="color:#374151">${manager.age ? `${manager.age}세` : '-'}</td>
+    <td style="color:#374151;font-variant-numeric:tabular-nums">${manager.phone || '<span style="color:#DC2626">미등록</span>'}</td>
+    <td style="color:#374151">${manager.messenger || '-'}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupManagerModal(${manager.id})">수정</button>
+      <button class="tsa-btn tsa-btn-xs" style="margin-left:5px;background:#EF4444;border-color:#EF4444;color:#fff" onclick="removePickupManager(${manager.id})">삭제</button>
+    </td>
+  </tr>`).join('') : '<tr><td colspan="6" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11.5px">등록된 픽업 담당자가 없습니다. 오른쪽 위 [담당자 등록]으로 추가하세요.</td></tr>';
   if (typeof refreshIcons === 'function') refreshIcons();
-}
-
-// 담당자 탭 맨 위 요약. 「몇 명을 쓸 수 있고, 그중 몇 명이 이미 나가 있나」가 배차 전에 먼저 보는 값이다.
-function renderPickupManagerSummary() {
-  const target = document.getElementById('pickup-manager-summary');
-  if (!target) return;
-  const visible = MOCK_PICKUP_MANAGERS.filter(manager => manager.visible !== false).length;
-  const booked = MOCK_PICKUP_MANAGERS.filter(manager => getPickupManagerDispatchStats(manager.id).upcoming).length;
-  target.innerHTML = renderPickupSummaryTiles([
-    { label: '등록 담당자', value: `${MOCK_PICKUP_MANAGERS.length}명`, hint: '배차에서 고를 수 있는 담당자', color: '#4338CA' },
-    { label: '확인서 노출', value: `${visible}명`, hint: '학생 공항 픽업 확인서에 표시', color: '#047857' },
-    { label: '예정 배차 보유', value: `${booked}명`, hint: '오늘 이후 배차가 잡혀 있음', color: booked ? '#B45309' : '#6B7280' },
-  ]);
-}
-
-// 확인서에 안 띄울 담당자. 이미 잡힌 배차는 그대로 두므로 배차표에는 계속 보인다.
-function togglePickupManagerVisible(managerId) {
-  const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(managerId));
-  if (!manager) return;
-  manager.visible = manager.visible === false;
-  renderPickupManagerTable();
-  showToast(`${manager.name} 담당자를 확인서에 ${manager.visible ? '노출' : '숨김'} 처리했습니다.`, 'success');
 }
 
 function removePickupManager(managerId) {
@@ -7408,17 +7229,16 @@ function renderPickupCalendar() {
   const monthIndex = month.getMonth();
   title.textContent = `${year}년 ${monthIndex + 1}월`;
   weekdays.innerHTML = ['일', '월', '화', '수', '목', '금', '토'].map((day, index) =>
-    `<div style="padding:10px;text-align:center;font-size:10.5px;font-weight:800;color:${index === 0 ? '#EF4444' : index === 6 ? '#3B82F6' : '#6B7280'}">${day}</div>`
+    `<div style="padding:11px;text-align:center;font-size:11.5px;font-weight:700;color:${index === 0 ? '#EF4444' : index === 6 ? '#3B82F6' : '#374151'}">${day}</div>`
   ).join('');
 
   const firstDay = new Date(year, monthIndex, 1).getDay();
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
   const previousMonthDays = new Date(year, monthIndex, 0).getDate();
-  const totalCells = 42;
   const students = getPickupStudents();
   const todayKey = PICKUP_TODAY;
   const cells = [];
-  for (let cell = 0; cell < totalCells; cell += 1) {
+  for (let cell = 0; cell < 42; cell += 1) {
     const dayOffset = cell - firstDay + 1;
     let cellDate;
     let muted = false;
@@ -7435,43 +7255,57 @@ function renderPickupCalendar() {
     const arrivals = students.filter(student => (student.arrivalDate || student.startDate) === key);
     const groups = getPickupDispatchGroups(key);
     const assignedStudentIds = new Set(groups.flatMap(group => group.studentIds));
-    const managerCount = groups.filter(group => group.managerId).length;
     const pickupArrivals = arrivals.filter(isPickupRequired);
-    const noPickupArrivals = arrivals.filter(student => !isPickupRequired(student));
     const unassigned = pickupArrivals.filter(student => !assignedStudentIds.has(student.id)).length;
     const pendingDispatches = groups.filter(group => group.status !== 'dispatched').length;
     const selected = APP.pickupSelectedDate === key;
     const isToday = todayKey === key;
+    const warn = unassigned || pendingDispatches;
+    const row = (label, value, color) =>
+      `<div style="display:flex;justify-content:space-between;gap:6px;white-space:nowrap"><span>${label}</span><span style="font-weight:800;color:${color}">${value}</span></div>`;
     cells.push(`
-      <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:82px;padding:8px;border:0;border-right:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.42' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
-        <span style="display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:800;background:${isToday ? '#5E5CE6' : 'transparent'};color:${isToday ? '#fff' : '#374151'}">${cellDate.getDate()}</span>
-        ${arrivals.length ? (() => {
-          const warn = unassigned || pendingDispatches;
-          const lines = [
-            `입국 ${arrivals.length}${noPickupArrivals.length ? ` · 픽업 ${pickupArrivals.length}` : ''}`,
-            unassigned ? `대기 ${unassigned}명`
-              : pickupArrivals.length ? `배차 ${groups.length}건` : '픽업 불필요',
-          ];
-          return `<div title="입국 ${arrivals.length}명 · 픽업 ${pickupArrivals.length}명 · 불필요 ${noPickupArrivals.length}명 · 미배정 ${unassigned}명"
-            style="margin-top:5px;padding:4px 5px;border-radius:6px;background:${warn ? '#FFF7ED' : '#ECFDF5'};color:${warn ? '#C2410C' : '#047857'};font-size:9px;font-weight:800;line-height:1.45">
-            ${lines.map(line => `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${line}</div>`).join('')}
-          </div>`;
-        })() : ''}
+      <button type="button" onclick="selectPickupCalendarDate('${key}')" style="appearance:none;text-align:left;min-height:96px;padding:9px;border:0;border-right:1px solid #F1F3F7;border-bottom:1px solid #F1F3F7;background:${selected ? '#EEF2FF' : '#fff'};cursor:pointer;opacity:${muted ? '.45' : '1'};box-shadow:${selected ? 'inset 0 0 0 2px #6366F1' : 'none'}">
+        <span style="display:inline-flex;min-width:22px;height:22px;padding:0 6px;align-items:center;justify-content:center;border-radius:999px;font-size:12px;font-weight:700;background:${isToday ? '#2563EB' : 'transparent'};color:${isToday ? '#fff' : '#111827'}">${cellDate.getDate()}</span>
+        ${arrivals.length ? `<div style="margin-top:6px;padding:6px 7px;border-radius:6px;background:${warn ? '#FEF9C3' : '#ECFDF5'};font-size:9.5px;color:#6B7280;line-height:1.6">
+          ${row('입국', `${arrivals.length}명`, '#111827')}
+          ${row('픽업 대기', `${unassigned}명`, unassigned ? '#C2410C' : '#047857')}
+          ${row('편성 완료', `${pickupArrivals.length - unassigned}명`, '#047857')}
+        </div>` : ''}
       </button>`);
   }
   grid.innerHTML = cells.join('');
   renderPickupDateAssignments();
-  renderPickupKpiStrip();
-  renderPickupUpcomingStrip();
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-// 오른쪽 패널은 「누구를 태울지 고른다 → 그 결과를 본다」 두 단계로만 읽히게 둔다.
-// 예전에는 인원 선택과 배차 현황이 구분 없이 이어져 있어서, 지금 무엇을 해야 하는지가 안 보였다.
+// 오른쪽 패널은 실제 화면과 같이 「배정」과 「완료」 두 탭이다.
+// 날짜를 고르기 전에는 아무것도 세우지 않고 안내 문구만 둔다.
+function setPickupAssignTab(tab) {
+  APP.pickupAssignTab = tab === 'done' ? 'done' : 'pending';
+  renderPickupDateAssignments();
+}
+
 function renderPickupDateAssignments() {
   const panel = document.getElementById('pickup-date-assignment-panel');
   if (!panel) return;
   const selectedDate = APP.pickupSelectedDate;
+  const activeTab = APP.pickupAssignTab === 'done' ? 'done' : 'pending';
+  const tabButton = (key, label) => {
+    const on = activeTab === key;
+    return `<button type="button" onclick="setPickupAssignTab('${key}')" style="flex:0 0 auto;padding:12px 16px;border:0;background:none;font-size:12.5px;font-weight:${on ? '800' : '600'};color:${on ? '#2563EB' : '#6B7280'};border-bottom:2px solid ${on ? '#2563EB' : 'transparent'};cursor:pointer">${label}</button>`;
+  };
+  const header = `<div style="display:flex;border-bottom:1px solid #E5E7EB;padding:0 8px">${tabButton('pending', '배정')}${tabButton('done', '완료')}</div>`;
+
+  if (!selectedDate) {
+    panel.innerHTML = header + `<div style="padding:150px 20px;text-align:center;color:#9CA3AF">
+      <i data-lucide="calendar-days" style="width:30px;height:30px;margin-bottom:12px"></i>
+      <div style="font-size:12.5px">달력에서 날짜를 선택해 주세요.</div>
+    </div>`;
+    if (typeof refreshIcons === 'function') refreshIcons();
+    renderPickupManagerTimetable();
+    return;
+  }
+
   const students = getPickupStudents().filter(student => (student.arrivalDate || student.startDate) === selectedDate);
   const groups = getPickupDispatchGroups(selectedDate);
   const assignedIds = new Set(groups.flatMap(group => group.studentIds));
@@ -7479,82 +7313,54 @@ function renderPickupDateAssignments() {
   const noPickupStudents = students.filter(student => !isPickupRequired(student));
   pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => pickupStudents.some(student => student.id === id) && !assignedIds.has(id));
   const unassigned = pickupStudents.filter(student => !assignedIds.has(student.id));
+  const doneGroups = groups.filter(group => group.status === 'dispatched');
   const pendingGroups = groups.filter(group => group.status !== 'dispatched');
-  const dateLabel = selectedDate
-    ? new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
-    : '날짜 선택';
+  const dateLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  const dateBar = `<div style="padding:13px 16px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <b style="font-size:13px;color:#111827">${dateLabel}</b>
+    <span style="font-size:10.5px;color:#6B7280">입국 ${students.length}명 · 픽업 ${pickupStudents.length}명</span>
+  </div>`;
 
-  if (!students.length) {
-    panel.innerHTML = `<div style="padding:14px 16px;border-bottom:1px solid #E5E7EB"><b style="font-size:13px;color:#111827">${dateLabel}</b></div>
-      <div style="padding:80px 20px;text-align:center;color:#9CA3AF">
-        <i data-lucide="calendar-x" style="width:28px;height:28px;margin-bottom:10px"></i>
-        <div style="font-size:12px;font-weight:700">이 날짜에 입국 예정인 학생이 없습니다.</div>
-        <div style="font-size:10.5px;margin-top:5px">달력이나 임박 픽업 줄에서 다른 날짜를 선택하세요.</div>
-      </div>`;
-    if (typeof refreshIcons === 'function') refreshIcons();
-    renderPickupManagerTimetable();
-    return;
-  }
-
-  const statusLabel = unassigned.length ? '편성 필요'
-    : pendingGroups.length ? '배차 정보 필요'
-      : pickupStudents.length ? '배차 완료' : '픽업 불필요';
-  const statusClass = unassigned.length || pendingGroups.length ? 'tsa-badge-warning' : 'tsa-badge-success';
-  const allSelected = unassigned.length > 0 && unassigned.every(student => pickupSelectedStudentIds.includes(student.id));
-  const selectedCount = pickupSelectedStudentIds.length;
-
-  const chip = (label, value, color) => `<div style="flex:1;min-width:0;padding:7px 9px;border-radius:8px;background:#F8FAFC;border:1px solid #E9EDF4">
-    <div style="font-size:9.5px;color:#6B7280">${label}</div>
-    <div style="font-size:13px;font-weight:900;color:${color};margin-top:2px">${value}</div></div>`;
-
-  panel.innerHTML = `
-    <div style="padding:14px 16px;border-bottom:1px solid #E5E7EB">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <b style="font-size:13px;color:#111827">${dateLabel}</b>
-        <span class="tsa-badge ${statusClass}">${statusLabel}</span>
-      </div>
-      <div style="display:flex;gap:7px;margin-top:10px">
-        ${chip('입국', `${students.length}명`, '#111827')}
-        ${chip('픽업 대기', `${unassigned.length}명`, unassigned.length ? '#C2410C' : '#047857')}
-        ${chip('편성 완료', `${pickupStudents.length - unassigned.length}명`, '#047857')}
-        ${chip('배차', `${groups.length}건`, pendingGroups.length ? '#B45309' : '#4338CA')}
-      </div>
-    </div>
-
-    <div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid #E5E7EB">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+  let body;
+  if (activeTab === 'done') {
+    body = doneGroups.length
+      ? `<div style="padding:14px 16px;display:grid;gap:8px">${doneGroups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div>`
+      : '<div style="padding:70px 20px;text-align:center;font-size:11.5px;color:#9CA3AF">아직 배차를 마친 건이 없습니다.</div>';
+  } else if (!students.length) {
+    body = '<div style="padding:70px 20px;text-align:center;font-size:11.5px;color:#9CA3AF">이 날짜에 입국 예정인 학생이 없습니다.</div>';
+  } else {
+    const allSelected = unassigned.length > 0 && unassigned.every(student => pickupSelectedStudentIds.includes(student.id));
+    const selectedCount = pickupSelectedStudentIds.length;
+    body = `<div style="padding:13px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px">
         <div style="display:flex;align-items:center;gap:6px">
-          <b style="font-size:11.5px;color:#374151">1단계 · 픽업 인원 선택</b>
-          <span class="tsa-badge" style="background:${unassigned.length ? '#FFF7ED' : '#ECFDF5'};color:${unassigned.length ? '#C2410C' : '#047857'}">대기 ${unassigned.length}명</span>
+          <b style="font-size:11.5px;color:#374151">픽업 인원 선택</b>
+          <span class="tsa-badge" style="background:${unassigned.length ? '#FEF9C3' : '#ECFDF5'};color:${unassigned.length ? '#C2410C' : '#047857'}">대기 ${unassigned.length}명</span>
         </div>
         ${unassigned.length ? `<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:#6B7280;cursor:pointer"><input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleAllPickupPassengers(this.checked)"/> 전체 선택</label>` : ''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:auto">${unassigned.length
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto">${unassigned.length
         ? unassigned.map(student => renderPickupPassengerOption(student)).join('')
-        : '<div style="padding:16px;text-align:center;font-size:10.5px;color:#9CA3AF;background:#fff;border:1px dashed #D1D5DB;border-radius:9px">픽업이 필요한 학생이 모두 배차 그룹에 편성되었습니다.</div>'}</div>
+        : '<div style="padding:16px;text-align:center;font-size:10.5px;color:#9CA3AF;border:1px dashed #D1D5DB;border-radius:9px">픽업이 필요한 학생이 모두 편성되었습니다.</div>'}</div>
       ${unassigned.length ? `<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;border:1px solid ${selectedCount ? '#C7D2FE' : '#E5E7EB'};background:${selectedCount ? '#EEF2FF' : '#fff'}">
         <span style="font-size:10.5px;font-weight:700;color:${selectedCount ? '#4338CA' : '#9CA3AF'}">${selectedCount ? `${selectedCount}명 선택됨` : '배차할 학생을 먼저 선택하세요'}</span>
         <button class="tsa-btn tsa-btn-primary tsa-btn-sm" onclick="openPickupDispatchModal('${selectedDate}')" ${selectedCount ? '' : 'disabled'}><i data-lucide="car-front"></i> 선택 인원 배차</button>
       </div>` : ''}
-      ${noPickupStudents.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #D1D5DB">
+      ${pendingGroups.length ? `<div style="margin-top:14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><b style="font-size:11.5px;color:#374151">배차 정보 미완</b><span class="tsa-badge tsa-badge-warning">${pendingGroups.length}건</span></div>
+        <div style="display:grid;gap:7px">${pendingGroups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div>
+      </div>` : ''}
+      ${noPickupStudents.length ? `<div style="margin-top:14px;padding-top:11px;border-top:1px dashed #D1D5DB">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
           <b style="font-size:11px;color:#6B7280">픽업 불필요</b>
           <span class="tsa-badge" style="background:#F3F4F6;color:#6B7280">옵션 미선택 ${noPickupStudents.length}명</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">${noPickupStudents.map(student => renderPickupPassengerOption(student, false)).join('')}</div>
       </div>` : ''}
-    </div>
-
-    <div style="padding:12px 16px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <b style="font-size:11.5px;color:#374151">2단계 · 배차 현황</b>
-        <span class="tsa-badge" style="background:#EEF2FF;color:#4338CA">${groups.length}건</span>
-        ${pendingGroups.length ? `<span class="tsa-badge tsa-badge-warning">정보 미완 ${pendingGroups.length}건</span>` : ''}
-      </div>
-      ${groups.length
-        ? `<div style="display:grid;gap:7px">${groups.map((group, index) => renderPickupDispatchSummary(selectedDate, group, index)).join('')}</div>`
-        : '<div style="padding:16px;text-align:center;font-size:10.5px;color:#9CA3AF;border:1px dashed #D1D5DB;border-radius:9px">아직 배차가 없습니다. 위에서 학생을 선택하고 [선택 인원 배차]를 누르세요.</div>'}
     </div>`;
+  }
+
+  panel.innerHTML = header + dateBar + body;
   if (typeof refreshIcons === 'function') refreshIcons();
   renderPickupManagerTimetable();
 }
@@ -7576,6 +7382,10 @@ function toggleAllPickupPassengers(checked) {
 function openPickupTimetableModal(managerId) {
   APP.pickupTimetableManagerId = managerId != null ? Number(managerId) : null;
   if (!APP.pickupSelectedDate) APP.pickupSelectedDate = PICKUP_TODAY;
+  if (!APP.pickupCalendarMonth) {
+    const base = getPickupToday();
+    APP.pickupCalendarMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+  }
   const dateInput = document.getElementById('pickup-timetable-date');
   if (dateInput) dateInput.value = APP.pickupSelectedDate;
   renderPickupManagerTimetable(APP.pickupTimetableManagerId);
@@ -7904,14 +7714,29 @@ function openPickupDispatchModal(dateKey, groupId) {
   document.getElementById('pickup-dispatch-date').value = dateKey;
   document.getElementById('pickup-dispatch-group-id').value = group?.id || '';
   document.getElementById('pickup-dispatch-student-ids').value = studentIds.join(',');
-  document.getElementById('pickup-dispatch-modal-title').textContent = group ? `배차 ${getPickupDispatchGroups(dateKey).indexOf(group) + 1} 정보 수정` : `선택 인원 배차 · ${students.length}명`;
+  document.getElementById('pickup-dispatch-modal-title').textContent = group
+    ? `배차 ${getPickupDispatchGroups(dateKey).indexOf(group) + 1} 정보 수정`
+    : `선택 인원 배차 · ${students.length}명`;
   document.getElementById('pickup-dispatch-selected-students').innerHTML = students.map(student => renderPickupDispatchStudentInfo(student)).join('');
-  document.getElementById('pickup-dispatch-modal-vehicle').innerHTML = `<option value="">등록 차량 선택</option>${MOCK_PICKUP_VEHICLES.filter(vehicle => vehicle.active !== false).map(vehicle => `<option value="${vehicle.id}" ${Number(group?.vehicleId) === vehicle.id ? 'selected' : ''} ${Number(vehicle.capacity) < students.length ? 'disabled' : ''}>${vehicle.model} · ${vehicle.plate} · ${vehicle.capacity}인승${Number(vehicle.capacity) < students.length ? ' (정원 부족)' : ''}</option>`).join('')}`;
+  document.getElementById('pickup-dispatch-modal-vehicle').innerHTML = `<option value="">등록 차량 선택</option>${MOCK_PICKUP_VEHICLES.filter(vehicle => vehicle.active !== false).map(vehicle => `<option value="${vehicle.id}" ${Number(group?.vehicleId) === vehicle.id ? 'selected' : ''} ${Number(vehicle.capacity) < students.length ? 'disabled' : ''}>${vehicle.model} (${vehicle.plate}) · ${vehicle.capacity}명${Number(vehicle.capacity) < students.length ? ' (정원 부족)' : ''}</option>`).join('')}`;
   document.getElementById('pickup-dispatch-delete-btn').style.display = group ? '' : 'none';
   const defaultWindow = group ? getPickupGroupTimeWindowMinutes(group) : getPickupStudentsTimeWindow(studentIds);
   document.getElementById('pickup-dispatch-start-time').value = defaultWindow ? pickupMinutesToTimeStr(defaultWindow.start) : '';
   document.getElementById('pickup-dispatch-end-time').value = defaultWindow ? pickupMinutesToTimeStr(defaultWindow.end) : '';
+
+  // 수정할 때는 그 배차 자체를 고치는 것이라 「다른 배차에 태우기」를 띄우지 않는다.
+  const section = document.getElementById('pickup-dispatch-existing-section');
+  if (group) {
+    if (section) section.style.display = 'none';
+    document.getElementById('pickup-dispatch-existing-list').innerHTML = '';
+  } else {
+    renderPickupDispatchExistingList(dateKey, studentIds, null);
+  }
+  const newTarget = document.getElementById('pickup-dispatch-target-new');
+  if (newTarget) newTarget.checked = true;
+
   updatePickupDispatchModalManagerAvailability(group?.managerId);
+  updatePickupDispatchTarget();
   openModal('pickup-dispatch-modal');
   if (typeof refreshIcons === 'function') refreshIcons();
 }
@@ -7945,6 +7770,25 @@ function savePickupDispatchModal() {
   const dateKey = document.getElementById('pickup-dispatch-date').value;
   const groupId = Number(document.getElementById('pickup-dispatch-group-id').value || 0);
   const studentIds = document.getElementById('pickup-dispatch-student-ids').value.split(',').map(Number).filter(Boolean);
+  const picked = document.querySelector('input[name="pickup-dispatch-target"]:checked');
+  const target = picked ? picked.value : 'new';
+
+  // 이미 잡아 둔 배차에 태우는 경우. 담당자·차량·시간은 그 배차 것을 그대로 쓴다.
+  if (target !== 'new') {
+    const host = getPickupDispatchGroups(dateKey).find(item => item.id === Number(target));
+    if (!host) return showToast('고른 배차를 찾을 수 없어.', 'warning');
+    const merged = [...new Set([...host.studentIds, ...studentIds])];
+    const capacity = Number(host.vehicleCapacity) || 0;
+    if (capacity && merged.length > capacity) {
+      return showToast(`이 배차는 정원 ${capacity}명이라 ${merged.length}명을 태울 수 없어.`, 'warning');
+    }
+    host.studentIds = merged;
+    pickupSelectedStudentIds = pickupSelectedStudentIds.filter(id => !studentIds.includes(id));
+    closeModal('pickup-dispatch-modal');
+    renderPickupCalendar();
+    return showToast(`${studentIds.length}명을 기존 배차에 태웠습니다.`, 'success');
+  }
+
   const managerId = Number(document.getElementById('pickup-dispatch-modal-manager').value || 0);
   const vehicleId = Number(document.getElementById('pickup-dispatch-modal-vehicle').value || 0);
   const startTime = document.getElementById('pickup-dispatch-start-time').value;
@@ -8000,21 +7844,78 @@ function renderPickupDispatchCard(dateKey, group, index) {
 }
 
 function renderPickupDispatchStudentInfo(student) {
-  const avatar = student.profilePhoto || (student.gender === '남' ? 'assets/images/student_male.png' : 'assets/images/student_female.png');
-  const agency = typeof MOCK_AGENCIES !== 'undefined' ? MOCK_AGENCIES.find(item => item.name === student.agency) : null;
-  const time = student.flightTime ? student.flightTime : '<span style="color:#DC2626;font-weight:800">시간 미정</span>';
-  return `<div style="display:flex;align-items:flex-start;gap:9px;padding:9px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px">
-    <img src="${avatar}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid #E5E7EB;flex-shrink:0" alt=""/>
+  const contact = [student.nick ? `Nick: ${student.nick}` : '', student.phone || '', student.email || '']
+    .filter(Boolean).join(' · ');
+  const time = student.flightTime ? `입국 ${student.flightTime}` : '<span style="color:#DC2626;font-weight:700">입국 시간 미정</span>';
+  return `<div style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:#fff;border:1px solid #E5E7EB;border-radius:11px">
+    <span style="display:inline-grid;place-items:center;width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:#F3F4F6;color:#9CA3AF"><i data-lucide="user" style="width:20px;height:20px"></i></span>
     <div style="flex:1;min-width:0">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:10.5px;color:#111827">${student.name}</b><span style="font-size:9px;color:#6B7280">${student.nationality || '-'} · ${student.gender || '-'}성 · ${student.age || '-'}세</span></div>
-      <div style="font-size:9.2px;color:#9CA3AF;margin-top:2px">Nick: ${student.nick || '-'} · ${student.phone || '연락처 미등록'} · ${student.email || '이메일 미등록'}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:5px;font-size:9px;color:#6B7280">
-        <div><b style="color:#4B5563">에이전시</b> ${student.agency || '-'}</div><div><b style="color:#4B5563">담당자</b> ${agency?.contact || '-'}</div>
-        <div><b style="color:#4B5563">컨택</b> ${agency?.phone || '-'}</div><div><b style="color:#4B5563">이메일</b> ${agency?.email || '-'}</div>
-      </div>
-      <div style="font-size:9.2px;color:#4F46E5;margin-top:5px"><i data-lucide="plane" style="width:10px;height:10px;vertical-align:-2px;margin-right:3px"></i>${student.flightInfo || '항공편 미등록'} · 입국 ${time}</div>
+      <b style="font-size:14px;color:#111827">${student.name}</b>
+      <div style="font-size:11.5px;color:#6B7280;margin-top:4px">${contact || '연락처 미등록'}</div>
+      <div style="font-size:11.5px;color:#2563EB;font-weight:600;margin-top:7px"><i data-lucide="plane" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>${student.flightInfo || '항공편 미등록'} · ${time}</div>
     </div>
   </div>`;
+}
+
+// 이미 잡아 둔 배차. 고른 학생을 새 배차로 빼지 않고 여기에 태울 수 있다.
+// 정원이 모자란 배차는 고를 수 없게 두되 목록에서 빼지는 않는다 — 왜 못 태우는지 보여야 한다.
+function renderPickupDispatchExistingList(dateKey, studentIds, excludeGroupId) {
+  const section = document.getElementById('pickup-dispatch-existing-section');
+  const list = document.getElementById('pickup-dispatch-existing-list');
+  if (!section || !list) return;
+  const groups = getPickupDispatchGroups(dateKey).filter(group => group.id !== excludeGroupId);
+  if (!groups.length) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+  section.style.display = '';
+  list.innerHTML = groups.map(group => {
+    const manager = MOCK_PICKUP_MANAGERS.find(item => item.id === Number(group.managerId));
+    const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === Number(group.vehicleId));
+    const riders = group.studentIds.map(id => MOCK_STUDENTS.find(student => student.id === id)).filter(Boolean);
+    const capacity = Number(group.vehicleCapacity) || Number(vehicle?.capacity) || 0;
+    const after = riders.length + studentIds.length;
+    const full = capacity > 0 && after > capacity;
+    const window = getPickupGroupTimeWindowMinutes(group);
+    const timeLabel = window ? `${pickupMinutesToTimeStr(window.start)}~${pickupMinutesToTimeStr(window.end)}` : '시간 미정';
+    return `<label style="display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid #E5E7EB;border-radius:11px;background:#fff;cursor:${full ? 'not-allowed' : 'pointer'};opacity:${full ? '.55' : '1'}">
+      <input type="radio" name="pickup-dispatch-target" value="${group.id}" ${full ? 'disabled' : ''} style="margin-top:2px;width:16px;height:16px;accent-color:#2563EB;flex-shrink:0" onchange="updatePickupDispatchTarget()"/>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <b style="font-size:12.5px;color:#111827">${manager?.name || '담당자 미지정'} · ${vehicle ? `${vehicle.model} (${vehicle.plate})` : '차량 미지정'}</b>
+          <span style="flex:0 0 auto;font-size:11.5px;color:#6B7280;font-variant-numeric:tabular-nums">${timeLabel}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+          <span class="tsa-badge" style="background:${full ? '#FEF2F2' : '#EEF2FF'};color:${full ? '#B91C1C' : '#4338CA'}">${riders.length} / ${capacity || '-'}명</span>
+          <span style="font-size:11px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${riders.map(student => student.name).join(', ') || '탑승자 없음'}</span>
+        </div>
+        ${full ? `<div style="font-size:10.5px;color:#B91C1C;margin-top:6px">${studentIds.length}명을 더 태우면 정원 ${capacity}명을 넘습니다.</div>` : ''}
+      </div>
+    </label>`;
+  }).join('');
+}
+
+// 고른 쪽만 파랗게 띄운다. 새 배차가 아니면 담당자·차량·시간 입력은 잠근다.
+function updatePickupDispatchTarget() {
+  const picked = document.querySelector('input[name="pickup-dispatch-target"]:checked');
+  const isNew = !picked || picked.value === 'new';
+  const box = document.getElementById('pickup-dispatch-new-box');
+  if (box) {
+    box.style.borderColor = isNew ? '#2563EB' : '#E5E7EB';
+    box.style.borderWidth = isNew ? '2px' : '1px';
+  }
+  ['pickup-dispatch-modal-manager', 'pickup-dispatch-modal-vehicle', 'pickup-dispatch-start-time', 'pickup-dispatch-end-time'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.disabled = !isNew;
+  });
+  document.querySelectorAll('#pickup-dispatch-existing-list label').forEach(label => {
+    const input = label.querySelector('input[type="radio"]');
+    const on = Boolean(input && input.checked);
+    label.style.borderColor = on ? '#2563EB' : '#E5E7EB';
+    label.style.borderWidth = on ? '2px' : '1px';
+    label.style.background = on ? '#F8FAFF' : '#fff';
+  });
 }
 
 function savePickupDispatch(dateKey, groupId) {
@@ -8037,16 +7938,19 @@ function savePickupDispatch(dateKey, groupId) {
 }
 
 // 차량은 담당자 화면의 보조 정보다. 등록과 수정은 모달에서 하고, 화면에는 목록만 남긴다.
+// 등록 폼은 창 위쪽에 그대로 있다. [수정]을 누르면 그 값을 폼에 올린다.
 function openPickupVehicleModal(vehicleId = null) {
   const vehicle = MOCK_PICKUP_VEHICLES.find(item => item.id === Number(vehicleId));
-  const title = document.getElementById('pickup-vehicle-modal-title');
-  if (title) title.textContent = vehicle ? '픽업 차량 수정' : '픽업 차량 등록';
+  const title = document.getElementById('pickup-vehicle-form-title');
+  if (title) title.textContent = vehicle ? '차량 수정' : '차량 등록';
+  const cancel = document.getElementById('pickup-vehicle-cancel');
+  if (cancel) cancel.style.display = vehicle ? '' : 'none';
   document.getElementById('pickup-vehicle-id').value = vehicle?.id || '';
   document.getElementById('pickup-vehicle-model').value = vehicle?.model || '';
   document.getElementById('pickup-vehicle-plate').value = vehicle?.plate || '';
-  document.getElementById('pickup-vehicle-capacity').value = String(vehicle?.capacity || 5);
+  document.getElementById('pickup-vehicle-capacity').value = String(vehicle?.capacity ?? 0);
   document.getElementById('pickup-vehicle-memo').value = vehicle?.memo || '';
-  openModal('pickup-vehicle-modal');
+  if (!document.getElementById('pickup-vehicle-tbody')) openModal('pickup-vehicle-window');
 }
 
 // 그 차가 실제로 물려 있는 배차 건수. 삭제를 막는 근거이자 목록에 그대로 보여주는 값이다.
@@ -8055,50 +7959,24 @@ function countPickupVehicleUsage(vehicleId) {
     .filter(group => Number(group.vehicleId) === Number(vehicleId)).length;
 }
 
-// 차량 화면 맨 위 요약. 「몇 대를 굴리고, 한 번에 몇 명까지 태울 수 있나」가 배차를 짤 때 먼저 보는 값이다.
-function renderPickupVehicleSummary() {
-  const target = document.getElementById('pickup-vehicle-summary');
-  if (!target) return;
-  const seats = MOCK_PICKUP_VEHICLES.reduce((sum, vehicle) => sum + (Number(vehicle.capacity) || 0), 0);
-  const inUse = MOCK_PICKUP_VEHICLES.filter(vehicle => countPickupVehicleUsage(vehicle.id)).length;
-  target.innerHTML = renderPickupSummaryTiles([
-    { label: '등록 차량', value: `${MOCK_PICKUP_VEHICLES.length}대`, hint: '배차에서 고를 수 있는 차량', color: '#4338CA' },
-    { label: '전체 정원', value: `${seats}석`, hint: '모든 차량을 동시에 굴렸을 때', color: '#047857' },
-    { label: '배차 사용 중', value: `${inUse}대`, hint: '배차가 물려 있어 삭제할 수 없음', color: inUse ? '#B45309' : '#6B7280' },
-  ]);
-}
-
 function renderPickupVehicleTable() {
-  renderPickupVehicleSummary();
   const body = document.getElementById('pickup-vehicle-tbody');
-  if (!body) return;
-  const keyword = (document.getElementById('pickup-vehicle-search')?.value || '').trim().toLowerCase();
-  const rows = MOCK_PICKUP_VEHICLES.filter(vehicle => !keyword
-    || (vehicle.model || '').toLowerCase().includes(keyword)
-    || (vehicle.plate || '').toLowerCase().includes(keyword)
-    || (vehicle.memo || '').toLowerCase().includes(keyword));
-
   const countEl = document.getElementById('pickup-vehicle-count');
-  if (countEl) countEl.textContent = keyword ? `${rows.length} / ${MOCK_PICKUP_VEHICLES.length}대` : `${MOCK_PICKUP_VEHICLES.length}대`;
+  if (countEl) countEl.textContent = `${MOCK_PICKUP_VEHICLES.length}대`;
+  const chip = document.getElementById('pickup-vehicle-count-chip');
+  if (chip) chip.textContent = `${MOCK_PICKUP_VEHICLES.length}대`;
+  if (!body) return;
 
-  body.innerHTML = rows.length ? rows.map((vehicle, index) => {
-    const usage = countPickupVehicleUsage(vehicle.id);
-    return `<tr>
-      <td style="text-align:center;color:#9CA3AF">${index + 1}</td>
-      <td><b style="font-size:11.5px;color:#111827">${vehicle.model}</b></td>
-      <td style="font-variant-numeric:tabular-nums;color:#374151">${vehicle.plate}</td>
-      <td style="text-align:center;color:#374151">${vehicle.capacity}인승</td>
-      <td style="color:#6B7280">${vehicle.memo || '-'}</td>
-      <td style="text-align:center">${usage
-        ? `<span class="tsa-badge" style="background:#EEF2FF;color:#4338CA">${usage}건</span>`
-        : '<span style="color:#9CA3AF">-</span>'}</td>
-      <td style="text-align:center;white-space:nowrap">
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupVehicleModal(${vehicle.id})">수정</button>
-        <button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#EF4444;border-color:#FCA5A5;margin-left:4px" onclick="removePickupVehicle(${vehicle.id})">삭제</button>
-      </td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" style="padding:30px;text-align:center;color:#9CA3AF;font-size:11px">${keyword ? '검색 조건에 맞는 차량이 없습니다.' : '등록된 차량이 없습니다. 오른쪽 위 [차량 등록]으로 추가하세요.'}</td></tr>`;
-  renderPickupKpiStrip();
+  body.innerHTML = MOCK_PICKUP_VEHICLES.length ? MOCK_PICKUP_VEHICLES.map(vehicle => `<tr>
+    <td><b style="font-size:12px;color:#111827">${vehicle.model}</b></td>
+    <td style="color:#374151;font-variant-numeric:tabular-nums">${vehicle.plate}</td>
+    <td style="color:#374151">${vehicle.capacity}명</td>
+    <td style="color:#6B7280">${vehicle.memo || '-'}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="tsa-btn tsa-btn-outline tsa-btn-xs" onclick="openPickupVehicleModal(${vehicle.id})">수정</button>
+      <button class="tsa-btn tsa-btn-xs" style="margin-left:5px;background:#EF4444;border-color:#EF4444;color:#fff" onclick="removePickupVehicle(${vehicle.id})">삭제</button>
+    </td>
+  </tr>`).join('') : '<tr><td colspan="5" style="padding:26px;text-align:center;color:#9CA3AF;font-size:11.5px">등록된 차량이 없습니다. 위 [차량 등록]에서 추가하세요.</td></tr>';
   if (typeof refreshIcons === 'function') refreshIcons();
 }
 
@@ -8123,7 +8001,7 @@ function savePickupVehicle() {
   } else {
     MOCK_PICKUP_VEHICLES.push({ id: Date.now(), model, plate, capacity, memo, active: true });
   }
-  closeModal('pickup-vehicle-modal');
+  resetPickupVehicleForm();
   renderPickupVehicleTable();
   renderPickupDateAssignments();
   showToast('차량 정보가 저장되었습니다.', 'success');
@@ -8164,17 +8042,17 @@ function selectPickupCalendarDate(dateKey) {
   renderPickupCalendar();
 }
 
+// 달을 넘긴다고 날짜가 골라지지는 않는다 — 고른 날짜는 그대로 둔다.
 function changePickupCalendarMonth(offset) {
   const month = APP.pickupCalendarMonth;
   APP.pickupCalendarMonth = new Date(month.getFullYear(), month.getMonth() + offset, 1);
-  APP.pickupSelectedDate = toPickupDateKey(APP.pickupCalendarMonth);
   renderPickupCalendar();
 }
 
 function goPickupCalendarToday() {
   const today = getPickupToday();
   APP.pickupCalendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  APP.pickupSelectedDate = toPickupDateKey(today);
+  APP.pickupSelectedDate = PICKUP_TODAY;
   renderPickupCalendar();
 }
 

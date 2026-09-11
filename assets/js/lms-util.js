@@ -13,9 +13,8 @@ const VIEW_MAP = {
   students: { el: 'view-students', menu: 'menu-students', parent: 'menu-student-manage-parent', label: '학생 정보 관리', sec: '학생 관리' },
   'student-requests': { el: 'view-student-requests', menu: 'menu-student-requests', parent: 'menu-student-manage-parent', label: '학생 요청 관리', sec: '학생 관리' },
   'admin-student-detail': { el: 'view-agency-student-detail', menu: 'menu-students', label: '학생 상세 정보', sec: '학사 관리' },
-  'pickup-assign': { el: 'view-pickup', menu: 'menu-pickup-assign', parent: 'menu-pickup-parent', label: '픽업 배정', sec: '픽업 관리' },
-  'pickup-managers': { el: 'view-pickup', menu: 'menu-pickup-managers', parent: 'menu-pickup-parent', label: '픽업 담당자 관리', sec: '픽업 관리' },
-  'pickup-vehicles': { el: 'view-pickup', menu: 'menu-pickup-vehicles', parent: 'menu-pickup-parent', label: '픽업 차량 관리', sec: '픽업 관리' },
+  'pickup-managers': { el: 'view-pickup-managers', menu: 'menu-pickup-managers', parent: 'menu-pickup-parent', label: '픽업 담당자 관리', sec: '학생 픽업 관리' },
+  'pickup-assign': { el: 'view-pickup-assign', menu: 'menu-pickup-assign', parent: 'menu-pickup-parent', label: '픽업 배정 현황', sec: '학생 픽업 관리' },
   teachers: { el: 'view-teachers', menu: 'menu-teachers', parent: 'menu-teacher-manage-parent', label: '강사 정보 관리', sec: '강사 관리' },
   'teacher-tags': { el: 'view-teachers', menu: 'menu-teacher-tags', parent: 'menu-teacher-manage-parent', label: '배정 태그 설정 관리', sec: '강사 관리' },
   'classroom-status': { el: 'view-classroom-status', menu: 'menu-classroom-status', label: '강의실 관리', sec: '학사 관리' },
@@ -136,11 +135,9 @@ function navigate(view) {
   } else if (view === 'student-requests') {
     if (typeof initStudentRequestListPage === 'function') initStudentRequestListPage();
   } else if (view === 'pickup-managers') {
-    if (typeof initPickupView === 'function') initPickupView('managers');
-  } else if (view === 'pickup-vehicles') {
-    if (typeof initPickupView === 'function') initPickupView('vehicles');
+    if (typeof initPickupManagerView === 'function') initPickupManagerView();
   } else if (view === 'pickup-assign') {
-    if (typeof initPickupView === 'function') initPickupView('assign');
+    if (typeof initPickupAssignView === 'function') initPickupAssignView();
   } else if (view === 'teachers') {
     if (typeof initTeacherList === 'function') initTeacherList();
     if (typeof switchTeacherManageTab === 'function') switchTeacherManageTab('list');
