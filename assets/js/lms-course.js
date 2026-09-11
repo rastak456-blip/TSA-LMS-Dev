@@ -1583,7 +1583,7 @@ function renderCourseRegSegments() {
       <div style="width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:#4338CA;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900">${index + 1}</div>
       <div>
         <div style="font-size:12.5px;font-weight:800;color:#111827">${segment.course}</div>
-        <div style="font-size:10px;color:#6B7280;margin-top:3px">추천 레벨: ${segment.recommendedLevels.length ? segment.recommendedLevels.join(', ') : '-'}</div>
+        <div style="font-size:10px;color:#6B7280;margin-top:3px">추천 레벨: ${(segment.recommendedLevels || []).length ? segment.recommendedLevels.join(', ') : '-'}</div>
       </div>
       <div style="font-size:11.5px;font-weight:800;color:#374151">${segment.duration}주</div>
       <div style="font-size:10.5px;color:#6B7280">${fmtDate(segment.startDate)} ~ ${fmtDate(segment.endDate)}</div>
@@ -2137,13 +2137,20 @@ function handleCourseRegFileUpload(type, input) {
   }
 }
 
-function openStudentCourseRegistration(studentId) {
+// enrollmentId를 주면 그 차수를 고치는 화면으로 열린다 — 저장된 값을 그대로 불러오고,
+// 저장할 때 새 차수를 만들지 않고 같은 차수를 갱신한다. 주지 않으면 새 차수를 만드는 기존 동작이다.
+function openStudentCourseRegistration(studentId, enrollmentId) {
   const student = MOCK_STUDENTS.find(s => s.id === studentId);
   if (!student) return;
+  const editing = enrollmentId != null
+    ? (student.enrollments || []).find(item => String(item.id) === String(enrollmentId))
+    : null;
   APP.currentCourseRegistrationStudent = student;
-  APP.courseRegSegments = [];
-  APP.courseRegDormSegments = [];
-  APP.courseRegUploadedFiles = { ...(student.requiredFiles || {}) };
+  APP.courseRegEditingEnrollmentId = editing ? editing.id : null;
+  // 저장된 구간을 복사해서 채운다. 원본을 그대로 쓰면 취소해도 화면에서 고친 값이 남는다.
+  APP.courseRegSegments = editing ? (editing.segments || []).map(item => ({ ...item })) : [];
+  APP.courseRegDormSegments = editing ? (editing.dormSegments || []).map(item => ({ ...item })) : [];
+  APP.courseRegUploadedFiles = { ...(student.requiredFiles || {}), ...(editing?.requiredFiles || {}) };
 
   const activeCourses = getCourseRegActiveCourses().map(row => row.course);
   const courseEl = document.getElementById('course-reg-course');
@@ -2153,22 +2160,30 @@ function openStudentCourseRegistration(studentId) {
   }
 
   const title = document.getElementById('course-reg-title');
-  if (title) title.textContent = `${student.name} 수강 등록`;
+  if (title) title.textContent = editing ? `${student.name} 등록 내용 수정` : `${student.name} 수강 등록`;
   const subtitle = document.getElementById('course-reg-subtitle');
-  if (subtitle) subtitle.textContent = '과정별 수강료를 비교한 뒤 기숙사와 기타 비용을 포함한 최종 금액을 확인합니다.';
+  if (subtitle) {
+    subtitle.textContent = editing
+      ? '저장된 등록 내용을 불러왔습니다. 구간·기숙사·기타 항목을 추가하거나 빼고 저장하면 같은 차수가 갱신됩니다.'
+      : '과정별 수강료를 비교한 뒤 기숙사와 기타 비용을 포함한 최종 금액을 확인합니다.';
+  }
+  const saveBtn = document.getElementById('course-reg-save-btn');
+  if (saveBtn) saveBtn.innerHTML = `<i data-lucide="check"></i> ${editing ? '등록 내용 저장' : '수강 등록'}`;
   const summary = document.getElementById('course-reg-student-summary');
   if (summary) summary.textContent = `${student.name} (Nick: ${student.nick}) · ${student.nationality || '-'} · 현재 ${student.course || '미등록'}`;
 
+  // 수정 화면에서는 마지막 구간 다음 날을 시작일로 미리 넣어 둔다 — 이어서 구간을 더할 때 바로 쓴다.
+  const lastSegment = APP.courseRegSegments[APP.courseRegSegments.length - 1];
   const startEl = document.getElementById('course-reg-start');
-  if (startEl) startEl.value = '';
+  if (startEl) startEl.value = lastSegment ? getNextCourseRegSegmentStart(lastSegment.endDate) : '';
   const endEl = document.getElementById('course-reg-end');
   if (endEl) endEl.value = '';
   const durationEl = document.getElementById('course-reg-duration');
   if (durationEl) durationEl.value = '';
   const remittanceRouteEl = document.getElementById('course-reg-remittance-route');
-  if (remittanceRouteEl) remittanceRouteEl.value = student.remittanceRoute || 'agency';
+  if (remittanceRouteEl) remittanceRouteEl.value = editing?.remittanceRoute || student.remittanceRoute || 'agency';
   const memoEl = document.getElementById('course-reg-memo');
-  if (memoEl) memoEl.value = '';
+  if (memoEl) memoEl.value = editing?.memo || '';
 
   // 이미 등록된 항공 일정(입출국·비자 관리와 같은 소스)이 있으면 그 값을 그대로 불러온다.
   ensureStudentStayData(student);
@@ -2207,8 +2222,9 @@ function openStudentCourseRegistration(studentId) {
     }
   });
 
+  // 체크박스는 「기숙사 미사용」이다 — 저장된 dormEnabled와 반대로 넣는다.
   const dormEnabledEl = document.getElementById('course-reg-dorm-enabled');
-  if (dormEnabledEl) dormEnabledEl.checked = false;
+  if (dormEnabledEl) dormEnabledEl.checked = editing ? editing.dormEnabled === false : false;
   const dormEl = document.getElementById('course-reg-dorm-template');
   const templates = typeof MOCK_DORM_TEMPLATES !== 'undefined' ? MOCK_DORM_TEMPLATES : [];
   if (dormEl) {
@@ -2223,15 +2239,17 @@ function openStudentCourseRegistration(studentId) {
     dormEl.value = '';
   }
 
+  const lastDormSegment = APP.courseRegDormSegments[APP.courseRegDormSegments.length - 1];
   const dormInEl = document.getElementById('course-reg-dorm-in');
-  if (dormInEl) dormInEl.value = '';
+  if (dormInEl) dormInEl.value = lastDormSegment ? getNextCourseRegSegmentStart(lastDormSegment.endDate) : '';
   const dormOutEl = document.getElementById('course-reg-dorm-out');
   if (dormOutEl) dormOutEl.value = '';
   const dormDurationEl = document.getElementById('course-reg-dorm-duration');
   if (dormDurationEl) dormDurationEl.value = '';
 
-  renderCourseRegistrationExtras([]);
+  renderCourseRegistrationExtras(editing ? (editing.extraItems || []).map(item => item.name) : []);
   renderCourseRegSegments();
+  renderCourseRegDormSegments();
   toggleCourseRegDormSection();
   updateCourseRegDormDatesFromStart();
   updateStudentCourseRegistrationPreview();
@@ -2287,16 +2305,47 @@ function saveStudentCourseRegistration() {
     : dormEnabled ? '미선택' : '미사용';
 
   if (!student.enrollments) student.enrollments = [];
-  student.enrollments.unshift({
-    id: Date.now(),
+  const editingIndex = APP.courseRegEditingEnrollmentId != null
+    ? student.enrollments.findIndex(item => String(item.id) === String(APP.courseRegEditingEnrollmentId))
+    : -1;
+  const editingEnrollment = editingIndex >= 0 ? student.enrollments[editingIndex] : null;
+
+  // 이미 인보이스가 나간 차수의 금액을 바꾸면 발행된 청구서와 값이 어긋난다.
+  // 그래서 진행 여부를 먼저 묻고, 진행하더라도 차액은 정산 탭의 「금액 조정」으로 따로 발행해야 한다.
+  if (editingEnrollment) {
+    const issued = (student.invoices || []).filter(inv =>
+      inv.status === 'issued' && String(inv.enrollmentId) === String(editingEnrollment.id));
+    const amountChanged = Number(editingEnrollment.totalGross || 0) !== totalGross;
+    if (issued.length && amountChanged) {
+      const issuedNos = issued.map(inv => inv.invoiceNo).join(', ');
+      const ok = window.confirm(
+        `이 차수에는 이미 발행된 인보이스가 있습니다: ${issuedNos}\n\n`
+        + `등록 금액을 $${Number(editingEnrollment.totalGross || 0).toLocaleString()} → $${totalGross.toLocaleString()}로 저장하면 발행된 인보이스 금액과 달라집니다.\n`
+        + `발행된 인보이스는 이 저장으로 바뀌지 않습니다. 차액은 정산 탭의 「금액 조정」으로 따로 발행해야 합니다.\n\n`
+        + `그대로 저장할까요?`);
+      if (!ok) return;
+    }
+  }
+
+  // 번호는 신규 등록에만 새로 발급한다. 수정 저장은 기존 번호를 그대로 들고 간다.
+  const enrollmentSeq = editingEnrollment
+    ? (editingEnrollment.enrollmentSeq || nextEnrollmentSeq(student))
+    : nextEnrollmentSeq(student);
+
+  const enrollmentRecord = {
+    // 수정 저장은 같은 차수를 갱신한다 — 새 id를 주면 정산·인보이스가 다른 차수를 보게 된다.
+    id: editingEnrollment ? editingEnrollment.id : Date.now(),
+    enrollmentSeq,
+    enrollmentNo: editingEnrollment?.enrollmentNo || formatEnrollmentNo(student.id, enrollmentSeq),
     course,
     level,
     recommendedLevels,
     // 정산은 이 차수를 자기 단위로 쓴다 — 등록금과 납부 상태를 여기에 담아,
     // 다음 차수를 등록해도 이전 차수의 청구·완납이 지워지지 않게 한다.
     registrationAmount,
-    billingItemStatuses: {},
-    commissionItemStatuses: {},
+    // 발행·납부·커미션 상태는 수정 저장으로 초기화하지 않는다. 지우면 완납 기록이 사라진다.
+    billingItemStatuses: editingEnrollment?.billingItemStatuses || {},
+    commissionItemStatuses: editingEnrollment?.commissionItemStatuses || {},
     segments,
     startDate,
     endDate,
@@ -2328,8 +2377,27 @@ function saveStudentCourseRegistration() {
       departureTime: getOptionalValue('course-reg-flight-out-time'),
     },
     requiredFiles: { ...(student.requiredFiles || {}), ...(APP.courseRegUploadedFiles || {}) },
-    createdAt: new Date().toISOString().split('T')[0],
-  });
+    createdAt: editingEnrollment?.createdAt || new Date().toISOString().split('T')[0],
+    updatedAt: editingEnrollment ? new Date().toISOString().split('T')[0] : null,
+  };
+
+  if (editingEnrollment) {
+    // 기존 차수에 있던 필드(정산이 나중에 붙인 값 등)는 남기고 이번에 저장한 값만 덮는다.
+    student.enrollments[editingIndex] = { ...editingEnrollment, ...enrollmentRecord };
+  } else {
+    student.enrollments.unshift(enrollmentRecord);
+  }
+
+  // 학생 대표 값은 최신 차수를 따라간다. 지난 차수를 고칠 때 덮어쓰면 현재 수강 정보가 과거로 돌아간다.
+  const isLatestEnrollment = !editingEnrollment || editingIndex === 0;
+  if (!isLatestEnrollment) {
+    closeModal('student-course-registration-modal');
+    APP.courseRegEditingEnrollmentId = null;
+    initAgencyStudentList();
+    if (document.getElementById('adetail-page-enrollment-content')) renderAgencyStudentEnrollmentHub();
+    showToast(`${student.name} 학생의 ${enrollmentRecord.course} 등록 내용을 저장했습니다. 최종 금액: ${formatCourseRegMoney(totalGross)}`, 'success');
+    return;
+  }
 
   student.course = course;
   student.status = status;
@@ -2411,17 +2479,21 @@ function saveStudentCourseRegistration() {
   if (!student.changeRequests) student.changeRequests = [];
   student.changeRequests.push({
     id: Date.now() + 1,
-    field: '코스 등록',
-    from: '-',
+    field: editingEnrollment ? '코스 등록 내용 수정' : '코스 등록',
+    from: editingEnrollment ? `${editingEnrollment.course || '-'} · ${editingEnrollment.duration || 0}주 · ${formatCourseRegMoney(editingEnrollment.totalGross || 0)}` : '-',
     to: `${course} · ${duration}주 · ${formatCourseRegMoney(totalGross)}`,
-    reason: memo || '학생 리스트에서 코스 등록 및 비용 확정',
+    reason: memo || (editingEnrollment ? '수강 등록 화면에서 등록 내용 수정' : '학생 리스트에서 코스 등록 및 비용 확정'),
     changedBy: APP.user === 'agency_head' ? '에이전시 본사' : APP.user === 'agency_branch' ? '에이전시 지사' : '관리자',
     requestDate: new Date().toISOString().split('T')[0],
   });
 
   closeModal('student-course-registration-modal');
+  APP.courseRegEditingEnrollmentId = null;
   initAgencyStudentList();
-  showToast(`${student.name} 학생의 코스가 등록되었습니다. 최종 금액: ${formatCourseRegMoney(totalGross)}`, 'success');
+  if (document.getElementById('adetail-page-enrollment-content')) renderAgencyStudentEnrollmentHub();
+  showToast(editingEnrollment
+    ? `${student.name} 학생의 등록 내용을 저장했습니다. 최종 금액: ${formatCourseRegMoney(totalGross)}`
+    : `${student.name} 학생의 코스가 등록되었습니다. 최종 금액: ${formatCourseRegMoney(totalGross)}`, 'success');
 }
 
 function resetAgencyFilters() {
@@ -5994,9 +6066,9 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
             <div>
               <b style="font-size:13px;color:#111827">수강 등록 내용</b>
-              <div style="font-size:11px;color:#6B7280;margin-top:4px">등록할 때 저장된 값입니다. 수정은 수강 등록 화면에서 합니다.</div>
+              <div style="font-size:11px;color:#6B7280;margin-top:4px">등록할 때 저장된 값입니다. 수정 화면은 이 값을 그대로 불러오며, 구간·항목을 더 추가할 수 있습니다.</div>
             </div>
-            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="white-space:nowrap" onclick="openStudentCourseRegistration(${baseStudent.id})"><i data-lucide="pencil" style="width:12px;height:12px"></i> 등록 내용 수정</button>
+            <button type="button" class="tsa-btn tsa-btn-outline tsa-btn-sm" style="white-space:nowrap" onclick="openStudentCourseRegistration(${baseStudent.id}${selectedEnrollment ? `, '${selectedEnrollment.id}'` : ''})"><i data-lucide="pencil" style="width:12px;height:12px"></i> 등록 내용 수정</button>
           </div>
           <div style="display:flex;flex-direction:column;gap:12px">
             ${sectionCard('수강 구간', amounts.tuition, segmentRows)}
@@ -6032,46 +6104,37 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
 
     html = `
       <div style="padding:10px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        ${renderSettleSummaryStrip(s, issueSummary, billingBreakdown)}
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,400px);gap:16px;align-items:start">
           <div style="border:1px solid #E9EDF4;border-radius:10px;padding:14px;background:#FAFAFA">
-            <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:8px">${issueSummary.enrollment.sessionNumber}차 수강 · 항목별 청구 금액 · 발행 상태 · 납부 여부 · 커미션 지급 여부</div>
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+              <span style="font-weight:700;font-size:12.5px;color:#1E3A8A">청구 항목</span>
+              <span style="font-family:ui-monospace,Consolas,monospace;font-size:11px;font-weight:700;color:#4338CA;background:#F2F2FE;border:1px solid #CDD3E4;border-radius:5px;padding:1px 6px">${getEnrollmentNo(s, issueSummary.enrollment)}</span>
+            </div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:8px">${escapeStudentPopupHtml(issueSummary.enrollment.course || '')} — 발행할 항목을 체크하세요. 이미 발행된 항목은 잠깁니다.</div>
             <div style="display:grid;grid-template-columns:1fr;gap:8px;font-size:11.5px;margin-bottom:10px">
               ${issueSummary.rows.map(item => `
                 ${renderBillingGroupHeading(issueSummary.rows, item)}
-                <div style="display:grid;grid-template-columns:20px 96px 1fr 128px 76px 150px 80px;gap:10px;align-items:center;background:${item.issued || !item.billable ? '#FAFAFA' : '#fff'};border:1px solid #E5E7EB;${item.extension ? 'border-left:3px solid #5E5CE6;' : ''}border-radius:8px;padding:9px 10px${isBillingSegmentRow(issueSummary.rows, item) ? ';margin-left:14px' : ''}">
+                <div style="display:grid;grid-template-columns:18px minmax(0,1fr) 74px 96px 54px 92px;gap:8px;align-items:center;background:${item.issued || !item.billable ? '#FAFAFA' : '#fff'};border:1px solid #E5E7EB;${item.extension ? 'border-left:3px solid #5E5CE6;' : ''}border-radius:8px;padding:9px 10px${isBillingSegmentRow(issueSummary.rows, item) ? ';margin-left:14px' : ''}">
                   ${item.billable && !item.issued
-                    ? `<input type="checkbox" id="inv-check-${item.key}" checked style="accent-color:#5E5CE6;width:15px;height:15px"/>`
+                    ? `<input type="checkbox" id="inv-check-${item.key}" checked data-amount="${item.amount}" onchange="recalcInvoiceIssueTotal()" style="accent-color:#5E5CE6;width:15px;height:15px"/>`
                     : '<span style="display:inline-block;width:15px;height:15px;border:1.5px solid #E5E7EB;border-radius:4px;background:#F9FAFB"></span>'}
-                  <div>
-                    <div style="font-weight:800;color:#374151">${item.label}${item.extension ? ' <span style="font-size:9.5px;color:#5E5CE6;font-weight:800">연장</span>' : ''}</div>
-                    <div style="font-size:10px;color:#9CA3AF">${item.sub || ''}</div>
+                  <div style="min-width:0">
+                    <div style="font-weight:800;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.label}${item.extension ? ' <span style="font-size:9.5px;color:#5E5CE6;font-weight:800">연장</span>' : ''}</div>
+                    <div style="font-size:10px;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.sub || ''}</div>
                   </div>
-                  <div style="text-align:right;font-weight:900;color:${item.billable ? '#111827' : '#9CA3AF'}">$${item.amount.toLocaleString()}</div>
+                  <div style="text-align:right;font-weight:900;white-space:nowrap;color:${item.billable ? '#111827' : '#9CA3AF'}">$${item.amount.toLocaleString()}</div>
                   <div style="text-align:right">${
-                    !item.billable ? '<span style="font-size:10px;color:#C4C9D4;border:1px dashed #E5E7EB;border-radius:999px;padding:3px 9px">청구 없음</span>'
-                    : item.issued ? `<span class="tsa-badge" style="background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;font-size:10px" title="${item.invoice.issueDate} 발행">발행됨 · ${item.invoice.invoiceNo}</span>`
-                    : '<span class="tsa-badge" style="background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB;font-size:10px">미발행</span>'}</div>
+                    !item.billable ? '<span style="font-size:10px;color:#C4C9D4;border:1px dashed #E5E7EB;border-radius:999px;padding:2px 7px">청구 없음</span>'
+                    : item.issued ? `<span class="tsa-badge" style="background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;font-size:9.5px" title="${item.invoice.invoiceNo} · ${item.invoice.issueDate} 발행">발행됨</span><div style="font-size:9px;color:#9CA3AF;margin-top:2px;overflow:hidden;text-overflow:ellipsis">${item.invoice.invoiceNo}</div>`
+                    : '<span class="tsa-badge" style="background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB;font-size:9.5px">미발행</span>'}</div>
                   <div style="text-align:right">${item.billable && item.issued ? renderAgencyPaidBadge(item.paymentStatus) : '<span style="font-size:10px;color:#C4C9D4">-</span>'}</div>
-                  <div style="text-align:right;color:${item.commission > 0 ? '#4F46E5' : '#9CA3AF'};font-weight:800">
-                    ${item.commissionType === 'none' ? '커미션 없음' : item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · $${item.commission.toLocaleString()}
+                  <div style="text-align:right;white-space:nowrap;color:${item.commission > 0 ? '#4F46E5' : '#9CA3AF'};font-weight:800;font-size:10.5px">
+                    ${item.commissionType === 'none' ? '커미션 없음' : `${item.commissionType === 'fixed' ? '정액' : `${Math.round(item.commissionRate * 100)}%`} · $${item.commission.toLocaleString()}`}
+                    ${item.commission > 0 ? `<div style="margin-top:2px">${renderAgencyCommissionBadge(item.commissionStatus)}</div>` : ''}
                   </div>
-                  <div style="text-align:right">${item.commission > 0 ? renderAgencyCommissionBadge(item.commissionStatus) : '<span style="font-size:10px;color:#9CA3AF">-</span>'}</div>
                 </div>
               `).join('')}
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
-              <div style="border:1px solid #E5E7EB;border-radius:9px;background:#fff;padding:9px 11px">
-                <div style="font-size:10.5px;color:#6B7280;font-weight:700">발행 완료</div>
-                <div style="font-size:16px;font-weight:900;margin-top:2px">$${issueSummary.issuedTotal.toLocaleString()}</div>
-              </div>
-              <div style="border:1px solid #C7D2FE;border-radius:9px;background:#F8F9FF;padding:9px 11px">
-                <div style="font-size:10.5px;color:#6B7280;font-weight:700">미발행${issueSummary.issuable.length ? ' (이번 발행 대상)' : ''}</div>
-                <div style="font-size:16px;font-weight:900;margin-top:2px;color:#4338CA">$${issueSummary.unissuedTotal.toLocaleString()}</div>
-              </div>
-              <div style="border:1px solid #E5E7EB;border-radius:9px;background:#fff;padding:9px 11px">
-                <div style="font-size:10.5px;color:#6B7280;font-weight:700">${issueSummary.enrollment.sessionNumber}차 청구 합계</div>
-                <div style="font-size:16px;font-weight:900;margin-top:2px">$${issueSummary.grossTotal.toLocaleString()}</div>
-              </div>
             </div>
             ${issueSummary.enrollments.length > 1 ? `
             <div style="border:1px solid #C7D2FE;border-radius:9px;background:#F8F9FF;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -6085,21 +6148,19 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
             <div style="font-size:10.5px;color:#6B7280;margin-top:10px;background:#EFF6FF;padding:8px;border-radius:6px">
               ※ 커미션은 에이전시 관리에서 등록금·수강료·기숙사비·기타 비용별로 설정한 기준을 적용합니다.
             </div>
-            ${renderInvoiceActionPanel(s)}
+            ${renderInvoiceIssueBar(s, issueSummary)}
           </div>
 
-          <div style="border-left:1px solid #CBD5E1;padding:0 0 0 18px;min-width:0">
-            ${renderInvoiceDocumentPanel(s)}
-          </div>
+          ${renderInvoiceDocumentPanel(s)}
 
-          <div style="grid-column:span 2">
+          <div style="grid-column:1 / -1">
             ${renderInvoiceHistoryPanel(s)}
           </div>
           ${localFeesHtml}
 
           <!-- 납부 등록 섹션 (어드민은 미표시, 에이전시만 노출) -->
           ${isAgency ? `
-          <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:span 2;margin-top:4px">
+          <div style="border:1px solid #C7D2FE;border-radius:10px;padding:16px;background:#F8F9FF;grid-column:1 / -1;margin-top:4px">
             <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:12px">💸 납부 등록</div>
             <div class="tsa-form-group" style="margin:0 0 10px;max-width:220px">
               <label class="tsa-label" style="font-size:11px">학생 정산 방식 <span style="color:#EF4444">*</span></label>
@@ -6151,7 +6212,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           ` : ''}
 
           <!-- 납부 내역 관리 -->
-          <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:span 2;margin-top:4px">
+          <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA;grid-column:1 / -1;margin-top:4px">
             <div style="font-weight:700;font-size:12.5px;color:#1E3A8A;margin-bottom:10px">📋 납부 내역 관리</div>
             ${renderAgencyPaymentSummary(s, billingBreakdown)}
             ${(() => {
@@ -6245,6 +6306,7 @@ function switchAdetailTab(tab, containerId = 'adetail-tab-content', studentId = 
           </div>
         </div>
         ${crHistoryHtml}
+        ${renderSettleDrawerShell()}
       </div>
     `;
   } else if (tab === 'changelog') {
@@ -8809,9 +8871,51 @@ function getAgencyCommissionRate(s) {
 // 그래서 항목 키를 'education' 하나로 두면 "연장분"을 가리킬 이름이 없다. 구간 id를 붙인다.
 const BILLING_GROUP_OF = key => String(key).split(':')[0];
 
+// ===== 수강 번호 (ENR-학생고유번호-발급순번) =====
+// 「1차 수강」 같은 순번은 목록 위치로 그때그때 계산해서 만든 표시값이라, 등록을 지우면 뒤 것이 당겨진다.
+// 그러면 이미 발행된 인보이스가 가리키는 등록 건과 화면이 어긋난다. 그래서 등록마다 불변 번호를 발급한다.
+// 발급 순번은 학생에게 저장해 두고 한 방향으로만 올린다 — 지운 번호는 다시 쓰지 않는다.
+function nextEnrollmentSeq(student) {
+  const used = (student.enrollments || [])
+    .map(item => Number(item.enrollmentSeq || 0))
+    .filter(Number.isFinite);
+  const highestUsed = used.length ? Math.max(...used) : 0;
+  const stored = Number(student.enrollmentSeqMax || 0);
+  const next = Math.max(highestUsed, stored) + 1;
+  student.enrollmentSeqMax = next;
+  return next;
+}
+
+function formatEnrollmentNo(studentId, seq) {
+  return `ENR-${studentId}-${seq}`;
+}
+
+// 번호 없이 저장된 기존 등록에 번호를 한 번 채운다(오래된 것부터 1번).
+// 화면을 그릴 때마다 다시 계산하지 않도록, 채운 값은 등록에 저장한다.
+function ensureEnrollmentNumbers(student) {
+  const list = Array.isArray(student?.enrollments) ? student.enrollments : [];
+  if (!list.length) return;
+  list.slice().reverse().forEach(enrollment => {
+    if (enrollment.enrollmentNo && enrollment.enrollmentSeq) return;
+    const seq = enrollment.enrollmentSeq || nextEnrollmentSeq(student);
+    enrollment.enrollmentSeq = seq;
+    enrollment.enrollmentNo = enrollment.enrollmentNo || formatEnrollmentNo(student.id, seq);
+  });
+}
+
+// 화면에 쓸 수강 번호. 등록 이력이 없는 목데이터 학생은 합성 번호를 돌려준다.
+function getEnrollmentNo(student, enrollment) {
+  if (enrollment?.enrollmentNo) return enrollment.enrollmentNo;
+  ensureEnrollmentNumbers(student);
+  if (enrollment?.enrollmentNo) return enrollment.enrollmentNo;
+  return formatEnrollmentNo(student.id, enrollment?.sessionNumber || 1);
+}
+
 // 정산이 보는 차수 목록. 목데이터 학생은 enrollments 가 없고 학생 단위 필드만 있어서,
 // 그 경우 1차 수강 하나를 합성한다 — 코스 등록을 한 번도 저장하지 않은 학생도 정산이 돌아야 한다.
 function getBillingEnrollments(s) {
+  // 번호 없이 저장된 옛 등록은 여기서 한 번 채운다 — 정산이 가장 먼저 읽는 길목이다.
+  ensureEnrollmentNumbers(s);
   const list = Array.isArray(s?.enrollments) ? s.enrollments : [];
   if (list.length) {
     // enrollments 는 unshift 로 쌓여 최신이 앞이다. 정산은 오래된 것부터 1차·2차로 센다.
@@ -9133,7 +9237,15 @@ function getAmendableInvoice(s, enrollmentId) {
   return list.length ? list[list.length - 1] : null;
 }
 
-const INVOICE_TYPE_LABEL = { issue: '정발행', additional: '추가 발행', reissue: '재발행', amendment: '수정(차액)' };
+// 화면에 쓰는 이름은 관리자가 아는 말로 적는다 — '정발행'·'수정 인보이스'는 내부 용어라
+// 처음 보는 사람이 무슨 동작인지 알 수 없다. 조정 인보이스는 차액 부호에 따라 이름이 갈린다.
+const INVOICE_TYPE_LABEL = { issue: '최초 발행', additional: '항목 추가 발행', reissue: '재발행', amendment: '금액 조정' };
+
+// 이력 표에 쓰는 종류 이름. 조정 인보이스만 차액 부호로 추가 청구/환불을 구분한다.
+function getInvoiceTypeLabel(invoice) {
+  if (invoice.type !== 'amendment') return INVOICE_TYPE_LABEL[invoice.type] || invoice.type;
+  return Number(invoice.deltaTotal) < 0 ? '조정 · 환불' : '조정 · 추가 청구';
+}
 
 // 발행 이력 표에 쓰는 인보이스별 결제 상태. 정발행/재발행은 청구 항목, 수정(차액) 인보이스는
 // 차액 대상 항목의 현재 납부 여부(항목별 paymentStatus, 납부 내역 관리 승인 결과)를 기준으로 판정한다.
@@ -9159,8 +9271,10 @@ function renderInvoicePaymentStatusBadge(status) {
 }
 
 // 정산 탭/에이전시 허브 탭을 현재 상태 그대로 다시 그린다 (기존 submitRemittanceReceipt와 동일 패턴)
-function reopenSettleTab(studentId) {
-  APP._invoiceViewingId = null;
+// focusInvoiceId 를 주면 그 인보이스가 선택된 상태로 다시 그린다 —
+// 방금 발행한 건이 목록에서도 표시되고 오른쪽 미리보기에도 그대로 남아야 한다.
+function reopenSettleTab(studentId, focusInvoiceId) {
+  APP._invoiceViewingId = focusInvoiceId || null;
   if (document.getElementById('adetail-page-enrollment-content')) {
     switchAgencyEnrollmentHubTab('settle');
   } else {
@@ -9189,9 +9303,10 @@ function issueOrReissueInvoice(studentId) {
     seq,
     type,
     status: 'issued',
-    // 인보이스는 차수에 속한다. 번호는 학생 단위 연번을 그대로 쓰고,
-    // 어느 차수의 것인지는 발행 이력 표의 「차수」 열이 알려준다.
+    // 인보이스는 수강 등록 한 건에 속한다. 그 등록의 수강 번호를 발행 시점에 복사해 둔다 —
+    // 나중에 등록을 지우거나 순서가 바뀌어도 이 문서가 어느 등록 건인지 번호로 확정된다.
     enrollmentId: enrollment.id,
+    enrollmentNo: getEnrollmentNo(s, enrollment),
     enrollmentLabel: `${enrollment.sessionNumber}차 수강`,
     enrollmentCourse: enrollment.course || '',
     invoiceNo: `TSA-${studentId}-${seq}`,
@@ -9217,7 +9332,7 @@ function issueOrReissueInvoice(studentId) {
   });
 
   showToast(`✅ ${invoice.invoiceNo} (${enrollment.sessionNumber}차 수강 · ${INVOICE_TYPE_LABEL[type]}) 인보이스가 발행되었습니다 — ${itemLabels}.`, 'success');
-  reopenSettleTab(studentId);
+  reopenSettleTab(studentId, invoice.id);
 }
 
 // 발행 취소는 인보이스 한 건을 지목해서 한다. 등록금 인보이스와 수강료 인보이스가
@@ -9228,15 +9343,15 @@ function cancelInvoice(studentId, invoiceId) {
   if (!s) return;
   const invoice = (s.invoices || []).find(inv => inv.id === invoiceId);
   if (!invoice) return;
-  if (invoice.status === 'void') { showToast('이미 발행 취소된 인보이스입니다.', 'warning'); return; }
+  if (invoice.status === 'void') { showToast('이미 무효 처리된 인보이스입니다.', 'warning'); return; }
 
   const itemLabels = (invoice.items || []).map(item => item.label).join(' · ');
   const backNote = invoice.type === 'amendment' ? '' : `\n포함 항목(${itemLabels})은 「미발행」으로 돌아갑니다.`;
-  if (!window.confirm(`${invoice.invoiceNo} (${invoice.seq}차) 발행을 취소할까요?${backNote}\n문서는 이력에 그대로 남습니다.`)) return;
+  if (!window.confirm(`${invoice.invoiceNo}를 무효 처리할까요?${backNote}\n문서는 목록에 「무효」로 그대로 남습니다.`)) return;
 
-  const reason = prompt('발행 취소 사유를 입력하십시오:');
+  const reason = prompt('무효 처리 사유를 입력하십시오:');
   if (reason === null) return;
-  if (!reason.trim()) { showToast('발행 취소 사유를 입력해 주세요.', 'warning'); return; }
+  if (!reason.trim()) { showToast('무효 처리 사유를 입력해 주세요.', 'warning'); return; }
 
   invoice.status = 'void';
   invoice.voidedAt = new Date().toISOString().slice(0, 10);
@@ -9245,21 +9360,23 @@ function cancelInvoice(studentId, invoiceId) {
 
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[인보이스 발행 취소] ${s.name} 학생 ${invoice.seq}차 인보이스(${invoice.invoiceNo}) 발행이 ${stayCurrentActor()}에 의해 취소되었습니다. 사유: ${reason.trim()}`,
+    text: `[인보이스 무효 처리] ${s.name} 학생 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 무효 처리되었습니다. 사유: ${reason.trim()}`,
     type: 'warning',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });
 
-  showToast(`${invoice.invoiceNo} 발행이 취소되었습니다.`, 'success');
+  showToast(`${invoice.invoiceNo}가 무효 처리되었습니다.`, 'success');
   reopenSettleTab(studentId);
 }
 
-function issueAmendmentInvoice(studentId) {
+function issueAmendmentInvoice(studentId, baseInvoiceId) {
   const s = MOCK_STUDENTS.find(std => std.id === studentId);
   if (!s) return;
-  const base = getAmendableInvoice(s);
+  const base = baseInvoiceId
+    ? (s.invoices || []).find(inv => inv.id === baseInvoiceId)
+    : getAmendableInvoice(s);
   if (!base) {
-    showToast('완납된 기준 인보이스가 있을 때만 수정 인보이스를 발행할 수 있습니다.', 'warning');
+    showToast('완납된 기준 인보이스가 있을 때만 금액을 조정할 수 있습니다.', 'warning');
     return;
   }
 
@@ -9279,12 +9396,20 @@ function issueAmendmentInvoice(studentId) {
 
   const seq = nextInvoiceSeq(s);
   const deltaTotal = deltaItems.reduce((sum, item) => sum + item.diff, 0);
+  const adjustReason = (document.getElementById('inv-amend-reason')?.value || '').trim();
   const invoice = {
+    adjustReason,
     id: `${studentId}-${Date.now()}`,
     seq,
     type: 'amendment',
     status: 'issued',
     invoiceNo: `TSA-${studentId}-${seq}A`,
+    // 조정 인보이스는 기준 인보이스와 같은 차수에 속한다. 차수를 물려주지 않으면
+    // 목록의 「차수」 열이 비고, 결제 상태도 어느 차수 항목으로 판정할지 알 수 없다.
+    enrollmentId: base.enrollmentId,
+    enrollmentNo: base.enrollmentNo,
+    enrollmentLabel: base.enrollmentLabel,
+    enrollmentCourse: base.enrollmentCourse,
     issueDate: new Date().toISOString().slice(0, 10),
     issuedBy: stayCurrentActor(),
     items: deltaItems.map(item => ({ key: item.key, label: item.label, amount: item.diff })),
@@ -9300,115 +9425,311 @@ function issueAmendmentInvoice(studentId) {
 
   MOCK_AGENCY_NOTIFICATIONS.unshift({
     id: 'N-' + Date.now(),
-    text: `[수정 인보이스 발행] ${s.name} 학생 ${seq}차 수정 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 차액 ${deltaTotal >= 0 ? '+' : ''}$${deltaTotal.toLocaleString()}`,
+    text: `[인보이스 금액 조정] ${s.name} 학생 조정 인보이스(${invoice.invoiceNo})가 ${stayCurrentActor()}에 의해 발행되었습니다. 차액 ${deltaTotal >= 0 ? '+' : ''}$${deltaTotal.toLocaleString()}${adjustReason ? ` · 사유: ${adjustReason}` : ''}`,
     type: 'info',
     date: new Date().toISOString().replace('T', ' ').substring(0, 16)
   });
 
-  showToast(`✅ ${invoice.invoiceNo} 수정 인보이스가 발행되었습니다 (차액 ${deltaTotal >= 0 ? '+' : ''}$${deltaTotal.toLocaleString()}).`, 'success');
-  reopenSettleTab(studentId);
+  showToast(`✅ ${invoice.invoiceNo} 조정 인보이스가 발행되었습니다 (차액 ${deltaTotal >= 0 ? '+' : ''}${deltaTotal.toLocaleString()}).`, 'success');
+  reopenSettleTab(studentId, invoice.id);
 }
 
+// 목록에서 한 건을 고르면 오른쪽 미리보기가 그 인보이스로 바뀐다.
+// 문서는 화면에 계속 떠 있어야 발행 직후 바로 인쇄할 수 있다.
 function viewInvoiceHistoryDocument(studentId, invoiceId) {
   APP._invoiceViewingId = invoiceId;
+  const list = document.getElementById('invoice-list-body');
+  if (list) {
+    list.querySelectorAll('tr[data-invoice-id]').forEach(row => {
+      const selected = row.dataset.invoiceId === String(invoiceId);
+      row.style.background = selected ? '#F2F2FE' : '';
+      row.style.boxShadow = selected ? 'inset 3px 0 0 #5E5CE6' : '';
+    });
+  }
+  renderInvoiceDocumentPreview(studentId);
+}
+
+// 우측 패널 — 선택한 인보이스 문서와 인쇄 버튼. 발행 직후에도 이 자리에 결과가 나온다.
+function renderInvoiceDocumentPanel(s) {
+  const invoice = getDisplayInvoice(s);
+  return `
+    <div style="border:1px solid #E9EDF4;border-radius:10px;background:#fff;position:sticky;top:12px">
+      <div style="padding:13px 15px;border-bottom:1px solid #E9EDF4">
+        <div style="font-size:13px;font-weight:800;color:#111827">인보이스 미리보기</div>
+        <div id="invoice-preview-sub" style="font-size:11px;color:#6B7280;margin-top:2px">${invoice
+          ? `${invoice.invoiceNo} · ${getInvoiceTypeLabel(invoice)} · ${invoice.issueDate}`
+          : '목록에서 인보이스를 선택하세요.'}</div>
+      </div>
+      ${invoice ? `
+      <div style="max-height:500px;overflow:auto;background:#FAFAFA">
+        <div id="agency-inline-doc-content" style="zoom:.58;padding:16px;min-height:620px;position:relative;overflow:hidden"></div>
+      </div>` : `
+      <div style="padding:36px 20px;text-align:center;background:#FAFAFA">
+        <div style="font-size:12px;font-weight:700;color:#6B7280">발행된 인보이스가 없습니다</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px">왼쪽 청구 항목에서 발행할 항목을 체크하고 인보이스를 발행하세요.</div>
+      </div>
+      <div id="agency-inline-doc-content" style="display:none"></div>`}
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 15px;border-top:1px solid #E9EDF4">
+        <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" ${invoice ? '' : 'disabled'} onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">크게 보기</button>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" ${invoice && invoice.status !== 'void' ? '' : 'disabled'} onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
+      </div>
+    </div>`;
+}
+
+// 패널 안의 문서만 다시 그린다(표는 그대로 둔다 — 선택 표시가 사라지면 어느 건을 보는지 알 수 없다).
+function renderInvoiceDocumentPreview(studentId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const invoice = getDisplayInvoice(s);
+  const sub = document.getElementById('invoice-preview-sub');
+  if (sub) {
+    sub.textContent = invoice
+      ? `${invoice.invoiceNo} · ${getInvoiceTypeLabel(invoice)} · ${invoice.issueDate}`
+      : '목록에서 인보이스를 선택하세요.';
+  }
   renderAgencyInlineDocument(studentId, 'invoice');
 }
 
-// 정산 탭 우측 "공식 인보이스" 패널 전체 — 발행 액션과 발행 이력을 조립한다.
-// 좌측 패널은 발행(첫 발행/추가 발행)과 완납 건의 수정(차액) 발행만 맡고,
-// 발행 취소·보기처럼 인보이스 한 건을 지목하는 동작은 아래 발행 이력 표에 있다.
-// 발행 액션은 "아직 안 나간 항목을 내보내는 것" 하나만 남긴다.
-// 발행 취소·보기처럼 인보이스 한 건을 지목하는 동작은 전부 아래 발행 이력 표가 맡는다.
-function renderInvoiceActionPanel(s) {
-  const summary = getInvoiceIssueSummary(s);
-  const enrollment = summary.enrollment;
-  const amendable = getAmendableInvoice(s, enrollment.id);
-  const type = getNextInvoiceType(s, enrollment.id);
-  // 미납이어도 청구는 나가야 한다(운영 확정). 대신 무엇이 남아 있는지 옆에 알려준다.
+// 정산 탭 맨 위 요약 — 세부 표를 읽기 전에 "얼마 청구했고 얼마가 남았나"가 먼저 보여야 한다.
+// 미수는 금액이 아니라 색으로도 구분한다. 이 한 칸이 이 화면에서 조치가 필요한 유일한 수치다.
+function renderSettleSummaryStrip(s, summary, breakdown) {
+  const paid = summary.rows
+    .filter(row => row.issued && row.paymentStatus === 'paid')
+    .reduce((total, row) => total + row.amount, 0);
+  const tile = (key, value, sub, isDue) => `
+    <div style="background:${isDue ? '#FDF6EC' : '#fff'};padding:13px 15px">
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#6B7280">${key}</div>
+      <div style="font-size:21px;font-weight:900;letter-spacing:-.03em;margin-top:3px;color:${isDue ? '#B45309' : '#111827'}">$${value.toLocaleString()}</div>
+      <div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${sub}</div>
+    </div>`;
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#E9EDF4;border:1px solid #E9EDF4;border-radius:10px;overflow:hidden;margin-bottom:16px">
+      ${tile('청구 합계', summary.studentTotal, summary.enrollments.map(item => `${getEnrollmentNo(s, item.enrollment)} $${item.gross.toLocaleString()}`).join(' · '), false)}
+      ${tile('발행 완료', summary.issuedTotal, `미발행 $${summary.unissuedTotal.toLocaleString()}`, false)}
+      ${tile('납부 완료', paid, `커미션 $${breakdown.commission.toLocaleString()} 별도`, false)}
+      ${tile('어학원 송금액', breakdown.net, '커미션 차감 후 송금 대상', breakdown.net > 0)}
+    </div>`;
+}
+
+// ===== 정산 탭 드로어 =====
+// 발행·금액 조정·문서 보기는 "지금 한 건을 처리하는 작업"이라 화면에 상시 펼쳐두지 않는다.
+// 상시 노출하면 첫 화면에서 무엇이 현황이고 무엇이 입력 폼인지 구분되지 않는다.
+function renderSettleDrawerShell() {
+  return `
+    <div class="settle-drawer-scrim" id="settle-drawer-scrim" onclick="closeSettleDrawer()"></div>
+    <aside class="settle-drawer" id="settle-drawer" role="dialog" aria-modal="true" aria-labelledby="settle-drawer-title">
+      <div class="settle-drawer-head">
+        <div>
+          <div class="settle-drawer-title" id="settle-drawer-title">—</div>
+          <div class="settle-drawer-sub" id="settle-drawer-sub"></div>
+        </div>
+        <button class="settle-drawer-x" type="button" onclick="closeSettleDrawer()" aria-label="닫기">&times;</button>
+      </div>
+      <div class="settle-drawer-body" id="settle-drawer-body"></div>
+      <div class="settle-drawer-foot" id="settle-drawer-foot"></div>
+    </aside>`;
+}
+
+function openSettleDrawer({ title, sub = '', body, foot }) {
+  const shell = document.getElementById('settle-drawer');
+  if (!shell) return;
+  document.getElementById('settle-drawer-title').textContent = title;
+  document.getElementById('settle-drawer-sub').textContent = sub;
+  document.getElementById('settle-drawer-body').innerHTML = body;
+  document.getElementById('settle-drawer-foot').innerHTML = foot;
+  shell.classList.add('is-open');
+  document.getElementById('settle-drawer-scrim').classList.add('is-open');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeSettleDrawer() {
+  document.getElementById('settle-drawer')?.classList.remove('is-open');
+  document.getElementById('settle-drawer-scrim')?.classList.remove('is-open');
+}
+
+// 청구 항목 아래 발행 바 — 체크한 항목이 한 장으로 나간다.
+// 발행 폼을 따로 띄우지 않는 이유: 무엇을 발행할지는 항목 목록을 보면서 고르는 일이라,
+// 목록을 가린 채 고르게 하면 금액과 상태를 다시 확인할 수 없다.
+function renderInvoiceIssueBar(s, summary) {
+  const type = getNextInvoiceType(s, summary.enrollment.id);
+  // 미납이어도 청구는 나가야 한다(운영 확정). 대신 무엇이 남아 있는지 알려준다.
   const unpaid = summary.rows
     .filter(row => row.issued && row.paymentStatus !== 'paid')
     .reduce((sum, row) => sum + row.amount, 0);
 
-  const issueHtml = summary.issuable.length ? `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px">
-        <div style="font-size:10.5px;color:#6B7280">선택한 항목이 <strong style="color:#4338CA">한 장</strong>으로 발행됩니다. 발행된 항목은 이 목록에서 잠깁니다.${unpaid ? `<br><span style="color:#B45309;font-weight:700">이 차수에 미납 $${unpaid.toLocaleString()}이 남아 있습니다 — 발행은 그대로 진행됩니다.</span>` : ''}</div>
-        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" style="white-space:nowrap" type="button" onclick="issueOrReissueInvoice(${s.id})">
-          <i data-lucide="file-plus-2"></i> ${type === 'issue' ? '인보이스 발행' : type === 'reissue' ? '인보이스 재발행' : '선택 항목 추가 발행'}
-        </button>
-      </div>` : `
+  if (!summary.issuable.length) {
+    return `
       <div style="margin-top:12px;padding:10px 12px;border:1px solid #A7F3D0;border-radius:9px;background:#ECFDF5;font-size:11.5px;color:#065F46">
-        ${enrollment.sessionNumber}차 수강의 청구 항목이 모두 발행됐습니다. 항목을 바꾸려면 아래 발행 이력에서 해당 인보이스의 <strong>발행 취소</strong>를 누르세요.
+        이 수강 등록의 청구 항목이 모두 발행됐습니다. 항목을 되돌리려면 아래 인보이스 목록에서 해당 건을 <strong>무효 처리</strong>하세요.
+        완납된 건의 금액을 바꾸려면 <strong>금액 조정</strong>으로 차액만 발행합니다.
       </div>`;
+  }
 
-  if (!amendable) return issueHtml;
-
-  return `${issueHtml}
-    <div style="border:1px solid #C7D2FE;border-radius:10px;padding:14px;background:#F8F9FF;margin-top:16px">
-      <div style="font-weight:700;font-size:12.5px;color:#3730A3;margin-bottom:4px">수정 인보이스 발행 (결제 완료 · ${amendable.seq}차 기준 차액 청구/환불)</div>
-      <div style="font-size:10.5px;color:#6B7280;margin-bottom:10px">금액을 수정한 항목만 차액으로 새로 발행됩니다. 완납된 원본 인보이스(${amendable.invoiceNo})는 그대로 보존됩니다.</div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-        ${amendable.items.map(item => `
-          <div style="display:grid;grid-template-columns:1fr 90px 100px;gap:8px;align-items:center;padding:8px 10px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:12px">
-            <span style="font-weight:700;color:#374151">${item.label}</span>
-            <span style="text-align:right;color:#9CA3AF;font-size:10.5px">기존 $${item.amount.toLocaleString()}</span>
-            <input type="number" id="inv-amend-${item.key}" class="tsa-input" style="font-size:11.5px;padding:5px 8px;text-align:right" value="${item.amount}"/>
-          </div>
-        `).join('')}
+  return `
+    <div style="margin-top:12px;border-top:1px dashed #CDD3E4;padding-top:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11.5px;font-weight:700;color:#4A4F5E">이번 발행 금액</div>
+        <div id="inv-issue-note" style="font-size:10.5px;color:#6B7280;margin-top:1px">${summary.issuable.length}개 항목이 한 장으로 발행됩니다.</div>
+        ${unpaid ? `<div style="font-size:10.5px;color:#B45309;font-weight:700;margin-top:2px">이 등록에 미납 $${unpaid.toLocaleString()}이 남아 있습니다 — 발행은 그대로 진행됩니다.</div>` : ''}
       </div>
-      <div style="display:flex;justify-content:flex-end">
-        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="issueAmendmentInvoice(${s.id})">
-          <i data-lucide="file-diff"></i> 수정 인보이스 발행(차액)
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="inv-issue-total" style="font-size:19px;font-weight:900;letter-spacing:-.02em;color:#4338CA">$${summary.unissuedTotal.toLocaleString()}</span>
+        <button class="tsa-btn tsa-btn-primary tsa-btn-sm" id="inv-issue-btn" type="button" style="white-space:nowrap" onclick="issueOrReissueInvoice(${s.id})">
+          <i data-lucide="file-plus-2"></i> ${type === 'reissue' ? '인보이스 재발행' : '인보이스 발행'}
         </button>
       </div>
     </div>`;
 }
 
-// 우측 패널: 발행된 인보이스 문서 미리보기 전용 (발행 시 이 영역에 결과가 표시된다)
-function renderInvoiceDocumentPanel(s) {
-  return `
-    <div style="font-size:13px;font-weight:800;color:#111827;margin-bottom:10px">공식 인보이스 (Invoice)</div>
-    <div style="height:560px;overflow:auto;border:1px solid #E9EDF4;border-radius:10px;background:#FAFAFA">
-      <div id="agency-inline-doc-content" style="zoom:.68;padding:20px;min-height:700px;position:relative;overflow:hidden"></div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="openAgencyDocumentsInline(${s.id}, 'invoice')">크게 보기</button>
-      <button class="tsa-btn tsa-btn-primary tsa-btn-sm" type="button" onclick="printAgencyInlineDocument()"><i data-lucide="printer"></i> 인쇄하기 (Print)</button>
-    </div>
-  `;
+// 체크를 바꾸면 발행 금액을 바로 다시 센다 — 버튼을 누르기 전에 얼마가 나가는지 알아야 한다.
+function recalcInvoiceIssueTotal() {
+  const checked = [...document.querySelectorAll('input[id^="inv-check-"]:checked')];
+  const total = checked.reduce((sum, input) => sum + Number(input.dataset.amount || 0), 0);
+  const totalEl = document.getElementById('inv-issue-total');
+  const noteEl = document.getElementById('inv-issue-note');
+  const btnEl = document.getElementById('inv-issue-btn');
+  if (totalEl) totalEl.textContent = '$' + total.toLocaleString();
+  if (noteEl) {
+    noteEl.textContent = checked.length
+      ? `${checked.length}개 항목이 한 장으로 발행됩니다.`
+      : '발행할 항목을 하나 이상 체크하세요.';
+  }
+  if (btnEl) btnEl.disabled = !checked.length;
 }
 
-// 하단 전체 폭 패널: 발행 이력 (1차/2차 등 차수, 종류, 발행일, 상태를 한눈에 확인)
+// 드로어 2 — 금액 조정. 완납된 인보이스는 고칠 수 없으므로 차액만 새로 발행한다.
+function openInvoiceAdjustDrawer(studentId, invoiceId) {
+  const s = MOCK_STUDENTS.find(std => std.id === studentId);
+  if (!s) return;
+  const base = (s.invoices || []).find(inv => inv.id === invoiceId);
+  if (!base) return;
+
+  const rowsHtml = base.items.map(item => `
+    <div class="settle-adjust-row">
+      <span class="settle-adjust-label">${item.label}</span>
+      <span class="settle-adjust-base">$${Number(item.amount).toLocaleString()}</span>
+      <input type="number" id="inv-amend-${item.key}" class="tsa-input settle-adjust-input"
+             value="${item.amount}" data-base="${item.amount}"
+             oninput="recalcInvoiceAdjustTotal()" aria-label="${item.label} 변경 후 금액"/>
+      <span class="settle-adjust-diff" id="inv-amend-diff-${item.key}">$0</span>
+    </div>`).join('');
+
+  openSettleDrawer({
+    title: `금액 조정 — ${base.invoiceNo}`,
+    sub: '완납된 원본은 그대로 두고 차액만 새 인보이스로 발행합니다.',
+    body: `
+      <div class="settle-drawer-hint">
+        <strong>쓰는 때</strong> · 코스 업그레이드 차액 · 기숙사 방 변경 · 요금 정정<br>
+        원본 <strong>${base.invoiceNo}</strong>는 취소되지 않고 그대로 보존됩니다.
+        차액이 <strong>+</strong>면 추가 청구서, <strong>−</strong>면 환불 전표가 나갑니다.
+      </div>
+      <div>
+        <div class="settle-adjust-head"><span>항목</span><span>완납 금액</span><span>변경 후 금액</span><span>차액</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px">${rowsHtml}</div>
+      </div>
+      <div class="settle-total-row">
+        <span>
+          <span class="settle-total-key">차액 합계</span>
+          <span class="settle-total-sub" id="inv-amend-direction">금액을 바꾸면 계산됩니다</span>
+        </span>
+        <span class="settle-total-value" id="inv-amend-total">$0</span>
+      </div>
+      <label class="settle-field">
+        조정 사유
+        <input type="text" id="inv-amend-reason" class="tsa-input" placeholder="예: Junior ESL → Power ESL 업그레이드"/>
+      </label>`,
+    foot: `
+      <button class="tsa-btn tsa-btn-outline tsa-btn-sm" type="button" onclick="closeSettleDrawer()">닫기</button>
+      <button class="tsa-btn tsa-btn-primary tsa-btn-sm" id="inv-amend-submit" type="button" disabled
+              onclick="issueAmendmentInvoice(${s.id}, '${base.id}')">금액을 바꾸면 발행할 수 있습니다</button>`,
+  });
+  recalcInvoiceAdjustTotal();
+}
+
+// 차액을 입력 즉시 보여준다 — 발행 버튼을 누르기 전에 추가 청구인지 환불인지 알 수 있어야 한다.
+function recalcInvoiceAdjustTotal() {
+  const inputs = [...document.querySelectorAll('#settle-drawer-body .settle-adjust-input')];
+  let total = 0;
+  inputs.forEach(input => {
+    const diff = (parseFloat(input.value) || 0) - Number(input.dataset.base || 0);
+    total += diff;
+    const cell = document.getElementById(input.id.replace('inv-amend-', 'inv-amend-diff-'));
+    if (!cell) return;
+    cell.textContent = (diff > 0 ? '+' : diff < 0 ? '-' : '') + '$' + Math.abs(diff).toLocaleString();
+    cell.style.color = diff > 0 ? '#B45309' : diff < 0 ? '#0B6E99' : '#9CA3AF';
+  });
+
+  const totalEl = document.getElementById('inv-amend-total');
+  const directionEl = document.getElementById('inv-amend-direction');
+  const submitEl = document.getElementById('inv-amend-submit');
+  if (!totalEl || !directionEl || !submitEl) return;
+
+  totalEl.textContent = (total > 0 ? '+' : total < 0 ? '-' : '') + '$' + Math.abs(total).toLocaleString();
+  totalEl.style.color = total > 0 ? '#B45309' : total < 0 ? '#0B6E99' : '#9CA3AF';
+  submitEl.disabled = Math.abs(total) < 0.001;
+
+  if (total > 0.001) {
+    directionEl.textContent = '학생에게 추가 청구됩니다';
+    submitEl.textContent = `+$${Math.abs(total).toLocaleString()} 추가 청구 발행`;
+  } else if (total < -0.001) {
+    directionEl.textContent = '학생에게 환불됩니다';
+    submitEl.textContent = `$${Math.abs(total).toLocaleString()} 환불 발행`;
+  } else {
+    directionEl.textContent = '금액을 바꾸면 계산됩니다';
+    submitEl.textContent = '금액을 바꾸면 발행할 수 있습니다';
+  }
+}
+
+// 정산 탭의 중심 화면 — 발행된 인보이스 목록.
+// 보기·금액 조정·무효 처리처럼 한 건을 지목하는 동작은 모두 그 건의 행에 있다.
 function renderInvoiceHistoryPanel(s) {
   const history = (s.invoices || []).slice().reverse();
 
   const historyHtml = history.length ? `
     <table class="tsa-table" style="font-size:11px;margin-top:2px">
-      <thead><tr><th>No</th><th>차수</th><th>종류</th><th>포함 항목</th><th>발행일</th><th>발행자</th><th style="text-align:right">금액</th><th style="text-align:center">상태</th><th style="text-align:center">결제 상태</th><th style="text-align:center">동작</th></tr></thead>
-      <tbody>
-        ${history.map(inv => `
-          <tr${inv.status === 'void' ? ' style="color:#9CA3AF"' : ''}>
-            <td>${inv.seq}차</td>
-            <td>${inv.enrollmentLabel ? `${escapeStudentPopupHtml(inv.enrollmentLabel)}${inv.enrollmentCourse ? `<div style="font-size:9.5px;color:#9CA3AF">${escapeStudentPopupHtml(inv.enrollmentCourse)}</div>` : ''}` : '-'}</td>
-            <td>${INVOICE_TYPE_LABEL[inv.type] || inv.type}</td>
-            <td>${(inv.items || []).map(item => item.label).join(' · ') || '-'}</td>
-            <td>${inv.issueDate}</td>
-            <td>${inv.issuedBy || '-'}</td>
-            <td style="text-align:right;font-weight:700">${inv.type === 'amendment' ? `${inv.deltaTotal >= 0 ? '+' : ''}$${Number(inv.deltaTotal).toLocaleString()}` : `$${Number(inv.gross).toLocaleString()}`}</td>
-            <td style="text-align:center">${inv.status === 'void' ? `<span class="tsa-badge tsa-badge-gray" title="취소 사유: ${inv.voidReason || '-'} (${inv.voidedAt || '-'} · ${inv.voidedBy || '-'})">취소됨</span>` : '<span class="tsa-badge tsa-badge-success">발행중</span>'}</td>
-            <td style="text-align:center">${renderInvoicePaymentStatusBadge(getInvoicePaymentStatus(s, inv))}</td>
-            <td style="text-align:center;white-space:nowrap">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-xs" type="button" onclick="viewInvoiceHistoryDocument(${s.id}, '${inv.id}')">보기</button>
-              ${inv.status === 'issued' ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#DC2626;border-color:#FCA5A5;margin-left:4px" type="button" onclick="cancelInvoice(${s.id}, '${inv.id}')">발행 취소</button>` : ''}
+      <thead><tr><th style="white-space:nowrap">인보이스 번호</th><th>포함 항목</th><th style="white-space:nowrap">수강 번호</th><th style="white-space:nowrap">종류</th><th style="white-space:nowrap">발행일</th><th style="white-space:nowrap">발행자</th><th style="text-align:right">금액</th><th style="text-align:center;white-space:nowrap">상태</th><th style="text-align:center;white-space:nowrap">결제</th><th style="text-align:center">액션</th></tr></thead>
+      <tbody id="invoice-list-body">
+        ${history.map(inv => {
+          const isVoid = inv.status === 'void';
+          const items = (inv.items || []).map(item => item.label).join(' · ') || '-';
+          // 금액 조정은 완납된 기준 인보이스에만 쓴다 — 미납·미발행 건은 그냥 고치거나 무효 처리하면 된다.
+          const canAdjust = !isVoid && inv.type !== 'amendment' && isBaseInvoiceFullyPaid(s, inv);
+          const selected = String(APP._invoiceViewingId || '') === String(inv.id);
+          const enrollmentNo = inv.enrollmentNo || (inv.enrollmentLabel ? escapeStudentPopupHtml(inv.enrollmentLabel) : '-');
+          return `
+          <tr data-invoice-id="${inv.id}" style="cursor:pointer${isVoid ? ';color:#9CA3AF' : ''}${selected ? ';background:#F2F2FE;box-shadow:inset 3px 0 0 #5E5CE6' : ''}" onclick="viewInvoiceHistoryDocument(${s.id}, '${inv.id}')">
+            <td style="white-space:nowrap;font-weight:800;letter-spacing:-.02em;${isVoid ? 'text-decoration:line-through' : ''}">${inv.invoiceNo}</td>
+            <td style="font-size:10px;color:#6B7280;max-width:240px">${items}</td>
+            <td style="white-space:nowrap">
+              <span style="font-family:ui-monospace,Consolas,monospace;font-size:10.5px;font-weight:700;color:#4338CA;background:#F2F2FE;border:1px solid #CDD3E4;border-radius:5px;padding:1px 5px">${enrollmentNo}</span>
+              ${inv.enrollmentCourse ? `<div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">${escapeStudentPopupHtml(inv.enrollmentCourse)}</div>` : ''}
             </td>
-          </tr>
-        `).join('')}
+            <td style="white-space:nowrap">${getInvoiceTypeLabel(inv)}${inv.adjustReason ? `<div style="font-size:9.5px;color:#9CA3AF">${escapeStudentPopupHtml(inv.adjustReason)}</div>` : ''}</td>
+            <td style="white-space:nowrap">${inv.issueDate}</td>
+            <td style="white-space:nowrap">${inv.issuedBy || '-'}</td>
+            <td style="text-align:right;font-weight:700${isVoid ? ';text-decoration:line-through' : ''}">${inv.type === 'amendment' ? `${inv.deltaTotal >= 0 ? '+' : ''}$${Number(inv.deltaTotal).toLocaleString()}` : `$${Number(inv.gross).toLocaleString()}`}</td>
+            <td style="text-align:center;white-space:nowrap">${isVoid ? `<span class="tsa-badge tsa-badge-gray" title="무효 사유: ${inv.voidReason || '-'} (${inv.voidedAt || '-'} · ${inv.voidedBy || '-'})">무효</span>` : '<span class="tsa-badge tsa-badge-success">발행됨</span>'}</td>
+            <td style="text-align:center;white-space:nowrap">${renderInvoicePaymentStatusBadge(getInvoicePaymentStatus(s, inv))}</td>
+            <td style="text-align:center;white-space:nowrap" onclick="event.stopPropagation()">
+              ${canAdjust ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" type="button" onclick="openInvoiceAdjustDrawer(${s.id}, '${inv.id}')">금액 조정</button>` : ''}
+              ${!isVoid ? `<button class="tsa-btn tsa-btn-outline tsa-btn-xs" style="color:#DC2626;border-color:#FCA5A5;margin-left:4px" type="button" onclick="cancelInvoice(${s.id}, '${inv.id}')">무효 처리</button>` : ''}
+              ${isVoid ? '<span style="font-size:10px;color:#C4C9D4">-</span>' : ''}
+            </td>
+          </tr>`;
+        }).join('')}
       </tbody>
-    </table>` : `<div style="text-align:center;padding:14px;color:#9CA3AF;font-size:11.5px">발행된 인보이스가 없습니다.</div>`;
+    </table>` : `<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:11.5px">발행된 인보이스가 없습니다. 위 청구 항목에서 발행할 항목을 체크하고 <strong>인보이스 발행</strong>을 누르세요.</div>`;
 
   return `
-    <div style="border:1px solid #E9EDF4;border-radius:10px;padding:16px;background:#FAFAFA">
-      <div style="font-size:12.5px;font-weight:700;color:#1E3A8A;margin-bottom:10px">🧾 인보이스 발행 이력</div>
-      ${historyHtml}
+    <div style="border:1px solid #E9EDF4;border-radius:10px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid #E9EDF4">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#111827">인보이스</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:2px">발행된 청구서 전체. 행을 누르면 오른쪽 미리보기가 그 인보이스로 바뀝니다.</div>
+        </div>
+      </div>
+      <div style="padding:10px 16px 16px;overflow-x:auto">${historyHtml}</div>
     </div>
   `;
 }
@@ -9488,7 +9809,7 @@ function renderInvoiceDocumentSnapshot(invoice, std) {
     <div style="max-width:920px;margin:0 auto;background:#fff;border:1px solid #DDE3EC;color:#1F2937;font-family:Arial, sans-serif">
       <div style="padding:24px 28px;background:${isAmendment ? '#7C2D12' : '#172554'};color:#fff;display:flex;justify-content:space-between;align-items:start">
         <div><div style="font-size:22px;font-weight:900;letter-spacing:1px">TALKSTATION ACADEMY</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">Cebu Campus · ${isAmendment ? 'Amendment Invoice (차액 청구/환불)' : 'Official Student Invoice'}</div></div>
-        <div style="text-align:right"><div style="font-size:24px;font-weight:300;letter-spacing:2px">${isAmendment ? 'AMENDMENT' : 'INVOICE'}</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">${invoice.invoiceNo} · ${invoice.seq}차 발행 (${typeLabelKo})</div></div>
+        <div style="text-align:right"><div style="font-size:24px;font-weight:300;letter-spacing:2px">${isAmendment ? 'AMENDMENT' : 'INVOICE'}</div><div style="font-size:11px;color:#BFDBFE;margin-top:5px">${invoice.invoiceNo} · ${typeLabelKo}</div></div>
       </div>
       <div style="padding:24px 28px">
         <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:20px">
@@ -9496,6 +9817,7 @@ function renderInvoiceDocumentSnapshot(invoice, std) {
           <div style="font-size:11.5px;line-height:1.8">
             <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Issue Date</span><strong>${invoice.issueDate}</strong></div>
             <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Invoice No</span><strong>${invoice.invoiceNo}</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Enrollment No</span><strong>${invoice.enrollmentNo || '-'}</strong></div>
             <div style="display:flex;justify-content:space-between"><span style="color:#64748B">Payment Route</span><strong>${routeLabel}</strong></div>
             ${statusNote}
           </div>
@@ -9504,7 +9826,7 @@ function renderInvoiceDocumentSnapshot(invoice, std) {
         <div style="padding:13px 15px;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:8px;font-size:10.5px;line-height:1.7;color:#475569">
           <strong>IMPORTANT TERMS</strong><br>
           1. SSP, 비자 연장, ACR I-Card 등 정부 관련 비용은 현지 통화로 별도 청구될 수 있으며 고지 없이 변경될 수 있습니다.<br>
-          2. 본 문서는 ${invoice.seq}차 발행 인보이스이며, 이전 차수 인보이스는 발행 이력에서 확인할 수 있습니다.<br>
+          2. 본 문서는 수강 번호 ${invoice.enrollmentNo || '-'}에 대해 발행된 인보이스이며, 이전에 발행한 인보이스는 인보이스 목록에서 확인할 수 있습니다.<br>
           3. 취소 및 환불은 어학원 공식 환불 정책과 과정별 조건을 따릅니다.
         </div>
         <div style="display:flex;justify-content:space-between;align-items:end;margin-top:28px"><div style="font-size:10.5px;line-height:1.6;color:#64748B">TalkStation Academy · Cebu Campus<br>Official Student Billing Document</div><div style="width:190px;text-align:center;font-size:10.5px"><div style="height:30px;border-bottom:1px solid #334155;margin-bottom:6px"></div><strong>Authorized Signature / Seal</strong></div></div>

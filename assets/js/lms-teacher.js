@@ -112,6 +112,7 @@ function saveTeacherDetailInline() {
   const rating    = parseFloat(getVal('td-rating', t.rating)) || t.rating;
   const workStart = getVal('td-work-start', t.workHours ? t.workHours.start : '08:00');
   const workEnd   = getVal('td-work-end',   t.workHours ? t.workHours.end   : '17:00');
+  const lunchTimetableId = getVal('td-lunch-group', t.lunchTimetableId || '');
   const classTypes = [...document.querySelectorAll('input[name="td-classtype"]:checked')].map(cb => cb.value);
   const dailyMaxLessons = Math.max(1, parseInt(getVal('td-daily-max', t.dailyMaxLessons || 8), 10) || 8);
   const dailyTypeLimits = {
@@ -135,6 +136,9 @@ function saveTeacherDetailInline() {
   t.status    = status;
   t.rating    = rating;
   t.workHours = { start: workStart, end: workEnd };
+  // 빈 값은 「미설정」이다. 값을 지웠을 때 예전 조가 남아 있으면 안 되므로 지운다.
+  if (lunchTimetableId) t.lunchTimetableId = lunchTimetableId;
+  else delete t.lunchTimetableId;
   if (classTypes.length > 0) {
     t.classTypes = classTypes;
     t.classTypesPolicyCustomized = true;
@@ -835,6 +839,7 @@ function switchTeacherTab(tab, el) {
             <div class="tsa-form-group"><label class="tsa-label">근무 종료 시간</label>
               <input id="td-work-end" type="time" class="tsa-input" value="${t.workHours ? t.workHours.end : '17:00'}"/>
             </div>
+            ${renderTeacherLunchGroupField(t)}
           </div>
           <div>
             <label class="tsa-label" style="margin-bottom:8px;display:block">수업 가능 유형</label>
@@ -1102,14 +1107,30 @@ function shiftTeacherWeek(teacherId, delta) {
   switchTeacherTab('weekly', activeTab);
 }
 
+// 가용성 배열의 자리는 교시 번호가 아니라 「그 날의 몇 번째 교시인가」다. 0교시를 두는 시간표가
+// 생기면서 번호를 그대로 색인으로 쓰면 0교시가 -1번 자리를 찾아 늘 차단으로 보인다.
+// 0교시가 없는 시간표에서는 1교시가 0번 자리라 예전과 답이 같다.
+function teacherAvailIndex(p) {
+  const numbers = typeof getScaPeriodNumbers === 'function' ? getScaPeriodNumbers() : [];
+  const index = numbers.indexOf(Number(p));
+  return index >= 0 ? index : Number(p) - 1;
+}
+
+// 가용성 표가 훑을 교시 번호. 0교시가 생기면 줄도 하나 늘어난다.
+function teacherAvailPeriodNumbers() {
+  const numbers = typeof getScaPeriodNumbers === 'function' ? getScaPeriodNumbers() : [];
+  return numbers.length ? numbers : Array.from({ length: teacherAvailPeriodCount() }, (_, i) => i + 1);
+}
+
 function getAvailState(t, d, p) {
   // 3단계: 'open'(가용) / 'gray'(화상수업) / 'black'(블랙타임)
-  if (t.availState && t.availState[d] && t.availState[d][p-1] !== undefined) {
-    return t.availState[d][p-1];
+  const slot = teacherAvailIndex(p);
+  if (t.availState && t.availState[d] && t.availState[d][slot] !== undefined) {
+    return t.availState[d][slot];
   }
   // 기존 boolean availability에서 마이그레이션
   if (t.availability) {
-    const val = t.availability[d] ? t.availability[d][p-1] : (Array.isArray(t.availability) ? t.availability[p-1] : true);
+    const val = t.availability[d] ? t.availability[d][slot] : (Array.isArray(t.availability) ? t.availability[slot] : true);
     return val ? 'open' : 'black';
   }
   return 'open';
@@ -1117,7 +1138,8 @@ function getAvailState(t, d, p) {
 
 // 강사 가용성 그리드의 교시 수는 기본 시간표를 그대로 따른다 —
 // 예전엔 8교시로 고정돼 있어서 9교시 이후 시간대의 가용성을 아예 설정할 수 없었다.
-// 강사는 조를 갖지 않고 두 조를 오가므로 여기서는 기본 시간표의 교시 수만 쓴다.
+// 두 조의 교시 수는 같으므로 개수는 어느 시간표에서 가져와도 답이 같다. 다만 교시가
+// 몇 시인지는 조마다 다르니, 행 머리 시각은 그 강사의 점심 조를 따로 본다.
 function teacherAvailPeriodCount() {
   const periods = typeof getBellPeriods === 'function' ? getBellPeriods() : null;
   return (periods && periods.length) || 12;
@@ -1127,18 +1149,20 @@ function cycleAvailState(teacherId, d, p) {
   const t = MOCK_TEACHERS.find(x => x.id === teacherId);
   if (!t) return;
   const periodCount = teacherAvailPeriodCount();
+  const periodNumbers = teacherAvailPeriodNumbers();
   if (!t.availState) {
     t.availState = {};
     ['월','화','수','목','금','토','일'].forEach(day => {
-      t.availState[day] = Array.from({ length: periodCount }, (_, i) => getAvailState(t, day, i + 1));
+      t.availState[day] = periodNumbers.map(period => getAvailState(t, day, period));
     });
   }
   if (!t.availState[d] || t.availState[d].length < periodCount) {
     t.availState[d] = Array.from({ length: periodCount }, (_, i) => (t.availState[d] && t.availState[d][i]) || 'open');
   }
-  const cur = t.availState[d][p-1];
+  const slot = teacherAvailIndex(p);
+  const cur = t.availState[d][slot];
   const next = cur === 'open' ? 'gray' : cur === 'gray' ? 'black' : 'open';
-  t.availState[d][p-1] = next;
+  t.availState[d][slot] = next;
 
   const cell = document.getElementById(`avail-${d}-p-${p}`);
   if (cell) {
@@ -1155,6 +1179,31 @@ function cycleAvailState(teacherId, d, p) {
   }
 }
 
+// 점심 조 고르기. 시각은 그 시간표의 점심 구간을 그대로 쓰므로 여기서 시각을 적어두지 않는다.
+// 기본값은 미설정 — 전 강사에게 한쪽 조를 일괄로 깔면 반대 조의 갈라지는 교시가 통째로 막힌다.
+function renderTeacherLunchGroupField(teacher) {
+  const timetables = typeof getTimetables === 'function' ? getTimetables().filter(item => item.active !== false) : [];
+  if (timetables.length < 2) return '';
+  const current = teacher.lunchTimetableId || '';
+  const options = timetables.map(item => {
+    const row = typeof getTimetableLunchRow === 'function' ? getTimetableLunchRow(item) : null;
+    const when = row ? ` (${row.start}~${row.end})` : '';
+    return `<option value="${item.id}" ${current === item.id ? 'selected' : ''}>${item.code || item.name}조${when}</option>`;
+  }).join('');
+  const counts = typeof getTeacherLunchGroupCounts === 'function' ? getTeacherLunchGroupCounts() : null;
+  const spread = counts
+    ? timetables.map(item => `${item.code || item.name}조 ${counts[item.id] || 0}명`).concat([`미설정 ${counts.unset}명`]).join(' · ')
+    : '';
+  return `
+    <div class="tsa-form-group"><label class="tsa-label">점심 조</label>
+      <select id="td-lunch-group" class="tsa-input">
+        <option value="" ${current ? '' : 'selected'}>미설정 — 점심 제약 없음</option>
+        ${options}
+      </select>
+      <div style="font-size:10px;color:#9CA3AF;margin-top:4px">그 조의 점심 시각에는 수업을 받지 않아. ${spread}</div>
+    </div>`;
+}
+
 function renderTeacherAvailabilityTab() {
   const t = APP.currentTeacher;
   const container = document.getElementById('teacher-modal-tab-content');
@@ -1166,8 +1215,25 @@ function renderTeacherAvailabilityTab() {
     gray:  { bg:'#FEF3C7', color:'#B45309', border:'#FDE68A', text:'화상' },
     black: { bg:'#F3F4F6', color:'#6B7280', border:'#D1D5DB', text:'차단' }
   };
-  const bellPeriods = typeof getBellPeriods === 'function' ? getBellPeriods() : [];
+  // 행 머리 시각은 그 강사의 점심 조를 따른다. 점심 조가 B인 강사에게 A조 시각을 적으면
+  // 그 강사가 실제로 만나는 학생의 시각과 55분 어긋난다.
+  // 점심 조가 없는 강사는 두 조를 다 받으므로 한 시각으로 못 적는다 — 조마다 시각을 병기한다.
+  const lunchTimetable = typeof getTeacherLunchTimetable === 'function' ? getTeacherLunchTimetable(t) : null;
+  const bellPeriods = typeof getBellPeriods === 'function' ? getBellPeriods(lunchTimetable || undefined) : [];
   const periodList = bellPeriods.length ? bellPeriods : Array.from({ length: teacherAvailPeriodCount() }, (_, i) => ({ period: i + 1, start: '', end: '' }));
+  const splitPeriods = typeof getSplitPeriods === 'function' ? getSplitPeriods() : [];
+  // 점심 조가 정해진 강사는 그 조의 점심 자리를 회색 줄로 보여준다. 비어 있는 칸과 뜻이 다르다.
+  const lunchRow = lunchTimetable && typeof getTimetableLunchRow === 'function' ? getTimetableLunchRow(lunchTimetable) : null;
+  const lunchAfter = lunchTimetable ? Number(lunchTimetable.lunchAfterPeriod) || 0 : 0;
+  const periodTimeLabel = (period, start, end) => {
+    if (!lunchTimetable && splitPeriods.includes(Number(period)) && typeof describeSplitPeriod === 'function') {
+      return describeSplitPeriod(period);
+    }
+    return start ? `${start}~${end}` : '';
+  };
+  const lunchRowHtml = lunchRow
+    ? `<tr><td style="font-weight:700;text-align:left;white-space:nowrap;background:#F9FAFB;color:#6B7280">점심<div style="font-size:9px;font-weight:500;color:#9CA3AF">${lunchRow.start}~${lunchRow.end}</div></td>${days.map(() => '<td style="background:#F9FAFB"></td>').join('')}</tr>`
+    : '';
 
   container.innerHTML = `
     <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
@@ -1188,8 +1254,9 @@ function renderTeacherAvailabilityTab() {
         </thead>
         <tbody>
           ${periodList.map(({ period: p, start, end }) => `
+            ${lunchAfter && Number(p) === lunchAfter + 1 ? lunchRowHtml : ''}
             <tr>
-              <td style="font-weight:700;text-align:left;white-space:nowrap">${p}교시${start ? `<div style="font-size:9px;font-weight:500;color:#9CA3AF">${start}~${end}</div>` : ''}</td>
+              <td style="font-weight:700;text-align:left;white-space:nowrap">${p}교시${periodTimeLabel(p, start, end) ? `<div style="font-size:9px;font-weight:500;color:#9CA3AF">${periodTimeLabel(p, start, end)}</div>` : ''}</td>
               ${days.map(d => {
                 const state = getAvailState(t, d, p);
                 const s = stateStyles[state];
@@ -1218,7 +1285,7 @@ function saveTeacherAvailability(id) {
     // Conflict Detection
     let conflicts = [];
     days.forEach(d => {
-      for (let p = 1; p <= periodCount; p++) {
+      for (const p of teacherAvailPeriodNumbers()) {
         const isBlocked = getAvailState(t, d, p) === 'black';
         if (isBlocked) {
           const tTimetable = MOCK_TIMETABLE.find(time => time.teacher === t.nick);
@@ -1256,8 +1323,8 @@ function saveTeacherAvailability(id) {
       if (!t.availability[d] || t.availability[d].length < periodCount) {
         t.availability[d] = Array.from({ length: periodCount }, (_, i) => (t.availability[d] && t.availability[d][i]) ?? true);
       }
-      for (let p = 1; p <= periodCount; p++) {
-        t.availability[d][p-1] = getAvailState(t, d, p) !== 'black';
+      for (const p of teacherAvailPeriodNumbers()) {
+        t.availability[d][teacherAvailIndex(p)] = getAvailState(t, d, p) !== 'black';
       }
     });
     showToast(`✓ [가용성 연동 완료] ${t.nick} 강사의 요일별 가용성이 업데이트되어 시간표 셀이 동기화되었습니다.`, 'success');

@@ -9,3 +9,156 @@ body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, div, a, 
 [class^="ki-"], [class*=" ki-"], .ki-filled, .ki-outline, .ki-duotone, i {
     font-family: 'KeenIcons' !important;
 }
+
+/* ===== 정산 탭 드로어 (인보이스 발행 · 금액 조정 · 문서 보기) =====
+   발행 폼과 조정 폼을 화면에 상시 펼쳐두지 않고 한 번에 하나씩 연다. */
+.settle-drawer-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 14, 20, .42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 1200;
+}
+.settle-drawer-scrim.is-open { opacity: 1; pointer-events: auto; }
+
+.settle-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(560px, 100%);
+    background: #fff;
+    border-left: 1px solid #E9EDF4;
+    box-shadow: -24px 0 60px -20px rgba(20, 22, 31, .35);
+    transform: translateX(100%);
+    transition: transform .24s cubic-bezier(.32, .72, 0, 1);
+    z-index: 1201;
+    display: flex;
+    flex-direction: column;
+}
+.settle-drawer.is-open { transform: translateX(0); }
+@media (prefers-reduced-motion: reduce) {
+    .settle-drawer, .settle-drawer-scrim { transition: none; }
+}
+
+.settle-drawer-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid #E9EDF4;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+.settle-drawer-title { font-size: 15px; font-weight: 900; letter-spacing: -.02em; color: #111827; }
+.settle-drawer-sub { font-size: 11.5px; color: #6B7280; margin-top: 3px; }
+.settle-drawer-x {
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+    line-height: 1;
+    color: #9CA3AF;
+    padding: 2px 6px;
+    cursor: pointer;
+}
+.settle-drawer-x:hover { color: #111827; }
+
+.settle-drawer-body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.settle-drawer-foot {
+    padding: 14px 20px;
+    border-top: 1px solid #E9EDF4;
+    background: #FAFBFD;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.settle-drawer-hint {
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: #4A4F5E;
+    background: #F2F2FE;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.settle-drawer-hint strong { color: #4338CA; }
+
+/* 발행 드로어 체크리스트 */
+.settle-chk {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #FAFBFD;
+    cursor: pointer;
+}
+.settle-chk input { width: 16px; height: 16px; accent-color: #5E5CE6; }
+.settle-chk-main { flex: 1; }
+.settle-chk-title { display: block; font-size: 12.5px; font-weight: 700; color: #374151; }
+.settle-chk-sub { display: block; font-size: 10.5px; color: #9CA3AF; margin-top: 1px; }
+.settle-chk-amount { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; color: #111827; }
+
+/* 금액 조정 드로어 */
+.settle-adjust-head,
+.settle-adjust-row {
+    display: grid;
+    grid-template-columns: 1fr 86px 106px 90px;
+    gap: 10px;
+    align-items: center;
+}
+.settle-adjust-head {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #9CA3AF;
+    padding: 0 12px 4px;
+}
+.settle-adjust-head span:not(:first-child) { text-align: right; }
+.settle-adjust-row {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 9px 12px;
+    background: #FAFBFD;
+}
+.settle-adjust-label { font-size: 12.5px; font-weight: 700; color: #374151; }
+.settle-adjust-base { text-align: right; font-size: 11.5px; color: #9CA3AF; font-variant-numeric: tabular-nums; }
+.settle-adjust-input {
+    text-align: right;
+    font-size: 12.5px !important;
+    padding: 6px 9px !important;
+    font-variant-numeric: tabular-nums;
+}
+.settle-adjust-diff {
+    text-align: right;
+    font-size: 12.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #9CA3AF;
+}
+
+/* 드로어 합계 줄 */
+.settle-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px dashed #CDD3E4;
+    padding-top: 12px;
+}
+.settle-total-key { display: block; font-size: 12px; font-weight: 700; color: #4A4F5E; }
+.settle-total-sub { display: block; font-size: 10.5px; color: #9CA3AF; margin-top: 1px; }
+.settle-total-value { font-size: 20px; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+.settle-field { display: block; font-size: 11.5px; font-weight: 700; color: #4A4F5E; }
+.settle-field .tsa-input { width: 100%; margin-top: 5px; font-size: 12.5px; }

@@ -667,13 +667,13 @@ const MOCK_TEACHERS = [
     intro: 'Experienced in 1:1 and small group sessions. Focused on listening and speaking improvement.',
     education: 'Bachelor of Arts in English — University of Cebu-Lapu-Lapu and Mandaue', hobby: 'Singing, Hiking, Cooking' },
 
-  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,false], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1','1:4'],
+  { id: 8, name: 'Karen Villanueva', nick: 'Karen', gender: '여', type: '일반 영어 (1:1)', room: '', contract: '정규직', available: true, todaySlots: 6, rating: 4.6, exp: 3, status: 'active', availability: [true,true,true,true,true,true,false,true], preferredCourses: ['일반 영어 스피킹'], excludedCourses: [], classTypes: ['1:1','1:4'],
     email: 'karen.v@talkstation.co', phone: '+63-919-888-8888', birthday: '1991-06-25', joinDate: '2022-02-07', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Experienced', grade4ms: 'B', gradePronunciation: 'A',
     greeting: 'Hello! I\'m Teacher Karen. I make sure every student leaves the class smiling and more confident!',
     intro: 'I specialize in helping intermediate learners break through their plateau and reach fluency.',
     education: 'Bachelor of Secondary Education — University of San Carlos', hobby: 'Badminton, K-drama, Cooking' },
 
-  { id: 9, name: 'Mark Dela Cruz', nick: 'Mark', gender: '남', type: '그룹 수업', room: '', contract: '정규직', available: true, todaySlots: 4, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,false,false,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['주니어 ESL'], classTypes: ['1:4','1:8'],
+  { id: 9, name: 'Mark Dela Cruz', nick: 'Mark', gender: '남', type: '그룹 수업', room: '', contract: '정규직', available: true, todaySlots: 5, rating: 4.5, exp: 2, status: 'active', availability: [true,true,true,true,true,false,true,false], preferredCourses: ['일반 영어 스피킹','일반 영어 리스닝'], excludedCourses: ['주니어 ESL'], classTypes: ['1:4','1:8'],
     email: 'mark.d@talkstation.co', phone: '+63-912-999-9999', birthday: '1994-04-18', joinDate: '2023-06-12', jobGrade: 'Regular Tutor', talkStatus: 'Employed', experience: 'Now', grade4ms: 'B', gradePronunciation: 'B',
     greeting: 'Hey! I\'m Teacher Mark. Group classes are where the magic happens — let\'s learn together!',
     intro: 'I create a comfortable and dynamic environment for group learning. Energy and humor are my teaching tools.',

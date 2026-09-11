@@ -4,8 +4,12 @@
 const VIEW_MAP = {
   dashboard: { el: 'view-dashboard', menu: 'menu-dashboard', label: '대시보드', sec: '개요' },
   timetable: { el: 'view-timetable', menu: 'menu-timetable', label: '시간표 배정', sec: '학사 관리' },
-  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-student-class-assign', label: '주간 수업 배정', sec: '학사 관리' },
-  'student-timetable': { el: 'view-student-timetable', menu: 'menu-student-timetable', label: '학생 시간표 배정', sec: '학사 관리' },
+  // 세 화면은 같은 패널을 나눠 쓴다. 하는 일이 달라 메뉴만 갈랐다 — el 이 같은 것은 의도다.
+  'group-assign': { el: 'view-student-class-assign', menu: 'menu-group-assign', label: '그룹 수업 배정', sec: '학사 관리' },
+  'one-to-one-assign': { el: 'view-student-class-assign', menu: 'menu-one-to-one-assign', label: '1:1 배정', sec: '학사 관리' },
+  'full-timetable': { el: 'view-student-class-assign', menu: 'menu-full-timetable', label: '전체 시간표', sec: '학사 관리' },
+  // 예전 링크가 남아 있어 라우트만 유지한다. 메뉴는 위 셋이 대신한다.
+  'student-class-assign': { el: 'view-student-class-assign', menu: 'menu-group-assign', label: '그룹 수업 배정', sec: '학사 관리' },
   'class-schedule': { el: 'view-class-schedule', menu: 'menu-class-schedule', label: '1:1 수업 관리', sec: '학사 관리' },
   'classroom-manage': { el: 'view-classroom-manage', menu: 'menu-classroom-manage', label: '강의실 관리', sec: '학사 관리' },
   'timetable-status': { el: 'view-timetable-status', menu: 'menu-timetable-status', label: '시간표 현황', sec: '학사 관리' },
@@ -119,11 +123,11 @@ function navigate(view) {
     renderMonthlyInvoiceStats();
   } else if (view === 'passport-access-log') {
     if (typeof initPassportAccessLogView === 'function') initPassportAccessLogView();
+  } else if (view === 'group-assign' || view === 'one-to-one-assign' || view === 'full-timetable') {
+    if (typeof enterScaRoute === 'function') enterScaRoute(view);
   } else if (view === 'student-class-assign') {
-    if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
-  } else if (view === 'student-timetable') {
-    if (typeof openStudentTimetableView === 'function') openStudentTimetableView();
-    else if (typeof renderStudentTimetableView === 'function') renderStudentTimetableView();
+    if (typeof enterScaRoute === 'function') enterScaRoute('group-assign');
+    else if (typeof renderStudentClassAssignView === 'function') renderStudentClassAssignView();
   } else if (view === 'class-schedule') {
     initClassSchedule();
   } else if (view === 'classroom-manage') {

@@ -1655,13 +1655,17 @@
       <!-- Admin 전용 -->
       <div class="tsa-sidebar-section admin-only" id="section-academic">Academic</div>
       <div class="admin-only" style="display:flex;flex-direction:column;gap:1px;margin-bottom:1px;">
-        <a class="tsa-nav-item admin-only" id="menu-student-class-assign" onclick="navigateStudentClassAssign()">
-          <i data-lucide="calendar-days"></i>
-          주간 수업 배정
+        <a class="tsa-nav-item admin-only" id="menu-group-assign" onclick="navigate('group-assign')">
+          <i data-lucide="users"></i>
+          그룹 수업 배정
         </a>
-        <a class="tsa-nav-item admin-only" id="menu-student-timetable" onclick="navigate('student-timetable')">
-          <i data-lucide="clock"></i>
-          학생 시간표 배정
+        <a class="tsa-nav-item admin-only" id="menu-one-to-one-assign" onclick="navigate('one-to-one-assign')">
+          <i data-lucide="user"></i>
+          1:1 배정
+        </a>
+        <a class="tsa-nav-item admin-only" id="menu-full-timetable" onclick="navigate('full-timetable')">
+          <i data-lucide="calendar-days"></i>
+          전체 시간표
         </a>
         <a class="tsa-nav-item admin-only" id="menu-classroom-manage" onclick="navigate('classroom-manage')">
           <i data-lucide="building-2"></i>
@@ -3625,23 +3629,6 @@
         <!-- ================================================ -->
         <!--  VIEW: STUDENT CLASS ASSIGN (1:1 + 그룹 통합)      -->
         <!-- ================================================ -->
-        <!-- ================================================ -->
-        <!--  VIEW: STUDENT TIMETABLE (A/B 조 배정)            -->
-        <!-- ================================================ -->
-        <div id="view-student-timetable" class="tsa-view">
-          <div class="tsa-section-header" style="margin-bottom:16px">
-            <div>
-              <h2 class="tsa-page-title">⏱ 학생 시간표 배정</h2>
-              <p class="tsa-page-subtitle">학생을 A조 · B조에 넣습니다. 조가 정해져야 그 학생의 교시 시각이 정해지고, 반에도 들어갈 수 있습니다.</p>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="navigate('course-period')"><i data-lucide="clock"></i> 시간표 설정</button>
-              <button class="tsa-btn tsa-btn-outline tsa-btn-sm" onclick="navigateStudentClassAssign()"><i data-lucide="calendar-days"></i> 주간 수업 배정</button>
-            </div>
-          </div>
-          <div id="student-timetable-body"></div>
-        </div>
-
         <div id="view-student-class-assign" class="tsa-view">
           <div class="tsa-section-header" style="margin-bottom:16px">
             <div>
@@ -7242,7 +7229,7 @@
       </div>
       <div class="tsa-modal-footer" style="flex-shrink:0;position:relative;z-index:2;background:#fff">
         <button class="tsa-btn tsa-btn-outline" onclick="closeModal('student-course-registration-modal')">취소</button>
-        <button class="tsa-btn tsa-btn-primary" onclick="saveStudentCourseRegistration()">
+        <button class="tsa-btn tsa-btn-primary" id="course-reg-save-btn" onclick="saveStudentCourseRegistration()">
           <i data-lucide="check"></i> 수강 등록
         </button>
       </div>
@@ -7562,11 +7549,11 @@
 <script src="assets/js/lms-data.js?v=0.7.2"></script>
 <script src="assets/js/lms-util.js?v=0.6.15"></script>
 <script src="assets/js/lms-auth.js?v=0.6.2"></script>
-<script src="assets/js/lms-teacher.js?v=0.6.12"></script>
+<script src="assets/js/lms-teacher.js?v=0.6.13"></script>
 <script src="assets/js/lms-student.js?v=0.6.8"></script>
     <script src="assets/js/lms-course.js?v=0.6.84"></script>
 <script src="assets/js/lms-tuition.js?v=0.7.13"></script>
-<script src="assets/js/lms-classroom.js?v=0.16.10"></script>
+<script src="assets/js/lms-classroom.js?v=0.16.11"></script>
 <script src="assets/js/lms-agency-visit.js?v=0.1.0"></script>
 <script src="assets/js/lms-meal.js?v=0.1.0"></script>
     <script src="assets/js/lms-main.js?v=0.6.14"></script>
